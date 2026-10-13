@@ -286,7 +286,7 @@ export default function App() {
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Express API</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: '700' }}>
                     {isBackendOnline ? <CheckCircle2 size={16} color="#4ade80" /> : <XCircle size={16} color="#ef4444" />}
-                    <span>{isBackendOnline ? 'Online (:5000)' : 'Offline'}</span>
+                    <span>{isBackendOnline ? 'Online (:5001)' : 'Offline'}</span>
                   </div>
                 </div>
 
