@@ -1,549 +1,341 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Server,
-  Database,
   Layers,
+  FileText,
+  Search,
+  Shield,
+  Server,
   Activity,
   CheckCircle2,
   XCircle,
   RefreshCw,
-  Plus,
-  Trash2,
-  Cpu,
-  Clock,
-  ArrowRight,
+  ExternalLink,
 } from 'lucide-react';
+import DynamicFormRenderer from './components/client/DynamicFormRenderer';
+import ClientTrackingPortal from './components/client/ClientTrackingPortal';
+import StaffWorkspace from './components/common/StaffWorkspace';
+import { api } from './services/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function App() {
-  const [health, setHealth] = useState(null);
-  const [items, setItems] = useState([]);
-  const [loadingHealth, setLoadingHealth] = useState(true);
-  const [loadingItems, setLoadingItems] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [currentView, setCurrentView] = useState('public_form'); // 'public_form' | 'tracking' | 'staff' | 'diagnostics'
+  const [activeFormSlug, setActiveFormSlug] = useState('wedding-magazine');
+  const [availableForms, setAvailableForms] = useState([]);
+  const [backendHealth, setBackendHealth] = useState(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+
+  useEffect(() => {
+    checkHealth();
+    loadPublicForms();
+  }, []);
 
   const checkHealth = async () => {
     setLoadingHealth(true);
-    setError(null);
     try {
       const res = await fetch(`${API_BASE}/api/health`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setHealth(data);
+      setBackendHealth(data);
     } catch (err) {
-      setHealth({ status: 'offline', message: err.message, database: { status: 'offline' } });
-      setError('Could not connect to backend server. Make sure it is running on port 5000.');
+      setBackendHealth({ status: 'offline', message: err.message, database: { status: 'offline' } });
     } finally {
       setLoadingHealth(false);
     }
   };
 
-  const fetchItems = async () => {
-    setLoadingItems(true);
+  const loadPublicForms = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/items`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const result = await res.json();
-      setItems(result.data || []);
-    } catch (err) {
-      console.error('Fetch error:', err);
-    } finally {
-      setLoadingItems(false);
+      const data = await api.public.getForms();
+      setAvailableForms(data.forms || []);
+    } catch (e) {
+      // Ignore initial load error if offline
     }
   };
 
-  useEffect(() => {
-    checkHealth();
-    fetchItems();
-  }, []);
-
-  const handleAddItem = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description }),
-      });
-      if (!res.ok) throw new Error('Failed to create item');
-      setTitle('');
-      setDescription('');
-      await fetchItems();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteItem = async (id) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/items/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('Failed to delete item');
-      await fetchItems();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const isBackendOnline = health && health.status === 'ok';
+  const isBackendOnline = backendHealth?.status === 'ok';
 
   return (
-    <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '32px 20px' }}>
-      {/* Header */}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Universal Top Navigation Header */}
       <header
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          backgroundColor: 'var(--card-bg)',
           borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '20px',
-          marginBottom: '32px',
+          padding: '0 24px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div
+          style={{
+            maxWidth: '1280px',
+            margin: '0 auto',
+            height: '64px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Logo / Brand */}
           <div
-            style={{
-              backgroundColor: 'var(--accent-primary)',
-              borderRadius: '8px',
-              padding: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            onClick={() => setCurrentView('public_form')}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
           >
-            <Layers size={26} color="#ffffff" />
-          </div>
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', letterSpacing: '-0.5px' }}>
-              Tinzel MERN Stack
-            </h1>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              Full-Stack Architecture & Live Connectivity Monitor
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            checkHealth();
-            fetchItems();
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-main)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: '500',
-          }}
-        >
-          <RefreshCw size={14} className={loadingHealth ? 'spin' : ''} />
-          Refresh Status
-        </button>
-      </header>
-
-      {/* Connectivity Banner / Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '16px',
-          marginBottom: '32px',
-        }}
-      >
-        {/* Backend Status Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Server size={18} color="var(--text-muted)" />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Express Backend</span>
-            </div>
-            {isBackendOnline ? (
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  backgroundColor: '#064e3b',
-                  color: '#6ee7b7',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                }}
-              >
-                <CheckCircle2 size={12} /> Connected
-              </span>
-            ) : (
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  backgroundColor: '#7f1d1d',
-                  color: '#fca5a5',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                }}
-              >
-                <XCircle size={12} /> Offline
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Port: 5000 • Proxy: Active
-          </div>
-          {health?.uptimeSeconds !== undefined && (
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={12} /> Uptime: {health.uptimeSeconds}s
-            </div>
-          )}
-        </div>
-
-        {/* Database Status Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Database size={18} color="var(--text-muted)" />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>MongoDB</span>
-            </div>
-            {health?.database?.status === 'connected' ? (
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  backgroundColor: '#064e3b',
-                  color: '#6ee7b7',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                }}
-              >
-                <CheckCircle2 size={12} /> Connected
-              </span>
-            ) : (
-              <span
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  backgroundColor: '#451a03',
-                  color: '#fcd34d',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                }}
-              >
-                Fallback Mode
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Status: {health?.database?.status || 'Unknown'}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {health?.database?.status === 'connected' ? 'Atlas/Local instance active' : 'In-memory fallback ready'}
-          </div>
-        </div>
-
-        {/* Frontend Status Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Cpu size={18} color="var(--text-muted)" />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>React & Vite</span>
-            </div>
-            <span
+            <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                backgroundColor: '#064e3b',
-                color: '#6ee7b7',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: '600',
-              }}
-            >
-              <CheckCircle2 size={12} /> Running
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Port: 5173 • Fast Refresh
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Proxy: /api -&gt; localhost:5000
-          </div>
-        </div>
-      </div>
-
-      {/* Error alert if any */}
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#450a0a',
-            border: '1px solid var(--accent-danger)',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '24px',
-            fontSize: '14px',
-            color: '#fca5a5',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <XCircle size={16} />
-          {error}
-        </div>
-      )}
-
-      {/* Main Content: Interactive API Communication Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '24px' }}>
-        {/* Create Item Panel */}
-        <section
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Activity size={18} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '17px', fontWeight: '600' }}>Test Backend Communication</h2>
-          </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-            Send a POST request through the frontend to verify live read/write roundtrip.
-          </p>
-
-          <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
-                Item Title
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Verify database migrations"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  color: 'var(--text-main)',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-muted)' }}>
-                Description
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Brief notes or payload description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  color: 'var(--text-main)',
-                  fontSize: '14px',
-                  outline: 'none',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting || !title.trim()}
-              style={{
+                backgroundColor: 'var(--accent-primary)',
+                borderRadius: '8px',
+                padding: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                backgroundColor: title.trim() ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                color: '#ffffff',
-                padding: '10px 16px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                transition: 'background-color 0.15s ease',
               }}
             >
-              <Plus size={16} />
-              {submitting ? 'Submitting...' : 'Send to API'}
-            </button>
-          </form>
-        </section>
-
-        {/* Items List Panel */}
-        <section
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '17px', fontWeight: '600' }}>Live API Data ({items.length})</h2>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>GET /api/items</span>
+              <Layers size={22} color="#ffffff" />
+            </div>
+            <div>
+              <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                Tinzel
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-muted)',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  marginLeft: '8px',
+                  fontWeight: '600',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                CONVEYOR BELT (STR-TNZ-US-001)
+              </span>
+            </div>
           </div>
 
-          {loadingItems ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-              Fetching records from API...
-            </div>
-          ) : items.length === 0 ? (
-            <div
+          {/* Navigation Items */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => setCurrentView('public_form')}
               style={{
-                border: '1px dashed var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
                 borderRadius: '6px',
-                padding: '32px',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-                fontSize: '14px',
+                backgroundColor: currentView === 'public_form' ? 'var(--accent-primary)' : 'transparent',
+                color: currentView === 'public_form' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: '600',
+                border: 'none',
               }}
             >
-              No items found. Create one using the form on the left.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {items.map((item) => (
-                <div
-                  key={item._id}
+              <FileText size={15} />
+              Submit Magazine
+            </button>
+
+            <button
+              onClick={() => setCurrentView('tracking')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                backgroundColor: currentView === 'tracking' ? 'var(--accent-primary)' : 'transparent',
+                color: currentView === 'tracking' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: '600',
+                border: 'none',
+              }}
+            >
+              <Search size={15} />
+              Client Track & Review (OTP)
+            </button>
+
+            <button
+              onClick={() => setCurrentView('staff')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                backgroundColor: currentView === 'staff' ? 'var(--accent-primary)' : 'transparent',
+                color: currentView === 'staff' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: '600',
+                border: 'none',
+              }}
+            >
+              <Shield size={15} />
+              Staff Workstation
+            </button>
+
+            <button
+              onClick={() => setCurrentView('diagnostics')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                backgroundColor: currentView === 'diagnostics' ? 'var(--bg-secondary)' : 'transparent',
+                color: currentView === 'diagnostics' ? 'var(--text-main)' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: '500',
+                border: `1px solid ${currentView === 'diagnostics' ? 'var(--border-color)' : 'transparent'}`,
+              }}
+            >
+              <Server size={14} />
+              Diagnostics
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main style={{ flex: 1, maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '32px 20px' }}>
+        {/* View 1: Public Submission Form */}
+        {currentView === 'public_form' && (
+          <div>
+            {availableForms.length > 1 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '24px',
+                  maxWidth: '780px',
+                  margin: '0 auto 24px auto',
+                }}
+              >
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  Select Event Type:
+                </span>
+                {availableForms.map((f) => (
+                  <button
+                    key={f.slug}
+                    onClick={() => setActiveFormSlug(f.slug)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      backgroundColor: activeFormSlug === f.slug ? 'var(--accent-primary)' : 'var(--card-bg)',
+                      color: activeFormSlug === f.slug ? '#ffffff' : 'var(--text-muted)',
+                      border: '1px solid var(--border-color)',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {f.title}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <DynamicFormRenderer
+              slug={activeFormSlug}
+              onNavigateToTracking={() => setCurrentView('tracking')}
+            />
+          </div>
+        )}
+
+        {/* View 2: Client Tracking & Whole-Magazine Review Portal */}
+        {currentView === 'tracking' && <ClientTrackingPortal />}
+
+        {/* View 3: Staff Workspace (Manager / Designer / Admin) */}
+        {currentView === 'staff' && <StaffWorkspace />}
+
+        {/* View 4: Live Diagnostics */}
+        {currentView === 'diagnostics' && (
+          <div style={{ maxWidth: '840px', margin: '0 auto' }}>
+            <div
+              style={{
+                backgroundColor: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '24px',
+                marginBottom: '24px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '700' }}>Platform Connectivity Diagnostics</h2>
+                <button
+                  onClick={checkHealth}
                   style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    padding: '14px 16px',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '12px',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--border-color)',
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
                   }}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: '600', fontSize: '14px' }}>{item.title}</span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          textTransform: 'uppercase',
-                          fontWeight: '600',
-                          letterSpacing: '0.5px',
-                          color: item.status === 'completed' ? '#4ade80' : '#fbbf24',
-                        }}
-                      >
-                        [{item.status}]
-                      </span>
-                    </div>
-                    {item.description && (
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                        {item.description}
-                      </p>
-                    )}
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      ID: {item._id}
-                    </span>
+                  <RefreshCw size={13} className={loadingHealth ? 'spin' : ''} />
+                  Ping API
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Express API</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: '700' }}>
+                    {isBackendOnline ? <CheckCircle2 size={16} color="#4ade80" /> : <XCircle size={16} color="#ef4444" />}
+                    <span>{isBackendOnline ? 'Online (:5000)' : 'Offline'}</span>
                   </div>
-
-                  <button
-                    onClick={() => handleDeleteItem(item._id)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      color: 'var(--text-muted)',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    title="Delete item"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
 
-      {/* Documentation / Architecture Footer */}
+                <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>MongoDB Database</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: '700' }}>
+                    {backendHealth?.database?.status === 'connected' ? (
+                      <CheckCircle2 size={16} color="#4ade80" />
+                    ) : (
+                      <Activity size={16} color="#fbbf24" />
+                    )}
+                    <span>{backendHealth?.database?.status || 'Unknown'}</span>
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Specification</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#60a5fa' }}>STR-TNZ-US-001 v1.0</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                <p style={{ marginBottom: '8px' }}>
+                  <strong>Conveyor Belt Gate Rules:</strong>
+                </p>
+                <ul style={{ paddingLeft: '20px' }}>
+                  <li>Tracking ID (TNZ-YYYY-XXXX) is issued only upon Manager payment verification.</li>
+                  <li>Draft versions are gated by Manager review before becoming visible in the Client portal.</li>
+                  <li>Whole-magazine approval by Client is required before high-res print packages can be prepared.</li>
+                  <li>Print dispatch is sent via WhatsApp to the Printing Person with file links & specs.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
       <footer
         style={{
-          marginTop: '40px',
           borderTop: '1px solid var(--border-color)',
-          paddingTop: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '13px',
+          backgroundColor: 'var(--card-bg)',
+          padding: '16px 24px',
+          textAlign: 'center',
+          fontSize: '12px',
           color: 'var(--text-muted)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span>MongoDB</span>
-          <ArrowRight size={12} />
-          <span>Express.js</span>
-          <ArrowRight size={12} />
-          <span>React</span>
-          <ArrowRight size={12} />
-          <span>Node.js</span>
-        </div>
-        <div>Tinzel Architecture Ready</div>
+        Tinzel Magazine Conveyor Belt • Stryxis STR-TNZ-US-001 • Solid Flat Color Palette • Zero Gradients • Zero Emojis
       </footer>
     </div>
   );
