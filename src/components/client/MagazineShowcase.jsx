@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Button, Spin } from 'antd';
+import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import DynamicFormRenderer from './DynamicFormRenderer';
@@ -8,9 +8,17 @@ function MagazineCoverCard({ form, onSelect }) {
   const [hovered, setHovered] = useState(false);
   const coverImage = form.coverImageUrl || '/brand/magazine-cover-sample.jpg';
 
+  // Format title: If it contains 'Harusi Yetu - Wedding Edition', clean to 'Wedding Magazine'
+  let displayTitle = form.title || 'Personalized Magazine';
+  if (displayTitle.toLowerCase().includes('harusi yetu') || form.slug === 'wedding-magazine') {
+    displayTitle = 'Wedding Magazine';
+  } else if (displayTitle.toLowerCase().includes('birthday celebration special')) {
+    displayTitle = 'Birthday Magazine';
+  }
+
   return (
     <div style={{ textAlign: 'center' }}>
-      {/* Interactive Magazine Cover Link */}
+      {/* Interactive Magazine Cover Link - Pure clean art, no buttons or pill tags */}
       <div
         role="button"
         tabIndex={0}
@@ -42,7 +50,7 @@ function MagazineCoverCard({ form, onSelect }) {
         <div style={{ position: 'relative', width: '100%', paddingTop: '141.4%', backgroundColor: '#1C1917' }}>
           <img
             src={coverImage}
-            alt={form.title}
+            alt={displayTitle}
             style={{
               position: 'absolute',
               top: 0,
@@ -80,64 +88,38 @@ function MagazineCoverCard({ form, onSelect }) {
               transition: 'border-color 0.3s ease',
             }}
           />
-
-          {/* Hover Action Pill Indicator */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '16px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: hovered ? '#C5A059' : 'rgba(28, 25, 23, 0.85)',
-              color: '#FFFFFF',
-              padding: '6px 16px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '700',
-              letterSpacing: '0.8px',
-              textTransform: 'uppercase',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.25s ease',
-            }}
-          >
-            {hovered ? 'Personalize This Edition' : 'Click Cover to Customize'}
-          </div>
         </div>
       </div>
 
-      {/* Minimal Bottom Title & Price */}
-      <div style={{ marginTop: '20px' }}>
+      {/* Ultra Minimalist Bottom Title & Price Only */}
+      <div style={{ marginTop: '18px' }}>
         <h2
           onClick={() => onSelect(form.slug)}
           style={{
             fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
             fontStyle: 'italic',
-            fontSize: '30px',
+            fontSize: '32px',
             fontWeight: '600',
             color: hovered ? '#C5A059' : '#1C1917',
             marginBottom: '4px',
             cursor: 'pointer',
             transition: 'color 0.2s ease',
-            lineHeight: '1.15',
+            lineHeight: '1.2',
           }}
         >
-          {form.title}
+          {displayTitle}
         </h2>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#C5A059',
-              letterSpacing: '0.5px',
-            }}
-          >
-            {form.price?.toLocaleString()} {form.currency}
-          </span>
-          <span style={{ color: '#D6D3D1' }}>•</span>
-          <span style={{ fontSize: '13px', color: '#78716C' }}>
-            {form.magazineType || 'Keepsake Edition'}
-          </span>
+
+        {/* Price only in gold text */}
+        <div
+          style={{
+            fontSize: '14px',
+            fontWeight: '700',
+            color: '#C5A059',
+            letterSpacing: '0.6px',
+          }}
+        >
+          {form.price?.toLocaleString()} {form.currency}
         </div>
       </div>
     </div>
@@ -170,19 +152,26 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
     return (
       <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '60px' }}>
         <div style={{ marginBottom: '24px' }}>
-          <Button
+          <button
+            type="button"
             onClick={() => setSelectedFormSlug(null)}
-            icon={<ArrowLeftOutlined />}
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
               backgroundColor: '#FFFFFF',
-              borderColor: '#E7E5E4',
-              color: '#1C1917',
-              fontWeight: '600',
+              border: '1px solid #E7E5E4',
               borderRadius: '6px',
+              color: '#1C1917',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
             }}
+            title="Back to Magazine Editions"
           >
-            Back to Magazine Editions
-          </Button>
+            <ArrowLeftOutlined style={{ fontSize: '16px' }} />
+          </button>
         </div>
 
         <DynamicFormRenderer
@@ -195,58 +184,65 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
 
   return (
     <div style={{ maxWidth: '1120px', margin: '0 auto', paddingBottom: '60px' }}>
-      {/* Top Header / Back Link */}
+      {/* Top Header / Minimalist Back Arrow & Refined Header */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '36px',
+          marginBottom: '48px',
           borderBottom: '1px solid #E7E5E4',
-          paddingBottom: '16px',
+          paddingBottom: '20px',
         }}
       >
-        <Button
+        <button
+          type="button"
           onClick={onBackToHome}
-          icon={<ArrowLeftOutlined />}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '42px',
+            height: '42px',
             backgroundColor: '#FFFFFF',
-            borderColor: '#E7E5E4',
-            color: '#1C1917',
-            fontWeight: '600',
+            border: '1px solid #E7E5E4',
             borderRadius: '6px',
+            color: '#1C1917',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
           }}
+          title="Back to Home"
         >
-          Back to Home
-        </Button>
+          <ArrowLeftOutlined style={{ fontSize: '16px' }} />
+        </button>
 
         <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+              fontStyle: 'italic',
+              fontSize: '26px',
+              fontWeight: '600',
+              color: '#1C1917',
+              lineHeight: '1.1',
+              marginBottom: '2px',
+            }}
+          >
             Tinzel Editorial Catalogue
-          </span>
-          <div style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '20px', fontWeight: '600', color: '#1C1917' }}>
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
+              fontSize: '12px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#C5A059',
+            }}
+          >
             Select Your Magazine Format
           </div>
         </div>
-      </div>
-
-      {/* Editorial Introduction */}
-      <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 48px auto' }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-            fontSize: '44px',
-            fontWeight: '600',
-            color: '#1C1917',
-            marginBottom: '8px',
-            lineHeight: '1.15',
-          }}
-        >
-          Curated Magazine Editions
-        </h1>
-        <p style={{ fontSize: '15px', color: '#78716C', lineHeight: '1.6' }}>
-          Select an edition below to begin personalizing your love story, wedding vows, or anniversary memories into a printed publication.
-        </p>
       </div>
 
       {loading ? (
