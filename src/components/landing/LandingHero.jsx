@@ -1,17 +1,47 @@
-import React from 'react';
-import { Button, Card, Row, Col, Typography, Tag, Divider } from 'antd';
-import {
-  BookOutlined,
-  SearchOutlined,
-  UserOutlined,
-  HeartOutlined,
-  CheckCircleOutlined,
-  ArrowRightOutlined,
-  CalendarOutlined,
-  SafetyCertificateOutlined,
-} from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Button, Row, Col } from 'antd';
+import { BookOutlined, UserOutlined, HeartOutlined } from '@ant-design/icons';
 
-const { Title, Paragraph, Text } = Typography;
+function OptionCard({ label, onClick, variant }) {
+  const [hovered, setHovered] = useState(false);
+  const isPrimary = variant === 'primary';
+
+  const baseBg = isPrimary ? '#991B1B' : '#FFFFFF';
+  const hoverBg = isPrimary ? '#7F1D1D' : '#FFFBEB';
+  const textColor = isPrimary ? '#FFFFFF' : '#991B1B';
+  const borderColor = isPrimary ? '#991B1B' : '#B45309';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%',
+        height: '240px',
+        backgroundColor: hovered ? hoverBg : baseBg,
+        border: `2px solid ${borderColor}`,
+        outline: `1px solid ${isPrimary ? '#D97706' : 'transparent'}`,
+        outlineOffset: '-10px',
+        borderRadius: '14px',
+        color: textColor,
+        fontFamily: '"Georgia", "Times New Roman", serif',
+        fontSize: '34px',
+        fontWeight: '700',
+        letterSpacing: '-0.3px',
+        lineHeight: '1.2',
+        padding: '0 32px',
+        cursor: 'pointer',
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        boxShadow: hovered ? '0 14px 30px rgba(153, 27, 27, 0.14)' : '0 4px 12px rgba(0, 0, 0, 0.04)',
+        transition: 'all 0.25s ease',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
 
 export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLogin }) {
   return (
@@ -70,24 +100,22 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         </div>
 
         {/* Top-Right Login Button */}
-        <div>
-          <Button
-            onClick={onOpenLogin}
-            icon={<UserOutlined style={{ color: '#991B1B' }} />}
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderColor: '#B45309',
-              color: '#1C1917',
-              height: '38px',
-              padding: '0 18px',
-              fontSize: '13px',
-              fontWeight: '600',
-              borderRadius: '6px',
-            }}
-          >
-            Staff Login
-          </Button>
-        </div>
+        <Button
+          onClick={onOpenLogin}
+          icon={<UserOutlined style={{ color: '#991B1B' }} />}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderColor: '#B45309',
+            color: '#1C1917',
+            height: '38px',
+            padding: '0 18px',
+            fontSize: '13px',
+            fontWeight: '600',
+            borderRadius: '6px',
+          }}
+        >
+          Login
+        </Button>
       </div>
 
       {/* Hero Narrative */}
@@ -141,222 +169,13 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         </p>
       </div>
 
-      {/* The Two Big Options */}
+      {/* The Two Big Options — minimal */}
       <Row gutter={[28, 28]} justify="center">
-        {/* Option 1: New Magazine Order */}
         <Col xs={24} md={12}>
-          <div
-            onClick={onSelectNewOrder}
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '2px solid #991B1B',
-              borderRadius: '12px',
-              padding: '36px 32px',
-              cursor: 'pointer',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-              position: 'relative',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div
-                  style={{
-                    backgroundColor: '#991B1B',
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #B45309',
-                  }}
-                >
-                  <BookOutlined style={{ fontSize: '24px', color: '#FFFFFF' }} />
-                </div>
-                <Tag
-                  color="#991B1B"
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    padding: '3px 10px',
-                    borderRadius: '4px',
-                    color: '#FFFFFF',
-                    backgroundColor: '#991B1B',
-                    border: 'none',
-                  }}
-                >
-                  Start New
-                </Tag>
-              </div>
-
-              <h2
-                style={{
-                  fontFamily: '"Georgia", serif',
-                  fontSize: '25px',
-                  fontWeight: '800',
-                  color: '#1C1917',
-                  marginBottom: '12px',
-                  lineHeight: '1.25',
-                }}
-              >
-                New Magazine Order
-              </h2>
-
-              <p style={{ fontSize: '14px', color: '#78716C', lineHeight: '1.6', marginBottom: '22px' }}>
-                Begin your customized magazine. Select your preferred event edition, submit your love story and
-                speeches, upload your high-resolution photos, and have our artists design your layout.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#B45309' }} />
-                  <span>Curated wedding & celebration layouts</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#B45309' }} />
-                  <span>High-resolution photo spreads & custom stories</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#B45309' }} />
-                  <span>Direct Lipa Namba payment & prompt artist assignment</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              type="primary"
-              size="large"
-              block
-              style={{
-                backgroundColor: '#991B1B',
-                borderColor: '#991B1B',
-                color: '#FFFFFF',
-                height: '48px',
-                fontSize: '15px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
-            >
-              Order a New Magazine <ArrowRightOutlined />
-            </Button>
-          </div>
+          <OptionCard label="New Magazine Order" onClick={onSelectNewOrder} variant="primary" />
         </Col>
-
-        {/* Option 2: Magazine Order Follow Up */}
         <Col xs={24} md={12}>
-          <div
-            onClick={onOpenFollowUp}
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '2px solid #B45309',
-              borderRadius: '12px',
-              padding: '36px 32px',
-              cursor: 'pointer',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-              position: 'relative',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '2px solid #B45309',
-                  }}
-                >
-                  <SearchOutlined style={{ fontSize: '24px', color: '#B45309' }} />
-                </div>
-                <Tag
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    padding: '3px 10px',
-                    borderRadius: '4px',
-                    color: '#B45309',
-                    backgroundColor: '#FEF3C7',
-                    border: '1px solid #FDE68A',
-                  }}
-                >
-                  Client Portal
-                </Tag>
-              </div>
-
-              <h2
-                style={{
-                  fontFamily: '"Georgia", serif',
-                  fontSize: '25px',
-                  fontWeight: '800',
-                  color: '#1C1917',
-                  marginBottom: '12px',
-                  lineHeight: '1.25',
-                }}
-              >
-                Magazine Order Follow Up
-              </h2>
-
-              <p style={{ fontSize: '14px', color: '#78716C', lineHeight: '1.6', marginBottom: '22px' }}>
-                Already placed an order? Enter your Magazine Order Number to view design progress, inspect
-                whole-magazine draft proofs page-by-page, and authorize the final print run.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#991B1B' }} />
-                  <span>Real-time conveyor belt production status</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#991B1B' }} />
-                  <span>Private whole-magazine proof reader & flip viewer</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#1C1917' }}>
-                  <CheckCircleOutlined style={{ color: '#991B1B' }} />
-                  <span>One-click whole-magazine print authorization</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              size="large"
-              block
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: '#B45309',
-                color: '#B45309',
-                height: '48px',
-                fontSize: '15px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
-            >
-              Track Order with Number <SearchOutlined />
-            </Button>
-          </div>
+          <OptionCard label="Magazine Order Follow Up" onClick={onOpenFollowUp} variant="secondary" />
         </Col>
       </Row>
 
