@@ -63,42 +63,12 @@ export default function App() {
                 <TinzelLogo variant="full" height={36} />
               </div>
 
-              {/* Right Action Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Button
-                  onClick={() => setCurrentView('home')}
-                  icon={<HomeOutlined />}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    borderColor: '#E7E5E4',
-                    color: '#1C1917',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                  }}
-                >
-                  Home
-                </Button>
-
-                {currentView !== 'tracking' && (
+              {/* Right Action Buttons (hidden on editorial catalogue showcase for pure minimalism) */}
+              {currentView !== 'showcase' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Button
-                    onClick={() => setFollowUpModalOpen(true)}
-                    icon={<SearchOutlined style={{ color: '#B45309' }} />}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      borderColor: '#B45309',
-                      color: '#B45309',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                    }}
-                  >
-                    Follow Up Order
-                  </Button>
-                )}
-
-                {currentView !== 'staff' && (
-                  <Button
-                    onClick={() => setCurrentView('staff')}
-                    icon={<UserOutlined style={{ color: '#991B1B' }} />}
+                    onClick={() => setCurrentView('home')}
+                    icon={<HomeOutlined />}
                     style={{
                       backgroundColor: '#FFFFFF',
                       borderColor: '#E7E5E4',
@@ -107,10 +77,42 @@ export default function App() {
                       fontSize: '13px',
                     }}
                   >
-                    Staff Login
+                    Home
                   </Button>
-                )}
-              </div>
+
+                  {currentView !== 'tracking' && (
+                    <Button
+                      onClick={() => setFollowUpModalOpen(true)}
+                      icon={<SearchOutlined style={{ color: '#B45309' }} />}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderColor: '#B45309',
+                        color: '#B45309',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                      }}
+                    >
+                      Follow Up Order
+                    </Button>
+                  )}
+
+                  {currentView !== 'staff' && (
+                    <Button
+                      onClick={() => setCurrentView('staff')}
+                      icon={<UserOutlined style={{ color: '#991B1B' }} />}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderColor: '#E7E5E4',
+                        color: '#1C1917',
+                        fontWeight: '600',
+                        fontSize: '13px',
+                      }}
+                    >
+                      Staff Login
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </header>
         )}
