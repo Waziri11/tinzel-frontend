@@ -13,6 +13,7 @@ import OrderFollowUpModal from './components/landing/OrderFollowUpModal';
 import MagazineShowcase from './components/client/MagazineShowcase';
 import ClientTrackingPortal from './components/client/ClientTrackingPortal';
 import StaffWorkspace from './components/common/StaffWorkspace';
+import TinzelLogo from './components/common/TinzelLogo';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'showcase' | 'tracking' | 'staff'
@@ -52,45 +53,7 @@ export default function App() {
                 onClick={() => setCurrentView('home')}
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
               >
-                <div
-                  style={{
-                    backgroundColor: '#991B1B',
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #B45309',
-                  }}
-                >
-                  <BookOutlined style={{ color: '#FFFFFF', fontSize: '18px' }} />
-                </div>
-                <div>
-                  <span
-                    style={{
-                      fontFamily: '"Georgia", serif',
-                      fontSize: '20px',
-                      fontWeight: '800',
-                      letterSpacing: '-0.5px',
-                      color: '#1C1917',
-                    }}
-                  >
-                    TINZEL
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      color: '#B45309',
-                      fontWeight: '700',
-                      marginLeft: '8px',
-                      letterSpacing: '0.8px',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    STUDIOS
-                  </span>
-                </div>
+                <TinzelLogo variant="full" height={36} />
               </div>
 
               {/* Right Action Buttons */}

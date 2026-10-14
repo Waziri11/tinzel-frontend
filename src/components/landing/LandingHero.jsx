@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Row, Col } from 'antd';
 import { BookOutlined, UserOutlined, HeartOutlined } from '@ant-design/icons';
+import TinzelLogo from '../common/TinzelLogo';
 
 function OptionCard({ label, onClick, variant }) {
   const [hovered, setHovered] = useState(false);
@@ -58,47 +59,26 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
           marginBottom: '48px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <TinzelLogo variant="full" height={48} />
           <div
             style={{
-              backgroundColor: '#991B1B',
-              width: '42px',
-              height: '42px',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid #B45309',
+              height: '32px',
+              width: '1px',
+              backgroundColor: '#E7E5E4',
+              display: 'inline-block',
+            }}
+          />
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '1.2px',
+              color: '#B45309',
             }}
           >
-            <BookOutlined style={{ color: '#FFFFFF', fontSize: '20px' }} />
-          </div>
-          <div>
-            <div
-              style={{
-                fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-                fontStyle: 'italic',
-                fontSize: '34px',
-                fontWeight: '600',
-                letterSpacing: '-0.3px',
-                color: '#1C1917',
-                lineHeight: '1',
-              }}
-            >
-              Tinzel
-            </div>
-            <div
-              style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1.2px',
-                color: '#B45309',
-                marginTop: '2px',
-              }}
-            >
-              Bespoke Love & Milestone Magazines
-            </div>
+            Bespoke Love & Milestone Magazines
           </div>
         </div>
 

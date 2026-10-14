@@ -16,6 +16,7 @@ import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
 import DesignerQueue from '../designer/DesignerQueue';
 import FormBuilder from '../admin/FormBuilder';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
+import TinzelLogo from './TinzelLogo';
 
 export default function StaffWorkspace() {
   const [token, setToken] = useState(localStorage.getItem('tinzel_staff_token') || '');
@@ -94,19 +95,8 @@ export default function StaffWorkspace() {
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                backgroundColor: '#1e3a8a',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 12px auto',
-              }}
-            >
-              <Shield size={24} color="#93c5fd" />
+            <div style={{ marginBottom: '14px' }}>
+              <TinzelLogo variant="full" height={44} />
             </div>
             <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>Staff Sign In</h1>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>

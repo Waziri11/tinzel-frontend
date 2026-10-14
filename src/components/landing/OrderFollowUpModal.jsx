@@ -73,9 +73,9 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
       centered
       width={460}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991B1B' }}>
-          <SearchOutlined style={{ fontSize: '18px', color: '#B45309' }} />
-          <span style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: '700' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#991B1B' }}>
+          <img src="/brand/tinzel-butterfly.png" alt="Tinzel" style={{ height: '24px', width: 'auto' }} />
+          <span style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '22px', fontWeight: '600' }}>
             Magazine Order Follow Up
           </span>
         </div>
