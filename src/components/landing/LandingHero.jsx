@@ -3,14 +3,16 @@ import { Button, Row, Col } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import TinzelLogo from '../common/TinzelLogo';
 
-function OptionCard({ label, onClick, variant }) {
+function OptionCard({ label, onClick }) {
   const [hovered, setHovered] = useState(false);
-  const isPrimary = variant === 'primary';
 
-  const baseBg = isPrimary ? '#991B1B' : '#FFFFFF';
-  const hoverBg = isPrimary ? '#7F1D1D' : '#FFFBEB';
-  const textColor = isPrimary ? '#FFFFFF' : '#991B1B';
-  const borderColor = isPrimary ? '#991B1B' : '#B45309';
+  // Dominant color is Gold (#B45309 / #92400E).
+  // Default: NO fill color (transparent/white background), crisp gold outline.
+  // Hovered: Solid rich gold fill with pure white typography.
+  const baseBg = '#FFFFFF';
+  const hoverBg = '#B45309';
+  const textColor = hovered ? '#FFFFFF' : '#B45309';
+  const borderColor = '#B45309';
 
   return (
     <button
@@ -23,7 +25,7 @@ function OptionCard({ label, onClick, variant }) {
         height: '240px',
         backgroundColor: hovered ? hoverBg : baseBg,
         border: `2px solid ${borderColor}`,
-        outline: `1px solid ${isPrimary ? '#D97706' : 'transparent'}`,
+        outline: '1px solid #D97706',
         outlineOffset: '-10px',
         borderRadius: '14px',
         color: textColor,
@@ -36,7 +38,7 @@ function OptionCard({ label, onClick, variant }) {
         padding: '0 32px',
         cursor: 'pointer',
         transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 14px 30px rgba(153, 27, 27, 0.14)' : '0 4px 12px rgba(0, 0, 0, 0.04)',
+        boxShadow: hovered ? '0 14px 30px rgba(180, 83, 9, 0.22)' : '0 4px 14px rgba(0, 0, 0, 0.04)',
         transition: 'all 0.25s ease',
       }}
     >
@@ -85,7 +87,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         {/* Top-Right Login Button */}
         <Button
           onClick={onOpenLogin}
-          icon={<UserOutlined style={{ color: '#991B1B' }} />}
+          icon={<UserOutlined style={{ color: '#B45309' }} />}
           style={{
             backgroundColor: '#FFFFFF',
             borderColor: '#B45309',
@@ -136,10 +138,10 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
       {/* The Two Big Options — minimal */}
       <Row gutter={[28, 28]} justify="center">
         <Col xs={24} md={12}>
-          <OptionCard label="New Magazine Order" onClick={onSelectNewOrder} variant="primary" />
+          <OptionCard label="New Magazine Order" onClick={onSelectNewOrder} />
         </Col>
         <Col xs={24} md={12}>
-          <OptionCard label="Magazine Order Follow Up" onClick={onOpenFollowUp} variant="secondary" />
+          <OptionCard label="Magazine Order Follow Up" onClick={onOpenFollowUp} />
         </Col>
       </Row>
 

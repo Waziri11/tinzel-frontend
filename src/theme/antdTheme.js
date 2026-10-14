@@ -1,10 +1,10 @@
 export const tinzelAntdTheme = {
   token: {
-    colorPrimary: '#991B1B', // Romantic red / crimson
-    colorLink: '#B45309', // Warm gold
-    colorLinkHover: '#D97706',
+    colorPrimary: '#B45309', // Dominant warm gold
+    colorLink: '#991B1B', // Accent crimson red
+    colorLinkHover: '#7F1D1D',
     colorSuccess: '#15803D',
-    colorWarning: '#B45309',
+    colorWarning: '#D97706',
     colorError: '#DC2626',
     colorBgBase: '#FFFFFF',
     colorTextBase: '#1C1917',
@@ -16,9 +16,9 @@ export const tinzelAntdTheme = {
   },
   components: {
     Button: {
-      colorPrimary: '#991B1B',
-      colorPrimaryHover: '#7F1D1D',
-      colorPrimaryActive: '#5A1212',
+      colorPrimary: '#B45309',
+      colorPrimaryHover: '#92400E',
+      colorPrimaryActive: '#78350F',
       controlHeight: 42,
       fontWeight: 600,
       borderRadius: 6,
