@@ -18,7 +18,7 @@ function OptionCard({ label, onClick }) {
   // Authentic Tinzel Gold: #C5A059
   // Default: Crisp white background with delicate gold border and inner inlay.
   // Hovered: Solid rich gold fill with pure white typography.
-  const baseBg = 'rgba(255, 255, 255, 0.92)';
+  const baseBg = '#FFFFFF';
   const hoverBg = '#C5A059';
   const textColor = hovered ? '#FFFFFF' : '#C5A059';
   const borderColor = '#C5A059';

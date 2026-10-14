@@ -32,10 +32,6 @@ export default function App() {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#FAFAF9',
-          backgroundImage: currentView === 'home' ? 'url(/brand/hero-editorial-bg.jpg)' : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center center',
-          backgroundRepeat: 'no-repeat',
         }}
       >
         {/* Navigation Bar when not on home view */}
