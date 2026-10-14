@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Row, Col } from 'antd';
-import { BookOutlined, UserOutlined, HeartOutlined } from '@ant-design/icons';
+import { UserOutlined } from '@ant-design/icons';
 import TinzelLogo from '../common/TinzelLogo';
 
 function OptionCard({ label, onClick, variant }) {
@@ -103,25 +103,6 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
 
       {/* Hero Narrative */}
       <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 54px auto' }}>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: '#FEF3C7',
-            border: '1px solid #FDE68A',
-            color: '#B45309',
-            padding: '4px 14px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            marginBottom: '20px',
-          }}
-        >
-          <HeartOutlined /> Personal Keepsake Publications
-        </div>
 
         <h1
           style={{
