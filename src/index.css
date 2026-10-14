@@ -12,7 +12,9 @@
   --accent-gold-light: #FEF3C7;
   --card-bg: #FFFFFF;
   --input-bg: #FFFFFF;
-  font-family: 'Georgia', 'Times New Roman', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-brand: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   color-scheme: light;
 }
 
@@ -52,11 +54,20 @@ input, textarea, select {
   animation: spin 1s linear infinite;
 }
 
-/* Editorial typography classes */
+/* Editorial & Brand typography classes */
+.font-brand {
+  font-family: var(--font-brand);
+}
+
+.font-brand-italic {
+  font-family: var(--font-brand);
+  font-style: italic;
+}
+
 .font-serif {
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--font-brand);
 }
 
 .font-sans {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
 }

@@ -26,10 +26,11 @@ function OptionCard({ label, onClick, variant }) {
         outlineOffset: '-10px',
         borderRadius: '14px',
         color: textColor,
-        fontFamily: '"Georgia", "Times New Roman", serif',
-        fontSize: '34px',
-        fontWeight: '700',
-        letterSpacing: '-0.3px',
+        fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+        fontStyle: 'italic',
+        fontSize: '38px',
+        fontWeight: '600',
+        letterSpacing: '-0.2px',
         lineHeight: '1.2',
         padding: '0 32px',
         cursor: 'pointer',
@@ -75,15 +76,16 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
           <div>
             <div
               style={{
-                fontFamily: '"Georgia", "Times New Roman", serif',
-                fontSize: '26px',
-                fontWeight: '800',
-                letterSpacing: '-0.5px',
+                fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                fontStyle: 'italic',
+                fontSize: '34px',
+                fontWeight: '600',
+                letterSpacing: '-0.3px',
                 color: '#1C1917',
-                lineHeight: '1.1',
+                lineHeight: '1',
               }}
             >
-              TINZEL
+              Tinzel
             </div>
             <div
               style={{
@@ -92,6 +94,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
                 textTransform: 'uppercase',
                 letterSpacing: '1.2px',
                 color: '#B45309',
+                marginTop: '2px',
               }}
             >
               Bespoke Love & Milestone Magazines
@@ -142,10 +145,10 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
 
         <h1
           style={{
-            fontFamily: '"Georgia", "Times New Roman", serif',
-            fontSize: '44px',
-            fontWeight: '800',
-            lineHeight: '1.18',
+            fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+            fontSize: '52px',
+            fontWeight: '600',
+            lineHeight: '1.15',
             color: '#1C1917',
             marginBottom: '18px',
             letterSpacing: '-0.5px',

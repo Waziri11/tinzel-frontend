@@ -12,7 +12,7 @@ export const tinzelAntdTheme = {
     colorBorder: '#E7E5E4',
     colorBorderSecondary: '#F5F5F4',
     borderRadius: 6,
-    fontFamily: '"Georgia", "Times New Roman", "Inter", -apple-system, sans-serif',
+    fontFamily: '"Plus Jakarta Sans", "Cormorant Garamond", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   components: {
     Button: {
