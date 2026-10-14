@@ -349,37 +349,38 @@ export default function StaffWorkspace() {
               </button>
             )}
 
+            {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
+              <button
+                onClick={() => setActiveTab('form_builder')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  backgroundColor: activeTab === 'form_builder' ? 'var(--accent-primary)' : 'transparent',
+                  color: activeTab === 'form_builder' ? '#ffffff' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  border: 'none',
+                }}
+              >
+                Form Builder (Magazine Editions)
+              </button>
+            )}
+
             {currentUser.role === 'admin' && (
-              <>
-                <button
-                  onClick={() => setActiveTab('form_builder')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    backgroundColor: activeTab === 'form_builder' ? 'var(--accent-primary)' : 'transparent',
-                    color: activeTab === 'form_builder' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    border: 'none',
-                  }}
-                >
-                  Form Builder
-                </button>
-                <button
-                  onClick={() => setActiveTab('workloads')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    backgroundColor: activeTab === 'workloads' ? 'var(--accent-primary)' : 'transparent',
-                    color: activeTab === 'workloads' ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '12px',
+              <button
+                onClick={() => setActiveTab('workloads')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  backgroundColor: activeTab === 'workloads' ? 'var(--accent-primary)' : 'transparent',
+                  color: activeTab === 'workloads' ? '#ffffff' : 'var(--text-muted)',
+                  fontSize: '12px',
                     fontWeight: '600',
                     border: 'none',
                   }}
                 >
                   Staff Roster & Logs
                 </button>
-              </>
             )}
           </div>
         </div>

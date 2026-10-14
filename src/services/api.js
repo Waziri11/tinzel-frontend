@@ -222,6 +222,18 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
+    uploadCover: (token, file) => {
+      const formData = new FormData();
+      formData.append('cover', file);
+      return fetch(`${API_BASE}/api/admin/forms/upload-cover`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }).then(handleResponse);
+    },
+
     getStaff: (token) =>
       fetch(`${API_BASE}/api/admin/staff`, {
         headers: getHeaders(token),
