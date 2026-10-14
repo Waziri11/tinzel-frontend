@@ -34,8 +34,8 @@ export default function App() {
           backgroundColor: '#FAFAF9',
         }}
       >
-        {/* Navigation Bar when not on home view */}
-        {currentView !== 'home' && (
+        {/* Navigation Bar when not on home or staff workspace view */}
+        {currentView !== 'home' && currentView !== 'staff' && (
           <header
             style={{
               backgroundColor: '#FFFFFF',
@@ -118,7 +118,12 @@ export default function App() {
         )}
 
         {/* Main Content Area */}
-        <main style={{ flex: 1, padding: currentView === 'home' ? '24px 20px' : '32px 20px' }}>
+        <main
+          style={{
+            flex: 1,
+            padding: currentView === 'staff' ? 0 : currentView === 'home' ? '24px 20px' : '32px 20px',
+          }}
+        >
           {/* View 1: Home (Editorial Landing Hero with 2 Big Options) */}
           {currentView === 'home' && (
             <LandingHero
@@ -143,11 +148,9 @@ export default function App() {
             </div>
           )}
 
-          {/* View 4: Staff Workstation */}
+          {/* View 4: Staff Workstation with Sidebar Navigation and RBAC */}
           {currentView === 'staff' && (
-            <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-              <StaffWorkspace />
-            </div>
+            <StaffWorkspace onExitToHome={() => setCurrentView('home')} />
           )}
         </main>
 
@@ -158,8 +161,8 @@ export default function App() {
           onSuccess={handleFollowUpSuccess}
         />
 
-        {/* Subtle Editorial Footer (shown on inner staff/tracking views, removed from minimalist home) */}
-        {currentView !== 'home' && (
+        {/* Subtle Editorial Footer (shown on inner tracking views, removed from minimalist home and staff dashboard) */}
+        {currentView !== 'home' && currentView !== 'staff' && (
           <footer
             style={{
               borderTop: '1px solid #E7E5E4',

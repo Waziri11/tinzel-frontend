@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Shield,
   Layers,
+  FileText,
   Users,
   LogOut,
   Lock,
   Loader2,
-  CheckCircle2,
   AlertCircle,
-  FileText,
+  CheckCircle2,
+  ArrowLeft,
+  RefreshCw,
+  Eye,
+  EyeOff,
   UserCheck,
+  Shield,
+  Palette,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
@@ -18,7 +23,43 @@ import FormBuilder from '../admin/FormBuilder';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
 import TinzelLogo from './TinzelLogo';
 
-export default function StaffWorkspace() {
+// RBAC Navigation Configuration
+const NAVIGATION_ITEMS = [
+  {
+    id: 'conveyor',
+    label: 'Production Conveyor',
+    subtitle: '6-Stage Kanban Pipeline',
+    icon: Layers,
+    roles: ['admin', 'manager'],
+    badge: 'Pipeline',
+  },
+  {
+    id: 'form_builder',
+    label: 'Magazine Form Builder',
+    subtitle: 'Editions, Fields & Covers',
+    icon: FileText,
+    roles: ['admin', 'manager'],
+    badge: 'Templates',
+  },
+  {
+    id: 'designer_queue',
+    label: 'Designer Workspace',
+    subtitle: 'Draft Proofs & Revisions',
+    icon: Palette,
+    roles: ['admin', 'manager', 'designer'],
+    badge: null,
+  },
+  {
+    id: 'staff_roster',
+    label: 'Staff Roster & RBAC',
+    subtitle: 'Team Workloads & Audit Logs',
+    icon: Users,
+    roles: ['admin'],
+    badge: 'Admin Only',
+  },
+];
+
+export default function StaffWorkspace({ onExitToHome }) {
   const [token, setToken] = useState(localStorage.getItem('tinzel_staff_token') || '');
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +68,10 @@ export default function StaffWorkspace() {
   // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState('manager_board'); // 'manager_board' | 'designer_queue' | 'form_builder' | 'workloads'
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Active page state
+  const [activePage, setActivePage] = useState('conveyor');
 
   useEffect(() => {
     if (token) {
@@ -40,16 +84,18 @@ export default function StaffWorkspace() {
     try {
       const data = await api.staffAuth.getMe(authToken);
       setCurrentUser(data.user);
-      // Set initial tab based on role
+
+      // Default page based on RBAC role
       if (data.user.role === 'designer') {
-        setActiveTab('designer_queue');
+        setActivePage('designer_queue');
       } else if (data.user.role === 'manager') {
-        setActiveTab('manager_board');
+        setActivePage('conveyor');
       } else {
-        setActiveTab('manager_board');
+        setActivePage('conveyor');
       }
     } catch (err) {
       setToken('');
+      setCurrentUser(null);
       localStorage.removeItem('tinzel_staff_token');
     } finally {
       setLoading(false);
@@ -64,13 +110,14 @@ export default function StaffWorkspace() {
       setToken(data.token);
       localStorage.setItem('tinzel_staff_token', data.token);
       setCurrentUser(data.user);
+
       if (data.user.role === 'designer') {
-        setActiveTab('designer_queue');
+        setActivePage('designer_queue');
       } else {
-        setActiveTab('manager_board');
+        setActivePage('conveyor');
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check credentials.');
+      setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
@@ -82,187 +129,314 @@ export default function StaffWorkspace() {
     localStorage.removeItem('tinzel_staff_token');
   };
 
-  // If not logged in, render staff login with convenient pre-filled test buttons
+  // Filter allowed navigation items based on the user's role (Strict RBAC)
+  const allowedMenuItems = currentUser
+    ? NAVIGATION_ITEMS.filter((item) => item.roles.includes(currentUser.role))
+    : [];
+
+  // Enforce that active page is always permitted by RBAC
+  const effectiveActivePage = allowedMenuItems.some((item) => item.id === activePage)
+    ? activePage
+    : allowedMenuItems[0]?.id || 'conveyor';
+
+  // -------------------------------------------------------------
+  // Unauthenticated: High-End Minimalist Login Screen
+  // -------------------------------------------------------------
   if (!token || !currentUser) {
     return (
-      <div style={{ maxWidth: '440px', margin: '40px auto' }}>
-        <div
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '32px',
-          }}
-        >
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ marginBottom: '14px' }}>
-              <TinzelLogo variant="full" height={44} />
-            </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>Staff Sign In</h1>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Access Manager, Designer, or Admin workstations.
-            </p>
-          </div>
-
-          {error && (
-            <div
-              style={{
-                backgroundColor: '#450a0a',
-                border: '1px solid var(--accent-danger)',
-                borderRadius: '6px',
-                padding: '10px 14px',
-                marginBottom: '16px',
-                fontSize: '13px',
-                color: '#fca5a5',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={16} />
-              <span>{error}</span>
+      <div
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#FAFAF9',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div style={{ maxWidth: '440px', width: '100%' }}>
+          {/* Back to Client Store Link */}
+          {onExitToHome && (
+            <div style={{ marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={onExitToHome}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#78716C',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  padding: '6px 0',
+                }}
+              >
+                <ArrowLeft size={16} />
+                Return to Client Catalogue
+              </button>
             </div>
           )}
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin(email, password);
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E7E5E4',
+              borderRadius: '12px',
+              padding: '36px 32px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
             }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}
           >
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Email Address
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="manager@tinzel.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <TinzelLogo variant="full" height={42} />
+              </div>
+              <h1
                 style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  color: 'var(--text-main)',
-                  fontSize: '13px',
-                  outline: 'none',
+                  fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                  fontStyle: 'italic',
+                  fontSize: '28px',
+                  fontWeight: '600',
+                  color: '#1C1917',
+                  marginBottom: '6px',
                 }}
-              />
+              >
+                Staff Workstation Sign In
+              </h1>
+              <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
+                Secure access for Production Managers, Editorial Designers, and Administrators.
+              </p>
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+            {error && (
+              <div
                 style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
                   borderRadius: '6px',
-                  color: 'var(--text-main)',
+                  padding: '10px 14px',
+                  marginBottom: '20px',
                   fontSize: '13px',
-                  outline: 'none',
+                  color: '#991B1B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
-              />
-            </div>
+              >
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                backgroundColor: 'var(--accent-primary)',
-                color: '#ffffff',
-                padding: '10px 16px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin(email, password);
               }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}
             >
-              {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
-              Sign In to Workstation
-            </button>
-          </form>
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    color: '#44403C',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Work Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="manager@tinzel.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    backgroundColor: '#FAFAF9',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    color: '#1C1917',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
 
-          {/* Quick Demo Sign-In Buttons */}
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '18px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', display: 'block', marginBottom: '10px' }}>
-              ONE-CLICK DEMO TEST LOGINS:
-            </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    color: '#44403C',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 42px 10px 14px',
+                      backgroundColor: '#FAFAF9',
+                      border: '1px solid #D6D3D1',
+                      borderRadius: '6px',
+                      color: '#1C1917',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: '#78716C',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
               <button
-                type="button"
-                onClick={() => handleLogin('manager@tinzel.com', 'tinzel123')}
+                type="submit"
+                disabled={loading}
                 style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-main)',
+                  backgroundColor: '#C5A059',
+                  color: '#FFFFFF',
+                  padding: '11px 16px',
                   borderRadius: '6px',
-                  fontSize: '12px',
-                  textAlign: 'left',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  letterSpacing: '0.5px',
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  transition: 'background-color 0.2s ease',
+                  marginTop: '4px',
                 }}
               >
-                <span><strong>Production Manager</strong> (Kanban Oversight)</span>
-                <span style={{ fontSize: '11px', color: '#60a5fa' }}>manager@tinzel.com</span>
+                {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
+                Sign In to Workstation
               </button>
+            </form>
 
-              <button
-                type="button"
-                onClick={() => handleLogin('designer1@tinzel.com', 'tinzel123')}
+            {/* Quick Demo Sign-In Buttons */}
+            <div style={{ borderTop: '1px solid #E7E5E4', paddingTop: '20px' }}>
+              <span
                 style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-main)',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: '#A8A29E',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  display: 'block',
+                  marginBottom: '12px',
                 }}
               >
-                <span><strong>Designer (Zawadi M.)</strong> (Draft Uploader)</span>
-                <span style={{ fontSize: '11px', color: '#4ade80' }}>designer1@tinzel.com</span>
-              </button>
+                One-Click Demo Roles (RBAC Testing):
+              </span>
 
-              <button
-                type="button"
-                onClick={() => handleLogin('admin@tinzel.com', 'tinzel123')}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--text-main)',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <span><strong>System Admin</strong> (Form Builder & Roster)</span>
-                <span style={{ fontSize: '11px', color: '#c084fc' }}>admin@tinzel.com</span>
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleLogin('manager@tinzel.com', 'tinzel123')}
+                  style={{
+                    padding: '9px 12px',
+                    backgroundColor: '#FAFAF9',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: '6px',
+                    color: '#1C1917',
+                    fontSize: '12px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>
+                    <strong>Production Manager</strong> (Conveyor & Forms)
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#C5A059', fontWeight: '700' }}>manager@tinzel.com</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLogin('designer1@tinzel.com', 'tinzel123')}
+                  style={{
+                    padding: '9px 12px',
+                    backgroundColor: '#FAFAF9',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: '6px',
+                    color: '#1C1917',
+                    fontSize: '12px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>
+                    <strong>Editorial Designer</strong> (Assigned Queue Only)
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#16A34A', fontWeight: '700' }}>designer1@tinzel.com</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLogin('admin@tinzel.com', 'tinzel123')}
+                  style={{
+                    padding: '9px 12px',
+                    backgroundColor: '#FAFAF9',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: '6px',
+                    color: '#1C1917',
+                    fontSize: '12px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>
+                    <strong>System Admin</strong> (Full Access & Roster)
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#9333EA', fontWeight: '700' }}>admin@tinzel.com</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -270,145 +444,374 @@ export default function StaffWorkspace() {
     );
   }
 
+  // -------------------------------------------------------------
+  // Authenticated: Unified Full-Height Sidebar Dashboard Layout
+  // -------------------------------------------------------------
   return (
-    <div>
-      {/* Workspace Sub-Navbar */}
-      <div
+    <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
+      {/* ============================================================ */}
+      {/* 1. Left Sidebar Navigation                                  */}
+      {/* ============================================================ */}
+      <aside
         style={{
+          width: '280px',
+          minWidth: '280px',
+          height: '100vh',
+          backgroundColor: '#FFFFFF',
+          borderRight: '1px solid #E7E5E4',
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           justifyContent: 'space-between',
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          padding: '12px 20px',
-          marginBottom: '24px',
+          zIndex: 40,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '700' }}>{currentUser.name}</span>
+        {/* Top: Logo & Staff Profile */}
+        <div>
+          {/* Brand Header */}
+          <div
+            style={{
+              padding: '24px 20px 20px 20px',
+              borderBottom: '1px solid #F5F5F4',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <TinzelLogo variant="full" height={36} />
             <span
+              style={{
+                fontSize: '10px',
+                fontWeight: '700',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                color: '#C5A059',
+                backgroundColor: '#FAF5EA',
+                padding: '3px 7px',
+                borderRadius: '4px',
+                border: '1px solid rgba(197, 160, 89, 0.3)',
+              }}
+            >
+              Staff OS
+            </span>
+          </div>
+
+          {/* User Profile Card */}
+          <div
+            style={{
+              padding: '16px 20px',
+              backgroundColor: '#FAFAF9',
+              borderBottom: '1px solid #E7E5E4',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1C1917', lineHeight: '1.2' }}>
+                {currentUser.name}
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor:
+                    currentUser.role === 'admin'
+                      ? '#1C1917'
+                      : currentUser.role === 'manager'
+                      ? '#C5A059'
+                      : '#E7E5E4',
+                  color:
+                    currentUser.role === 'admin'
+                      ? '#C5A059'
+                      : currentUser.role === 'manager'
+                      ? '#FFFFFF'
+                      : '#1C1917',
+                  letterSpacing: '0.6px',
+                }}
+              >
+                {currentUser.role}
+              </span>
+            </div>
+
+            <div style={{ fontSize: '12px', color: '#78716C', wordBreak: 'break-all' }}>
+              {currentUser.email}
+            </div>
+
+            {currentUser.role === 'designer' && (
+              <div style={{ marginTop: '8px', fontSize: '11px', color: '#A8A29E' }}>
+                Active Workload: <strong style={{ color: '#1C1917' }}>{currentUser.currentActiveWorkload || 0}</strong> /{' '}
+                {currentUser.maxActiveWorkload || 5} Orders
+              </div>
+            )}
+          </div>
+
+          {/* Navigation Menu by RBAC */}
+          <div style={{ padding: '20px 12px 10px 12px' }}>
+            <div
               style={{
                 fontSize: '11px',
                 fontWeight: '700',
                 textTransform: 'uppercase',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                backgroundColor:
-                  currentUser.role === 'admin'
-                    ? '#581c87'
-                    : currentUser.role === 'manager'
-                    ? '#1e3a8a'
-                    : '#14532d',
-                color:
-                  currentUser.role === 'admin'
-                    ? '#d8b4fe'
-                    : currentUser.role === 'manager'
-                    ? '#93c5fd'
-                    : '#86efac',
+                letterSpacing: '1px',
+                color: '#A8A29E',
+                padding: '0 10px 10px 10px',
               }}
             >
-              {currentUser.role}
-            </span>
-          </div>
+              Navigation Menu
+            </div>
 
-          {/* Role Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {(currentUser.role === 'manager' || currentUser.role === 'admin') && (
-              <button
-                onClick={() => setActiveTab('manager_board')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  backgroundColor: activeTab === 'manager_board' ? 'var(--accent-primary)' : 'transparent',
-                  color: activeTab === 'manager_board' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                }}
-              >
-                Manager Conveyor Board
-              </button>
-            )}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {allowedMenuItems.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = effectiveActivePage === item.id;
 
-            {(currentUser.role === 'designer' || currentUser.role === 'admin' || currentUser.role === 'manager') && (
-              <button
-                onClick={() => setActiveTab('designer_queue')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  backgroundColor: activeTab === 'designer_queue' ? 'var(--accent-primary)' : 'transparent',
-                  color: activeTab === 'designer_queue' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                }}
-              >
-                Designer Workspace
-              </button>
-            )}
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActivePage(item.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: isActive ? '#FAF5EA' : 'transparent',
+                      borderLeft: isActive ? '3px solid #C5A059' : '3px solid transparent',
+                      color: isActive ? '#1C1917' : '#57534E',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>
+                          {item.label}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#A8A29E' }}>
+                          {item.subtitle}
+                        </div>
+                      </div>
+                    </div>
 
-            {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
-              <button
-                onClick={() => setActiveTab('form_builder')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  backgroundColor: activeTab === 'form_builder' ? 'var(--accent-primary)' : 'transparent',
-                  color: activeTab === 'form_builder' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  border: 'none',
-                }}
-              >
-                Form Builder (Magazine Editions)
-              </button>
-            )}
-
-            {currentUser.role === 'admin' && (
-              <button
-                onClick={() => setActiveTab('workloads')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  backgroundColor: activeTab === 'workloads' ? 'var(--accent-primary)' : 'transparent',
-                  color: activeTab === 'workloads' ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '12px',
-                    fontWeight: '600',
-                    border: 'none',
-                  }}
-                >
-                  Staff Roster & Logs
-                </button>
-            )}
+                    {item.badge && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: isActive ? '#C5A059' : '#F5F5F4',
+                          color: isActive ? '#FFFFFF' : '#78716C',
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
+        {/* Bottom Sidebar: Return & Sign Out */}
+        <div style={{ padding: '16px 14px', borderTop: '1px solid #E7E5E4', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Quick Role Switcher for live test demo */}
+          <div style={{ marginBottom: '4px' }}>
+            <span style={{ fontSize: '10px', fontWeight: '700', color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.8px', display: 'block', marginBottom: '6px' }}>
+              Switch Demo Role:
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => handleLogin('admin@tinzel.com', 'tinzel123')}
+                style={{
+                  padding: '5px 4px',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  borderRadius: '4px',
+                  border: '1px solid #E7E5E4',
+                  backgroundColor: currentUser.role === 'admin' ? '#1C1917' : '#FFFFFF',
+                  color: currentUser.role === 'admin' ? '#C5A059' : '#57534E',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLogin('manager@tinzel.com', 'tinzel123')}
+                style={{
+                  padding: '5px 4px',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  borderRadius: '4px',
+                  border: '1px solid #E7E5E4',
+                  backgroundColor: currentUser.role === 'manager' ? '#C5A059' : '#FFFFFF',
+                  color: currentUser.role === 'manager' ? '#FFFFFF' : '#57534E',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                Manager
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLogin('designer1@tinzel.com', 'tinzel123')}
+                style={{
+                  padding: '5px 4px',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  borderRadius: '4px',
+                  border: '1px solid #E7E5E4',
+                  backgroundColor: currentUser.role === 'designer' ? '#78716C' : '#FFFFFF',
+                  color: currentUser.role === 'designer' ? '#FFFFFF' : '#57534E',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                Designer
+              </button>
+            </div>
+          </div>
+
+          {onExitToHome && (
+            <button
+              type="button"
+              onClick={onExitToHome}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '8px 12px',
+                backgroundColor: 'transparent',
+                border: '1px solid #E7E5E4',
+                borderRadius: '6px',
+                color: '#57534E',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowLeft size={14} />
+              Return to Client Site
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '9px 12px',
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: '6px',
+              color: '#991B1B',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={14} />
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      {/* ============================================================ */}
+      {/* 2. Main Content Viewport                                     */}
+      {/* ============================================================ */}
+      <main
+        style={{
+          flex: 1,
+          height: '100vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#FAFAF9',
+        }}
+      >
+        {/* Viewport Top Header */}
+        <header
           style={{
+            height: '64px',
+            backgroundColor: '#FFFFFF',
+            borderBottom: '1px solid #E7E5E4',
+            padding: '0 32px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            fontSize: '12px',
+            justifyContent: 'space-between',
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
           }}
         >
-          <LogOut size={13} />
-          Sign Out
-        </button>
-      </div>
+          <div>
+            <h2
+              style={{
+                fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                fontStyle: 'italic',
+                fontSize: '24px',
+                fontWeight: '600',
+                color: '#1C1917',
+                margin: 0,
+                lineHeight: '1.2',
+              }}
+            >
+              {NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
+            </h2>
+            <span style={{ fontSize: '11px', color: '#78716C' }}>
+              {NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.subtitle}
+            </span>
+          </div>
 
-      {/* Main Tab Content */}
-      {activeTab === 'manager_board' && <ConveyorBeltBoard token={token} staffUser={currentUser} />}
-      {activeTab === 'designer_queue' && <DesignerQueue token={token} staffUser={currentUser} />}
-      {activeTab === 'form_builder' && <FormBuilder token={token} />}
-      {activeTab === 'workloads' && <StaffWorkloadManager token={token} />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span
+              style={{
+                fontSize: '12px',
+                color: '#78716C',
+                padding: '4px 10px',
+                backgroundColor: '#FAFAF9',
+                border: '1px solid #E7E5E4',
+                borderRadius: '6px',
+              }}
+            >
+              Logged in as <strong style={{ color: '#1C1917' }}>{currentUser.name}</strong> ({currentUser.role})
+            </span>
+          </div>
+        </header>
+
+        {/* Viewport Dynamic Page Render based on RBAC */}
+        <div style={{ padding: '28px 32px', flex: 1 }}>
+          {effectiveActivePage === 'conveyor' && (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+            <ConveyorBeltBoard token={token} staffUser={currentUser} />
+          )}
+
+          {effectiveActivePage === 'form_builder' && (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+            <FormBuilder token={token} />
+          )}
+
+          {effectiveActivePage === 'designer_queue' && (
+            <DesignerQueue token={token} staffUser={currentUser} />
+          )}
+
+          {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (
+            <StaffWorkloadManager token={token} />
+          )}
+        </div>
+      </main>
     </div>
   );
 }
