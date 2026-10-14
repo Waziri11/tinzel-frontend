@@ -26,6 +26,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [clientEmail, setClientEmail] = useState('');
   const [answers, setAnswers] = useState({});
   const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [fieldPhotos, setFieldPhotos] = useState({}); // { [fieldId]: File[] }
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
 
@@ -59,6 +60,22 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleFieldPhotoSelect = (fieldId, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setFieldPhotos((prev) => ({
+      ...prev,
+      [fieldId]: [...(prev[fieldId] || []), ...files],
+    }));
+  };
+
+  const removeFieldPhoto = (fieldId, index) => {
+    setFieldPhotos((prev) => ({
+      ...prev,
+      [fieldId]: (prev[fieldId] || []).filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!clientName.trim() || !clientWhatsApp.trim()) {
@@ -76,9 +93,37 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       if (clientEmail.trim()) formData.append('clientEmail', clientEmail.trim());
       formData.append('answers', JSON.stringify(answers));
 
+      const photosMetadata = [];
+
+      // Append field-specific photos (e.g. Photo Group questions)
+      Object.keys(fieldPhotos).forEach((fId) => {
+        const fieldDef = (form.fields || []).find((f) => f.fieldId === fId);
+        const folderName = fieldDef?.label || 'Photo Spread';
+        const files = fieldPhotos[fId] || [];
+
+        files.forEach((file) => {
+          formData.append('photos', file);
+          photosMetadata.push({
+            originalName: file.name,
+            fieldId: fId,
+            folderName: folderName,
+          });
+        });
+      });
+
+      // Append any general selected photos
       selectedPhotos.forEach((file) => {
         formData.append('photos', file);
+        photosMetadata.push({
+          originalName: file.name,
+          fieldId: '',
+          folderName: 'General Photos',
+        });
       });
+
+      if (photosMetadata.length > 0) {
+        formData.append('photosMetadata', JSON.stringify(photosMetadata));
+      }
 
       const result = await api.public.submitForm(slug, formData);
       setSubmissionResult(result);
@@ -392,7 +437,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               {/* Questions in this Section */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {sectionFields.map((field) => {
-                  if (field.type === 'photo_upload') {
+                  if (field.type === 'photo_group' || field.type === 'photo_upload') {
+                    const photosForThisField = fieldPhotos[field.fieldId] || [];
+                    const isGroup = field.type === 'photo_group';
+
                     return (
                       <div key={field.fieldId}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
@@ -408,38 +456,39 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                           style={{
                             border: '2px dashed #C5A059',
                             borderRadius: '8px',
-                            padding: '28px',
+                            padding: '24px',
                             textAlign: 'center',
-                            backgroundColor: '#FBF7EE',
+                            backgroundColor: '#FAF5EA',
                             cursor: 'pointer',
                             marginBottom: '14px',
+                            transition: 'all 0.2s ease',
                           }}
                           onClick={() => document.getElementById(`upload-${field.fieldId}`).click()}
                         >
-                          <UploadCloud size={32} color="#C5A059" style={{ margin: '0 auto 8px auto' }} />
-                          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1C1917', marginBottom: '4px' }}>
-                            Click to select high-resolution photos
+                          <UploadCloud size={30} color="#C5A059" style={{ margin: '0 auto 8px auto' }} />
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
+                            {isGroup ? 'Click to select multiple photos for this spread' : 'Click to select photo asset'}
                           </p>
                           <p style={{ fontSize: '12px', color: '#78716C' }}>
-                            JPEG, PNG, WEBP files up to 25MB each
+                            {isGroup ? 'High-resolution images will be organised in this edition folder' : 'JPEG, PNG, WEBP files up to 25MB each'}
                           </p>
                           <input
                             id={`upload-${field.fieldId}`}
                             type="file"
-                            multiple
+                            multiple={isGroup}
                             accept="image/*"
                             style={{ display: 'none' }}
-                            onChange={handlePhotoSelect}
+                            onChange={(e) => handleFieldPhotoSelect(field.fieldId, e)}
                           />
                         </div>
 
-                        {selectedPhotos.length > 0 && (
+                        {photosForThisField.length > 0 && (
                           <div>
-                            <div style={{ fontSize: '12px', color: '#78716C', marginBottom: '8px' }}>
-                              Selected Photos ({selectedPhotos.length}):
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#78716C', marginBottom: '8px' }}>
+                              Folder Assets ({photosForThisField.length} {photosForThisField.length === 1 ? 'photo' : 'photos'}):
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                              {selectedPhotos.map((photo, idx) => (
+                              {photosForThisField.map((photo, idx) => (
                                 <div
                                   key={idx}
                                   style={{
@@ -448,24 +497,29 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                     gap: '8px',
                                     backgroundColor: '#FFFFFF',
                                     border: '1px solid #E7E5E4',
-                                    borderRadius: '4px',
+                                    borderRadius: '6px',
                                     padding: '6px 10px',
                                     fontSize: '12px',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                                   }}
                                 >
                                   <FileText size={14} color="#C5A059" />
-                                  <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>
                                     {photo.name}
+                                  </span>
+                                  <span style={{ fontSize: '10px', color: '#A8A29E' }}>
+                                    {(photo.size / (1024 * 1024)).toFixed(1)}MB
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => removePhoto(idx)}
+                                    onClick={() => removeFieldPhoto(field.fieldId, idx)}
                                     style={{
                                       backgroundColor: 'transparent',
                                       border: 'none',
                                       color: '#DC2626',
                                       cursor: 'pointer',
                                       display: 'flex',
+                                      padding: '2px',
                                     }}
                                   >
                                     <Trash2 size={13} />

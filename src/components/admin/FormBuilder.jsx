@@ -15,24 +15,25 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  ArrowLeft,
+  Folder,
 } from 'lucide-react';
 import { api } from '../../services/api';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Short Answer' },
-  { value: 'textarea', label: 'Paragraph (Long Text)' },
+  { value: 'textarea', label: 'Paragraph (Long Text / Vows)' },
   { value: 'date', label: 'Date' },
   { value: 'number', label: 'Number' },
-  { value: 'photo_upload', label: 'Photo Upload Spread' },
+  { value: 'photo_group', label: 'Photo Group (Multiple Photos Spread)' },
+  { value: 'photo_upload', label: 'Single Photo Upload' },
   { value: 'dropdown', label: 'Dropdown Select' },
   { value: 'radio', label: 'Multiple Choice (Radio)' },
 ];
 
-const PRESET_COVERS = [
-  { url: '/brand/magazine-cover-sample.jpg', title: 'The Story of Us (Love Edition)' },
-];
-
 export default function FormBuilder({ token }) {
+  // Navigation View: 'list' (Editions catalogue) | 'editor' (Form builder details)
+  const [viewMode, setViewMode] = useState('list');
   const [forms, setForms] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,6 @@ export default function FormBuilder({ token }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
-  const [previewMode, setPreviewMode] = useState(false);
 
   // Active form editing state
   const [title, setTitle] = useState('');
@@ -49,14 +49,12 @@ export default function FormBuilder({ token }) {
   const [magazineType, setMagazineType] = useState('Wedding & Love Magazine');
   const [price, setPrice] = useState(75000);
   const [currency, setCurrency] = useState('TZS');
-  const [coverImageUrl, setCoverImageUrl] = useState('/brand/magazine-cover-sample.jpg');
+  const [coverImageUrl, setCoverImageUrl] = useState('');
   const [tillNumber, setTillNumber] = useState('55667788');
   const [accountName, setAccountName] = useState('Tinzel Media Ltd');
   const [instructions, setInstructions] = useState('Lipa kupitia Lipa Namba 55667788.');
   const [sections, setSections] = useState([
     { sectionId: 'sec_1', title: 'The Celebrants', description: 'Personal details and names', order: 1 },
-    { sectionId: 'sec_2', title: 'The Story & Vows', description: 'Heartfelt memories and written tributes', order: 2 },
-    { sectionId: 'sec_3', title: 'Photo Spread', description: 'High-definition photo gallery for the layout', order: 3 },
   ]);
   const [fields, setFields] = useState([]);
 
@@ -69,11 +67,8 @@ export default function FormBuilder({ token }) {
     try {
       const data = await api.admin.getForms(token);
       setForms(data.forms || []);
-      if (data.forms?.length > 0 && !selectedFormId) {
-        selectFormForEdit(data.forms[0]);
-      }
     } catch (err) {
-      setError(err.message || 'Failed to load forms');
+      setError(err.message || 'Failed to load magazine forms');
     } finally {
       setLoading(false);
     }
@@ -87,59 +82,64 @@ export default function FormBuilder({ token }) {
     setMagazineType(form.magazineType || 'Wedding & Love Magazine');
     setPrice(form.price || 75000);
     setCurrency(form.currency || 'TZS');
-    setCoverImageUrl(form.coverImageUrl || '/brand/magazine-cover-sample.jpg');
+    setCoverImageUrl(form.coverImageUrl || '');
     setTillNumber(form.lipaNambaInstructions?.tillNumber || '55667788');
     setAccountName(form.lipaNambaInstructions?.accountName || 'Tinzel Media Ltd');
     setInstructions(form.lipaNambaInstructions?.instructions || '');
-    
-    // Ensure at least one section exists
+
     if (form.sections && form.sections.length > 0) {
       setSections(form.sections);
     } else {
       setSections([
-        { sectionId: 'sec_general', title: 'General Information', description: 'Essential details for your magazine', order: 1 }
+        { sectionId: 'sec_1', title: 'General Information', description: 'Essential details for your magazine', order: 1 },
       ]);
     }
 
     setFields(form.fields || []);
     setError(null);
     setSuccessMsg(null);
+    setViewMode('editor');
   };
 
-  const createNewForm = () => {
-    const timestamp = Date.now().toString().slice(-4);
+  // Fresh, totally blank form (does NOT take from any existing form)
+  const startFreshNewForm = () => {
     setSelectedFormId('new');
-    setTitle('Anniversary Celebration Edition');
-    setSlug(`anniversary-${timestamp}`);
-    setDescription('Celebrate your years together with a custom editorial magazine edition.');
-    setMagazineType('Anniversary Magazine');
+    setTitle('');
+    setSlug('');
+    setDescription('');
+    setMagazineType('Bespoke Keepsake Magazine');
     setPrice(75000);
     setCurrency('TZS');
-    setCoverImageUrl('/brand/magazine-cover-sample.jpg');
+    setCoverImageUrl(''); // Empty - user is REQUIRED to upload a cover
     setTillNumber('55667788');
     setAccountName('Tinzel Media Ltd');
     setInstructions('Lipa kupitia Lipa Namba 55667788.');
     setSections([
-      { sectionId: 'sec_1', title: 'The Celebrants', description: 'Personal details and names', order: 1 },
-      { sectionId: 'sec_2', title: 'Milestones & Memories', description: 'Quotes and memories through the years', order: 2 },
-      { sectionId: 'sec_3', title: 'Photo Gallery', description: 'Cherished photographs for the pages', order: 3 },
+      { sectionId: 'sec_1', title: 'The Celebrants & Details', description: 'Personal details and introductory facts', order: 1 },
     ]);
-    setFields([
-      { fieldId: 'names', sectionId: 'sec_1', label: 'Full Names of the Couple', type: 'text', required: true, order: 1, helperText: 'e.g. David & Sarah' },
-      { fieldId: 'years', sectionId: 'sec_1', label: 'Number of Years Celebrated', type: 'number', required: true, order: 2, helperText: 'e.g. 5, 10, 25' },
-      { fieldId: 'date', sectionId: 'sec_1', label: 'Anniversary Date', type: 'date', required: true, order: 3, helperText: '' },
-      { fieldId: 'story', sectionId: 'sec_2', label: 'Our Favorite Memory Together', type: 'textarea', required: false, order: 4, helperText: 'Write in your own words for the feature article.' },
-      { fieldId: 'photos', sectionId: 'sec_3', label: 'Upload Anniversary & Family Photos', type: 'photo_upload', required: true, order: 5, validationRules: { minPhotos: 5, maxPhotos: 25 }, helperText: 'Upload at least 5 photos.' },
-    ]);
+    setFields([]); // 100% Empty questions - completely clean canvas!
     setError(null);
     setSuccessMsg(null);
+    setViewMode('editor');
+  };
+
+  const handleTitleChange = (val) => {
+    setTitle(val);
+    if (selectedFormId === 'new') {
+      const autoSlug = val
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      setSlug(autoSlug);
+    }
   };
 
   const handleAddSection = () => {
     const newSecId = `sec_${Date.now().toString().slice(-4)}`;
     const newSection = {
       sectionId: newSecId,
-      title: `Section ${sections.length + 1}: New Section`,
+      title: `Section ${sections.length + 1}: New Spread Section`,
       description: 'Add instructions for questions in this section',
       order: sections.length + 1,
     };
@@ -151,7 +151,6 @@ export default function FormBuilder({ token }) {
       alert('A form must have at least one section.');
       return;
     }
-    // Reassign fields in this section to the first section
     const fallbackSecId = sections.find((s) => s.sectionId !== secId).sectionId;
     setFields((prev) =>
       prev.map((f) => (f.sectionId === secId ? { ...f, sectionId: fallbackSecId } : f))
@@ -165,20 +164,20 @@ export default function FormBuilder({ token }) {
     );
   };
 
-  const handleAddFieldToSection = (sectionId) => {
+  const handleAddFieldToSection = (sectionId, defaultType = 'text') => {
     const newFieldId = `field_${Date.now().toString().slice(-4)}`;
     setFields((prev) => [
       ...prev,
       {
         fieldId: newFieldId,
         sectionId: sectionId || (sections[0]?.sectionId || 'sec_1'),
-        label: 'Untitled Question',
-        type: 'text',
+        label: defaultType === 'photo_group' ? 'Photo Spread Gallery' : 'Untitled Question',
+        type: defaultType,
         required: false,
         order: prev.length + 1,
-        helperText: '',
+        helperText: defaultType === 'photo_group' ? 'Upload multiple high-resolution photos for this spread' : '',
         options: [],
-        validationRules: { minPhotos: 5, maxPhotos: 20 },
+        validationRules: { minPhotos: 1, maxPhotos: 50 },
       },
     ]);
   };
@@ -215,7 +214,7 @@ export default function FormBuilder({ token }) {
     try {
       const res = await api.admin.uploadCover(token, file);
       setCoverImageUrl(res.coverUrl);
-      setSuccessMsg('Cover image uploaded successfully!');
+      setSuccessMsg('Cover artwork uploaded successfully!');
     } catch (err) {
       setError(err.message || 'Failed to upload cover image');
     } finally {
@@ -224,14 +223,15 @@ export default function FormBuilder({ token }) {
   };
 
   const handleSaveForm = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+
     if (!coverImageUrl || !coverImageUrl.trim()) {
-      setError('A Magazine Cover Image is REQUIRED before saving this edition.');
+      setError('A Magazine Cover Image is REQUIRED before publishing this edition.');
       return;
     }
 
     if (!title.trim() || !slug.trim()) {
-      setError('Title and unique slug are required.');
+      setError('Title and unique URL slug are required.');
       return;
     }
 
@@ -266,7 +266,7 @@ export default function FormBuilder({ token }) {
         const res = await api.admin.createForm(token, payload);
         setSuccessMsg(`Edition "${res.form.title}" created successfully!`);
         await loadForms();
-        selectFormForEdit(res.form);
+        setSelectedFormId(res.form._id);
       } else {
         const res = await api.admin.updateForm(token, selectedFormId, payload);
         setSuccessMsg(`Edition "${res.form.title}" updated successfully!`);
@@ -279,88 +279,393 @@ export default function FormBuilder({ token }) {
     }
   };
 
+  // -------------------------------------------------------------
+  // VIEW 1: MASTER LIST OF MAGAZINES (Default entry)
+  // -------------------------------------------------------------
+  if (viewMode === 'list') {
+    return (
+      <div style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}>
+        {/* Top Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '32px',
+            borderBottom: '1px solid #E7E5E4',
+            paddingBottom: '20px',
+          }}
+        >
+          <div>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                color: '#C5A059',
+              }}
+            >
+              Google Forms-Style Studio
+            </span>
+            <h1
+              style={{
+                fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                fontStyle: 'italic',
+                fontSize: '32px',
+                fontWeight: '600',
+                color: '#1C1917',
+                margin: '2px 0 4px 0',
+                lineHeight: '1.2',
+              }}
+            >
+              Magazine Form Builder
+            </h1>
+            <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
+              Design custom order forms with sections and questions. Every edition dynamically appears on the "New Magazine Order" page.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={startFreshNewForm}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: '#C5A059',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '10px 20px',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <Plus size={16} />
+            + New Magazine Edition
+          </button>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              borderRadius: '6px',
+              padding: '12px 16px',
+              marginBottom: '24px',
+              fontSize: '13px',
+              color: '#991B1B',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#78716C' }}>
+            <Loader2 size={24} className="spin" style={{ margin: '0 auto 12px auto' }} />
+            <p style={{ fontSize: '14px' }}>Loading magazine editions...</p>
+          </div>
+        ) : forms.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '60px 24px',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E7E5E4',
+              borderRadius: '8px',
+            }}
+          >
+            <FileText size={36} color="#C5A059" style={{ margin: '0 auto 12px auto' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              No Magazine Editions Created Yet
+            </h3>
+            <p style={{ fontSize: '13px', color: '#78716C', maxWidth: '440px', margin: '0 auto 20px auto' }}>
+              Create your first luxury publication template. You will be able to upload a cover, configure sections, and add photo spread folders.
+            </p>
+            <button
+              type="button"
+              onClick={startFreshNewForm}
+              style={{
+                backgroundColor: '#C5A059',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '10px 20px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              + Create First Magazine Edition
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}>
+                Active Magazine Editions ({forms.length})
+              </span>
+              <span style={{ fontSize: '12px', color: '#A8A29E' }}>
+                Click any edition card to customize its questions and cover
+              </span>
+            </div>
+
+            {/* Visual Editions Cards Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gap: '24px',
+              }}
+            >
+              {forms.map((form) => (
+                <div
+                  key={form._id}
+                  onClick={() => selectFormForEdit(form)}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#C5A059';
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 10px 24px rgba(197, 160, 89, 0.18)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#E7E5E4';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
+                  }}
+                >
+                  {/* Top Cover Preview */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      paddingTop: '65%',
+                      backgroundColor: '#1C1917',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {form.coverImageUrl ? (
+                      <img
+                        src={form.coverImageUrl}
+                        alt={form.title}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#A8A29E',
+                          fontSize: '12px',
+                        }}
+                      >
+                        No Cover Uploaded
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        backgroundColor: '#1C1917',
+                        color: '#C5A059',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      {form.price?.toLocaleString()} {form.currency}
+                    </div>
+                  </div>
+
+                  {/* Body Meta */}
+                  <div style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: '#FAF5EA',
+                            color: '#C5A059',
+                          }}
+                        >
+                          {form.magazineType || 'Keepsake Edition'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#A8A29E' }}>
+                          /{form.slug}
+                        </span>
+                      </div>
+
+                      <h3
+                        style={{
+                          fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                          fontStyle: 'italic',
+                          fontSize: '22px',
+                          fontWeight: '600',
+                          color: '#1C1917',
+                          margin: '0 0 6px 0',
+                          lineHeight: '1.2',
+                        }}
+                      >
+                        {form.title}
+                      </h3>
+
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: '#78716C',
+                          margin: '0 0 14px 0',
+                          lineHeight: '1.5',
+                          overflow: 'hidden',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {form.description || 'Custom keepsake publication configured with tailored question prompts.'}
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        paddingTop: '12px',
+                        borderTop: '1px solid #F5F5F4',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
+                        {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#C5A059', fontWeight: '700' }}>
+                        Customize Form →
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW 2: FORM BUILDER EDITOR (Detail Mode)
+  // -------------------------------------------------------------
   return (
-    <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
-      {/* Top Banner */}
+    <div style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}>
+      {/* Editor Sub-Header: Back Button & Actions */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '24px',
+          marginBottom: '28px',
           paddingBottom: '16px',
-          borderBottom: '1px solid var(--border-color)',
+          borderBottom: '1px solid #E7E5E4',
         }}
       >
-        <div>
+        <button
+          type="button"
+          onClick={() => {
+            setViewMode('list');
+            loadForms();
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E7E5E4',
+            borderRadius: '6px',
+            padding: '8px 14px',
+            color: '#1C1917',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <ArrowLeft size={16} />
+          Back to Magazine Editions
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span
             style={{
               fontSize: '11px',
               fontWeight: '700',
               textTransform: 'uppercase',
-              letterSpacing: '1px',
-              color: '#C5A059',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: selectedFormId === 'new' ? '#FEF3C7' : '#FAF5EA',
+              color: selectedFormId === 'new' ? '#B45309' : '#C5A059',
             }}
           >
-            Google Forms-Style Studio
+            {selectedFormId === 'new' ? 'New Blank Canvas' : 'Editing Form'}
           </span>
-          <h1
-            style={{
-              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-              fontStyle: 'italic',
-              fontSize: '28px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-            }}
-          >
-            Magazine Form Builder
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Design custom order forms with sections and questions. Every edition dynamically appears on the "New Magazine Order" page.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={() => setPreviewMode(!previewMode)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              backgroundColor: previewMode ? '#C5A059' : '#FFFFFF',
-              color: previewMode ? '#FFFFFF' : '#1C1917',
-              border: '1px solid #C5A059',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            <Eye size={16} />
-            {previewMode ? 'Exit Client Preview' : 'Client Preview'}
-          </button>
 
           <button
             type="button"
-            onClick={createNewForm}
+            onClick={handleSaveForm}
+            disabled={saving}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
+              gap: '8px',
+              backgroundColor: '#C5A059',
+              color: '#FFFFFF',
+              border: 'none',
               borderRadius: '6px',
-              backgroundColor: '#FFFFFF',
-              color: '#C5A059',
-              border: '1px solid #C5A059',
+              padding: '9px 20px',
               fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
+              fontWeight: '700',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
-            <Plus size={16} />
-            New Magazine Edition
+            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+            Publish / Save Edition Form
           </button>
         </div>
       </div>
@@ -369,15 +674,15 @@ export default function FormBuilder({ token }) {
         <div
           style={{
             backgroundColor: '#FEF2F2',
-            border: '1px solid #DC2626',
+            border: '1px solid #FCA5A5',
             borderRadius: '6px',
             padding: '12px 16px',
-            marginBottom: '20px',
+            marginBottom: '24px',
+            fontSize: '13px',
             color: '#991B1B',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '13px',
           }}
         >
           <AlertCircle size={16} />
@@ -389,15 +694,15 @@ export default function FormBuilder({ token }) {
         <div
           style={{
             backgroundColor: '#F0FDF4',
-            border: '1px solid #16A34A',
+            border: '1px solid #86EFAC',
             borderRadius: '6px',
             padding: '12px 16px',
-            marginBottom: '20px',
-            color: '#15803D',
+            marginBottom: '24px',
+            fontSize: '13px',
+            color: '#166534',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '13px',
           }}
         >
           <CheckCircle2 size={16} />
@@ -405,730 +710,616 @@ export default function FormBuilder({ token }) {
         </div>
       )}
 
-      {/* Main Grid: Form Selection & Google Forms Editor */}
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '28px' }}>
-        {/* Left Sidebar: Published Editions Roster */}
-        <div>
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '16px',
-            }}
-          >
-            <span
+      <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* CARD 1: MANDATORY MAGAZINE COVER ARTWORK */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: `2px solid ${coverImageUrl ? '#C5A059' : '#DC2626'}`,
+            borderRadius: '8px',
+            padding: '24px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ImageIcon size={18} color="#C5A059" />
+                <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
+                  Magazine Cover Artwork <span style={{ color: '#DC2626' }}>* (REQUIRED)</span>
+                </h2>
+              </div>
+              <p style={{ fontSize: '12px', color: '#78716C', marginTop: '4px', margin: 0 }}>
+                Every edition is required to have a cover. Clients click this image directly on the catalogue to open this form.
+              </p>
+            </div>
+
+            <label
               style={{
-                fontSize: '11px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #C5A059',
+                borderRadius: '6px',
+                color: '#C5A059',
+                fontSize: '12px',
                 fontWeight: '700',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-                letterSpacing: '0.8px',
-                display: 'block',
-                marginBottom: '12px',
+                cursor: 'pointer',
               }}
             >
-              Magazine Editions ({forms.length})
-            </span>
+              <UploadCloud size={14} />
+              {uploadingCover ? 'Uploading...' : 'Upload Cover Photo'}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCoverUpload}
+                disabled={uploadingCover}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
 
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
-                <Loader2 size={18} className="spin" style={{ margin: '0 auto 8px auto' }} />
-                <span>Loading...</span>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {forms.map((f) => {
-                  const isSelected = f._id === selectedFormId;
-                  return (
-                    <button
-                      key={f._id}
-                      type="button"
-                      onClick={() => selectFormForEdit(f)}
-                      style={{
-                        padding: '10px 12px',
-                        textAlign: 'left',
-                        backgroundColor: isSelected ? '#FBF7EE' : '#FFFFFF',
-                        border: `1px solid ${isSelected ? '#C5A059' : 'var(--border-color)'}`,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img
-                          src={f.coverImageUrl || '/brand/magazine-cover-sample.jpg'}
-                          alt={f.title}
-                          style={{ width: '28px', height: '38px', objectFit: 'cover', borderRadius: '2px', border: '1px solid #E7E5E4' }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              color: isSelected ? '#C5A059' : '#1C1917',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {f.title}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#78716C' }}>
-                            {f.price?.toLocaleString()} {f.currency}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div
+              style={{
+                width: '120px',
+                height: '160px',
+                backgroundColor: '#1C1917',
+                borderRadius: '6px',
+                overflow: 'hidden',
+                flexShrink: 0,
+                border: '1px solid #D6D3D1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {coverImageUrl ? (
+                <img
+                  src={coverImageUrl}
+                  alt="Cover preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span style={{ fontSize: '11px', color: '#EF4444', textAlign: 'center', padding: '8px' }}>
+                  Cover required
+                </span>
+              )}
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                Cover Image URL or Path:
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Upload photo above or enter /brand/magazine-cover-sample.jpg"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <span style={{ fontSize: '11px', color: '#A8A29E', marginTop: '6px', display: 'block' }}>
+                Default sample path: <code>/brand/magazine-cover-sample.jpg</code>
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Right Pane: Google Forms-Style Editor */}
-        <div>
-          <form onSubmit={handleSaveForm}>
-            {/* Top Action Toolbar */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '12px 20px',
-                marginBottom: '20px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    backgroundColor: selectedFormId === 'new' ? '#FEF3C7' : '#F5F5F4',
-                    color: selectedFormId === 'new' ? '#B45309' : '#1C1917',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {selectedFormId === 'new' ? 'New Draft' : 'Editing Form'}
-                </span>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Total Questions: <strong>{fields.length}</strong> in <strong>{sections.length}</strong> Sections
-                </span>
-              </div>
+        {/* CARD 2: PUBLICATION SPECIFICATIONS */}
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E7E5E4',
+            borderRadius: '8px',
+            padding: '24px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+          }}
+        >
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', marginBottom: '16px' }}>
+            Edition Specifications
+          </h2>
 
-              <button
-                type="submit"
-                disabled={saving}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                Magazine Edition Title *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Graduation Keepsake Magazine"
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  backgroundColor: '#C5A059',
-                  color: '#FFFFFF',
-                  padding: '10px 24px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                URL Slug * (Unique)
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. graduation-magazine"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                Magazine Type
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Wedding Magazine"
+                value={magazineType}
+                onChange={(e) => setMagazineType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                Price *
+              </label>
+              <input
+                type="number"
+                required
+                placeholder="75000"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+                Currency
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#FAFAF9',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: '#1C1917',
+                  boxSizing: 'border-box',
                 }}
               >
-                {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
-                Publish / Save Edition Form
-              </button>
+                <option value="TZS">TZS</option>
+                <option value="USD">USD</option>
+                <option value="KES">KES</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              Form Description & Welcome Note
+            </label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Personalized luxury publication celebrating your milestones with custom layouts."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                backgroundColor: '#FAFAF9',
+                border: '1px solid #D6D3D1',
+                borderRadius: '6px',
+                fontSize: '13px',
+                color: '#1C1917',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* CARD 3: GOOGLE FORMS-STYLE SECTIONS & QUESTIONS */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
+                Sections & Question Prompts
+              </h2>
+              <span style={{ fontSize: '12px', color: '#78716C' }}>
+                Organize client submissions into sequential spreads and photo folders.
+              </span>
             </div>
 
-            {/* MANDATORY COVER IMAGE CARD */}
-            <div
+            <button
+              type="button"
+              onClick={handleAddSection}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
                 backgroundColor: '#FFFFFF',
-                border: `2px solid ${coverImageUrl ? '#C5A059' : '#DC2626'}`,
-                borderRadius: '8px',
-                padding: '24px',
-                marginBottom: '24px',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                border: '1px solid #C5A059',
+                borderRadius: '6px',
+                color: '#C5A059',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ImageIcon size={18} color="#C5A059" />
-                    <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917' }}>
-                      Magazine Cover Artwork <span style={{ color: '#DC2626' }}>* (REQUIRED)</span>
-                    </h2>
-                  </div>
-                  <p style={{ fontSize: '12px', color: '#78716C', marginTop: '4px' }}>
-                    This cover is displayed on the "New Magazine Order" page. Clients click this image directly to open this form.
-                  </p>
-                </div>
+              <FolderPlus size={14} />
+              + Add Section
+            </button>
+          </div>
 
-                <label
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 16px',
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #C5A059',
-                    borderRadius: '6px',
-                    color: '#C5A059',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <UploadCloud size={14} />
-                  {uploadingCover ? 'Uploading...' : 'Upload New Cover Photo'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCoverUpload}
-                    disabled={uploadingCover}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {sections.map((sec, secIdx) => {
+              const sectionFields = fields.filter((f) => f.sectionId === sec.sectionId);
 
-              {/* Cover Preview & Presets */}
-              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+              return (
                 <div
+                  key={sec.sectionId}
                   style={{
-                    width: '120px',
-                    height: '170px',
-                    borderRadius: '6px',
-                    overflow: 'hidden',
-                    border: '2px solid #C5A059',
-                    backgroundColor: '#1C1917',
-                    position: 'relative',
-                    boxShadow: '0 8px 18px rgba(0,0,0,0.1)',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: '8px',
+                    padding: '20px',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
                   }}
                 >
-                  <img
-                    src={coverImageUrl}
-                    alt="Magazine Cover Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  {/* Section Title & Description */}
                   <div
                     style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      width: '3px',
-                      backgroundColor: '#C5A059',
-                    }}
-                  />
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#1C1917', display: 'block', marginBottom: '8px' }}>
-                    Current Cover URL:
-                  </span>
-                  <input
-                    type="text"
-                    value={coverImageUrl}
-                    onChange={(e) => setCoverImageUrl(e.target.value)}
-                    placeholder="Enter image URL or upload above"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '12px',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                      marginBottom: '10px',
-                    }}
-                  />
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', color: '#78716C' }}>Quick Template Covers:</span>
-                    {PRESET_COVERS.map((preset) => (
-                      <button
-                        key={preset.url}
-                        type="button"
-                        onClick={() => setCoverImageUrl(preset.url)}
-                        style={{
-                          fontSize: '11px',
-                          color: '#C5A059',
-                          textDecoration: 'underline',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {preset.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* FORM METADATA CARD (Google Forms Header Style) */}
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid var(--border-color)',
-                borderTop: '6px solid #C5A059',
-                borderRadius: '8px',
-                padding: '24px',
-                marginBottom: '24px',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                    Magazine Edition Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Our Love Edition - Wedding Magazine"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-                      fontStyle: 'italic',
-                      fontSize: '22px',
-                      fontWeight: '600',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                    URL Slug * (Unique)
-                  </label>
-                  <input
-                    type="text"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder="e.g. love-edition"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '13px',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                  Form Description & Welcome Note
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell clients what memories and details will be immortalized in this edition..."
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    fontSize: '13px',
-                    backgroundColor: 'var(--input-bg)',
-                    color: 'var(--text-main)',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                    Category Type
-                  </label>
-                  <input
-                    type="text"
-                    value={magazineType}
-                    onChange={(e) => setMagazineType(e.target.value)}
-                    placeholder="e.g. Wedding, Birthday, Anniversary"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '13px',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                    Price Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '13px',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                    Lipa Namba Till Number
-                  </label>
-                  <input
-                    type="text"
-                    value={tillNumber}
-                    onChange={(e) => setTillNumber(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '13px',
-                      backgroundColor: 'var(--input-bg)',
-                      color: 'var(--text-main)',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECTIONS & GOOGLE FORM QUESTIONS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {sections.map((section, secIdx) => {
-                const sectionFields = fields.filter((f) => f.sectionId === section.sectionId);
-
-                return (
-                  <div
-                    key={section.sectionId}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '14px',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid #F5F5F4',
                     }}
                   >
-                    {/* Section Header Card */}
-                    <div
-                      style={{
-                        backgroundColor: '#FBF7EE',
-                        borderBottom: '1px solid #E7E5E4',
-                        padding: '16px 20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, marginRight: '16px' }}>
-                        <span
-                          style={{
-                            backgroundColor: '#C5A059',
-                            color: '#FFFFFF',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                          }}
-                        >
-                          {secIdx + 1}
-                        </span>
-                        <div style={{ flex: 1 }}>
-                          <input
-                            type="text"
-                            value={section.title}
-                            onChange={(e) => handleSectionChange(section.sectionId, 'title', e.target.value)}
-                            placeholder="Section Title"
-                            style={{
-                              width: '100%',
-                              fontWeight: '700',
-                              fontSize: '16px',
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: '#1C1917',
-                              outline: 'none',
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={section.description}
-                            onChange={(e) => handleSectionChange(section.sectionId, 'description', e.target.value)}
-                            placeholder="Section description (optional)"
-                            style={{
-                              width: '100%',
-                              fontSize: '12px',
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: '#78716C',
-                              outline: 'none',
-                              marginTop: '2px',
-                            }}
-                          />
-                        </div>
+                    <div style={{ flex: 1, marginRight: '16px' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '0.8px' }}>
+                        Section {secIdx + 1} of {sections.length}
                       </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleAddFieldToSection(section.sectionId)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '6px 12px',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #C5A059',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            color: '#C5A059',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Plus size={14} /> Add Question
-                        </button>
-
-                        {sections.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSection(section.sectionId)}
-                            title="Remove Section"
-                            style={{
-                              padding: '6px',
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              color: '#DC2626',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
+                      <input
+                        type="text"
+                        value={sec.title}
+                        onChange={(e) => handleSectionChange(sec.sectionId, 'title', e.target.value)}
+                        placeholder="Section Title (e.g. The Couple & Story)"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: '700',
+                          color: '#1C1917',
+                          border: 'none',
+                          borderBottom: '1px solid transparent',
+                          outline: 'none',
+                          width: '100%',
+                          padding: '4px 0',
+                        }}
+                        onFocus={(e) => (e.target.style.borderBottom = '1px solid #C5A059')}
+                        onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
+                      />
+                      <input
+                        type="text"
+                        value={sec.description}
+                        onChange={(e) => handleSectionChange(sec.sectionId, 'description', e.target.value)}
+                        placeholder="Section instructions or description (optional)"
+                        style={{
+                          fontSize: '12px',
+                          color: '#78716C',
+                          border: 'none',
+                          outline: 'none',
+                          width: '100%',
+                          padding: '2px 0',
+                        }}
+                      />
                     </div>
 
-                    {/* Questions in this Section */}
-                    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {sectionFields.length === 0 ? (
-                        <div
-                          style={{
-                            textAlign: 'center',
-                            padding: '24px',
-                            border: '1px dashed #D6D3D1',
-                            borderRadius: '6px',
-                            color: '#78716C',
-                            fontSize: '13px',
-                          }}
-                        >
-                          No questions in this section yet. Click "+ Add Question" to create one.
-                        </div>
-                      ) : (
-                        sectionFields.map((field) => {
-                          const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);
+                    {sections.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSection(sec.sectionId)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#DC2626',
+                          cursor: 'pointer',
+                          padding: '4px',
+                        }}
+                        title="Delete Section"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
 
-                          return (
-                            <div
-                              key={field.fieldId}
-                              style={{
-                                backgroundColor: '#FFFFFF',
-                                border: '1px solid #E7E5E4',
-                                borderRadius: '6px',
-                                padding: '16px',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                              }}
-                            >
-                              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#78716C', marginBottom: '4px' }}>
-                                    Question Prompt
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={field.label}
-                                    onChange={(e) => handleFieldChange(globalIdx, 'label', e.target.value)}
-                                    placeholder="e.g. Wedding Vows / Photo Upload / Date"
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px 12px',
-                                      borderRadius: '6px',
-                                      border: '1px solid var(--border-color)',
-                                      fontSize: '14px',
-                                      fontWeight: '600',
-                                      backgroundColor: 'var(--input-bg)',
-                                      color: 'var(--text-main)',
-                                    }}
-                                  />
-                                </div>
+                  {/* Questions in this Section */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+                    {sectionFields.length === 0 ? (
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          padding: '20px',
+                          backgroundColor: '#FAFAF9',
+                          border: '1px dashed #D6D3D1',
+                          borderRadius: '6px',
+                          color: '#78716C',
+                          fontSize: '13px',
+                        }}
+                      >
+                        No questions in this section yet. Add a text question or a photo group spread below.
+                      </div>
+                    ) : (
+                      sectionFields.map((field) => {
+                        const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);
+                        const isPhotoGroup = field.type === 'photo_group';
 
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#78716C', marginBottom: '4px' }}>
-                                    Question Type
-                                  </label>
-                                  <select
-                                    value={field.type}
-                                    onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
-                                    style={{
-                                      width: '100%',
-                                      padding: '8px 12px',
-                                      borderRadius: '6px',
-                                      border: '1px solid var(--border-color)',
-                                      fontSize: '13px',
-                                      backgroundColor: 'var(--input-bg)',
-                                      color: 'var(--text-main)',
-                                    }}
-                                  >
-                                    {FIELD_TYPES.map((t) => (
-                                      <option key={t.value} value={t.value}>
-                                        {t.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              </div>
-
-                              <div style={{ marginBottom: '12px' }}>
+                        return (
+                          <div
+                            key={field.fieldId}
+                            style={{
+                              backgroundColor: isPhotoGroup ? '#FAF5EA' : '#FAFAF9',
+                              border: `1px solid ${isPhotoGroup ? 'rgba(197, 160, 89, 0.4)' : '#E7E5E4'}`,
+                              borderRadius: '6px',
+                              padding: '16px',
+                            }}
+                          >
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
+                                  Question Label / Spread Title *
+                                </label>
                                 <input
                                   type="text"
-                                  value={field.helperText}
-                                  onChange={(e) => handleFieldChange(globalIdx, 'helperText', e.target.value)}
-                                  placeholder="Helper text / hint for client (optional)"
+                                  required
+                                  placeholder="e.g. Ceremony Photos, Couple Vows, Reception Highlights"
+                                  value={field.label}
+                                  onChange={(e) => handleFieldChange(globalIdx, 'label', e.target.value)}
                                   style={{
                                     width: '100%',
-                                    padding: '6px 10px',
+                                    padding: '8px 10px',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #D6D3D1',
                                     borderRadius: '4px',
-                                    border: '1px solid var(--border-color)',
-                                    fontSize: '12px',
-                                    color: 'var(--text-muted)',
-                                    backgroundColor: 'var(--input-bg)',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    color: '#1C1917',
+                                    boxSizing: 'border-box',
                                   }}
                                 />
                               </div>
 
-                              {/* Action Footer: Section Mover, Required Toggle, Duplicate, Delete */}
+                              <div>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
+                                  Response Type
+                                </label>
+                                <select
+                                  value={field.type}
+                                  onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '8px 10px',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #D6D3D1',
+                                    borderRadius: '4px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    color: '#1C1917',
+                                    boxSizing: 'border-box',
+                                  }}
+                                >
+                                  {FIELD_TYPES.map((t) => (
+                                    <option key={t.value} value={t.value}>
+                                      {t.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Helper Text */}
+                            <div style={{ marginBottom: '12px' }}>
+                              <input
+                                type="text"
+                                placeholder="Helper text or instructions for the client (optional)"
+                                value={field.helperText || ''}
+                                onChange={(e) => handleFieldChange(globalIdx, 'helperText', e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1px solid #E7E5E4',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  color: '#78716C',
+                                  boxSizing: 'border-box',
+                                }}
+                              />
+                            </div>
+
+                            {/* Photo Group Spread Badge & Notice */}
+                            {isPhotoGroup && (
                               <div
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  borderTop: '1px solid #F5F5F4',
-                                  paddingTop: '10px',
+                                  gap: '8px',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1px solid rgba(197, 160, 89, 0.3)',
+                                  borderRadius: '4px',
+                                  padding: '8px 12px',
+                                  marginBottom: '12px',
                                 }}
                               >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontSize: '11px', color: '#78716C' }}>Section:</span>
-                                  <select
-                                    value={field.sectionId}
-                                    onChange={(e) => handleFieldChange(globalIdx, 'sectionId', e.target.value)}
-                                    style={{
-                                      fontSize: '11px',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
-                                      border: '1px solid var(--border-color)',
-                                      backgroundColor: '#FFFFFF',
-                                    }}
-                                  >
-                                    {sections.map((s, idx) => (
-                                      <option key={s.sectionId} value={s.sectionId}>
-                                        Sec {idx + 1}: {s.title}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <Folder size={16} color="#C5A059" />
+                                <span style={{ fontSize: '12px', color: '#1C1917', fontWeight: '600' }}>
+                                  Photo Group: Clients can upload multiple photos here. They will appear as a dedicated folder named <strong>"{field.label || 'Photo Spread'}"</strong> on the Manager Conveyor and Designer Workstation.
+                                </span>
+                              </div>
+                            )}
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={field.required}
-                                      onChange={(e) => handleFieldChange(globalIdx, 'required', e.target.checked)}
-                                      style={{ accentColor: '#C5A059' }}
-                                    />
-                                    <span>Required</span>
-                                  </label>
+                            {/* Footer Controls: Required toggle, Duplicate, Delete */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #E7E5E4' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#1C1917', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={field.required}
+                                  onChange={(e) => handleFieldChange(globalIdx, 'required', e.target.checked)}
+                                />
+                                Required Field
+                              </label>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDuplicateField(globalIdx)}
-                                    title="Duplicate Question"
-                                    style={{ background: 'none', border: 'none', color: '#78716C', cursor: 'pointer' }}
-                                  >
-                                    <Copy size={15} />
-                                  </button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicateField(globalIdx)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: '#78716C',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Copy size={13} />
+                                  Duplicate
+                                </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveField(globalIdx)}
-                                    title="Delete Question"
-                                    style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer' }}
-                                  >
-                                    <Trash2 size={15} />
-                                  </button>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveField(globalIdx)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: '#DC2626',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                  Delete
+                                </button>
                               </div>
                             </div>
-                          );
-                        })
-                      )}
-                    </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                );
-              })}
 
-              {/* Add New Section Button */}
-              <button
-                type="button"
-                onClick={handleAddSection}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '14px',
-                  backgroundColor: '#FFFFFF',
-                  border: '2px dashed #C5A059',
-                  borderRadius: '8px',
-                  color: '#C5A059',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s ease',
-                }}
-              >
-                <FolderPlus size={18} />
-                Add New Section to Form
-              </button>
-            </div>
-          </form>
+                  {/* Section Add Question Buttons */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleAddFieldToSection(sec.sectionId, 'text')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        backgroundColor: '#FAFAF9',
+                        border: '1px solid #D6D3D1',
+                        borderRadius: '4px',
+                        color: '#1C1917',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Plus size={13} />
+                      + Add Question
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddFieldToSection(sec.sectionId, 'photo_group')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 12px',
+                        backgroundColor: '#FAF5EA',
+                        border: '1px solid #C5A059',
+                        borderRadius: '4px',
+                        color: '#1C1917',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <FolderPlus size={13} color="#C5A059" />
+                      + Add Photo Group Spread
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 
 export default function DesignerQueue({ token, staffUser }) {
   const [orders, setOrders] = useState([]);
@@ -382,59 +383,12 @@ export default function DesignerQueue({ token, staffUser }) {
                 </div>
               )}
 
-              {/* Photos Gallery */}
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-muted)' }}>
-                  High-Resolution Uploaded Photos ({selectedOrder.uploadedPhotos?.length || 0}):
-                </div>
-                {selectedOrder.uploadedPhotos && selectedOrder.uploadedPhotos.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
-                    {selectedOrder.uploadedPhotos.map((photo, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          backgroundColor: 'var(--bg-primary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '6px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <img
-                          src={photo.url}
-                          alt={photo.originalName}
-                          style={{ width: '100%', height: '90px', objectFit: 'cover' }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div
-                          style={{
-                            display: 'none',
-                            height: '90px',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'var(--bg-secondary)',
-                            color: 'var(--text-muted)',
-                            fontSize: '11px',
-                          }}
-                        >
-                          Photo {i + 1}
-                        </div>
-                        <div style={{ padding: '6px 8px', fontSize: '11px', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {photo.originalName || `Photo-${i + 1}`}
-                          </span>
-                          <a href={photo.url} target="_blank" rel="noreferrer" download style={{ color: '#60a5fa' }}>
-                            <Download size={12} />
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>No photos uploaded for this order.</div>
-                )}
+              {/* Photos Gallery Organised by Folder */}
+              <div style={{ marginTop: '16px' }}>
+                <OrderPhotosFolderView
+                  uploadedPhotos={selectedOrder.uploadedPhotos}
+                  submittedData={selectedOrder.submittedData}
+                />
               </div>
             </div>
 

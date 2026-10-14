@@ -16,8 +16,11 @@ import {
   X,
   Loader2,
   RefreshCw,
+  Folder,
+  Eye,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 
 const STAGE_COLUMNS = [
   { id: 'payment', title: 'Payment Verification', statuses: ['awaiting_payment'] },
@@ -361,6 +364,34 @@ export default function ConveyorBeltBoard({ token, staffUser }) {
                         </div>
                       )}
 
+                      {/* Folder Assets Quick View */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrder(ord);
+                          setActiveModal('inspect_order');
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          backgroundColor: '#FAFAF9',
+                          border: '1px solid #E7E5E4',
+                          borderRadius: '4px',
+                          padding: '5px 8px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          color: '#1C1917',
+                          cursor: 'pointer',
+                          width: '100%',
+                          marginTop: '2px',
+                        }}
+                      >
+                        <Folder size={13} color="#C5A059" />
+                        View Photo Folders ({ord.uploadedPhotos?.length || 0})
+                      </button>
+
                       {/* Stage-Specific Quick Action Buttons */}
                       <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
                         {ord.status === 'awaiting_payment' && (
@@ -551,6 +582,59 @@ export default function ConveyorBeltBoard({ token, staffUser }) {
       </div>
 
       {/* --- MODALS --- */}
+
+      {/* 0. Inspect Order & Photos Folder Modal */}
+      {activeModal === 'inspect_order' && selectedOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E7E5E4',
+              borderRadius: '8px',
+              padding: '24px',
+              width: '820px',
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #E7E5E4' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
+                  Order Assets: {selectedOrder.trackingId || selectedOrder.submissionId}
+                </h3>
+                <span style={{ fontSize: '12px', color: '#78716C' }}>
+                  Client: {selectedOrder.clientName} ({selectedOrder.clientWhatsApp}) • {selectedOrder.formTitle || selectedOrder.formId?.title}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716C' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Folder-Organized Client Photos */}
+            <OrderPhotosFolderView
+              uploadedPhotos={selectedOrder.uploadedPhotos}
+              submittedData={selectedOrder.submittedData}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 1. Verify Payment Modal */}
       {activeModal === 'verify_payment' && selectedOrder && (
