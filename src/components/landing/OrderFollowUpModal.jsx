@@ -73,9 +73,9 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
       centered
       width={460}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#991B1B' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1C1917' }}>
           <img src="/brand/tinzel-butterfly.png" alt="Tinzel" style={{ height: '24px', width: 'auto' }} />
-          <span style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '22px', fontWeight: '600' }}>
+          <span style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '24px', fontWeight: '600' }}>
             Magazine Order Follow Up
           </span>
         </div>
@@ -116,7 +116,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 placeholder="e.g. TNZ-2026-0001 or SUB-2026-XXXXX"
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
-                prefix={<SearchOutlined style={{ color: '#B45309' }} />}
+                prefix={<SearchOutlined style={{ color: '#C5A059' }} />}
                 style={{ borderRadius: '6px' }}
               />
               <span style={{ fontSize: '11px', color: '#78716C', marginTop: '4px', display: 'block' }}>

@@ -6,13 +6,13 @@ import TinzelLogo from '../common/TinzelLogo';
 function OptionCard({ label, onClick }) {
   const [hovered, setHovered] = useState(false);
 
-  // Dominant color is Gold (#B45309 / #92400E).
+  // Authentic Tinzel Gold: #C5A059
   // Default: NO fill color (transparent/white background), crisp gold outline.
   // Hovered: Solid rich gold fill with pure white typography.
   const baseBg = '#FFFFFF';
-  const hoverBg = '#B45309';
-  const textColor = hovered ? '#FFFFFF' : '#B45309';
-  const borderColor = '#B45309';
+  const hoverBg = '#C5A059';
+  const textColor = hovered ? '#FFFFFF' : '#C5A059';
+  const borderColor = '#C5A059';
 
   return (
     <button
@@ -25,7 +25,7 @@ function OptionCard({ label, onClick }) {
         height: '240px',
         backgroundColor: hovered ? hoverBg : baseBg,
         border: `2px solid ${borderColor}`,
-        outline: '1px solid #D97706',
+        outline: '1px solid #D4AF37',
         outlineOffset: '-10px',
         borderRadius: '14px',
         color: textColor,
@@ -38,7 +38,7 @@ function OptionCard({ label, onClick }) {
         padding: '0 32px',
         cursor: 'pointer',
         transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hovered ? '0 14px 30px rgba(180, 83, 9, 0.22)' : '0 4px 14px rgba(0, 0, 0, 0.04)',
+        boxShadow: hovered ? '0 14px 30px rgba(197, 160, 89, 0.28)' : '0 4px 14px rgba(0, 0, 0, 0.04)',
         transition: 'all 0.25s ease',
       }}
     >
@@ -77,7 +77,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '1.2px',
-              color: '#B45309',
+              color: '#C5A059',
             }}
           >
             Bespoke Love & Milestone Magazines
@@ -87,10 +87,10 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         {/* Top-Right Login Button */}
         <Button
           onClick={onOpenLogin}
-          icon={<UserOutlined style={{ color: '#B45309' }} />}
+          icon={<UserOutlined style={{ color: '#C5A059' }} />}
           style={{
             backgroundColor: '#FFFFFF',
-            borderColor: '#B45309',
+            borderColor: '#C5A059',
             color: '#1C1917',
             height: '38px',
             padding: '0 18px',
@@ -167,7 +167,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         >
           "A wedding happens in a day, but your love story lives forever in print."
         </p>
-        <span style={{ fontSize: '12px', color: '#B45309', fontWeight: '700', letterSpacing: '1px' }}>
+        <span style={{ fontSize: '12px', color: '#C5A059', fontWeight: '700', letterSpacing: '1px' }}>
           TINZEL MAGAZINE STUDIOS
         </span>
       </div>

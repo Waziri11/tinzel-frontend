@@ -1,10 +1,10 @@
 export const tinzelAntdTheme = {
   token: {
-    colorPrimary: '#B45309', // Dominant warm gold
-    colorLink: '#991B1B', // Accent crimson red
-    colorLinkHover: '#7F1D1D',
+    colorPrimary: '#C5A059', // Authentic Tinzel Gold
+    colorLink: '#C5A059',
+    colorLinkHover: '#B38F46',
     colorSuccess: '#15803D',
-    colorWarning: '#D97706',
+    colorWarning: '#D4AF37',
     colorError: '#DC2626',
     colorBgBase: '#FFFFFF',
     colorTextBase: '#1C1917',
@@ -16,9 +16,9 @@ export const tinzelAntdTheme = {
   },
   components: {
     Button: {
-      colorPrimary: '#B45309',
-      colorPrimaryHover: '#92400E',
-      colorPrimaryActive: '#78350F',
+      colorPrimary: '#C5A059',
+      colorPrimaryHover: '#B38F46',
+      colorPrimaryActive: '#9A7730',
       controlHeight: 42,
       fontWeight: 600,
       borderRadius: 6,
@@ -30,8 +30,8 @@ export const tinzelAntdTheme = {
     },
     Input: {
       colorBorder: '#E7E5E4',
-      hoverBorderColor: '#B45309',
-      activeBorderColor: '#991B1B',
+      hoverBorderColor: '#C5A059',
+      activeBorderColor: '#B38F46',
       borderRadius: 6,
     },
     Modal: {
