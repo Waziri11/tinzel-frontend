@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Row, Col } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import TinzelLogo from '../common/TinzelLogo';
+
+const OCCASIONS = [
+  'Great Love Story',
+  'Beautiful Wedding',
+  'Amazing Graduation',
+  'Memorable Birthday',
+  'Cherished Anniversary',
+  'Milestone Celebration',
+];
 
 function OptionCard({ label, onClick }) {
   const [hovered, setHovered] = useState(false);
 
   // Authentic Tinzel Gold: #C5A059
-  // Default: NO fill color (transparent/white background), crisp gold outline.
+  // Default: Crisp white background with delicate gold border and inner inlay.
   // Hovered: Solid rich gold fill with pure white typography.
-  const baseBg = '#FFFFFF';
+  const baseBg = 'rgba(255, 255, 255, 0.92)';
   const hoverBg = '#C5A059';
   const textColor = hovered ? '#FFFFFF' : '#C5A059';
   const borderColor = '#C5A059';
@@ -48,40 +57,34 @@ function OptionCard({ label, onClick }) {
 }
 
 export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLogin }) {
+  const [occasionIndex, setOccasionIndex] = useState(0);
+  const [isFading, setIsFading] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsFading(true);
+      setTimeout(() => {
+        setOccasionIndex((prev) => (prev + 1) % OCCASIONS.length);
+        setIsFading(false);
+      }, 350);
+    }, 3200);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '20px 0 60px 0' }}>
-      {/* Top Editorial Bar */}
+    <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '16px 0 60px 0' }}>
+      {/* Top Editorial Bar: Logo on left, Login on right (Zero lines, Zero taglines) */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid #E7E5E4',
-          paddingBottom: '20px',
-          marginBottom: '48px',
+          marginBottom: '64px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <TinzelLogo variant="full" height={48} />
-          <div
-            style={{
-              height: '32px',
-              width: '1px',
-              backgroundColor: '#E7E5E4',
-              display: 'inline-block',
-            }}
-          />
-          <div
-            style={{
-              fontSize: '11px',
-              fontWeight: '700',
-              textTransform: 'uppercase',
-              letterSpacing: '1.2px',
-              color: '#C5A059',
-            }}
-          >
-            Bespoke Love & Milestone Magazines
-          </div>
         </div>
 
         {/* Top-Right Login Button */}
@@ -97,45 +100,45 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
             fontSize: '13px',
             fontWeight: '600',
             borderRadius: '6px',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
           }}
         >
           Login
         </Button>
       </div>
 
-      {/* Hero Narrative */}
-      <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 54px auto' }}>
-
+      {/* Hero Narrative: Animated Headline Only (Subtitle removed for pure minimalism) */}
+      <div style={{ textAlign: 'center', maxWidth: '860px', margin: '0 auto 64px auto' }}>
         <h1
           style={{
             fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-            fontSize: '52px',
+            fontSize: '56px',
             fontWeight: '600',
-            lineHeight: '1.15',
+            lineHeight: '1.2',
             color: '#1C1917',
-            marginBottom: '18px',
             letterSpacing: '-0.5px',
+            margin: 0,
           }}
         >
-          Every Great Love Story Deserves Its Own Magazine
+          Every{' '}
+          <span
+            style={{
+              display: 'inline-block',
+              color: '#C5A059',
+              fontStyle: 'italic',
+              transition: 'opacity 0.35s ease, transform 0.35s ease',
+              opacity: isFading ? 0 : 1,
+              transform: isFading ? 'translateY(-8px)' : 'translateY(0)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {OCCASIONS[occasionIndex]}
+          </span>{' '}
+          Deserves Its Own Magazine
         </h1>
-
-        <p
-          style={{
-            fontSize: '17px',
-            color: '#78716C',
-            lineHeight: '1.7',
-            maxWidth: '680px',
-            margin: '0 auto',
-            fontFamily: '"Georgia", serif',
-          }}
-        >
-          From wedding vows and heartfelt tributes to unforgettable family celebrations — we immortalize
-          your most intimate memories into a luxury, printed editorial publication.
-        </p>
       </div>
 
-      {/* The Two Big Options — minimal */}
+      {/* The Two Big Minimal Options */}
       <Row gutter={[28, 28]} justify="center">
         <Col xs={24} md={12}>
           <OptionCard label="New Magazine Order" onClick={onSelectNewOrder} />
@@ -144,33 +147,6 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
           <OptionCard label="Magazine Order Follow Up" onClick={onOpenFollowUp} />
         </Col>
       </Row>
-
-      {/* Quote Banner */}
-      <div
-        style={{
-          marginTop: '60px',
-          padding: '28px 24px',
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #E7E5E4',
-          borderRadius: '8px',
-          textAlign: 'center',
-        }}
-      >
-        <p
-          style={{
-            fontFamily: '"Georgia", serif',
-            fontStyle: 'italic',
-            fontSize: '16px',
-            color: '#1C1917',
-            marginBottom: '6px',
-          }}
-        >
-          "A wedding happens in a day, but your love story lives forever in print."
-        </p>
-        <span style={{ fontSize: '12px', color: '#C5A059', fontWeight: '700', letterSpacing: '1px' }}>
-          TINZEL MAGAZINE STUDIOS
-        </span>
-      </div>
     </div>
   );
 }

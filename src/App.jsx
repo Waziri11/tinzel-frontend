@@ -26,7 +26,18 @@ export default function App() {
 
   return (
     <ConfigProvider theme={tinzelAntdTheme}>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#FAFAF9' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#FAFAF9',
+          backgroundImage: currentView === 'home' ? 'url(/brand/hero-editorial-bg.jpg)' : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         {/* Navigation Bar when not on home view */}
         {currentView !== 'home' && (
           <header
@@ -149,19 +160,21 @@ export default function App() {
           onSuccess={handleFollowUpSuccess}
         />
 
-        {/* Subtle Editorial Footer */}
-        <footer
-          style={{
-            borderTop: '1px solid #E7E5E4',
-            backgroundColor: '#FFFFFF',
-            padding: '16px 24px',
-            textAlign: 'center',
-            fontSize: '12px',
-            color: '#78716C',
-          }}
-        >
-          Tinzel Bespoke Magazine Studios • White, Red, and Gold Editorial Palette • Zero Gradients • Zero Emojis
-        </footer>
+        {/* Subtle Editorial Footer (shown on inner staff/tracking views, removed from minimalist home) */}
+        {currentView !== 'home' && (
+          <footer
+            style={{
+              borderTop: '1px solid #E7E5E4',
+              backgroundColor: '#FFFFFF',
+              padding: '16px 24px',
+              textAlign: 'center',
+              fontSize: '12px',
+              color: '#78716C',
+            }}
+          >
+            Tinzel Bespoke Magazine Studios • White, Red, and Gold Editorial Palette • Zero Gradients • Zero Emojis
+          </footer>
+        )}
       </div>
     </ConfigProvider>
   );
