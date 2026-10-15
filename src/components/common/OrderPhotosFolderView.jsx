@@ -6,7 +6,7 @@ import { Folder, FolderOpen, Download, ExternalLink, Image as ImageIcon, Chevron
  * Displays client-submitted photos grouped by folder/spread categories.
  * Used by both Production Managers and Editorial Designers.
  */
-export default function OrderPhotosFolderView({ uploadedPhotos = [], submittedData = {} }) {
+export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadFolder, downloadingFolder }) {
   // Group photos by folderName
   const grouped = {};
 
@@ -117,6 +117,33 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], submittedDa
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {onDownloadFolder && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDownloadFolder(folderName);
+                    }}
+                    disabled={Boolean(downloadingFolder)}
+                    title={`Download all photos in ${folderName} as a ZIP`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 9px',
+                      border: '1px solid #C5A059',
+                      borderRadius: '5px',
+                      backgroundColor: '#FFFFFF',
+                      color: '#8A6A30',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: downloadingFolder ? 'wait' : 'pointer',
+                    }}
+                  >
+                    <Download size={13} />
+                    {downloadingFolder === folderName ? 'Preparing ZIP...' : 'Download folder ZIP'}
+                  </button>
+                )}
                 <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
                   {isOpen ? 'Collapse' : 'Expand'}
                 </span>

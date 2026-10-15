@@ -167,6 +167,20 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
+    downloadPhotoFolder: async (token, id, folder) => {
+      const params = new URLSearchParams({ folder });
+      const response = await fetch(`${API_BASE}/api/designer/orders/${id}/photo-folder.zip?${params}`, {
+        headers: getHeaders(token),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to download photo folder');
+      }
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || 'photos.zip';
+      return { blob: await response.blob(), fileName };
+    },
+
     startDesign: (token, id) =>
       fetch(`${API_BASE}/api/designer/orders/${id}/start-design`, {
         method: 'POST',

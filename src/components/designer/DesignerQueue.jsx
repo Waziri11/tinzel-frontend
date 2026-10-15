@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Layers,
   UploadCloud,
@@ -17,10 +17,15 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
+import OrderAnswersView from '../common/OrderAnswersView';
 
 export default function DesignerQueue({ token, staffUser }) {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [downloadingFolder, setDownloadingFolder] = useState(null);
+  const detailRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -54,8 +59,10 @@ export default function DesignerQueue({ token, staffUser }) {
     try {
       const data = await api.designer.getOrders(token);
       setOrders(data.orders || []);
-      if (data.orders?.length > 0 && !selectedOrder) {
-        setSelectedOrder(data.orders[0]);
+      if (selectedOrderId && !(data.orders || []).some((order) => order._id === selectedOrderId)) {
+        detailRequest.current += 1;
+        setSelectedOrderId(null);
+        setSelectedOrder(null);
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch assigned orders');
@@ -65,11 +72,47 @@ export default function DesignerQueue({ token, staffUser }) {
   };
 
   const loadOrderDetail = async (id) => {
+    const request = ++detailRequest.current;
+    setDetailLoading(true);
     try {
       const data = await api.designer.getOrder(token, id);
-      setSelectedOrder(data.order);
+      if (request === detailRequest.current) setSelectedOrder(data.order);
     } catch (err) {
-      setError(err.message);
+      if (request === detailRequest.current) {
+        setSelectedOrder(null);
+        setError(err.message || 'Failed to load order details');
+      }
+    } finally {
+      if (request === detailRequest.current) setDetailLoading(false);
+    }
+  };
+
+  const selectOrder = (id) => {
+    setSelectedOrderId(id);
+    setSelectedOrder(null);
+    setError(null);
+    setSuccessMsg(null);
+    loadOrderDetail(id);
+  };
+
+  const handleDownloadFolder = async (folder) => {
+    setDownloadingFolder(folder);
+    setError(null);
+    try {
+      const { blob, fileName } = await api.designer.downloadPhotoFolder(token, selectedOrder._id, folder);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setSuccessMsg(`ZIP download started for ${folder}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to download photo folder');
+    } finally {
+      setDownloadingFolder(null);
     }
   };
 
@@ -159,8 +202,8 @@ export default function DesignerQueue({ token, staffUser }) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
-      {/* Left Column: Assigned Queue */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Assigned orders table */}
       <div
         style={{
           backgroundColor: 'var(--card-bg)',
@@ -180,52 +223,54 @@ export default function DesignerQueue({ token, staffUser }) {
           </button>
         </div>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>
+            Loading assigned orders...
+          </div>
+        ) : orders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
             No orders currently assigned to you.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {orders.map((ord) => (
-              <div
-                key={ord._id}
-                onClick={() => {
-                  loadOrderDetail(ord._id);
-                  setError(null);
-                  setSuccessMsg(null);
-                }}
-                style={{
-                  padding: '12px',
-                  borderRadius: '6px',
-                  backgroundColor: selectedOrder?._id === ord._id ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-                  border: `1px solid ${selectedOrder?._id === ord._id ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#60a5fa' }}>
-                    {ord.trackingId || ord.submissionId}
-                  </span>
-                  <span
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px', fontSize: '13px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  {['Order', 'Client', 'Edition', 'Status', 'Updated', ''].map((heading) => (
+                    <th key={heading} style={{ padding: '10px 12px', fontWeight: '700' }}>{heading}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((ord) => (
+                  <tr
+                    key={ord._id}
+                    onClick={() => selectOrder(ord._id)}
                     style={{
-                      fontSize: '10px',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                      fontWeight: '600',
+                      borderBottom: '1px solid var(--border-color)',
+                      backgroundColor: selectedOrderId === ord._id ? 'var(--bg-secondary)' : 'transparent',
+                      cursor: 'pointer',
                     }}
                   >
-                    {ord.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <div style={{ fontSize: '13px', fontWeight: '600' }}>{ord.clientName}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ord.formTitle}</div>
-              </div>
-            ))}
+                    <td style={{ padding: '12px', fontWeight: '700', color: '#2563EB' }}>{ord.trackingId || ord.submissionId}</td>
+                    <td style={{ padding: '12px', fontWeight: '600' }}>{ord.clientName}</td>
+                    <td style={{ padding: '12px' }}>{ord.formTitle}</td>
+                    <td style={{ padding: '12px', textTransform: 'capitalize' }}>{ord.status.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>{new Date(ord.updatedAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '12px' }}>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); selectOrder(ord._id); }} style={{ padding: '6px 10px', border: '1px solid var(--border-color)', borderRadius: '5px', backgroundColor: 'var(--card-bg)', color: 'var(--text-main)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        View details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {/* Right Column: Order Detail & Actions */}
+      {/* Selected order details and actions */}
       <div>
         {error && (
           <div
@@ -267,7 +312,11 @@ export default function DesignerQueue({ token, staffUser }) {
           </div>
         )}
 
-        {selectedOrder ? (
+        {detailLoading ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+            Loading order details...
+          </div>
+        ) : selectedOrder ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Header Card */}
             <div
@@ -358,28 +407,21 @@ export default function DesignerQueue({ token, staffUser }) {
               {selectedOrder.submittedData && (
                 <div
                   style={{
-                    backgroundColor: 'var(--bg-primary)',
+                    backgroundColor: '#FAFAF9',
                     borderRadius: '6px',
                     padding: '12px 14px',
                     marginBottom: '16px',
                     fontSize: '13px',
                   }}
                 >
-                  <div style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-muted)' }}>
-                    Form Answers:
+                  <div style={{ fontWeight: '700', marginBottom: '10px', color: '#1C1917' }}>
+                    Form Answers
                   </div>
-                  <pre
-                    style={{
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'inherit',
-                      color: 'var(--text-main)',
-                      fontSize: '13px',
-                    }}
-                  >
-                    {typeof selectedOrder.submittedData === 'object'
-                      ? JSON.stringify(selectedOrder.submittedData, null, 2)
-                      : String(selectedOrder.submittedData)}
-                  </pre>
+                  <OrderAnswersView
+                    submittedData={selectedOrder.submittedData}
+                    submittedFields={selectedOrder.submittedFields}
+                    formFields={selectedOrder.formId?.fields}
+                  />
                 </div>
               )}
 
@@ -387,7 +429,8 @@ export default function DesignerQueue({ token, staffUser }) {
               <div style={{ marginTop: '16px' }}>
                 <OrderPhotosFolderView
                   uploadedPhotos={selectedOrder.uploadedPhotos}
-                  submittedData={selectedOrder.submittedData}
+                  onDownloadFolder={handleDownloadFolder}
+                  downloadingFolder={downloadingFolder}
                 />
               </div>
             </div>
@@ -722,7 +765,7 @@ export default function DesignerQueue({ token, staffUser }) {
               color: 'var(--text-muted)',
             }}
           >
-            Select an assigned order from the left to inspect assets and upload drafts.
+            Select an assigned order in the table to inspect assets and upload drafts.
           </div>
         )}
       </div>

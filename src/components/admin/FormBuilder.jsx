@@ -127,6 +127,8 @@ export default function FormBuilder({ token }) {
     setTitle(val);
     if (selectedFormId === 'new') {
       const autoSlug = val
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, '-')
@@ -219,19 +221,25 @@ export default function FormBuilder({ token }) {
       setError(err.message || 'Failed to upload cover image');
     } finally {
       setUploadingCover(false);
+      e.target.value = '';
     }
   };
 
   const handleSaveForm = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    if (uploadingCover) {
+      setError('Please wait for the cover photo to finish uploading.');
+      return;
+    }
+
     if (!coverImageUrl || !coverImageUrl.trim()) {
       setError('A Magazine Cover Image is REQUIRED before publishing this edition.');
       return;
     }
 
-    if (!title.trim() || !slug.trim()) {
-      setError('Title and unique URL slug are required.');
+    if (!title.trim()) {
+      setError('Magazine edition title is required.');
       return;
     }
 
@@ -246,7 +254,6 @@ export default function FormBuilder({ token }) {
 
     const payload = {
       title: title.trim(),
-      slug: slug.trim(),
       description: description.trim(),
       magazineType: magazineType.trim(),
       price: Number(price) || 50000,
@@ -267,6 +274,7 @@ export default function FormBuilder({ token }) {
         setSuccessMsg(`Edition "${res.form.title}" created successfully!`);
         await loadForms();
         setSelectedFormId(res.form._id);
+        setSlug(res.form.slug);
       } else {
         const res = await api.admin.updateForm(token, selectedFormId, payload);
         setSuccessMsg(`Edition "${res.form.title}" updated successfully!`);
@@ -648,7 +656,7 @@ export default function FormBuilder({ token }) {
           <button
             type="button"
             onClick={handleSaveForm}
-            disabled={saving}
+            disabled={saving || uploadingCover}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -660,7 +668,7 @@ export default function FormBuilder({ token }) {
               padding: '9px 20px',
               fontSize: '13px',
               fontWeight: '700',
-              cursor: saving ? 'not-allowed' : 'pointer',
+              cursor: saving || uploadingCover ? 'not-allowed' : 'pointer',
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
@@ -750,7 +758,7 @@ export default function FormBuilder({ token }) {
               }}
             >
               <UploadCloud size={14} />
-              {uploadingCover ? 'Uploading...' : 'Upload Cover Photo'}
+              {uploadingCover ? 'Uploading...' : coverImageUrl ? 'Change Cover Photo' : 'Choose Cover Photo'}
               <input
                 type="file"
                 accept="image/*"
@@ -789,30 +797,12 @@ export default function FormBuilder({ token }) {
               )}
             </div>
 
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Cover Image URL or Path:
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Upload photo above or enter /brand/magazine-cover-sample.jpg"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #D6D3D1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <span style={{ fontSize: '11px', color: '#A8A29E', marginTop: '6px', display: 'block' }}>
-                Default sample path: <code>/brand/magazine-cover-sample.jpg</code>
-              </span>
+            <div style={{ flex: 1, fontSize: '13px', color: '#78716C' }}>
+              {uploadingCover
+                ? 'Uploading your cover photo...'
+                : coverImageUrl
+                  ? 'Cover photo selected. Choose another photo to replace it.'
+                  : 'Choose a photo from your device to use as the magazine cover.'}
             </div>
           </div>
         </div>
@@ -858,14 +848,13 @@ export default function FormBuilder({ token }) {
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                URL Slug * (Unique)
+                URL Slug (Generated automatically)
               </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. graduation-magazine"
+                readOnly
+                placeholder="Generated from the edition title"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -877,6 +866,11 @@ export default function FormBuilder({ token }) {
                   boxSizing: 'border-box',
                 }}
               />
+              <span style={{ fontSize: '11px', color: '#A8A29E', marginTop: '6px', display: 'block' }}>
+                {selectedFormId === 'new'
+                  ? 'Created from the title when saved. A number is added if the name is already used.'
+                  : 'This address stays the same when the title changes.'}
+              </span>
             </div>
           </div>
 
