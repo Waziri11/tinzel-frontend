@@ -253,6 +253,11 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
+    getStaffUser: (token, id) =>
+      fetch(`${API_BASE}/api/admin/staff/${id}`, {
+        headers: getHeaders(token),
+      }).then(handleResponse),
+
     createStaff: (token, staff) =>
       fetch(`${API_BASE}/api/admin/staff`, {
         method: 'POST',
@@ -265,6 +270,12 @@ export const api = {
         method: 'PUT',
         headers: getHeaders(token),
         body: JSON.stringify(staff),
+      }).then(handleResponse),
+
+    deleteStaff: (token, id) =>
+      fetch(`${API_BASE}/api/admin/staff/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(token),
       }).then(handleResponse),
 
     getConfig: (token) =>

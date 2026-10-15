@@ -51,8 +51,8 @@ const NAVIGATION_ITEMS = [
   },
   {
     id: 'staff_roster',
-    label: 'Staff Roster & RBAC',
-    subtitle: 'Team Workloads & Audit Logs',
+    label: 'User Management',
+    subtitle: 'Internal Accounts & Access',
     icon: Users,
     roles: ['admin'],
     badge: 'Admin Only',
