@@ -230,6 +230,12 @@ export const api = {
         body: JSON.stringify(form),
       }).then(handleResponse),
 
+    publishForm: (token, id) =>
+      fetch(`${API_BASE}/api/admin/forms/${id}/publish`, {
+        method: 'POST',
+        headers: getHeaders(token),
+      }).then(handleResponse),
+
     archiveForm: (token, id) =>
       fetch(`${API_BASE}/api/admin/forms/${id}`, {
         method: 'DELETE',

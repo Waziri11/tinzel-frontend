@@ -38,6 +38,7 @@ export default function FormBuilder({ token }) {
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -57,6 +58,8 @@ export default function FormBuilder({ token }) {
     { sectionId: 'sec_1', title: 'The Celebrants', description: 'Personal details and names', order: 1 },
   ]);
   const [fields, setFields] = useState([]);
+  const [isActive, setIsActive] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   useEffect(() => {
     loadForms();
@@ -96,6 +99,8 @@ export default function FormBuilder({ token }) {
     }
 
     setFields(form.fields || []);
+    setIsActive(Boolean(form.isActive));
+    setIsArchived(Boolean(form.isArchived));
     setError(null);
     setSuccessMsg(null);
     setViewMode('editor');
@@ -118,6 +123,8 @@ export default function FormBuilder({ token }) {
       { sectionId: 'sec_1', title: 'The Celebrants & Details', description: 'Personal details and introductory facts', order: 1 },
     ]);
     setFields([]); // 100% Empty questions - completely clean canvas!
+    setIsActive(false);
+    setIsArchived(false);
     setError(null);
     setSuccessMsg(null);
     setViewMode('editor');
@@ -233,18 +240,8 @@ export default function FormBuilder({ token }) {
       return;
     }
 
-    if (!coverImageUrl || !coverImageUrl.trim()) {
-      setError('A Magazine Cover Image is REQUIRED before publishing this edition.');
-      return;
-    }
-
     if (!title.trim()) {
       setError('Magazine edition title is required.');
-      return;
-    }
-
-    if (fields.length === 0) {
-      setError('Please add at least one question to the form.');
       return;
     }
 
@@ -271,19 +268,40 @@ export default function FormBuilder({ token }) {
     try {
       if (selectedFormId === 'new') {
         const res = await api.admin.createForm(token, payload);
-        setSuccessMsg(`Edition "${res.form.title}" created successfully!`);
+        setSuccessMsg(`Draft "${res.form.title}" saved successfully!`);
         await loadForms();
         setSelectedFormId(res.form._id);
         setSlug(res.form.slug);
+        setIsActive(Boolean(res.form.isActive));
       } else {
         const res = await api.admin.updateForm(token, selectedFormId, payload);
-        setSuccessMsg(`Edition "${res.form.title}" updated successfully!`);
+        setSuccessMsg(`Edition "${res.form.title}" saved successfully!`);
         await loadForms();
       }
     } catch (err) {
       setError(err.message || 'Failed to save form');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePublishForm = async () => {
+    if (selectedFormId === 'new') {
+      setError('Save the draft before publishing it.');
+      return;
+    }
+    setPublishing(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await api.admin.publishForm(token, selectedFormId);
+      setIsActive(true);
+      setSuccessMsg(`Edition "${res.form.title}" published successfully!`);
+      await loadForms();
+    } catch (err) {
+      setError(err.message || 'Failed to publish form');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -421,7 +439,7 @@ export default function FormBuilder({ token }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}>
-                Active Magazine Editions ({forms.length})
+                Magazine Editions ({forms.length})
               </span>
               <span style={{ fontSize: '12px', color: '#A8A29E' }}>
                 Click any edition card to customize its questions and cover
@@ -583,6 +601,9 @@ export default function FormBuilder({ token }) {
                       <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
                         {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
                       </span>
+                      <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isArchived ? '#991B1B' : form.isActive ? '#166534' : '#B45309' }}>
+                        {form.isArchived ? 'Archived' : form.isActive ? 'Published' : 'Draft'}
+                      </span>
                       <span style={{ fontSize: '12px', color: '#C5A059', fontWeight: '700' }}>
                         Customize Form →
                       </span>
@@ -650,13 +671,13 @@ export default function FormBuilder({ token }) {
               color: selectedFormId === 'new' ? '#B45309' : '#C5A059',
             }}
           >
-            {selectedFormId === 'new' ? 'New Blank Canvas' : 'Editing Form'}
+            {selectedFormId === 'new' ? 'New Blank Canvas' : isArchived ? 'Archived' : isActive ? 'Published' : 'Draft'}
           </span>
 
           <button
             type="button"
             onClick={handleSaveForm}
-            disabled={saving || uploadingCover}
+            disabled={saving || uploadingCover || publishing || isArchived}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -668,13 +689,28 @@ export default function FormBuilder({ token }) {
               padding: '9px 20px',
               fontSize: '13px',
               fontWeight: '700',
-              cursor: saving || uploadingCover ? 'not-allowed' : 'pointer',
+              cursor: saving || uploadingCover || publishing || isArchived ? 'not-allowed' : 'pointer',
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
             {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
-            Publish / Save Edition Form
+            Save {isActive ? 'Changes' : 'Draft'}
           </button>
+          {!isActive && !isArchived && selectedFormId !== 'new' && (
+            <button
+              type="button"
+              onClick={handlePublishForm}
+              disabled={saving || uploadingCover || publishing}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#1C1917', color: '#FFFFFF',
+                border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: '700',
+                cursor: publishing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+              Publish Edition
+            </button>
+          )}
         </div>
       </div>
 
