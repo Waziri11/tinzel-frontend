@@ -55,6 +55,7 @@ export default function FormBuilder({ token }) {
   const [googleFormUrl, setGoogleFormUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [importWarnings, setImportWarnings] = useState([]);
+  const [deletingFormId, setDeletingFormId] = useState(null);
 
   // Active form editing state
   const [title, setTitle] = useState('');
@@ -82,7 +83,7 @@ export default function FormBuilder({ token }) {
     setLoading(true);
     try {
       const data = await api.admin.getForms(token);
-      setForms(data.forms || []);
+      setForms((data.forms || []).filter((form) => !form.isArchived));
     } catch (err) {
       setError(err.message || 'Failed to load magazine forms');
     } finally {
@@ -347,6 +348,27 @@ export default function FormBuilder({ token }) {
     }
   };
 
+  const handleDeleteForm = async (form, event) => {
+    event?.stopPropagation();
+    const confirmed = window.confirm(
+      `Delete "${form.title}" from the form builder?\n\nIt will stop accepting new submissions. Historical orders and answers will remain preserved.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingFormId(form._id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await api.admin.archiveForm(token, form._id);
+      setForms((current) => current.filter((item) => item._id !== form._id));
+      setSuccessMsg(`Edition "${form.title}" deleted from the active form builder.`);
+    } catch (err) {
+      setError(err.message || 'Failed to delete form');
+    } finally {
+      setDeletingFormId(null);
+    }
+  };
+
   // -------------------------------------------------------------
   // VIEW 1: MASTER LIST OF MAGAZINES (Default entry)
   // -------------------------------------------------------------
@@ -459,6 +481,13 @@ export default function FormBuilder({ token }) {
           </div>
         )}
 
+        {successMsg && (
+          <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '6px', padding: '12px 16px', marginBottom: '24px', fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#78716C' }}>
             <Loader2 size={24} className="spin" style={{ margin: '0 auto 12px auto' }} />
@@ -502,10 +531,10 @@ export default function FormBuilder({ token }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}>
-                Magazine Editions ({forms.length})
+                Active Magazine Editions ({forms.length})
               </span>
               <span style={{ fontSize: '12px', color: '#A8A29E' }}>
-                Click any edition card to customize its questions and cover
+                Edit an edition or delete it from the active catalogue
               </span>
             </div>
 
@@ -526,7 +555,7 @@ export default function FormBuilder({ token }) {
                     border: '1px solid #E7E5E4',
                     borderRadius: '10px',
                     overflow: 'hidden',
-                    cursor: 'pointer',
+                    cursor: 'default',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     display: 'flex',
@@ -666,15 +695,31 @@ export default function FormBuilder({ token }) {
                         justifyContent: 'space-between',
                       }}
                     >
-                      <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
-                        {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
-                      </span>
-                      <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isArchived ? '#991B1B' : form.isActive ? '#166534' : '#B45309' }}>
-                        {form.isArchived ? 'Archived' : form.isActive ? 'Published' : 'Draft'}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#C5A059', fontWeight: '700' }}>
-                        Customize Form →
-                      </span>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
+                          {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
+                        </div>
+                        <div style={{ marginTop: '3px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isActive ? '#166534' : '#B45309' }}>
+                          {form.isActive ? 'Published' : 'Draft'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); selectFormForEdit(form); }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #C5A059', borderRadius: '5px', backgroundColor: '#FFFFFF', color: '#8A6825', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          <FileText size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          disabled={deletingFormId === form._id}
+                          onClick={(event) => handleDeleteForm(form, event)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #FCA5A5', borderRadius: '5px', backgroundColor: '#FEF2F2', color: '#B91C1C', fontSize: '11px', fontWeight: '700', cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer' }}
+                        >
+                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
