@@ -17,6 +17,7 @@ import {
   Copy,
   ArrowLeft,
   Folder,
+  Link2,
 } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -50,6 +51,10 @@ export default function FormBuilder({ token }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [showGoogleImport, setShowGoogleImport] = useState(false);
+  const [googleFormUrl, setGoogleFormUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importWarnings, setImportWarnings] = useState([]);
 
   // Active form editing state
   const [title, setTitle] = useState('');
@@ -107,6 +112,7 @@ export default function FormBuilder({ token }) {
     }
 
     setFields(form.fields || []);
+    setImportWarnings(form.importSource?.warnings || []);
     setIsActive(Boolean(form.isActive));
     setIsArchived(Boolean(form.isArchived));
     setError(null);
@@ -131,6 +137,7 @@ export default function FormBuilder({ token }) {
       { sectionId: 'sec_1', title: 'The Celebrants & Details', description: 'Personal details and introductory facts', order: 1 },
     ]);
     setFields([]); // 100% Empty questions - completely clean canvas!
+    setImportWarnings([]);
     setIsActive(false);
     setIsArchived(false);
     setError(null);
@@ -316,6 +323,30 @@ export default function FormBuilder({ token }) {
     }
   };
 
+  const handleGoogleImport = async (e) => {
+    e.preventDefault();
+    if (!googleFormUrl.trim()) {
+      setError('Paste a public Google Form link first.');
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await api.admin.importGoogleForm(token, googleFormUrl.trim());
+      setGoogleFormUrl('');
+      setShowGoogleImport(false);
+      await loadForms();
+      selectFormForEdit(res.form);
+      setImportWarnings(res.warnings || []);
+      setSuccessMsg(`Imported "${res.form.title}" as an unpublished draft.`);
+    } catch (err) {
+      setError(err.message || 'Failed to import Google Form');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // -------------------------------------------------------------
   // VIEW 1: MASTER LIST OF MAGAZINES (Default entry)
   // -------------------------------------------------------------
@@ -363,29 +394,50 @@ export default function FormBuilder({ token }) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={startFreshNewForm}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: '#C5A059',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '10px 20px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
-              transition: 'background-color 0.2s ease',
-            }}
-          >
-            <Plus size={16} />
-            + New Magazine Edition
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => { setShowGoogleImport((value) => !value); setError(null); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', color: '#1C1917', border: '1px solid #C5A059', borderRadius: '6px', padding: '10px 16px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+            >
+              <Link2 size={16} color="#C5A059" /> Import Google Form
+            </button>
+            <button
+              type="button"
+              onClick={startFreshNewForm}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#C5A059', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)' }}
+            >
+              <Plus size={16} /> New Magazine Edition
+            </button>
+          </div>
         </div>
+
+        {showGoogleImport && (
+          <form onSubmit={handleGoogleImport} style={{ backgroundColor: '#FFFFFF', border: '1px solid #C5A059', borderRadius: '8px', padding: '20px', marginBottom: '24px', boxShadow: '0 6px 18px rgba(197, 160, 89, 0.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Link2 size={18} color="#C5A059" />
+              <h2 style={{ margin: 0, fontSize: '16px', color: '#1C1917' }}>Import a public Google Form</h2>
+            </div>
+            <p style={{ margin: '0 0 14px', color: '#78716C', fontSize: '12px' }}>
+              Paste a published forms.gle or docs.google.com/forms link. Tinzel creates a private draft for you to review before publishing.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="url"
+                required
+                autoFocus
+                value={googleFormUrl}
+                onChange={(e) => setGoogleFormUrl(e.target.value)}
+                placeholder="https://forms.gle/..."
+                style={{ flex: 1, padding: '10px 12px', border: '1px solid #D6D3D1', borderRadius: '6px', fontSize: '13px' }}
+              />
+              <button type="submit" disabled={importing} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: 0, borderRadius: '6px', padding: '10px 18px', backgroundColor: '#1C1917', color: '#FFFFFF', fontWeight: '700', cursor: importing ? 'not-allowed' : 'pointer' }}>
+                {importing ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
+                {importing ? 'Importing…' : 'Import as Draft'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {error && (
           <div
@@ -568,6 +620,11 @@ export default function FormBuilder({ token }) {
                         <span style={{ fontSize: '11px', color: '#A8A29E' }}>
                           /{form.slug}
                         </span>
+                        {form.importSource?.provider === 'google_forms' && (
+                          <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', color: '#2563EB', backgroundColor: '#EFF6FF', borderRadius: '4px', padding: '2px 5px' }}>
+                            Google Import
+                          </span>
+                        )}
                       </div>
 
                       <h3
@@ -762,6 +819,17 @@ export default function FormBuilder({ token }) {
         >
           <CheckCircle2 size={16} />
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {importWarnings.length > 0 && (
+        <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: '6px', padding: '14px 16px', marginBottom: '24px', color: '#92400E', fontSize: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: '700', marginBottom: '7px' }}>
+            <AlertCircle size={16} /> Review {importWarnings.length} import {importWarnings.length === 1 ? 'warning' : 'warnings'} before publishing
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
+            {importWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
+          </ul>
         </div>
       )}
 

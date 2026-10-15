@@ -223,6 +223,13 @@ export const api = {
         body: JSON.stringify(form),
       }).then(handleResponse),
 
+    importGoogleForm: (token, url) =>
+      fetch(`${API_BASE}/api/admin/forms/import-google`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ url }),
+      }).then(handleResponse),
+
     updateForm: (token, id, form) =>
       fetch(`${API_BASE}/api/admin/forms/${id}`, {
         method: 'PUT',
