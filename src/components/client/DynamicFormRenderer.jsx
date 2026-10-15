@@ -83,6 +83,20 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       return;
     }
 
+    const missingRequired = (form?.fields || []).find((field) => {
+      if (!field.required) return false;
+      if (field.type === 'photo_upload' || field.type === 'photo_group') return !(fieldPhotos[field.fieldId] || []).length;
+      const value = answers[field.fieldId];
+      if (field.type === 'grid_radio' || field.type === 'grid_checkbox') {
+        return !(field.rows || []).every((row) => Array.isArray(value?.[row]) ? value[row].length > 0 : String(value?.[row] ?? '').trim());
+      }
+      return Array.isArray(value) ? value.length === 0 : !String(value ?? '').trim();
+    });
+    if (missingRequired) {
+      setError(`Please complete required question: ${missingRequired.label}`);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -565,6 +579,88 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     );
                   }
 
+                  if (field.type === 'radio' || field.type === 'checkbox') {
+                    const selected = field.type === 'checkbox' ? (answers[field.fieldId] || []) : answers[field.fieldId];
+                    return (
+                      <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0 }}>
+                        <legend style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>{field.label} {field.required ? '*' : ''}</legend>
+                        {field.helperText && <p style={{ fontSize: '12px', color: '#78716C' }}>{field.helperText}</p>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {(field.options || []).map((option) => (
+                            <label key={option} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '14px' }}>
+                              <input
+                                type={field.type}
+                                name={field.fieldId}
+                                value={option}
+                                checked={field.type === 'checkbox' ? selected.includes(option) : selected === option}
+                                required={field.required && field.type === 'radio'}
+                                onChange={(e) => {
+                                  if (field.type === 'radio') return handleFieldChange(field.fieldId, option);
+                                  const next = e.target.checked ? [...selected, option] : selected.filter((value) => value !== option);
+                                  handleFieldChange(field.fieldId, next);
+                                }}
+                              />
+                              {option}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    );
+                  }
+
+                  if (field.type === 'linear_scale' || field.type === 'rating') {
+                    const low = field.type === 'linear_scale' ? (field.scaleConfig?.low ?? 1) : 1;
+                    const high = field.type === 'linear_scale' ? (field.scaleConfig?.high ?? 5) : (field.ratingConfig?.levelCount ?? 5);
+                    const values = Array.from({ length: Math.max(0, high - low + 1) }, (_, index) => low + index);
+                    const icon = field.ratingConfig?.iconType === 'heart' ? '♥' : field.ratingConfig?.iconType === 'thumb' ? '👍' : '★';
+                    return (
+                      <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0 }}>
+                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{field.label} {field.required ? '*' : ''}</legend>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          {field.scaleConfig?.lowLabel && <span style={{ fontSize: '12px', color: '#78716C' }}>{field.scaleConfig.lowLabel}</span>}
+                          {values.map((value) => (
+                            <label key={value} style={{ display: 'grid', justifyItems: 'center', gap: '3px' }}>
+                              <span>{field.type === 'rating' ? icon : value}</span>
+                              <input type="radio" name={field.fieldId} value={value} required={field.required} checked={String(answers[field.fieldId] ?? '') === String(value)} onChange={() => handleFieldChange(field.fieldId, value)} />
+                            </label>
+                          ))}
+                          {field.scaleConfig?.highLabel && <span style={{ fontSize: '12px', color: '#78716C' }}>{field.scaleConfig.highLabel}</span>}
+                        </div>
+                      </fieldset>
+                    );
+                  }
+
+                  if (field.type === 'grid_radio' || field.type === 'grid_checkbox') {
+                    const gridValue = answers[field.fieldId] || {};
+                    return (
+                      <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0, overflowX: 'auto' }}>
+                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{field.label} {field.required ? '*' : ''}</legend>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                          <thead><tr><th style={{ textAlign: 'left', padding: '8px' }}></th>{(field.options || []).map((column) => <th key={column} style={{ padding: '8px' }}>{column}</th>)}</tr></thead>
+                          <tbody>{(field.rows || []).map((row) => <tr key={row}>
+                            <th style={{ textAlign: 'left', padding: '8px' }}>{row}</th>
+                            {(field.options || []).map((column) => {
+                              const rowValue = gridValue[row];
+                              const checked = field.type === 'grid_checkbox' ? (rowValue || []).includes(column) : rowValue === column;
+                              return <td key={column} style={{ textAlign: 'center', padding: '8px' }}><input
+                                type={field.type === 'grid_checkbox' ? 'checkbox' : 'radio'} name={`${field.fieldId}-${row}`} checked={checked}
+                                required={field.required && field.type === 'grid_radio'}
+                                onChange={(e) => {
+                                  let nextRow = column;
+                                  if (field.type === 'grid_checkbox') {
+                                    const current = rowValue || [];
+                                    nextRow = e.target.checked ? [...current, column] : current.filter((value) => value !== column);
+                                  }
+                                  handleFieldChange(field.fieldId, { ...gridValue, [row]: nextRow });
+                                }}
+                              /></td>;
+                            })}
+                          </tr>)}</tbody>
+                        </table>
+                      </fieldset>
+                    );
+                  }
+
                   if (field.type === 'dropdown') {
                     return (
                       <div key={field.fieldId}>
@@ -612,7 +708,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                         </p>
                       )}
                       <input
-                        type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+                        type={field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : field.type === 'time' ? 'time' : field.type === 'number' ? 'number' : 'text'}
+                        placeholder={field.type === 'duration' ? 'e.g. 1 hour 30 minutes' : undefined}
                         required={field.required}
                         value={answers[field.fieldId] || ''}
                         onChange={(e) => handleFieldChange(field.fieldId, e.target.value)}

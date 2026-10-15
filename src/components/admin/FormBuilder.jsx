@@ -29,6 +29,14 @@ const FIELD_TYPES = [
   { value: 'photo_upload', label: 'Single Photo Upload' },
   { value: 'dropdown', label: 'Dropdown Select' },
   { value: 'radio', label: 'Multiple Choice (Radio)' },
+  { value: 'checkbox', label: 'Checkboxes (Multiple Answers)' },
+  { value: 'linear_scale', label: 'Linear Scale' },
+  { value: 'rating', label: 'Rating' },
+  { value: 'grid_radio', label: 'Multiple Choice Grid' },
+  { value: 'grid_checkbox', label: 'Checkbox Grid' },
+  { value: 'time', label: 'Time' },
+  { value: 'datetime', label: 'Date & Time' },
+  { value: 'duration', label: 'Duration' },
 ];
 
 export default function FormBuilder({ token }) {
@@ -186,6 +194,9 @@ export default function FormBuilder({ token }) {
         order: prev.length + 1,
         helperText: defaultType === 'photo_group' ? 'Upload multiple high-resolution photos for this spread' : '',
         options: [],
+        rows: [],
+        scaleConfig: { low: 1, high: 5, lowLabel: '', highLabel: '' },
+        ratingConfig: { levelCount: 5, iconType: 'star' },
         validationRules: { minPhotos: 1, maxPhotos: 50 },
       },
     ]);
@@ -1223,6 +1234,49 @@ export default function FormBuilder({ token }) {
                                 }}
                               />
                             </div>
+
+                            {['dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox'].includes(field.type) && (
+                              <div style={{ display: 'grid', gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '12px' }}>
+                                {field.type.startsWith('grid_') && (
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
+                                    Rows (one per line)
+                                    <textarea
+                                      rows={4}
+                                      value={(field.rows || []).join('\n')}
+                                      onChange={(e) => handleFieldChange(globalIdx, 'rows', e.target.value.split('\n').map((v) => v.trim()).filter(Boolean))}
+                                      style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
+                                    />
+                                  </label>
+                                )}
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
+                                  {field.type.startsWith('grid_') ? 'Columns' : 'Options'} (one per line)
+                                  <textarea
+                                    rows={4}
+                                    value={(field.options || []).join('\n')}
+                                    onChange={(e) => handleFieldChange(globalIdx, 'options', e.target.value.split('\n').map((v) => v.trim()).filter(Boolean))}
+                                    style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
+                                  />
+                                </label>
+                              </div>
+                            )}
+
+                            {field.type === 'linear_scale' && (
+                              <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                                <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label="Scale minimum" />
+                                <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label="Scale maximum" />
+                                <input value={field.scaleConfig?.lowLabel || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, lowLabel: e.target.value })} placeholder="Low label" />
+                                <input value={field.scaleConfig?.highLabel || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, highLabel: e.target.value })} placeholder="High label" />
+                              </div>
+                            )}
+
+                            {field.type === 'rating' && (
+                              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                                <label style={{ fontSize: '11px', fontWeight: '700' }}>Levels <input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
+                                <select value={field.ratingConfig?.iconType || 'star'} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, iconType: e.target.value })}>
+                                  <option value="star">Stars</option><option value="heart">Hearts</option><option value="thumb">Thumbs</option>
+                                </select>
+                              </div>
+                            )}
 
                             {/* Photo Group Spread Badge & Notice */}
                             {isPhotoGroup && (
