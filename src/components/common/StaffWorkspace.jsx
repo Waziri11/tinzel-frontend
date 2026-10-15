@@ -7,13 +7,9 @@ import {
   Lock,
   Loader2,
   AlertCircle,
-  CheckCircle2,
   ArrowLeft,
-  RefreshCw,
   Eye,
   EyeOff,
-  UserCheck,
-  Shield,
   Palette,
 } from 'lucide-react';
 import { api } from '../../services/api';
@@ -110,6 +106,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       setToken(data.token);
       localStorage.setItem('tinzel_staff_token', data.token);
       setCurrentUser(data.user);
+      setPassword('');
 
       if (data.user.role === 'designer') {
         setActivePage('designer_queue');
@@ -255,7 +252,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 <input
                   type="email"
                   required
-                  placeholder="manager@tinzel.com"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -351,93 +348,6 @@ export default function StaffWorkspace({ onExitToHome }) {
               </button>
             </form>
 
-            {/* Quick Demo Sign-In Buttons */}
-            <div style={{ borderTop: '1px solid #E7E5E4', paddingTop: '20px' }}>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  color: '#A8A29E',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  display: 'block',
-                  marginBottom: '12px',
-                }}
-              >
-                One-Click Demo Roles (RBAC Testing):
-              </span>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => handleLogin('manager@tinzel.com', 'tinzel123')}
-                  style={{
-                    padding: '9px 12px',
-                    backgroundColor: '#FAFAF9',
-                    border: '1px solid #E7E5E4',
-                    borderRadius: '6px',
-                    color: '#1C1917',
-                    fontSize: '12px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>
-                    <strong>Production Manager</strong> (Conveyor & Forms)
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#C5A059', fontWeight: '700' }}>manager@tinzel.com</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLogin('designer1@tinzel.com', 'tinzel123')}
-                  style={{
-                    padding: '9px 12px',
-                    backgroundColor: '#FAFAF9',
-                    border: '1px solid #E7E5E4',
-                    borderRadius: '6px',
-                    color: '#1C1917',
-                    fontSize: '12px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>
-                    <strong>Editorial Designer</strong> (Assigned Queue Only)
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#16A34A', fontWeight: '700' }}>designer1@tinzel.com</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLogin('admin@tinzel.com', 'tinzel123')}
-                  style={{
-                    padding: '9px 12px',
-                    backgroundColor: '#FAFAF9',
-                    border: '1px solid #E7E5E4',
-                    borderRadius: '6px',
-                    color: '#1C1917',
-                    fontSize: '12px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>
-                    <strong>System Admin</strong> (Full Access & Roster)
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#9333EA', fontWeight: '700' }}>admin@tinzel.com</span>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -621,66 +531,6 @@ export default function StaffWorkspace({ onExitToHome }) {
 
         {/* Bottom Sidebar: Return & Sign Out */}
         <div style={{ padding: '16px 14px', borderTop: '1px solid #E7E5E4', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Quick Role Switcher for live test demo */}
-          <div style={{ marginBottom: '4px' }}>
-            <span style={{ fontSize: '10px', fontWeight: '700', color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.8px', display: 'block', marginBottom: '6px' }}>
-              Switch Demo Role:
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-              <button
-                type="button"
-                onClick={() => handleLogin('admin@tinzel.com', 'tinzel123')}
-                style={{
-                  padding: '5px 4px',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  border: '1px solid #E7E5E4',
-                  backgroundColor: currentUser.role === 'admin' ? '#1C1917' : '#FFFFFF',
-                  color: currentUser.role === 'admin' ? '#C5A059' : '#57534E',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLogin('manager@tinzel.com', 'tinzel123')}
-                style={{
-                  padding: '5px 4px',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  border: '1px solid #E7E5E4',
-                  backgroundColor: currentUser.role === 'manager' ? '#C5A059' : '#FFFFFF',
-                  color: currentUser.role === 'manager' ? '#FFFFFF' : '#57534E',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
-              >
-                Manager
-              </button>
-              <button
-                type="button"
-                onClick={() => handleLogin('designer1@tinzel.com', 'tinzel123')}
-                style={{
-                  padding: '5px 4px',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  border: '1px solid #E7E5E4',
-                  backgroundColor: currentUser.role === 'designer' ? '#78716C' : '#FFFFFF',
-                  color: currentUser.role === 'designer' ? '#FFFFFF' : '#57534E',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
-              >
-                Designer
-              </button>
-            </div>
-          </div>
-
           {onExitToHome && (
             <button
               type="button"
