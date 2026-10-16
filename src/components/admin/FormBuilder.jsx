@@ -441,7 +441,7 @@ export default function FormBuilder({ token }) {
               <h2 style={{ margin: 0, fontSize: '16px', color: '#1C1917' }}>Import a public Google Form</h2>
             </div>
             <p style={{ margin: '0 0 14px', color: '#78716C', fontSize: '12px' }}>
-              Paste a published forms.gle or docs.google.com/forms link. Tinzel creates a private draft for you to review before publishing.
+              Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be published and allow anyone with the link to respond. Tinzel creates a private draft for review.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
