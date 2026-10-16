@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Spin } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import DynamicFormRenderer from './DynamicFormRenderer';
 
@@ -130,6 +130,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFormSlug, setSelectedFormSlug] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadForms();
@@ -146,6 +147,12 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
       setLoading(false);
     }
   };
+
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const filteredForms = normalizedSearch
+    ? forms.filter((form) => [form.title, form.description, form.magazineType, form.slug]
+      .some((value) => String(value || '').toLocaleLowerCase().includes(normalizedSearch)))
+    : forms;
 
   // If user selected a magazine format, render the submission form
   if (selectedFormSlug) {
@@ -245,6 +252,48 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
         </div>
       </div>
 
+      {!loading && forms.length > 0 && (
+        <div style={{ maxWidth: '620px', margin: '0 auto 40px' }}>
+          <label
+            htmlFor="magazine-catalogue-search"
+            style={{ display: 'block', marginBottom: '8px', color: '#44403C', fontSize: '13px', fontWeight: '700' }}
+          >
+            Search magazine editions
+          </label>
+          <div style={{ position: 'relative' }}>
+            <SearchOutlined
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#A8A29E', fontSize: '18px', pointerEvents: 'none' }}
+            />
+            <input
+              id="magazine-catalogue-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by occasion or magazine name"
+              autoComplete="off"
+              style={{
+                width: '100%',
+                minHeight: '50px',
+                padding: '12px 16px 12px 48px',
+                border: '1px solid #D6D3D1',
+                borderRadius: '8px',
+                backgroundColor: '#FFFFFF',
+                color: '#1C1917',
+                fontSize: '15px',
+                outlineColor: '#C5A059',
+                boxShadow: '0 6px 18px rgba(28, 25, 23, 0.05)',
+              }}
+            />
+          </div>
+          <div aria-live="polite" style={{ minHeight: '20px', marginTop: '8px', color: '#78716C', fontSize: '12px' }}>
+            {normalizedSearch
+              ? `${filteredForms.length} ${filteredForms.length === 1 ? 'edition' : 'editions'} found`
+              : `${forms.length} magazine ${forms.length === 1 ? 'edition' : 'editions'} available`}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Spin size="large" />
@@ -263,10 +312,30 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
         >
           No active magazine formats currently published.
         </div>
+      ) : filteredForms.length === 0 ? (
+        <div
+          style={{
+            textAlign: 'center',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E7E5E4',
+            borderRadius: '8px',
+            padding: '40px 24px',
+            color: '#78716C',
+          }}
+        >
+          <div style={{ marginBottom: '16px' }}>No magazine editions match “{searchQuery.trim()}”.</div>
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            style={{ border: '1px solid #C5A059', borderRadius: '6px', padding: '9px 16px', backgroundColor: '#FFFFFF', color: '#1C1917', fontWeight: '700', cursor: 'pointer' }}
+          >
+            Clear search
+          </button>
+        </div>
       ) : (
         /* Magazine Cover Showcase Grid */
         <Row gutter={[48, 48]} justify="center">
-          {forms.map((form) => (
+          {filteredForms.map((form) => (
             <Col xs={24} sm={12} md={10} lg={8} key={form.slug}>
               <MagazineCoverCard form={form} onSelect={(slug) => setSelectedFormSlug(slug)} />
             </Col>
