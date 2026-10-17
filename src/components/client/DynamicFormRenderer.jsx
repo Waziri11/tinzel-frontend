@@ -13,28 +13,10 @@ import {
   Lock,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { compressPhotoFile } from '../../utils/imageCompression';
+import { usePhotoUploads } from '../../hooks/usePhotoUploads';
 import LipaNambaScreen from './LipaNambaScreen';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
-const UPLOAD_CONCURRENCY = 2;
-
-async function mapWithConcurrency(items, concurrency, worker) {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-
-  const runWorker = async () => {
-    while (nextIndex < items.length) {
-      const idx = nextIndex;
-      nextIndex += 1;
-      results[idx] = await worker(items[idx], idx);
-    }
-  };
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker());
-  await Promise.all(workers);
-  return results;
-}
 
 export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavigateToTracking }) {
   const { t, lang } = useLanguage();
@@ -45,233 +27,69 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Form input state
   const [clientName, setClientName] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [answers, setAnswers] = useState({});
-  const [selectedPhotos, setSelectedPhotos] = useState([]);
-  const [fieldPhotos, setFieldPhotos] = useState({}); // { [fieldId]: File[] }
   const [submitting, setSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(null); // { done, total }
   const [submissionResult, setSubmissionResult] = useState(null);
-
-  // Cache for background pre-compression & pre-upload promises keyed by File instance
-  const preUploadCacheRef = useRef(new WeakMap());
-  const endpointUnsupportedRef = useRef(false);
+  const [restoredSlug, setRestoredSlug] = useState(null);
+  const uploads = usePhotoUploads(slug, form);
+  const fieldPhotos = {};
+  uploads.items.forEach((item) => { (fieldPhotos[item.fieldId] ||= []).push(item); });
+  const uploadProgress = { done: uploads.items.filter((i) => i.state === 'complete').length, total: uploads.items.length };
+  const draftKey = 'tinzel:answers:v2:' + slug;
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
   useEffect(() => {
-    preUploadCacheRef.current = new WeakMap();
-    endpointUnsupportedRef.current = false;
-    loadForm();
+    let active = true;
+    setLoading(true); setError(null); setSubmissionResult(null);
+    let draft = {};
+    try { draft = JSON.parse(localStorage.getItem(draftKey)) || {}; } catch { /* optional recovery */ }
+    setClientName(draft.clientName || ''); setClientWhatsApp(draft.clientWhatsApp || '');
+    setClientEmail(draft.clientEmail || ''); setAnswers(draft.answers || {});
+    setRestoredSlug(slug);
+    api.public.getFormBySlug(slug).then((data) => { if (active) setForm(data.form); })
+      .catch((err) => { if (active) setError(err.message || t('form.loadFailed')); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [slug]);
 
-  const loadForm = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.public.getFormBySlug(slug);
-      setForm(data.form);
-    } catch (err) {
-      setError(err.message || t('form.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    if (restoredSlug !== slug || submissionResult) return;
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(draftKey, JSON.stringify({ clientName, clientWhatsApp, clientEmail, answers })); } catch { /* optional recovery */ }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, submissionResult]);
+
+  const handleFieldChange = (fieldId, value) => setAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  const handleFieldPhotoSelect = async (fieldId, event) => {
+    const files = Array.from(event.target.files || []); event.target.value = '';
+    try { setError(null); await uploads.add(fieldId, files); } catch (err) { setError(err.message); }
+  };
+  const removeFieldPhoto = async (fieldId, index) => {
+    try { await uploads.remove(fieldPhotos[fieldId][index].id); } catch (err) { setError(err.message); }
   };
 
-  // Compress and pre-upload a photo with automatic retry on transient 500/network errors
-  const ensurePhotoTask = (file, fieldId, folderName) => {
-    const existing = preUploadCacheRef.current.get(file);
-    if (existing) return existing;
-
-    const taskPromise = (async () => {
-      const compressedFile = await compressPhotoFile(file, {
-        maxBytes: 900 * 1024,
-        maxDimension: 2400,
-        quality: 0.86,
-      });
-
-      if (endpointUnsupportedRef.current) {
-        return { compressedFile, uploadedPhoto: null, fallback: true };
-      }
-
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          const res = await api.public.uploadOrderPhoto(slug, compressedFile, {
-            fieldId,
-            folderName,
-          });
-          if (res?.photo) {
-            return { compressedFile, uploadedPhoto: res.photo, fallback: false };
-          }
-        } catch (err) {
-          if (err.status === 404 || err.status === 405) {
-            endpointUnsupportedRef.current = true;
-            return { compressedFile, uploadedPhoto: null, fallback: true };
-          }
-          if (attempt < 2) {
-            await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-          }
-        }
-      }
-
-      // If all 3 single-photo attempts failed, mark this photo for fallback in the final submit payload
-      return { compressedFile, uploadedPhoto: null, fallback: true };
-    })();
-
-    preUploadCacheRef.current.set(file, taskPromise);
-    return taskPromise;
-  };
-
-  const startBackgroundPreUploads = (files, fieldId, folderName) => {
-    mapWithConcurrency(files, UPLOAD_CONCURRENCY, (file) => ensurePhotoTask(file, fieldId, folderName)).catch(() => {});
-  };
-
-  const handleFieldChange = (fieldId, value) => {
-    setAnswers((prev) => ({ ...prev, [fieldId]: value }));
-  };
-
-  const handlePhotoSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    setSelectedPhotos((prev) => [...prev, ...files]);
-    startBackgroundPreUploads(files, '', 'General Photos');
-  };
-
-  const removePhoto = (index) => {
-    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleFieldPhotoSelect = (fieldId, e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const fieldDef = (form?.fields || []).find((f) => f.fieldId === fieldId);
-    const folderName = fieldDef?.label || 'Photo Spread';
-    setFieldPhotos((prev) => ({
-      ...prev,
-      [fieldId]: [...(prev[fieldId] || []), ...files],
-    }));
-    startBackgroundPreUploads(files, fieldId, folderName);
-  };
-
-  const removeFieldPhoto = (fieldId, index) => {
-    setFieldPhotos((prev) => ({
-      ...prev,
-      [fieldId]: (prev[fieldId] || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!clientName.trim() || !clientWhatsApp.trim()) {
-      setError(t('form.errNamePhone'));
-      return;
-    }
-
-    const missingRequired = (form?.fields || []).find((field) => {
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!clientName.trim() || !clientWhatsApp.trim()) { setError(t('form.errNamePhone')); return; }
+    const missing = (form?.fields || []).find((field) => {
       if (!field.required) return false;
-      if (field.type === 'photo_upload' || field.type === 'photo_group') return !(fieldPhotos[field.fieldId] || []).length;
+      if (['photo_upload', 'photo_group'].includes(field.type)) return !(fieldPhotos[field.fieldId] || []).length;
       const value = answers[field.fieldId];
-      if (field.type === 'grid_radio' || field.type === 'grid_checkbox') {
-        return !(field.rows || []).every((row) => Array.isArray(value?.[row]) ? value[row].length > 0 : String(value?.[row] ?? '').trim());
-      }
-      return Array.isArray(value) ? value.length === 0 : !String(value ?? '').trim();
+      if (['grid_radio', 'grid_checkbox'].includes(field.type)) return !(field.rows || []).every((row) => Array.isArray(value?.[row]) ? value[row].length : String(value?.[row] ?? '').trim());
+      return Array.isArray(value) ? !value.length : !String(value ?? '').trim();
     });
-    if (missingRequired) {
-      setError(t('form.errRequired', { label: L(missingRequired, 'label') }));
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
+    if (missing) { setError(t('form.errRequired', { label: L(missing, 'label') })); return; }
+    setSubmitting(true); setError(null);
     try {
-      const queuedPhotos = [];
-
-      Object.keys(fieldPhotos).forEach((fId) => {
-        const fieldDef = (form.fields || []).find((f) => f.fieldId === fId);
-        const folderName = fieldDef?.label || 'Photo Spread';
-        const files = fieldPhotos[fId] || [];
-        files.forEach((file) => {
-          queuedPhotos.push({ file, fieldId: fId, folderName });
-        });
-      });
-
-      selectedPhotos.forEach((file) => {
-        queuedPhotos.push({ file, fieldId: '', folderName: 'General Photos' });
-      });
-
-      let doneCount = 0;
-      if (queuedPhotos.length > 0) {
-        setUploadProgress({ done: 0, total: queuedPhotos.length });
-      }
-
-      // Resolve pre-uploaded photos or upload remaining ones (2 at a time with automatic retry)
-      const taskResults = await mapWithConcurrency(queuedPhotos, UPLOAD_CONCURRENCY, async (item) => {
-        const res = await ensurePhotoTask(item.file, item.fieldId, item.folderName);
-        doneCount += 1;
-        setUploadProgress({ done: doneCount, total: queuedPhotos.length });
-        return { ...item, ...res };
-      });
-
-      const uploadedPhotos = taskResults.map((r) => r.uploadedPhoto).filter(Boolean);
-      const remainingFallbackItems = taskResults.filter((r) => !r.uploadedPhoto);
-
-      let result;
-      if (remainingFallbackItems.length > 0) {
-        const fallbackBudget = Math.min(
-          900 * 1024,
-          Math.max(180 * 1024, Math.floor((3.4 * 1024 * 1024) / remainingFallbackItems.length))
-        );
-
-        const formData = new FormData();
-        formData.append('clientName', clientName.trim());
-        formData.append('clientWhatsApp', clientWhatsApp.trim());
-        if (clientEmail.trim()) formData.append('clientEmail', clientEmail.trim());
-        formData.append('answers', JSON.stringify(answers));
-        if (uploadedPhotos.length > 0) {
-          formData.append('uploadedPhotos', JSON.stringify(uploadedPhotos));
-        }
-
-        const photosMetadata = [];
-        const fallbackFiles = await mapWithConcurrency(remainingFallbackItems, UPLOAD_CONCURRENCY, async (item) =>
-          item.compressedFile.size <= fallbackBudget
-            ? item.compressedFile
-            : compressPhotoFile(item.compressedFile, { maxBytes: fallbackBudget, maxDimension: 2000, quality: 0.8 })
-        );
-
-        fallbackFiles.forEach((fallbackFile, idx) => {
-          const item = remainingFallbackItems[idx];
-          formData.append('photos', fallbackFile);
-          photosMetadata.push({
-            originalName: fallbackFile.name,
-            fieldId: item.fieldId,
-            folderName: item.folderName,
-          });
-        });
-
-        if (photosMetadata.length > 0) {
-          formData.append('photosMetadata', JSON.stringify(photosMetadata));
-        }
-
-        result = await api.public.submitForm(slug, formData);
-      } else {
-        result = await api.public.submitForm(slug, {
-          clientName: clientName.trim(),
-          clientWhatsApp: clientWhatsApp.trim(),
-          clientEmail: clientEmail.trim(),
-          answers,
-          uploadedPhotos,
-        });
-      }
-
+      const result = await uploads.submit({ clientName: clientName.trim(), clientWhatsApp: clientWhatsApp.trim(), clientEmail: clientEmail.trim(), answers });
       setSubmissionResult(result);
-    } catch (err) {
-      setError(err.message || t('form.errSubmit'));
-    } finally {
-      setSubmitting(false);
-      setUploadProgress(null);
-    }
+      try { localStorage.removeItem(draftKey); } catch { /* optional recovery */ }
+    } catch (err) { setError(err.message || t('form.errSubmit')); }
+    finally { setSubmitting(false); }
   };
 
   if (loading) {
@@ -445,6 +263,20 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
       {/* Main Form Fields */}
       <form onSubmit={handleSubmit}>
+        {uploads.notice && <p role="status">{uploads.notice}</p>}
+        {uploads.items.length > 0 && (
+          <section aria-label={ui('Photo upload progress', 'Maendeleo ya kupakia picha')} style={{ padding: 16, marginBottom: 20, background: '#FAF5EA', borderRadius: 8 }}>
+            <strong>{ui('Photos ready', 'Picha zilizo tayari')}: {uploadProgress.done}/{uploadProgress.total}</strong>
+            <p style={{ fontSize: 13 }}>{ui('Original photo quality is preserved. Completed uploads are saved; after refreshing, reselect any unfinished files to continue.', 'Ubora wa picha asili unahifadhiwa. Picha zilizokamilika zimehifadhiwa; baada ya kufungua upya, chagua tena faili ambazo hazijakamilika.')}</p>
+            {uploads.items.map((item) => (
+              <div key={item.id} style={{ padding: '8px 0', borderTop: '1px solid #e7e5e4' }}>
+                <span>{item.name} — {item.state === 'complete' ? ui('Ready', 'Tayari') : item.state === 'needs_file' ? ui('Reselect this file below to resume', 'Chagua tena faili hii hapa chini kuendelea') : item.state === 'failed' ? item.error : item.state === 'queued' ? ui('Waiting', 'Inasubiri') : Math.round(item.progress) + '%'}</span>
+                {item.state === 'uploading' && <progress aria-label={item.name} max="100" value={item.progress} style={{ width: '100%' }} />}
+                {item.state === 'failed' && <button type="button" disabled={submitting} onClick={() => uploads.retry(item.id)} style={{ marginLeft: 8 }}>{ui('Retry photo', 'Jaribu tena')}</button>}
+              </div>
+            ))}
+          </section>
+        )}
         {/* Contact Information Section */}
         <div
           style={{
@@ -616,6 +448,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                             id={`upload-${field.fieldId}`}
                             type="file"
                             multiple={isGroup}
+                            disabled={submitting}
                             accept="image/*"
                             style={{ display: 'none' }}
                             onChange={(e) => handleFieldPhotoSelect(field.fieldId, e)}
@@ -653,6 +486,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                   <button
                                     type="button"
                                     onClick={() => removeFieldPhoto(field.fieldId, idx)}
+                                    disabled={submitting}
                                     style={{
                                       backgroundColor: 'transparent',
                                       border: 'none',

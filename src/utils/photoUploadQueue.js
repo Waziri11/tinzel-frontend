@@ -45,7 +45,8 @@ export class PhotoUploadQueue {
   async wait() {
     await new Promise((resolve) => {
       const check = () => {
-        if (![...this.tasks.values()].some((item) => ['queued', 'uploading'].includes(item.state))) {
+        const items = [...this.tasks.values()];
+        if (items.some((item) => ['failed', 'needs_file'].includes(item.state)) || !items.some((item) => ['queued', 'uploading'].includes(item.state))) {
           this.listeners.delete(check); resolve();
         }
       };
