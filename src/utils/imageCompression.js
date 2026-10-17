@@ -23,8 +23,12 @@ const canvasToBlob = (canvas, type, quality) =>
     canvas.toBlob((blob) => resolve(blob), type, quality);
   });
 
-export async function compressPhotoFile(file, { maxBytes = 700 * 1024, maxDimension = 2200 } = {}) {
+export async function compressPhotoFile(
+  file,
+  { maxBytes = Math.floor(3.8 * 1024 * 1024), maxDimension = 3600 } = {}
+) {
   if (!file || typeof file.size !== 'number') return file;
+  // Keep original file 100% untouched whenever it fits within the per-request limit
   if (file.size <= maxBytes && /image\/(jpeg|jpg|png|webp)/i.test(file.type)) {
     return file;
   }
@@ -36,7 +40,7 @@ export async function compressPhotoFile(file, { maxBytes = 700 * 1024, maxDimens
     if (!naturalWidth || !naturalHeight) return file;
 
     let currentMaxDim = maxDimension;
-    let quality = 0.84;
+    let quality = 0.92;
     let bestBlob = null;
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -60,8 +64,8 @@ export async function compressPhotoFile(file, { maxBytes = 700 * 1024, maxDimens
         if (blob.size <= maxBytes) break;
       }
 
-      quality = Math.max(0.5, quality - 0.1);
-      currentMaxDim = Math.round(currentMaxDim * 0.82);
+      quality = Math.max(0.75, quality - 0.05);
+      currentMaxDim = Math.round(currentMaxDim * 0.9);
     }
 
     if (!bestBlob || bestBlob.size >= file.size) {

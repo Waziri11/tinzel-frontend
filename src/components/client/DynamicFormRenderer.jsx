@@ -122,25 +122,19 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         queuedPhotos.push({ file, fieldId: '', folderName: 'General Photos' });
       });
 
-      // Compress each photo client-side so individual requests and fallback payloads never trigger 413
-      const perFileBudget =
-        queuedPhotos.length > 0
-          ? Math.min(700 * 1024, Math.max(180 * 1024, Math.floor((3.4 * 1024 * 1024) / queuedPhotos.length)))
-          : 700 * 1024;
-
-      const compressedQueue = await Promise.all(
-        queuedPhotos.map(async (item) => ({
-          ...item,
-          compressedFile: await compressPhotoFile(item.file, { maxBytes: perFileBudget, maxDimension: 2200 }),
-        }))
-      );
+      // For per-photo uploads, each request has its own 4.5MB limit, so photos <= 3.8MB are uploaded 100% untouched
+      const singlePhotoMaxBytes = Math.floor(3.8 * 1024 * 1024);
 
       let uploadedPhotos = [];
       let useMultipartFallback = false;
 
-      for (const item of compressedQueue) {
+      for (const item of queuedPhotos) {
         try {
-          const uploadRes = await api.public.uploadOrderPhoto(slug, item.compressedFile, {
+          const printReadyFile = await compressPhotoFile(item.file, {
+            maxBytes: singlePhotoMaxBytes,
+            maxDimension: 3600,
+          });
+          const uploadRes = await api.public.uploadOrderPhoto(slug, printReadyFile, {
             fieldId: item.fieldId,
             folderName: item.folderName,
           });
@@ -148,7 +142,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             uploadedPhotos.push(uploadRes.photo);
           }
         } catch (uploadErr) {
-          if (uploadErr.status === 404 || uploadErr.status === 405) {
+          if (uploadErr.status === 404 || uploadErr.status === 405 || uploadErr.status === 413) {
             useMultipartFallback = true;
             break;
           }
@@ -158,6 +152,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
       let result;
       if (useMultipartFallback) {
+        const fallbackBudget =
+          queuedPhotos.length > 0
+            ? Math.min(singlePhotoMaxBytes, Math.max(250 * 1024, Math.floor((3.5 * 1024 * 1024) / queuedPhotos.length)))
+            : singlePhotoMaxBytes;
+
         const formData = new FormData();
         formData.append('clientName', clientName.trim());
         formData.append('clientWhatsApp', clientWhatsApp.trim());
@@ -165,14 +164,18 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         formData.append('answers', JSON.stringify(answers));
 
         const photosMetadata = [];
-        compressedQueue.forEach((item) => {
-          formData.append('photos', item.compressedFile);
+        for (const item of queuedPhotos) {
+          const fallbackFile = await compressPhotoFile(item.file, {
+            maxBytes: fallbackBudget,
+            maxDimension: 2600,
+          });
+          formData.append('photos', fallbackFile);
           photosMetadata.push({
-            originalName: item.compressedFile.name,
+            originalName: fallbackFile.name,
             fieldId: item.fieldId,
             folderName: item.folderName,
           });
-        });
+        }
 
         if (photosMetadata.length > 0) {
           formData.append('photosMetadata', JSON.stringify(photosMetadata));
