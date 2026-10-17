@@ -3,17 +3,22 @@ import { Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import DynamicFormRenderer from './DynamicFormRenderer';
+import { useLanguage, localized } from '../../i18n/LanguageContext';
 
 function MagazineCoverCard({ form, onSelect }) {
+  const { t, lang } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const coverImage = form.coverImageUrl || '/brand/magazine-cover-sample.jpg';
 
   // Format title: If it contains 'Harusi Yetu - Wedding Edition', clean to 'Wedding Magazine'
-  let displayTitle = form.title || 'Personalized Magazine';
-  if (displayTitle.toLowerCase().includes('harusi yetu') || form.slug === 'wedding-magazine') {
-    displayTitle = 'Wedding Magazine';
-  } else if (displayTitle.toLowerCase().includes('birthday celebration special')) {
-    displayTitle = 'Birthday Magazine';
+  let displayTitle = localized(form, 'title', lang) || t('showcase.defaultTitle');
+  const hasSwahiliTitle = lang === 'sw' && String(form.titleSw || '').trim();
+  if (!hasSwahiliTitle) {
+    if (displayTitle.toLowerCase().includes('harusi yetu') || form.slug === 'wedding-magazine') {
+      displayTitle = t('showcase.weddingTitle');
+    } else if (displayTitle.toLowerCase().includes('birthday celebration special')) {
+      displayTitle = t('showcase.birthdayTitle');
+    }
   }
 
   return (
@@ -127,6 +132,7 @@ function MagazineCoverCard({ form, onSelect }) {
 }
 
 export default function MagazineShowcase({ onBackToHome, onNavigateToTracking }) {
+  const { t } = useLanguage();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFormSlug, setSelectedFormSlug] = useState(null);
@@ -150,7 +156,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
 
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const filteredForms = normalizedSearch
-    ? forms.filter((form) => [form.title, form.description, form.magazineType, form.slug]
+    ? forms.filter((form) => [form.title, form.titleSw, form.description, form.descriptionSw, form.magazineType, form.magazineTypeSw, form.slug]
       .some((value) => String(value || '').toLocaleLowerCase().includes(normalizedSearch)))
     : forms;
 
@@ -175,7 +181,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
               cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
-            title="Back to Magazine Editions"
+            title={t('showcase.backEditions')}
           >
             <ArrowLeftOutlined style={{ fontSize: '16px' }} />
           </button>
@@ -218,7 +224,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             cursor: 'pointer',
             transition: 'all 0.2s ease',
           }}
-          title="Back to Home"
+          title={t('showcase.backHome')}
         >
           <ArrowLeftOutlined style={{ fontSize: '16px' }} />
         </button>
@@ -235,7 +241,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
               marginBottom: '2px',
             }}
           >
-            Tinzel Editorial Catalogue
+            {t('showcase.catalogue')}
           </div>
           <div
             style={{
@@ -247,7 +253,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
               color: '#C5A059',
             }}
           >
-            Select Your Magazine Format
+            {t('showcase.select')}
           </div>
         </div>
       </div>
@@ -258,7 +264,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             htmlFor="magazine-catalogue-search"
             style={{ display: 'block', marginBottom: '8px', color: '#44403C', fontSize: '13px', fontWeight: '700' }}
           >
-            Search magazine editions
+            {t('showcase.searchLabel')}
           </label>
           <div style={{ position: 'relative' }}>
             <SearchOutlined
@@ -270,7 +276,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by occasion or magazine name"
+              placeholder={t('showcase.searchPlaceholder')}
               autoComplete="off"
               style={{
                 width: '100%',
@@ -288,8 +294,8 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
           </div>
           <div aria-live="polite" style={{ minHeight: '20px', marginTop: '8px', color: '#78716C', fontSize: '12px' }}>
             {normalizedSearch
-              ? `${filteredForms.length} ${filteredForms.length === 1 ? 'edition' : 'editions'} found`
-              : `${forms.length} magazine ${forms.length === 1 ? 'edition' : 'editions'} available`}
+              ? t(filteredForms.length === 1 ? 'showcase.found.one' : 'showcase.found.many', { count: filteredForms.length })
+              : t(forms.length === 1 ? 'showcase.available.one' : 'showcase.available.many', { count: forms.length })}
           </div>
         </div>
       )}
@@ -297,7 +303,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Spin size="large" />
-          <p style={{ marginTop: '16px', color: '#78716C' }}>Loading editorial editions...</p>
+          <p style={{ marginTop: '16px', color: '#78716C' }}>{t('showcase.loading')}</p>
         </div>
       ) : forms.length === 0 ? (
         <div
@@ -310,7 +316,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             color: '#78716C',
           }}
         >
-          No active magazine formats currently published.
+          {t('showcase.none')}
         </div>
       ) : filteredForms.length === 0 ? (
         <div
@@ -323,13 +329,13 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             color: '#78716C',
           }}
         >
-          <div style={{ marginBottom: '16px' }}>No magazine editions match “{searchQuery.trim()}”.</div>
+          <div style={{ marginBottom: '16px' }}>{t('showcase.noMatch', { query: searchQuery.trim() })}</div>
           <button
             type="button"
             onClick={() => setSearchQuery('')}
             style={{ border: '1px solid #C5A059', borderRadius: '6px', padding: '9px 16px', backgroundColor: '#FFFFFF', color: '#1C1917', fontWeight: '700', cursor: 'pointer' }}
           >
-            Clear search
+            {t('showcase.clear')}
           </button>
         </div>
       ) : (

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Alert } from 'antd';
 import { SearchOutlined, LockOutlined, CheckCircleOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
+  const { t } = useLanguage();
   const [step, setStep] = useState('enter_order'); // 'enter_order' | 'enter_otp'
   const [orderNumber, setOrderNumber] = useState('');
   const [whatsappPhone, setWhatsappPhone] = useState('');
@@ -14,7 +16,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
 
   const handleRequestOtp = async () => {
     if (!orderNumber.trim() || !whatsappPhone.trim()) {
-      setError('Please provide both your Magazine Order Number and WhatsApp phone number.');
+      setError(t('follow.errBoth'));
       return;
     }
 
@@ -25,7 +27,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
       if (res.devOtp) setDevOtp(res.devOtp);
       setStep('enter_otp');
     } catch (err) {
-      setError(err.message || 'Could not locate order. Please check the order number and WhatsApp phone.');
+      setError(err.message || t('follow.errLocate'));
     } finally {
       setLoading(false);
     }
@@ -33,7 +35,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
 
   const handleVerifyOtp = async () => {
     if (!otpCode.trim()) {
-      setError('Please enter the 6-digit WhatsApp verification code.');
+      setError(t('follow.errCode'));
       return;
     }
 
@@ -45,7 +47,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
       onSuccess(res.clientToken);
       resetState();
     } catch (err) {
-      setError(err.message || 'Invalid or expired verification code.');
+      setError(err.message || t('follow.errInvalid'));
     } finally {
       setLoading(false);
     }
@@ -76,14 +78,14 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1C1917' }}>
           <img src="/brand/tinzel-butterfly.png" alt="Tinzel" style={{ height: '24px', width: 'auto' }} />
           <span style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '24px', fontWeight: '600' }}>
-            Magazine Order Follow Up
+            {t('follow.title')}
           </span>
         </div>
       }
     >
       <div style={{ paddingTop: '12px' }}>
         <p style={{ fontSize: '13px', color: '#78716C', marginBottom: '20px', lineHeight: '1.5' }}>
-          Follow your magazine's editorial progress, review designer drafts, and approve your printed edition.
+          {t('follow.intro')}
         </p>
 
         {error && (
@@ -109,18 +111,18 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                   letterSpacing: '0.5px',
                 }}
               >
-                Magazine Order Number *
+                {t('follow.orderNumber')}
               </label>
               <Input
                 size="large"
-                placeholder="e.g. TNZ-2026-0001 or SUB-2026-XXXXX"
+                placeholder={t('follow.orderPlaceholder')}
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
                 prefix={<SearchOutlined style={{ color: '#C5A059' }} />}
                 style={{ borderRadius: '6px' }}
               />
               <span style={{ fontSize: '11px', color: '#78716C', marginTop: '4px', display: 'block' }}>
-                Issued upon payment verification (TNZ-...) or initial submission (SUB-...).
+                {t('follow.orderHint')}
               </span>
             </div>
 
@@ -136,7 +138,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                   letterSpacing: '0.5px',
                 }}
               >
-                WhatsApp Phone Number *
+                {t('follow.whatsapp')}
               </label>
               <Input
                 size="large"
@@ -147,7 +149,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 style={{ borderRadius: '6px' }}
               />
               <span style={{ fontSize: '11px', color: '#78716C', marginTop: '4px', display: 'block' }}>
-                A 6-digit security code will be sent to this number to protect your photos and drafts.
+                {t('follow.whatsappHint')}
               </span>
             </div>
 
@@ -166,7 +168,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 fontWeight: '600',
               }}
             >
-              Continue to Private Review
+              {t('follow.continue')}
             </Button>
           </div>
         ) : (
@@ -182,13 +184,12 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 color: '#92400E',
               }}
             >
-              A 6-digit WhatsApp verification code was sent to <strong>{whatsappPhone}</strong> for Order{' '}
-              <strong>{orderNumber}</strong>.
+              {t('follow.sentTo', { phone: whatsappPhone, order: orderNumber })}
             </div>
 
             {devOtp && (
               <div style={{ marginBottom: '14px', fontSize: '12px', color: '#B45309', fontWeight: '600' }}>
-                [Dev Mode] Verification Code: {devOtp}
+                {t('follow.devCode', { code: devOtp })}
               </div>
             )}
 
@@ -205,7 +206,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                   textAlign: 'center',
                 }}
               >
-                Enter 6-Digit Verification Code
+                {t('follow.enterCode')}
               </label>
               <Input
                 size="large"
@@ -240,7 +241,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 marginBottom: '10px',
               }}
             >
-              Verify & Enter Order Portal
+              {t('follow.verify')}
             </Button>
 
             <Button
@@ -249,7 +250,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
               onClick={() => setStep('enter_order')}
               style={{ color: '#78716C', fontSize: '12px' }}
             >
-              Change Order Number or WhatsApp
+              {t('follow.change')}
             </Button>
           </div>
         )}

@@ -18,17 +18,19 @@ import {
   Loader2,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const STAGES = [
-  { key: 'submission', label: '1. Submitted' },
-  { key: 'payment', label: '2. Payment' },
-  { key: 'design', label: '3. In Design' },
-  { key: 'review', label: '4. Whole-Magazine Review' },
-  { key: 'printing', label: '5. Printing' },
-  { key: 'delivery', label: '6. Delivered' },
+  { key: 'submission', labelKey: 'track.stage.submission' },
+  { key: 'payment', labelKey: 'track.stage.payment' },
+  { key: 'design', labelKey: 'track.stage.design' },
+  { key: 'review', labelKey: 'track.stage.review' },
+  { key: 'printing', labelKey: 'track.stage.printing' },
+  { key: 'delivery', labelKey: 'track.stage.delivery' },
 ];
 
 export default function ClientTrackingPortal() {
+  const { t } = useLanguage();
   const [trackingId, setTrackingId] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -59,7 +61,7 @@ export default function ClientTrackingPortal() {
       const data = await api.client.getOrder(token);
       setOrder(data.order);
     } catch (err) {
-      setError(err.message || 'Session expired. Please log in again.');
+      setError(err.message || t('track.err.sessionExpired'));
       setClientToken('');
       sessionStorage.removeItem('tinzel_client_token');
     } finally {
@@ -70,7 +72,7 @@ export default function ClientTrackingPortal() {
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     if (!trackingId.trim() || !clientWhatsApp.trim()) {
-      setError('Please enter both Tracking ID and WhatsApp number');
+      setError(t('track.err.enterBoth'));
       return;
     }
 
@@ -80,9 +82,9 @@ export default function ClientTrackingPortal() {
       const res = await api.client.requestOtp(trackingId.trim(), clientWhatsApp.trim());
       setOtpSent(true);
       if (res.devOtp) setDevOtp(res.devOtp);
-      setSuccessMsg('A 6-digit OTP code was sent to your WhatsApp number.');
+      setSuccessMsg(t('track.ok.otpSent'));
     } catch (err) {
-      setError(err.message || 'Failed to request OTP');
+      setError(err.message || t('track.err.requestOtp'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ export default function ClientTrackingPortal() {
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (!otpCode.trim()) {
-      setError('Please enter the 6-digit OTP code');
+      setError(t('track.err.enterOtp'));
       return;
     }
 
@@ -103,7 +105,7 @@ export default function ClientTrackingPortal() {
       sessionStorage.setItem('tinzel_client_token', res.clientToken);
       await loadOrder(res.clientToken);
     } catch (err) {
-      setError(err.message || 'Invalid or expired OTP');
+      setError(err.message || t('track.err.invalidOtp'));
     } finally {
       setLoading(false);
     }
@@ -118,15 +120,15 @@ export default function ClientTrackingPortal() {
   };
 
   const handleApproveWholeMagazine = async () => {
-    if (!confirm('Are you sure you want to approve the entire magazine for print production?')) return;
+    if (!confirm(t('track.confirm.approve'))) return;
     setSubmittingDecision(true);
     setError(null);
     try {
       const res = await api.client.approveDraft(clientToken, 'Client approved whole magazine.');
       setOrder(res.order);
-      setSuccessMsg('Whole magazine approved! Your magazine has proceeded to print document preparation.');
+      setSuccessMsg(t('track.ok.approved'));
     } catch (err) {
-      setError(err.message || 'Failed to approve draft');
+      setError(err.message || t('track.err.approve'));
     } finally {
       setSubmittingDecision(false);
     }
@@ -135,7 +137,7 @@ export default function ClientTrackingPortal() {
   const handleRequestRevision = async (e) => {
     e.preventDefault();
     if (!revisionFeedback.trim()) {
-      setError('Please describe the changes needed.');
+      setError(t('track.err.describeChanges'));
       return;
     }
 
@@ -146,9 +148,9 @@ export default function ClientTrackingPortal() {
       setOrder(res.order);
       setShowRevisionForm(false);
       setRevisionFeedback('');
-      setSuccessMsg('Your revision request has been submitted to your assigned designer.');
+      setSuccessMsg(t('track.ok.revisionSent'));
     } catch (err) {
-      setError(err.message || 'Failed to submit revision');
+      setError(err.message || t('track.err.revision'));
     } finally {
       setSubmittingDecision(false);
     }
@@ -213,10 +215,10 @@ export default function ClientTrackingPortal() {
               <KeyRound size={24} color="#93c5fd" />
             </div>
             <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>
-              Client Tracking & Review Portal
+              {t('track.login.title')}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Enter your Tracking ID and WhatsApp number to securely review your magazine.
+              {t('track.login.subtitle')}
             </p>
           </div>
 
@@ -264,11 +266,11 @@ export default function ClientTrackingPortal() {
             <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
-                  Magazine Tracking ID
+                  {t('track.login.trackingId')}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. TNZ-2026-0001"
+                  placeholder={t('track.login.trackingIdPh')}
                   required
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
@@ -288,11 +290,11 @@ export default function ClientTrackingPortal() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
-                  WhatsApp Phone Number
+                  {t('track.login.whatsapp')}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. +255712345678"
+                  placeholder={t('track.login.whatsappPh')}
                   required
                   value={clientWhatsApp}
                   onChange={(e) => setClientWhatsApp(e.target.value)}
@@ -327,14 +329,14 @@ export default function ClientTrackingPortal() {
                 }}
               >
                 {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
-                Send WhatsApp Verification Code
+                {t('track.login.sendCode')}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
-                  Enter 6-Digit WhatsApp OTP
+                  {t('track.login.enterOtp')}
                 </label>
                 <input
                   type="text"
@@ -358,7 +360,7 @@ export default function ClientTrackingPortal() {
                 />
                 {devOtp && (
                   <div style={{ marginTop: '8px', fontSize: '12px', color: '#60a5fa' }}>
-                    [Dev Mode] Generated OTP: <strong>{devOtp}</strong>
+                    {t('track.login.devOtp')} <strong>{devOtp}</strong>
                   </div>
                 )}
               </div>
@@ -380,7 +382,7 @@ export default function ClientTrackingPortal() {
                 }}
               >
                 {loading ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                Verify & Enter Portal
+                {t('track.login.verify')}
               </button>
 
               <button
@@ -394,7 +396,7 @@ export default function ClientTrackingPortal() {
                   padding: '4px',
                 }}
               >
-                Change Tracking ID or WhatsApp Number
+                {t('track.login.change')}
               </button>
             </form>
           )}
@@ -439,11 +441,11 @@ export default function ClientTrackingPortal() {
                 textTransform: 'uppercase',
               }}
             >
-              {order.status.replace(/_/g, ' ')}
+              {t('track.status.' + order.status) || order.status.replace(/_/g, ' ')}
             </span>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            Client: <strong>{order.clientName}</strong> • Magazine: <strong>{order.formTitle}</strong>
+            {t('track.client')} <strong>{order.clientName}</strong> • {t('track.magazine')} <strong>{order.formTitle}</strong>
           </p>
         </div>
 
@@ -462,7 +464,7 @@ export default function ClientTrackingPortal() {
           }}
         >
           <LogOut size={13} />
-          Sign Out
+          {t('track.signOut')}
         </button>
       </div>
 
@@ -477,7 +479,7 @@ export default function ClientTrackingPortal() {
         }}
       >
         <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '14px', color: 'var(--text-muted)' }}>
-          CONVEYOR BELT PRODUCTION PROGRESS
+          {t('track.progress')}
         </div>
         <div
           style={{
@@ -516,7 +518,7 @@ export default function ClientTrackingPortal() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {stg.label}
+                  {t(stg.labelKey)}
                 </div>
               </div>
             );
@@ -587,14 +589,14 @@ export default function ClientTrackingPortal() {
           >
             <div>
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>
-                Complete Magazine Proof (Version {releasedDraft?.versionNumber})
+                {t('track.proof.title', { version: releasedDraft?.versionNumber })}
               </h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                Flip through each page carefully to inspect all layouts, titles, and photos.
+                {t('track.proof.hint')}
               </p>
             </div>
             <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
-              Page {currentPage + 1} of {previewPages.length}
+              {t('track.page.of', { current: currentPage + 1, total: previewPages.length })}
             </div>
           </div>
 
@@ -615,7 +617,7 @@ export default function ClientTrackingPortal() {
           >
             <img
               src={previewPages[currentPage]}
-              alt={`Magazine Page ${currentPage + 1}`}
+              alt={t('track.page.alt', { n: currentPage + 1 })}
               style={{
                 maxWidth: '100%',
                 maxHeight: '520px',
@@ -638,10 +640,10 @@ export default function ClientTrackingPortal() {
             >
               <FileCheck2 size={48} color="var(--accent-primary)" style={{ margin: '0 auto 12px auto' }} />
               <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px' }}>
-                Magazine Page Proof {currentPage + 1}
+                {t('track.page.proof', { n: currentPage + 1 })}
               </h3>
               <p style={{ fontSize: '13px', maxWidth: '360px', margin: '0 auto 16px auto' }}>
-                High-resolution proof document: <strong>{releasedDraft?.fileUrl}</strong>
+                {t('track.page.hires')} <strong>{releasedDraft?.fileUrl}</strong>
               </p>
               <a
                 href={releasedDraft?.fileUrl}
@@ -658,7 +660,7 @@ export default function ClientTrackingPortal() {
                   textDecoration: 'none',
                 }}
               >
-                Open Draft Document
+                {t('track.page.openDraft')}
               </a>
             </div>
 
@@ -723,7 +725,7 @@ export default function ClientTrackingPortal() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                Page {idx + 1}
+                {t('track.page.n', { n: idx + 1 })}
               </button>
             ))}
           </div>
@@ -739,11 +741,10 @@ export default function ClientTrackingPortal() {
               }}
             >
               <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>
-                Whole-Magazine Approval Decision
+                {t('track.decision.title')}
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                You can approve the entire magazine in a single action to authorize print production, or
-                request targeted revisions. Any requested revision will restart the approval loop.
+                {t('track.decision.desc')}
               </p>
 
               {!showRevisionForm ? (
@@ -765,7 +766,7 @@ export default function ClientTrackingPortal() {
                     }}
                   >
                     <CheckCircle2 size={18} />
-                    Approve Complete Magazine
+                    {t('track.decision.approve')}
                   </button>
 
                   <button
@@ -784,18 +785,18 @@ export default function ClientTrackingPortal() {
                       fontWeight: '600',
                     }}
                   >
-                    Request Changes / Revisions
+                    {t('track.decision.requestChanges')}
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleRequestRevision}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                    Describe Changes or Revisions Required:
+                    {t('track.decision.describe')}
                   </label>
                   <textarea
                     rows={4}
                     required
-                    placeholder="Specify page numbers and requested changes (e.g., Page 3: replace the photo on the left; Page 7: fix typo in bride's surname)."
+                    placeholder={t('track.decision.describePh')}
                     value={revisionFeedback}
                     onChange={(e) => setRevisionFeedback(e.target.value)}
                     style={{
@@ -828,7 +829,7 @@ export default function ClientTrackingPortal() {
                       }}
                     >
                       <Send size={14} />
-                      Submit Revision Request
+                      {t('track.decision.submit')}
                     </button>
                     <button
                       type="button"
@@ -840,7 +841,7 @@ export default function ClientTrackingPortal() {
                         fontSize: '13px',
                       }}
                     >
-                      Cancel
+                      {t('track.decision.cancel')}
                     </button>
                   </div>
                 </form>
@@ -862,8 +863,7 @@ export default function ClientTrackingPortal() {
             >
               <CheckCircle2 size={20} />
               <div>
-                <strong>Whole Magazine Approved (Version {order.approvedVersionNumber})</strong>! Your designer
-                is preparing the high-res print-ready package.
+                <strong>{t('track.approved.title', { version: order.approvedVersionNumber })}</strong>! {t('track.approved.body')}
               </div>
             </div>
           ) : order.status === 'revision_requested' ? (
@@ -882,8 +882,7 @@ export default function ClientTrackingPortal() {
             >
               <Clock size={20} />
               <div>
-                <strong>Revision Requested</strong>: Your designer is updating the layout based on your feedback.
-                You will receive a WhatsApp message when the revised draft is released.
+                <strong>{t('track.revreq.title')}</strong>: {t('track.revreq.body')}
               </div>
             </div>
           ) : null}
@@ -914,11 +913,10 @@ export default function ClientTrackingPortal() {
             <Clock size={28} color="var(--accent-primary)" />
           </div>
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-            Magazine Layout In Progress
+            {t('track.wait.title')}
           </h2>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto' }}>
-            Your magazine is currently in production with your assigned designer. Once the first complete
-            proof is reviewed by our production manager, it will appear here for your review and approval.
+            {t('track.wait.body')}
           </p>
         </div>
       )}
@@ -937,19 +935,19 @@ export default function ClientTrackingPortal() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <Printer size={18} color="var(--accent-primary)" />
-            <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Print & Dispatch Status</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{t('track.print.title')}</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
             <div>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
-                Printing Partner:
+                {t('track.print.partner')}
               </span>
-              <span>Tinzel Certified Print Facility (WhatsApp-Integrated)</span>
+              <span>{t('track.print.partnerName')}</span>
             </div>
             {order.dispatchDetails?.trackingReference && (
               <div>
                 <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
-                  Courier Tracking:
+                  {t('track.print.courier')}
                 </span>
                 <span>
                   {order.dispatchDetails.carrier}: {order.dispatchDetails.trackingReference}

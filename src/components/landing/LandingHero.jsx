@@ -2,15 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Button, Row, Col } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import TinzelLogo from '../common/TinzelLogo';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import { useLanguage } from '../../i18n/LanguageContext';
 
-const OCCASIONS = [
-  'Great Love Story',
-  'Beautiful Wedding',
-  'Amazing Graduation',
-  'Memorable Birthday',
-  'Cherished Anniversary',
-  'Milestone Celebration',
-];
+const OCCASION_COUNT = 6;
 
 function OptionCard({ label, onClick }) {
   const [hovered, setHovered] = useState(false);
@@ -57,6 +52,7 @@ function OptionCard({ label, onClick }) {
 }
 
 export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLogin }) {
+  const { t } = useLanguage();
   const [occasionIndex, setOccasionIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
 
@@ -64,7 +60,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
     const timer = setInterval(() => {
       setIsFading(true);
       setTimeout(() => {
-        setOccasionIndex((prev) => (prev + 1) % OCCASIONS.length);
+        setOccasionIndex((prev) => (prev + 1) % OCCASION_COUNT);
         setIsFading(false);
       }, 350);
     }, 3200);
@@ -87,7 +83,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
           <TinzelLogo variant="full" height={48} />
         </div>
 
-        {/* Top-Right Login Button */}
+        {/* Top-Right Language Switcher and Login Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <LanguageSwitcher />
         <Button
           onClick={onOpenLogin}
           icon={<UserOutlined style={{ color: '#C5A059' }} />}
@@ -103,8 +101,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
             boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
           }}
         >
-          Login
+          {t('landing.login')}
         </Button>
+        </div>
       </div>
 
       {/* Hero Narrative: Animated Headline Only (Subtitle removed for pure minimalism) */}
@@ -120,7 +119,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
             margin: 0,
           }}
         >
-          Every{' '}
+          {t('landing.every')}{' '}
           <span
             style={{
               display: 'inline-block',
@@ -132,19 +131,19 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
               whiteSpace: 'nowrap',
             }}
           >
-            {OCCASIONS[occasionIndex]}
+            {t(`occasion.${occasionIndex}`)}
           </span>{' '}
-          Deserves Its Own Magazine
+          {t('landing.deserves')}
         </h1>
       </div>
 
       {/* The Two Big Minimal Options */}
       <Row gutter={[28, 28]} justify="center">
         <Col xs={24} md={12}>
-          <OptionCard label="New Magazine Order" onClick={onSelectNewOrder} />
+          <OptionCard label={t('landing.newOrder')} onClick={onSelectNewOrder} />
         </Col>
         <Col xs={24} md={12}>
-          <OptionCard label="Magazine Order Follow Up" onClick={onOpenFollowUp} />
+          <OptionCard label={t('landing.followUp')} onClick={onOpenFollowUp} />
         </Col>
       </Row>
     </div>

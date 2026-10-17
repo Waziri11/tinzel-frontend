@@ -14,8 +14,13 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import LipaNambaScreen from './LipaNambaScreen';
+import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
 export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavigateToTracking }) {
+  const { t, lang } = useLanguage();
+  // Localized helpers: Swahili falls back to English when no translation was entered
+  const L = (obj, key) => localized(obj, key, lang);
+  const LL = (obj, key) => localizedList(obj, key, lang);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,7 +46,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       const data = await api.public.getFormBySlug(slug);
       setForm(data.form);
     } catch (err) {
-      setError(err.message || 'Failed to load form definition');
+      setError(err.message || t('form.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -79,7 +84,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!clientName.trim() || !clientWhatsApp.trim()) {
-      setError('Please provide your name and WhatsApp phone number');
+      setError(t('form.errNamePhone'));
       return;
     }
 
@@ -93,7 +98,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       return Array.isArray(value) ? value.length === 0 : !String(value ?? '').trim();
     });
     if (missingRequired) {
-      setError(`Please complete required question: ${missingRequired.label}`);
+      setError(t('form.errRequired', { label: L(missingRequired, 'label') }));
       return;
     }
 
@@ -142,7 +147,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       const result = await api.public.submitForm(slug, formData);
       setSubmissionResult(result);
     } catch (err) {
-      setError(err.message || 'Failed to submit magazine order');
+      setError(err.message || t('form.errSubmit'));
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +157,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     return (
       <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
         <Loader2 size={24} className="spin" style={{ marginBottom: '12px' }} />
-        <p>Loading magazine submission form...</p>
+        <p>{t('form.loading')}</p>
       </div>
     );
   }
@@ -160,8 +165,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   if (submissionResult) {
     return (
       <LipaNambaScreen
-        submissionResult={submissionResult}
-        form={form}
+        order={{ ...submissionResult.order, formTitle: L(form, 'title') || submissionResult.order?.formTitle }}
+        lipaNambaInstructions={submissionResult.lipaNambaInstructions}
         onNavigateToTracking={onNavigateToTracking}
       />
     );
@@ -180,9 +185,9 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <AlertCircle size={20} />
-          <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Form Not Found</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{t('form.notFound')}</h3>
         </div>
-        <p style={{ fontSize: '14px' }}>{error || `No active form configured for slug "${slug}".`}</p>
+        <p style={{ fontSize: '14px' }}>{error || t('form.notFoundSlug', { slug })}</p>
       </div>
     );
   }
@@ -191,7 +196,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const formSections =
     form.sections && form.sections.length > 0
       ? form.sections
-      : [{ sectionId: 'default_section', title: 'Magazine Details & Content', description: '' }];
+      : [{ sectionId: 'default_section', title: t('form.defaultSection'), description: '' }];
 
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto' }}>
@@ -224,7 +229,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           >
             <img
               src={form.coverImageUrl || '/brand/magazine-cover-sample.jpg'}
-              alt={form.title}
+              alt={L(form, 'title')}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
             <div
@@ -242,7 +247,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '1px' }}>
-                {form.magazineType || 'Keepsake Edition'}
+                {L(form, 'magazineType') || t('form.defaultType')}
               </span>
               <span
                 style={{
@@ -270,12 +275,12 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 marginBottom: '8px',
               }}
             >
-              {form.title}
+              {L(form, 'title')}
             </h1>
 
-            {form.description && (
+            {L(form, 'description') && (
               <p style={{ fontSize: '14px', color: '#78716C', lineHeight: '1.6', marginBottom: '16px' }}>
-                {form.description}
+                {L(form, 'description')}
               </p>
             )}
 
@@ -291,7 +296,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               }}
             >
               <Shield size={14} color="#C5A059" />
-              <span>Account-Free Submission • Private WhatsApp Order Tracking • Lipa Namba Verified</span>
+              <span>{t('form.badges')}</span>
             </div>
           </div>
         </div>
@@ -332,25 +337,25 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         >
           <div style={{ marginBottom: '16px', paddingBottom: '10px', borderBottom: '1px solid #F5F5F4' }}>
             <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '0.8px' }}>
-              Step 1 of {formSections.length + 1}
+              {t('form.step', { n: 1, total: formSections.length + 1 })}
             </span>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', marginTop: '2px' }}>
-              Client Contact Information
+              {t('form.contactTitle')}
             </h2>
             <p style={{ fontSize: '12px', color: '#78716C' }}>
-              We will deliver your Magazine Order Number and private draft approvals directly to your WhatsApp.
+              {t('form.contactDesc')}
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Full Name *
+                {t('form.fullName')}
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Neema Mwita"
+                placeholder={t('form.fullNamePh')}
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 style={{
@@ -368,7 +373,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                WhatsApp Phone Number *
+                {t('form.whatsapp')}
               </label>
               <input
                 type="text"
@@ -392,11 +397,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-              Email Address (Optional)
+              {t('form.email')}
             </label>
             <input
               type="email"
-              placeholder="e.g. neema@example.com"
+              placeholder={t('form.emailPh')}
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
               style={{
@@ -438,13 +443,13 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               {/* Section Header */}
               <div style={{ marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #F5F5F4' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '0.8px' }}>
-                  Step {secIdx + 2} of {formSections.length + 1}
+                  {t('form.step', { n: secIdx + 2, total: formSections.length + 1 })}
                 </span>
                 <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', marginTop: '2px' }}>
-                  {section.title}
+                  {L(section, 'title')}
                 </h2>
-                {section.description && (
-                  <p style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>{section.description}</p>
+                {L(section, 'description') && (
+                  <p style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>{L(section, 'description')}</p>
                 )}
               </div>
 
@@ -458,11 +463,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     return (
                       <div key={field.fieldId}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                          {field.label} {field.required ? '*' : ''}
+                          {L(field, 'label')} {field.required ? '*' : ''}
                         </label>
-                        {field.helperText && (
+                        {L(field, 'helperText') && (
                           <p style={{ fontSize: '12px', color: '#78716C', marginBottom: '10px' }}>
-                            {field.helperText}
+                            {L(field, 'helperText')}
                           </p>
                         )}
 
@@ -481,10 +486,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                         >
                           <UploadCloud size={30} color="#C5A059" style={{ margin: '0 auto 8px auto' }} />
                           <p style={{ fontSize: '14px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                            {isGroup ? 'Click to select multiple photos for this spread' : 'Click to select photo asset'}
+                            {isGroup ? t('form.pickGroup') : t('form.pickSingle')}
                           </p>
                           <p style={{ fontSize: '12px', color: '#78716C' }}>
-                            {isGroup ? 'High-resolution images will be organised in this edition folder' : 'JPEG, PNG, WEBP files up to 25MB each'}
+                            {isGroup ? t('form.groupHint') : t('form.singleHint')}
                           </p>
                           <input
                             id={`upload-${field.fieldId}`}
@@ -499,7 +504,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                         {photosForThisField.length > 0 && (
                           <div>
                             <div style={{ fontSize: '12px', fontWeight: '600', color: '#78716C', marginBottom: '8px' }}>
-                              Folder Assets ({photosForThisField.length} {photosForThisField.length === 1 ? 'photo' : 'photos'}):
+                              {t('form.folderAssets', { count: photosForThisField.length, unit: photosForThisField.length === 1 ? t('form.photo') : t('form.photos') })}
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                               {photosForThisField.map((photo, idx) => (
@@ -551,11 +556,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     return (
                       <div key={field.fieldId}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                          {field.label} {field.required ? '*' : ''}
+                          {L(field, 'label')} {field.required ? '*' : ''}
                         </label>
-                        {field.helperText && (
+                        {L(field, 'helperText') && (
                           <p style={{ fontSize: '12px', color: '#78716C', marginBottom: '6px' }}>
-                            {field.helperText}
+                            {L(field, 'helperText')}
                           </p>
                         )}
                         <textarea
@@ -583,10 +588,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     const selected = field.type === 'checkbox' ? (answers[field.fieldId] || []) : answers[field.fieldId];
                     return (
                       <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0 }}>
-                        <legend style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>{field.label} {field.required ? '*' : ''}</legend>
-                        {field.helperText && <p style={{ fontSize: '12px', color: '#78716C' }}>{field.helperText}</p>}
+                        <legend style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>{L(field, 'label')} {field.required ? '*' : ''}</legend>
+                        {L(field, 'helperText') && <p style={{ fontSize: '12px', color: '#78716C' }}>{L(field, 'helperText')}</p>}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {(field.options || []).map((option) => (
+                          {(field.options || []).map((option, optIdx) => (
                             <label key={option} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '14px' }}>
                               <input
                                 type={field.type}
@@ -600,7 +605,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                   handleFieldChange(field.fieldId, next);
                                 }}
                               />
-                              {option}
+                              {LL(field, 'options')[optIdx]}
                             </label>
                           ))}
                         </div>
@@ -615,16 +620,16 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     const icon = field.ratingConfig?.iconType === 'heart' ? '♥' : field.ratingConfig?.iconType === 'thumb' ? '👍' : '★';
                     return (
                       <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0 }}>
-                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{field.label} {field.required ? '*' : ''}</legend>
+                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{L(field, 'label')} {field.required ? '*' : ''}</legend>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                          {field.scaleConfig?.lowLabel && <span style={{ fontSize: '12px', color: '#78716C' }}>{field.scaleConfig.lowLabel}</span>}
+                          {L(field.scaleConfig, 'lowLabel') && <span style={{ fontSize: '12px', color: '#78716C' }}>{L(field.scaleConfig, 'lowLabel')}</span>}
                           {values.map((value) => (
                             <label key={value} style={{ display: 'grid', justifyItems: 'center', gap: '3px' }}>
                               <span>{field.type === 'rating' ? icon : value}</span>
                               <input type="radio" name={field.fieldId} value={value} required={field.required} checked={String(answers[field.fieldId] ?? '') === String(value)} onChange={() => handleFieldChange(field.fieldId, value)} />
                             </label>
                           ))}
-                          {field.scaleConfig?.highLabel && <span style={{ fontSize: '12px', color: '#78716C' }}>{field.scaleConfig.highLabel}</span>}
+                          {L(field.scaleConfig, 'highLabel') && <span style={{ fontSize: '12px', color: '#78716C' }}>{L(field.scaleConfig, 'highLabel')}</span>}
                         </div>
                       </fieldset>
                     );
@@ -634,11 +639,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     const gridValue = answers[field.fieldId] || {};
                     return (
                       <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0, overflowX: 'auto' }}>
-                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{field.label} {field.required ? '*' : ''}</legend>
+                        <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{L(field, 'label')} {field.required ? '*' : ''}</legend>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                          <thead><tr><th style={{ textAlign: 'left', padding: '8px' }}></th>{(field.options || []).map((column) => <th key={column} style={{ padding: '8px' }}>{column}</th>)}</tr></thead>
-                          <tbody>{(field.rows || []).map((row) => <tr key={row}>
-                            <th style={{ textAlign: 'left', padding: '8px' }}>{row}</th>
+                          <thead><tr><th style={{ textAlign: 'left', padding: '8px' }}></th>{(field.options || []).map((column, colIdx) => <th key={column} style={{ padding: '8px' }}>{LL(field, 'options')[colIdx]}</th>)}</tr></thead>
+                          <tbody>{(field.rows || []).map((row, rowIdx) => <tr key={row}>
+                            <th style={{ textAlign: 'left', padding: '8px' }}>{LL(field, 'rows')[rowIdx]}</th>
                             {(field.options || []).map((column) => {
                               const rowValue = gridValue[row];
                               const checked = field.type === 'grid_checkbox' ? (rowValue || []).includes(column) : rowValue === column;
@@ -665,11 +670,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     return (
                       <div key={field.fieldId}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                          {field.label} {field.required ? '*' : ''}
+                          {L(field, 'label')} {field.required ? '*' : ''}
                         </label>
-                        {field.helperText && (
+                        {L(field, 'helperText') && (
                           <p style={{ fontSize: '12px', color: '#78716C', marginBottom: '6px' }}>
-                            {field.helperText}
+                            {L(field, 'helperText')}
                           </p>
                         )}
                         <select
@@ -686,10 +691,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                             fontSize: '14px',
                           }}
                         >
-                          <option value="">-- Choose an option --</option>
+                          <option value="">{t('form.chooseOption')}</option>
                           {(field.options || []).map((opt, i) => (
                             <option key={i} value={opt}>
-                              {opt}
+                              {LL(field, 'options')[i]}
                             </option>
                           ))}
                         </select>
@@ -700,16 +705,16 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   return (
                     <div key={field.fieldId}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                        {field.label} {field.required ? '*' : ''}
+                        {L(field, 'label')} {field.required ? '*' : ''}
                       </label>
-                      {field.helperText && (
+                      {L(field, 'helperText') && (
                         <p style={{ fontSize: '12px', color: '#78716C', marginBottom: '6px' }}>
-                          {field.helperText}
+                          {L(field, 'helperText')}
                         </p>
                       )}
                       <input
                         type={field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : field.type === 'time' ? 'time' : field.type === 'number' ? 'number' : 'text'}
-                        placeholder={field.type === 'duration' ? 'e.g. 1 hour 30 minutes' : undefined}
+                        placeholder={field.type === 'duration' ? t('form.durationPh') : undefined}
                         required={field.required}
                         value={answers[field.fieldId] || ''}
                         onChange={(e) => handleFieldChange(field.fieldId, e.target.value)}
@@ -746,9 +751,9 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           }}
         >
           <div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#1C1917' }}>Ready to immortalize your story?</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#1C1917' }}>{t('form.readyTitle')}</div>
             <p style={{ fontSize: '12px', color: '#78716C' }}>
-              Submitting generates your preliminary Submission ID and takes you to the Lipa Namba payment screen.
+              {t('form.readyDesc')}
             </p>
           </div>
 
@@ -772,11 +777,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           >
             {submitting ? (
               <>
-                <Loader2 size={18} className="spin" /> Submitting Order...
+                <Loader2 size={18} className="spin" /> {t('form.submitting')}
               </>
             ) : (
               <>
-                Continue to Payment <ArrowRight size={18} />
+                {t('form.continuePay')} <ArrowRight size={18} />
               </>
             )}
           </button>

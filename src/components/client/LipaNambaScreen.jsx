@@ -8,8 +8,10 @@ import {
   ShieldAlert,
   Smartphone,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 export default function LipaNambaScreen({ order, lipaNambaInstructions, onNavigateToTracking }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const copyTillNumber = () => {
@@ -47,10 +49,10 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             <CreditCard size={28} color="#93c5fd" />
           </div>
           <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>
-            Submission Received — Complete Payment
+            {t('pay.title')}
           </h1>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            Your photos and responses for <strong>{order?.formTitle}</strong> are safely uploaded.
+            {t('pay.uploaded', { title: order?.formTitle ?? '' })}
           </p>
         </div>
 
@@ -69,7 +71,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         >
           <div>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>
-              Temporary Submission ID:
+              {t('pay.tempId')}
             </span>
             <span style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '0.5px' }}>
               {order?.submissionId}
@@ -85,7 +87,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               fontWeight: '600',
             }}
           >
-            Awaiting Payment
+            {t('pay.awaiting')}
           </span>
         </div>
 
@@ -106,9 +108,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         >
           <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
           <div>
-            <strong>Tracking ID Notice</strong>: Your official <strong>Magazine Tracking ID</strong> will be
-            issued and sent directly to your WhatsApp (<strong>{order?.clientWhatsApp}</strong>) once our
-            manager verifies your Lipa Namba transaction.
+            <strong>{t('pay.noticeTitle')}</strong>: {t('pay.notice', { phone: order?.clientWhatsApp ?? '' })}
           </div>
         </div>
 
@@ -124,13 +124,13 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <Smartphone size={18} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '16px', fontWeight: '600' }}>Lipa Namba Payment Instructions</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '600' }}>{t('pay.instrTitle')}</h2>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Lipa Namba (Till Number):
+                {t('pay.till')}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#60a5fa' }}>
@@ -151,14 +151,14 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
                   }}
                 >
                   <Copy size={12} />
-                  {copied ? 'Copied' : 'Copy'}
+                  {copied ? t('pay.copied') : t('pay.copy')}
                 </button>
               </div>
             </div>
 
             <div>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                Amount to Pay:
+                {t('pay.amount')}
               </span>
               <span style={{ fontSize: '22px', fontWeight: '800', color: '#4ade80' }}>
                 {order?.price?.toLocaleString()} {order?.currency || 'TZS'}
@@ -168,7 +168,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
 
           <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
             <span style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', marginBottom: '4px' }}>
-              Account Name:
+              {t('pay.account')}
             </span>
             {lipaNambaInstructions?.accountName || 'Tinzel Media Ltd'}
           </div>
@@ -182,8 +182,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               lineHeight: '1.5',
             }}
           >
-            {lipaNambaInstructions?.instructions ||
-              '1. Piga *150*00# (M-Pesa) au *150*01# (Tigo Pesa).\n2. Chagua Lipa kwa Simu -> Lipa Namba.\n3. Weka Lipa Namba 55667788 na jina lako kama kumbukumbu.'}
+            {lipaNambaInstructions?.instructions || t('pay.defaultInstr')}
           </div>
         </div>
 
@@ -191,7 +190,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
             <Clock size={14} />
-            <span>Verifications typically take 5-15 minutes</span>
+            <span>{t('pay.verify')}</span>
           </div>
 
           <button
@@ -209,7 +208,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               fontWeight: '500',
             }}
           >
-            Go to Tracking Portal
+            {t('pay.goTracking')}
             <ArrowRight size={14} />
           </button>
         </div>

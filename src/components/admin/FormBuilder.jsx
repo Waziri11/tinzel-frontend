@@ -61,6 +61,14 @@ export default function FormBuilder({ token }) {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [titleSw, setTitleSw] = useState('');
+  const [descriptionSw, setDescriptionSw] = useState('');
+  const [magazineTypeSw, setMagazineTypeSw] = useState('');
+  // Which language version of the texts is being edited: 'en' | 'sw'
+  const [editLang, setEditLang] = useState('en');
+  const isSw = editLang === 'sw';
+  // Property name for the active language, e.g. 'label' -> 'labelSw'
+  const lk = (key) => (isSw ? `${key}Sw` : key);
   const [magazineType, setMagazineType] = useState('Wedding & Love Magazine');
   const [price, setPrice] = useState(75000);
   const [currency, setCurrency] = useState('TZS');
@@ -96,6 +104,10 @@ export default function FormBuilder({ token }) {
     setTitle(form.title || '');
     setSlug(form.slug || '');
     setDescription(form.description || '');
+    setTitleSw(form.titleSw || '');
+    setDescriptionSw(form.descriptionSw || '');
+    setMagazineTypeSw(form.magazineTypeSw || '');
+    setEditLang('en');
     setMagazineType(form.magazineType || 'Wedding & Love Magazine');
     setPrice(form.price || 75000);
     setCurrency(form.currency || 'TZS');
@@ -127,6 +139,10 @@ export default function FormBuilder({ token }) {
     setTitle('');
     setSlug('');
     setDescription('');
+    setTitleSw('');
+    setDescriptionSw('');
+    setMagazineTypeSw('');
+    setEditLang('en');
     setMagazineType('Bespoke Keepsake Magazine');
     setPrice(75000);
     setCurrency('TZS');
@@ -201,9 +217,13 @@ export default function FormBuilder({ token }) {
         required: false,
         order: prev.length + 1,
         helperText: defaultType === 'photo_group' ? 'Upload multiple high-resolution photos for this spread' : '',
+        labelSw: '',
+        helperTextSw: '',
         options: [],
+        optionsSw: [],
         rows: [],
-        scaleConfig: { low: 1, high: 5, lowLabel: '', highLabel: '' },
+        rowsSw: [],
+        scaleConfig: { low: 1, high: 5, lowLabel: '', highLabel: '', lowLabelSw: '', highLabelSw: '' },
         ratingConfig: { levelCount: 5, iconType: 'star' },
         validationRules: { minPhotos: 1, maxPhotos: 50 },
       },
@@ -220,6 +240,7 @@ export default function FormBuilder({ token }) {
       ...original,
       fieldId: `field_${Date.now().toString().slice(-4)}`,
       label: `${original.label} (Copy)`,
+      labelSw: original.labelSw ? `${original.labelSw} (Nakala)` : '',
       order: fields.length + 1,
     };
     setFields((prev) => [...prev.slice(0, idx + 1), duplicated, ...prev.slice(idx + 1)]);
@@ -271,6 +292,9 @@ export default function FormBuilder({ token }) {
     const payload = {
       title: title.trim(),
       description: description.trim(),
+      titleSw: titleSw.trim(),
+      descriptionSw: descriptionSw.trim(),
+      magazineTypeSw: magazineTypeSw.trim(),
       magazineType: magazineType.trim(),
       price: Number(price) || 50000,
       currency,
@@ -879,6 +903,55 @@ export default function FormBuilder({ token }) {
       )}
 
       <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* LANGUAGE MENU: switches every text input below between the English and Swahili versions */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #C5A059',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>Content Language</div>
+            <div style={{ fontSize: '12px', color: '#78716C' }}>
+              {isSw
+                ? 'Editing the Kiswahili version. Empty Kiswahili fields fall back to the English text for clients.'
+                : 'Editing the English version. Switch to Kiswahili to write the translated version of every question.'}
+            </div>
+          </div>
+          <div role="tablist" aria-label="Content language" style={{ display: 'inline-flex', border: '1px solid #C5A059', borderRadius: '6px', overflow: 'hidden' }}>
+            {[['en', 'English'], ['sw', 'Kiswahili']].map(([code, label]) => (
+              <button
+                key={code}
+                type="button"
+                role="tab"
+                aria-selected={editLang === code}
+                onClick={() => setEditLang(code)}
+                style={{
+                  padding: '8px 20px',
+                  border: 'none',
+                  backgroundColor: editLang === code ? '#C5A059' : '#FFFFFF',
+                  color: editLang === code ? '#FFFFFF' : '#1C1917',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* CARD 1: MANDATORY MAGAZINE COVER ARTWORK */}
         <div
           style={{
@@ -984,14 +1057,14 @@ export default function FormBuilder({ token }) {
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Magazine Edition Title *
+                {isSw ? 'Magazine Edition Title (Kiswahili)' : 'Magazine Edition Title *'}
               </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. Graduation Keepsake Magazine"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                required={!isSw}
+                placeholder={isSw ? title || 'e.g. Jarida la Kumbukumbu ya Mahafali' : 'e.g. Graduation Keepsake Magazine'}
+                value={isSw ? titleSw : title}
+                onChange={(e) => (isSw ? setTitleSw(e.target.value) : handleTitleChange(e.target.value))}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -1037,13 +1110,13 @@ export default function FormBuilder({ token }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Magazine Type
+                {isSw ? 'Magazine Type (Kiswahili)' : 'Magazine Type'}
               </label>
               <input
                 type="text"
-                placeholder="e.g. Wedding Magazine"
-                value={magazineType}
-                onChange={(e) => setMagazineType(e.target.value)}
+                placeholder={isSw ? magazineType : 'e.g. Wedding Magazine'}
+                value={isSw ? magazineTypeSw : magazineType}
+                onChange={(e) => (isSw ? setMagazineTypeSw(e.target.value) : setMagazineType(e.target.value))}
                 style={{
                   width: '100%',
                   padding: '9px 12px',
@@ -1107,13 +1180,13 @@ export default function FormBuilder({ token }) {
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-              Form Description & Welcome Note
+              {isSw ? 'Form Description & Welcome Note (Kiswahili)' : 'Form Description & Welcome Note'}
             </label>
             <textarea
               rows={2}
-              placeholder="e.g. Personalized luxury publication celebrating your milestones with custom layouts."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              placeholder={isSw ? description : 'e.g. Personalized luxury publication celebrating your milestones with custom layouts.'}
+              value={isSw ? descriptionSw : description}
+              onChange={(e) => (isSw ? setDescriptionSw(e.target.value) : setDescription(e.target.value))}
               style={{
                 width: '100%',
                 padding: '9px 12px',
@@ -1194,9 +1267,9 @@ export default function FormBuilder({ token }) {
                       </div>
                       <input
                         type="text"
-                        value={sec.title}
-                        onChange={(e) => handleSectionChange(sec.sectionId, 'title', e.target.value)}
-                        placeholder="Section Title (e.g. The Couple & Story)"
+                        value={sec[lk('title')] || ''}
+                        onChange={(e) => handleSectionChange(sec.sectionId, lk('title'), e.target.value)}
+                        placeholder={isSw ? `Kiswahili: ${sec.title || 'Section Title'}` : 'Section Title (e.g. The Couple & Story)'}
                         style={{
                           fontSize: '16px',
                           fontWeight: '700',
@@ -1212,9 +1285,9 @@ export default function FormBuilder({ token }) {
                       />
                       <input
                         type="text"
-                        value={sec.description}
-                        onChange={(e) => handleSectionChange(sec.sectionId, 'description', e.target.value)}
-                        placeholder="Section instructions or description (optional)"
+                        value={sec[lk('description')] || ''}
+                        onChange={(e) => handleSectionChange(sec.sectionId, lk('description'), e.target.value)}
+                        placeholder={isSw ? `Kiswahili: ${sec.description || 'Section instructions (optional)'}` : 'Section instructions or description (optional)'}
                         style={{
                           fontSize: '12px',
                           color: '#78716C',
@@ -1278,14 +1351,14 @@ export default function FormBuilder({ token }) {
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
                               <div>
                                 <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                                  Question Label / Spread Title *
+                                  {isSw ? 'Question Label / Spread Title (Kiswahili)' : 'Question Label / Spread Title *'}
                                 </label>
                                 <input
                                   type="text"
-                                  required
-                                  placeholder="e.g. Ceremony Photos, Couple Vows, Reception Highlights"
-                                  value={field.label}
-                                  onChange={(e) => handleFieldChange(globalIdx, 'label', e.target.value)}
+                                  required={!isSw}
+                                  placeholder={isSw ? field.label : 'e.g. Ceremony Photos, Couple Vows, Reception Highlights'}
+                                  value={field[lk('label')] || ''}
+                                  onChange={(e) => handleFieldChange(globalIdx, lk('label'), e.target.value)}
                                   style={{
                                     width: '100%',
                                     padding: '8px 10px',
@@ -1332,9 +1405,9 @@ export default function FormBuilder({ token }) {
                             <div style={{ marginBottom: '12px' }}>
                               <input
                                 type="text"
-                                placeholder="Helper text or instructions for the client (optional)"
-                                value={field.helperText || ''}
-                                onChange={(e) => handleFieldChange(globalIdx, 'helperText', e.target.value)}
+                                placeholder={isSw ? (field.helperText || 'Helper text (Kiswahili)') : 'Helper text or instructions for the client (optional)'}
+                                value={field[lk('helperText')] || ''}
+                                onChange={(e) => handleFieldChange(globalIdx, lk('helperText'), e.target.value)}
                                 style={{
                                   width: '100%',
                                   padding: '7px 10px',
@@ -1352,21 +1425,31 @@ export default function FormBuilder({ token }) {
                               <div style={{ display: 'grid', gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '12px' }}>
                                 {field.type.startsWith('grid_') && (
                                   <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
-                                    Rows (one per line)
+                                    {isSw ? 'Rows in Kiswahili (same order as English, one per line)' : 'Rows (one per line)'}
                                     <textarea
                                       rows={4}
-                                      value={(field.rows || []).join('\n')}
-                                      onChange={(e) => handleFieldChange(globalIdx, 'rows', e.target.value.split('\n').map((v) => v.trim()).filter(Boolean))}
+                                      placeholder={isSw ? (field.rows || []).join('\n') : undefined}
+                                      value={(field[lk('rows')] || []).join('\n')}
+                                      onChange={(e) => {
+                                        const lines = e.target.value.split('\n').map((v) => v.trim());
+                                        // Kiswahili lines keep their position so they match the English rows by index
+                                        handleFieldChange(globalIdx, lk('rows'), isSw ? lines : lines.filter(Boolean));
+                                      }}
                                       style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
                                     />
                                   </label>
                                 )}
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
-                                  {field.type.startsWith('grid_') ? 'Columns' : 'Options'} (one per line)
+                                  {field.type.startsWith('grid_') ? 'Columns' : 'Options'}{isSw ? ' in Kiswahili (same order as English, one per line)' : ' (one per line)'}
                                   <textarea
                                     rows={4}
-                                    value={(field.options || []).join('\n')}
-                                    onChange={(e) => handleFieldChange(globalIdx, 'options', e.target.value.split('\n').map((v) => v.trim()).filter(Boolean))}
+                                    placeholder={isSw ? (field.options || []).join('\n') : undefined}
+                                    value={(field[lk('options')] || []).join('\n')}
+                                    onChange={(e) => {
+                                      const lines = e.target.value.split('\n').map((v) => v.trim());
+                                      // Kiswahili lines keep their position so they match the English options by index
+                                      handleFieldChange(globalIdx, lk('options'), isSw ? lines : lines.filter(Boolean));
+                                    }}
                                     style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
                                   />
                                 </label>
@@ -1377,8 +1460,8 @@ export default function FormBuilder({ token }) {
                               <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                                 <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label="Scale minimum" />
                                 <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label="Scale maximum" />
-                                <input value={field.scaleConfig?.lowLabel || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, lowLabel: e.target.value })} placeholder="Low label" />
-                                <input value={field.scaleConfig?.highLabel || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, highLabel: e.target.value })} placeholder="High label" />
+                                <input value={field.scaleConfig?.[lk('lowLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('lowLabel')]: e.target.value })} placeholder={isSw ? `Low label (Kiswahili)${field.scaleConfig?.lowLabel ? `: ${field.scaleConfig.lowLabel}` : ''}` : 'Low label'} />
+                                <input value={field.scaleConfig?.[lk('highLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('highLabel')]: e.target.value })} placeholder={isSw ? `High label (Kiswahili)${field.scaleConfig?.highLabel ? `: ${field.scaleConfig.highLabel}` : ''}` : 'High label'} />
                               </div>
                             )}
 

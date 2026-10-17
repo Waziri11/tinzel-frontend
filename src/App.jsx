@@ -14,8 +14,12 @@ import MagazineShowcase from './components/client/MagazineShowcase';
 import ClientTrackingPortal from './components/client/ClientTrackingPortal';
 import StaffWorkspace from './components/common/StaffWorkspace';
 import TinzelLogo from './components/common/TinzelLogo';
+import LanguageSelect from './components/landing/LanguageSelect';
+import LanguageSwitcher from './components/common/LanguageSwitcher';
+import { useLanguage } from './i18n/LanguageContext';
 
 export default function App() {
+  const { lang, t } = useLanguage();
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'showcase' | 'tracking' | 'staff'
   const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
 
@@ -23,6 +27,17 @@ export default function App() {
     setFollowUpModalOpen(false);
     setCurrentView('tracking');
   };
+
+  // First page: visitors must pick a language (English or Swahili) before anything else.
+  if (!lang) {
+    return (
+      <ConfigProvider theme={tinzelAntdTheme}>
+        <div style={{ minHeight: '100vh', backgroundColor: '#FAFAF9', padding: '24px 20px' }}>
+          <LanguageSelect />
+        </div>
+      </ConfigProvider>
+    );
+  }
 
   return (
     <ConfigProvider theme={tinzelAntdTheme}>
@@ -66,6 +81,7 @@ export default function App() {
               {/* Right Action Buttons (hidden on editorial catalogue showcase for pure minimalism) */}
               {currentView !== 'showcase' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <LanguageSwitcher />
                   <Button
                     onClick={() => setCurrentView('home')}
                     icon={<HomeOutlined />}
@@ -77,7 +93,7 @@ export default function App() {
                       fontSize: '13px',
                     }}
                   >
-                    Home
+                    {t('nav.home')}
                   </Button>
 
                   {currentView !== 'tracking' && (
@@ -92,7 +108,7 @@ export default function App() {
                         fontSize: '13px',
                       }}
                     >
-                      Follow Up Order
+                      {t('nav.followUp')}
                     </Button>
                   )}
 
@@ -108,11 +124,12 @@ export default function App() {
                         fontSize: '13px',
                       }}
                     >
-                      Staff Login
+                      {t('nav.staffLogin')}
                     </Button>
                   )}
                 </div>
               )}
+              {currentView === 'showcase' && <LanguageSwitcher />}
             </div>
           </header>
         )}
@@ -173,7 +190,7 @@ export default function App() {
               color: '#78716C',
             }}
           >
-            Tinzel Bespoke Magazine Studios • White, Red, and Gold Editorial Palette • Zero Gradients • Zero Emojis
+            {t('footer.text')}
           </footer>
         )}
       </div>
