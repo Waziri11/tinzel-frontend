@@ -13,6 +13,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { compressPhotoFile } from '../../utils/imageCompression';
 import LipaNambaScreen from './LipaNambaScreen';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
@@ -106,45 +107,88 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('clientName', clientName.trim());
-      formData.append('clientWhatsApp', clientWhatsApp.trim());
-      if (clientEmail.trim()) formData.append('clientEmail', clientEmail.trim());
-      formData.append('answers', JSON.stringify(answers));
+      const queuedPhotos = [];
 
-      const photosMetadata = [];
-
-      // Append field-specific photos (e.g. Photo Group questions)
       Object.keys(fieldPhotos).forEach((fId) => {
         const fieldDef = (form.fields || []).find((f) => f.fieldId === fId);
         const folderName = fieldDef?.label || 'Photo Spread';
         const files = fieldPhotos[fId] || [];
-
         files.forEach((file) => {
-          formData.append('photos', file);
-          photosMetadata.push({
-            originalName: file.name,
-            fieldId: fId,
-            folderName: folderName,
-          });
+          queuedPhotos.push({ file, fieldId: fId, folderName });
         });
       });
 
-      // Append any general selected photos
       selectedPhotos.forEach((file) => {
-        formData.append('photos', file);
-        photosMetadata.push({
-          originalName: file.name,
-          fieldId: '',
-          folderName: 'General Photos',
-        });
+        queuedPhotos.push({ file, fieldId: '', folderName: 'General Photos' });
       });
 
-      if (photosMetadata.length > 0) {
-        formData.append('photosMetadata', JSON.stringify(photosMetadata));
+      // Compress each photo client-side so individual requests and fallback payloads never trigger 413
+      const perFileBudget =
+        queuedPhotos.length > 0
+          ? Math.min(700 * 1024, Math.max(180 * 1024, Math.floor((3.4 * 1024 * 1024) / queuedPhotos.length)))
+          : 700 * 1024;
+
+      const compressedQueue = await Promise.all(
+        queuedPhotos.map(async (item) => ({
+          ...item,
+          compressedFile: await compressPhotoFile(item.file, { maxBytes: perFileBudget, maxDimension: 2200 }),
+        }))
+      );
+
+      let uploadedPhotos = [];
+      let useMultipartFallback = false;
+
+      for (const item of compressedQueue) {
+        try {
+          const uploadRes = await api.public.uploadOrderPhoto(slug, item.compressedFile, {
+            fieldId: item.fieldId,
+            folderName: item.folderName,
+          });
+          if (uploadRes?.photo) {
+            uploadedPhotos.push(uploadRes.photo);
+          }
+        } catch (uploadErr) {
+          if (uploadErr.status === 404 || uploadErr.status === 405) {
+            useMultipartFallback = true;
+            break;
+          }
+          throw uploadErr;
+        }
       }
 
-      const result = await api.public.submitForm(slug, formData);
+      let result;
+      if (useMultipartFallback) {
+        const formData = new FormData();
+        formData.append('clientName', clientName.trim());
+        formData.append('clientWhatsApp', clientWhatsApp.trim());
+        if (clientEmail.trim()) formData.append('clientEmail', clientEmail.trim());
+        formData.append('answers', JSON.stringify(answers));
+
+        const photosMetadata = [];
+        compressedQueue.forEach((item) => {
+          formData.append('photos', item.compressedFile);
+          photosMetadata.push({
+            originalName: item.compressedFile.name,
+            fieldId: item.fieldId,
+            folderName: item.folderName,
+          });
+        });
+
+        if (photosMetadata.length > 0) {
+          formData.append('photosMetadata', JSON.stringify(photosMetadata));
+        }
+
+        result = await api.public.submitForm(slug, formData);
+      } else {
+        result = await api.public.submitForm(slug, {
+          clientName: clientName.trim(),
+          clientWhatsApp: clientWhatsApp.trim(),
+          clientEmail: clientEmail.trim(),
+          answers,
+          uploadedPhotos,
+        });
+      }
+
       setSubmissionResult(result);
     } catch (err) {
       setError(err.message || t('form.errSubmit'));

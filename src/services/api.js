@@ -14,7 +14,13 @@ const getHeaders = (token = null, isMultipart = false) => {
 const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || `Request failed with status ${res.status}`);
+    const defaultMsg =
+      res.status === 413
+        ? 'Upload is too large for a single request. Please try fewer or smaller photos.'
+        : `Request failed with status ${res.status}`;
+    const err = new Error(data.message || defaultMsg);
+    err.status = res.status;
+    throw err;
   }
   return data;
 };
@@ -24,11 +30,24 @@ export const api = {
   public: {
     getForms: () => fetch(`${API_BASE}/api/public/forms`).then(handleResponse),
     getFormBySlug: (slug) => fetch(`${API_BASE}/api/public/forms/${slug}`).then(handleResponse),
-    submitForm: (slug, formData) =>
-      fetch(`${API_BASE}/api/public/forms/${slug}/submit`, {
+    uploadOrderPhoto: (slug, file, { fieldId = '', folderName = 'General Photos' } = {}) => {
+      const fd = new FormData();
+      fd.append('photo', file);
+      fd.append('fieldId', fieldId);
+      fd.append('folderName', folderName);
+      return fetch(`${API_BASE}/api/public/forms/${slug}/photos`, {
         method: 'POST',
-        body: formData, // FormData multipart
-      }).then(handleResponse),
+        body: fd,
+      }).then(handleResponse);
+    },
+    submitForm: (slug, payload) => {
+      const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+      return fetch(`${API_BASE}/api/public/forms/${slug}/submit`, {
+        method: 'POST',
+        headers: isFormData ? undefined : getHeaders(),
+        body: isFormData ? payload : JSON.stringify(payload),
+      }).then(handleResponse);
+    },
   },
 
   // Client Tracking Endpoints
