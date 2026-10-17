@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   UploadCloud,
@@ -17,6 +17,25 @@ import { compressPhotoFile } from '../../utils/imageCompression';
 import LipaNambaScreen from './LipaNambaScreen';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
+const UPLOAD_CONCURRENCY = 4;
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const idx = nextIndex;
+      nextIndex += 1;
+      results[idx] = await worker(items[idx], idx);
+    }
+  };
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runWorker());
+  await Promise.all(workers);
+  return results;
+}
+
 export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavigateToTracking }) {
   const { t, lang } = useLanguage();
   // Localized helpers: Swahili falls back to English when no translation was entered
@@ -34,9 +53,16 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [fieldPhotos, setFieldPhotos] = useState({}); // { [fieldId]: File[] }
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // { done, total }
   const [submissionResult, setSubmissionResult] = useState(null);
 
+  // Cache for background pre-compression & pre-upload promises keyed by File instance
+  const preUploadCacheRef = useRef(new WeakMap());
+  const endpointUnsupportedRef = useRef(false);
+
   useEffect(() => {
+    preUploadCacheRef.current = new WeakMap();
+    endpointUnsupportedRef.current = false;
     loadForm();
   }, [slug]);
 
@@ -53,13 +79,58 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     }
   };
 
+  // Compress and pre-upload a photo in the background as soon as the user selects it
+  const ensurePhotoTask = (file, fieldId, folderName) => {
+    const existing = preUploadCacheRef.current.get(file);
+    if (existing) return existing;
+
+    const taskPromise = (async () => {
+      const compressedFile = await compressPhotoFile(file, {
+        maxBytes: 900 * 1024,
+        maxDimension: 2400,
+        quality: 0.86,
+      });
+
+      if (endpointUnsupportedRef.current) {
+        return { compressedFile, uploadedPhoto: null, fallback: true };
+      }
+
+      try {
+        const res = await api.public.uploadOrderPhoto(slug, compressedFile, {
+          fieldId,
+          folderName,
+        });
+        return { compressedFile, uploadedPhoto: res?.photo || null, fallback: false };
+      } catch (err) {
+        if (err.status === 404 || err.status === 405 || err.status === 413) {
+          endpointUnsupportedRef.current = true;
+          return { compressedFile, uploadedPhoto: null, fallback: true };
+        }
+        // Remove failed task from cache so submit will retry it cleanly
+        preUploadCacheRef.current.delete(file);
+        throw err;
+      }
+    })();
+
+    // Prevent unhandled rejection noise during background pre-upload; handleSubmit awaits or retries
+    taskPromise.catch(() => {});
+    preUploadCacheRef.current.set(file, taskPromise);
+    return taskPromise;
+  };
+
+  const startBackgroundPreUploads = (files, fieldId, folderName) => {
+    mapWithConcurrency(files, 3, (file) => ensurePhotoTask(file, fieldId, folderName)).catch(() => {});
+  };
+
   const handleFieldChange = (fieldId, value) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
   };
 
   const handlePhotoSelect = (e) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setSelectedPhotos((prev) => [...prev, ...files]);
+    startBackgroundPreUploads(files, '', 'General Photos');
   };
 
   const removePhoto = (index) => {
@@ -69,10 +140,13 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const handleFieldPhotoSelect = (fieldId, e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const fieldDef = (form?.fields || []).find((f) => f.fieldId === fieldId);
+    const folderName = fieldDef?.label || 'Photo Spread';
     setFieldPhotos((prev) => ({
       ...prev,
       [fieldId]: [...(prev[fieldId] || []), ...files],
     }));
+    startBackgroundPreUploads(files, fieldId, folderName);
   };
 
   const removeFieldPhoto = (fieldId, index) => {
@@ -122,40 +196,27 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         queuedPhotos.push({ file, fieldId: '', folderName: 'General Photos' });
       });
 
-      // For per-photo uploads, each request has its own 4.5MB limit, so photos <= 3.8MB are uploaded 100% untouched
-      const singlePhotoMaxBytes = Math.floor(3.8 * 1024 * 1024);
-
-      let uploadedPhotos = [];
-      let useMultipartFallback = false;
-
-      for (const item of queuedPhotos) {
-        try {
-          const printReadyFile = await compressPhotoFile(item.file, {
-            maxBytes: singlePhotoMaxBytes,
-            maxDimension: 3600,
-          });
-          const uploadRes = await api.public.uploadOrderPhoto(slug, printReadyFile, {
-            fieldId: item.fieldId,
-            folderName: item.folderName,
-          });
-          if (uploadRes?.photo) {
-            uploadedPhotos.push(uploadRes.photo);
-          }
-        } catch (uploadErr) {
-          if (uploadErr.status === 404 || uploadErr.status === 405 || uploadErr.status === 413) {
-            useMultipartFallback = true;
-            break;
-          }
-          throw uploadErr;
-        }
+      let doneCount = 0;
+      if (queuedPhotos.length > 0) {
+        setUploadProgress({ done: 0, total: queuedPhotos.length });
       }
+
+      // Resolve pre-uploaded photos or upload remaining ones in parallel (4 at a time)
+      const taskResults = await mapWithConcurrency(queuedPhotos, UPLOAD_CONCURRENCY, async (item) => {
+        const res = await ensurePhotoTask(item.file, item.fieldId, item.folderName);
+        doneCount += 1;
+        setUploadProgress({ done: doneCount, total: queuedPhotos.length });
+        return { ...item, ...res };
+      });
+
+      const useMultipartFallback = taskResults.some((r) => r.fallback);
 
       let result;
       if (useMultipartFallback) {
         const fallbackBudget =
           queuedPhotos.length > 0
-            ? Math.min(singlePhotoMaxBytes, Math.max(250 * 1024, Math.floor((3.5 * 1024 * 1024) / queuedPhotos.length)))
-            : singlePhotoMaxBytes;
+            ? Math.min(900 * 1024, Math.max(200 * 1024, Math.floor((3.5 * 1024 * 1024) / queuedPhotos.length)))
+            : 900 * 1024;
 
         const formData = new FormData();
         formData.append('clientName', clientName.trim());
@@ -164,18 +225,21 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         formData.append('answers', JSON.stringify(answers));
 
         const photosMetadata = [];
-        for (const item of queuedPhotos) {
-          const fallbackFile = await compressPhotoFile(item.file, {
-            maxBytes: fallbackBudget,
-            maxDimension: 2600,
-          });
+        const fallbackFiles = await mapWithConcurrency(taskResults, UPLOAD_CONCURRENCY, async (item) =>
+          item.compressedFile.size <= fallbackBudget
+            ? item.compressedFile
+            : compressPhotoFile(item.compressedFile, { maxBytes: fallbackBudget, maxDimension: 2000, quality: 0.8 })
+        );
+
+        fallbackFiles.forEach((fallbackFile, idx) => {
+          const item = taskResults[idx];
           formData.append('photos', fallbackFile);
           photosMetadata.push({
             originalName: fallbackFile.name,
             fieldId: item.fieldId,
             folderName: item.folderName,
           });
-        }
+        });
 
         if (photosMetadata.length > 0) {
           formData.append('photosMetadata', JSON.stringify(photosMetadata));
@@ -183,6 +247,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
         result = await api.public.submitForm(slug, formData);
       } else {
+        const uploadedPhotos = taskResults.map((r) => r.uploadedPhoto).filter(Boolean);
         result = await api.public.submitForm(slug, {
           clientName: clientName.trim(),
           clientWhatsApp: clientWhatsApp.trim(),
@@ -197,6 +262,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       setError(err.message || t('form.errSubmit'));
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -824,7 +890,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           >
             {submitting ? (
               <>
-                <Loader2 size={18} className="spin" /> {t('form.submitting')}
+                <Loader2 size={18} className="spin" />{' '}
+                {uploadProgress && uploadProgress.total > 0
+                  ? `${t('form.submitting')} (${uploadProgress.done}/${uploadProgress.total})`
+                  : t('form.submitting')}
               </>
             ) : (
               <>
