@@ -17,7 +17,7 @@ import { compressPhotoFile } from '../../utils/imageCompression';
 import LipaNambaScreen from './LipaNambaScreen';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
-const UPLOAD_CONCURRENCY = 4;
+const UPLOAD_CONCURRENCY = 2;
 
 async function mapWithConcurrency(items, concurrency, worker) {
   const results = new Array(items.length);
@@ -79,7 +79,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     }
   };
 
-  // Compress and pre-upload a photo in the background as soon as the user selects it
+  // Compress and pre-upload a photo with automatic retry on transient 500/network errors
   const ensurePhotoTask = (file, fieldId, folderName) => {
     const existing = preUploadCacheRef.current.get(file);
     if (existing) return existing;
@@ -95,31 +95,36 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         return { compressedFile, uploadedPhoto: null, fallback: true };
       }
 
-      try {
-        const res = await api.public.uploadOrderPhoto(slug, compressedFile, {
-          fieldId,
-          folderName,
-        });
-        return { compressedFile, uploadedPhoto: res?.photo || null, fallback: false };
-      } catch (err) {
-        if (err.status === 404 || err.status === 405 || err.status === 413) {
-          endpointUnsupportedRef.current = true;
-          return { compressedFile, uploadedPhoto: null, fallback: true };
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const res = await api.public.uploadOrderPhoto(slug, compressedFile, {
+            fieldId,
+            folderName,
+          });
+          if (res?.photo) {
+            return { compressedFile, uploadedPhoto: res.photo, fallback: false };
+          }
+        } catch (err) {
+          if (err.status === 404 || err.status === 405) {
+            endpointUnsupportedRef.current = true;
+            return { compressedFile, uploadedPhoto: null, fallback: true };
+          }
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+          }
         }
-        // Remove failed task from cache so submit will retry it cleanly
-        preUploadCacheRef.current.delete(file);
-        throw err;
       }
+
+      // If all 3 single-photo attempts failed, mark this photo for fallback in the final submit payload
+      return { compressedFile, uploadedPhoto: null, fallback: true };
     })();
 
-    // Prevent unhandled rejection noise during background pre-upload; handleSubmit awaits or retries
-    taskPromise.catch(() => {});
     preUploadCacheRef.current.set(file, taskPromise);
     return taskPromise;
   };
 
   const startBackgroundPreUploads = (files, fieldId, folderName) => {
-    mapWithConcurrency(files, 3, (file) => ensurePhotoTask(file, fieldId, folderName)).catch(() => {});
+    mapWithConcurrency(files, UPLOAD_CONCURRENCY, (file) => ensurePhotoTask(file, fieldId, folderName)).catch(() => {});
   };
 
   const handleFieldChange = (fieldId, value) => {
@@ -201,7 +206,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         setUploadProgress({ done: 0, total: queuedPhotos.length });
       }
 
-      // Resolve pre-uploaded photos or upload remaining ones in parallel (4 at a time)
+      // Resolve pre-uploaded photos or upload remaining ones (2 at a time with automatic retry)
       const taskResults = await mapWithConcurrency(queuedPhotos, UPLOAD_CONCURRENCY, async (item) => {
         const res = await ensurePhotoTask(item.file, item.fieldId, item.folderName);
         doneCount += 1;
@@ -209,30 +214,34 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         return { ...item, ...res };
       });
 
-      const useMultipartFallback = taskResults.some((r) => r.fallback);
+      const uploadedPhotos = taskResults.map((r) => r.uploadedPhoto).filter(Boolean);
+      const remainingFallbackItems = taskResults.filter((r) => !r.uploadedPhoto);
 
       let result;
-      if (useMultipartFallback) {
-        const fallbackBudget =
-          queuedPhotos.length > 0
-            ? Math.min(900 * 1024, Math.max(200 * 1024, Math.floor((3.5 * 1024 * 1024) / queuedPhotos.length)))
-            : 900 * 1024;
+      if (remainingFallbackItems.length > 0) {
+        const fallbackBudget = Math.min(
+          900 * 1024,
+          Math.max(180 * 1024, Math.floor((3.4 * 1024 * 1024) / remainingFallbackItems.length))
+        );
 
         const formData = new FormData();
         formData.append('clientName', clientName.trim());
         formData.append('clientWhatsApp', clientWhatsApp.trim());
         if (clientEmail.trim()) formData.append('clientEmail', clientEmail.trim());
         formData.append('answers', JSON.stringify(answers));
+        if (uploadedPhotos.length > 0) {
+          formData.append('uploadedPhotos', JSON.stringify(uploadedPhotos));
+        }
 
         const photosMetadata = [];
-        const fallbackFiles = await mapWithConcurrency(taskResults, UPLOAD_CONCURRENCY, async (item) =>
+        const fallbackFiles = await mapWithConcurrency(remainingFallbackItems, UPLOAD_CONCURRENCY, async (item) =>
           item.compressedFile.size <= fallbackBudget
             ? item.compressedFile
             : compressPhotoFile(item.compressedFile, { maxBytes: fallbackBudget, maxDimension: 2000, quality: 0.8 })
         );
 
         fallbackFiles.forEach((fallbackFile, idx) => {
-          const item = taskResults[idx];
+          const item = remainingFallbackItems[idx];
           formData.append('photos', fallbackFile);
           photosMetadata.push({
             originalName: fallbackFile.name,
@@ -247,7 +256,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
         result = await api.public.submitForm(slug, formData);
       } else {
-        const uploadedPhotos = taskResults.map((r) => r.uploadedPhoto).filter(Boolean);
         result = await api.public.submitForm(slug, {
           clientName: clientName.trim(),
           clientWhatsApp: clientWhatsApp.trim(),
