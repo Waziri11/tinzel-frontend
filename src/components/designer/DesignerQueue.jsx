@@ -99,15 +99,12 @@ export default function DesignerQueue({ token, staffUser }) {
     setDownloadingFolder(folder);
     setError(null);
     try {
-      const { blob, fileName } = await api.designer.downloadPhotoFolder(token, selectedOrder._id, folder);
-      const url = URL.createObjectURL(blob);
+      const { url } = await api.designer.downloadPhotoFolder(token, selectedOrder._id, folder);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setSuccessMsg(`ZIP download started for ${folder}.`);
     } catch (err) {
       setError(err.message || 'Failed to download photo folder');

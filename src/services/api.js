@@ -187,17 +187,17 @@ export const api = {
       }).then(handleResponse),
 
     downloadPhotoFolder: async (token, id, folder) => {
-      const params = new URLSearchParams({ folder });
-      const response = await fetch(`${API_BASE}/api/designer/orders/${id}/photo-folder.zip?${params}`, {
-        headers: getHeaders(token),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to download photo folder');
+      let result = await fetch(`${API_BASE}/api/designer/orders/${id}/photo-folder-download`, {
+        method: 'POST', headers: getHeaders(token), body: JSON.stringify({ folder }),
+      }).then(handleResponse);
+      const deadline = Date.now() + 5 * 60000;
+      while (result.state !== 'ready') {
+        if (result.state === 'failed') throw new Error(result.message || 'Unable to prepare this folder');
+        if (Date.now() >= deadline) throw new Error('Your folder is still being prepared. Try downloading again shortly; completed work is saved.');
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        result = await fetch(`${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`, { headers: getHeaders(token) }).then(handleResponse);
       }
-      const disposition = response.headers.get('Content-Disposition') || '';
-      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || 'photos.zip';
-      return { blob: await response.blob(), fileName };
+      return { url: `${API_BASE}${result.url}` };
     },
 
     startDesign: (token, id) =>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MediaThumbnail from './MediaThumbnail';
 import { Folder, FolderOpen, Download, ExternalLink, Image as ImageIcon, ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
@@ -24,7 +25,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
   const [openFolders, setOpenFolders] = useState(() => {
     const initial = {};
     folderNames.forEach((name, i) => {
-      initial[name] = true; // Open all by default for immediate convenience
+      initial[name] = i === 0;
     });
     return initial;
   });
@@ -65,7 +66,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
 
       {folderNames.map((folderName) => {
         const photos = grouped[folderName];
-        const isOpen = openFolders[folderName] !== false;
+        const isOpen = openFolders[folderName] === true;
 
         return (
           <div
@@ -175,34 +176,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                       }}
                     >
                       <div style={{ position: 'relative', width: '100%', height: '100px', backgroundColor: '#1C1917' }}>
-                        <img
-                          src={photo.url}
-                          alt={photo.originalName || `Photo ${photo.index}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                          }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div
-                          style={{
-                            display: 'none',
-                            position: 'absolute',
-                            inset: 0,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: '#292524',
-                            color: '#A8A29E',
-                            fontSize: '11px',
-                          }}
-                        >
-                          Asset {photo.index}
-                        </div>
+                        <MediaThumbnail photo={photo} />
                       </div>
 
                       <div
