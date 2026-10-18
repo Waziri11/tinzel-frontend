@@ -1,1199 +1,402 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Drawer, Modal, Tabs } from 'antd';
 import {
-  Server,
-  Layers,
-  Search,
+  AlertTriangle,
   CheckCircle2,
-  AlertCircle,
-  Clock,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  FileCheck2,
+  FolderOpen,
+  LayoutDashboard,
+  ListChecks,
+  PauseCircle,
   Printer,
+  RefreshCw,
+  Search,
   Send,
   Truck,
-  RotateCcw,
-  Check,
-  UserCheck,
-  FileCheck2,
-  X,
-  Loader2,
-  RefreshCw,
-  Folder,
-  Eye,
+  UserRoundCheck,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
+import './managerDashboard.css';
 
-const STAGE_COLUMNS = [
-  { id: 'payment', title: 'Payment Verification', statuses: ['awaiting_payment'] },
-  { id: 'design', title: 'Assigned / In Design', statuses: ['queued_for_assignment', 'assigned', 'in_design'] },
-  { id: 'draft_review', title: 'Manager Draft Gate', statuses: ['draft_manager_review'] },
-  { id: 'client_review', title: 'Client Whole Review', statuses: ['client_review', 'revision_requested'] },
-  { id: 'print_prep', title: 'Print Prep & Check', statuses: ['client_approved', 'print_document_prep', 'print_manager_review'] },
-  { id: 'printing', title: 'Printing & WhatsApp', statuses: ['printing_sent', 'printing_in_progress', 'printing_completed'] },
-  { id: 'dispatched', title: 'Dispatch & Closure', statuses: ['dispatched', 'delivered', 'closed'] },
+const STAGES = [
+  { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },
+  { id: 'payment', title: 'Payment', statuses: ['awaiting_payment', 'payment_verified'] },
+  { id: 'design', title: 'Design', statuses: ['queued_for_assignment', 'assigned', 'in_design'] },
+  { id: 'draft', title: 'Manager Review', statuses: ['draft_manager_review'] },
+  { id: 'client', title: 'Client Review', statuses: ['client_review', 'revision_requested'] },
+  { id: 'print', title: 'Print Preparation', statuses: ['client_approved', 'print_document_prep', 'print_manager_review'] },
+  { id: 'printing', title: 'Printing', statuses: ['printing_sent', 'printing_in_progress', 'printing_completed'] },
+  { id: 'delivery', title: 'Delivery & Closure', statuses: ['dispatched', 'delivered', 'closed'] },
 ];
 
-export default function ConveyorBeltBoard({ token, staffUser }) {
+const ATTENTION = new Set([
+  'awaiting_payment', 'queued_for_assignment', 'draft_manager_review', 'print_manager_review',
+  'printing_sent', 'printing_in_progress', 'printing_completed', 'dispatched', 'on_hold',
+]);
+
+const STATUS_LABELS = {
+  awaiting_payment: 'Payment awaiting verification',
+  payment_verified: 'Payment verified',
+  queued_for_assignment: 'Waiting for designer capacity',
+  assigned: 'Assigned to designer',
+  in_design: 'In design',
+  draft_manager_review: 'Draft awaiting manager review',
+  client_review: 'Client reviewing whole magazine',
+  revision_requested: 'Client requested changes',
+  client_approved: 'Client approved — print file pending',
+  print_document_prep: 'Print file in preparation',
+  print_manager_review: 'Print file awaiting authorization',
+  printing_sent: 'Sent to printer — acknowledgement pending',
+  printing_in_progress: 'Printing in progress',
+  printing_completed: 'Printing complete — dispatch pending',
+  dispatched: 'Dispatched — delivery confirmation pending',
+  delivered: 'Delivered — closure pending',
+  closed: 'Closed',
+  on_hold: 'On hold',
+};
+
+const NEXT_TASK = {
+  awaiting_payment: 'Verify payment',
+  queued_for_assignment: 'Assign a designer',
+  draft_manager_review: 'Review the complete draft',
+  print_manager_review: 'Review and authorize printing',
+  printing_sent: 'Record printer acknowledgement',
+  printing_in_progress: 'Verify printing completion',
+  printing_completed: 'Authorize courier dispatch',
+  dispatched: 'Confirm client delivery',
+  on_hold: 'Resolve hold',
+};
+
+const labelStatus = (status) => STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
+const orderId = (order) => order?.trackingId || order?.submissionId || 'Order';
+const daysWaiting = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000));
+const displayDate = (date) => date ? new Intl.DateTimeFormat('en-TZ', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date)) : 'Not recorded';
+
+const emptyForm = {
+  paymentRef: '', amountPaid: '', draftAction: 'release_to_client', draftFeedback: '',
+  printerStage: 'in_progress', printerNotes: '', carrier: '', trackingReference: '',
+  deliveryAddress: '', dispatchNotes: '', recipientName: '', confirmationMethod: '',
+  recipientFeedback: '', designerId: '', reassignReason: '', holdReason: '',
+};
+
+export default function ConveyorBeltBoard({ token }) {
   const [orders, setOrders] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'verify_payment' | 'review_draft' | 'authorise_print' | 'printer_status' | 'dispatch' | 'reassign'
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState(null);
+  const [view, setView] = useState('attention');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [scope, setScope] = useState('active');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [modalLoading, setModalLoading] = useState(false);
+  const [orderDetail, setOrderDetail] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [designers, setDesigners] = useState([]);
+  const [settings, setSettings] = useState({ printer: { configured: false, phone: '' } });
+  const [action, setAction] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Form states in modals
-  const [paymentRef, setPaymentRef] = useState('');
-  const [amountPaid, setAmountPaid] = useState('');
-  const [draftAction, setDraftAction] = useState('release_to_client');
-  const [draftFeedback, setDraftFeedback] = useState('');
-  const [printerPhone, setPrinterPhone] = useState('+255712345678');
-  const [printerStage, setPrinterStage] = useState('in_progress');
-  const [printerNotes, setPrinterNotes] = useState('');
-  const [carrier, setCarrier] = useState('FastCourier');
-  const [trackingRef, setTrackingRef] = useState('');
-  const [targetDesignerId, setTargetDesignerId] = useState('');
-  const [allDesigners, setAllDesigners] = useState([]);
-
-  useEffect(() => {
-    loadOrders();
-    loadDesigners();
-  }, [token]);
-
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setError('');
     try {
-      const data = await api.manager.getOrders(token, { search: searchTerm });
+      const data = await api.manager.getOrders(token, {
+        search,
+        status: statusFilter,
+        scope,
+        page,
+        limit: 100,
+      });
       setOrders(data.orders || []);
-    } catch (err) {
-      setError(err.message || 'Failed to fetch orders');
+      setSummary(data.summary || {});
+      setStatusCounts(data.statusCounts || {});
+      setPageCount(data.pageCount || 1);
+      setTotal(data.total || 0);
+    } catch (requestError) {
+      setError(requestError.message || 'Orders could not be loaded.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, scope, search, statusFilter, token]);
 
-  const loadDesigners = async () => {
-    try {
-      const data = await api.admin.getStaff(token);
-      setAllDesigners((data.staff || []).filter((s) => s.role === 'designer'));
-    } catch (e) {
-      // Ignore if staff api restricted
-    }
-  };
+  useEffect(() => { loadOrders(); }, [loadOrders]);
 
-  const handleVerifyPayment = async () => {
-    setModalLoading(true);
+  useEffect(() => {
+    Promise.allSettled([api.manager.getDesigners(token), api.manager.getSettings(token)]).then(([designerResult, settingsResult]) => {
+      if (designerResult.status === 'fulfilled') setDesigners(designerResult.value.designers || []);
+      if (settingsResult.status === 'fulfilled') setSettings(settingsResult.value);
+    });
+  }, [token]);
+
+  const attentionOrders = useMemo(
+    () => orders.filter((order) => ATTENTION.has(order.status)).sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)),
+    [orders]
+  );
+
+  const openOrder = async (order) => {
+    setSelectedOrder(order);
+    setOrderDetail(null);
+    setAuditLogs([]);
+    setDetailLoading(true);
     try {
-      await api.manager.verifyPayment(token, selectedOrder._id, {
-        lipaNambaReference: paymentRef,
-        amountPaid: Number(amountPaid) || selectedOrder.formId?.price,
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message || 'Failed to verify payment');
+      const data = await api.manager.getOrder(token, order._id);
+      setOrderDetail(data.order);
+      setAuditLogs(data.auditLogs || []);
+    } catch (requestError) {
+      setNotice({ type: 'error', text: requestError.message || 'Order details could not be loaded.' });
     } finally {
-      setModalLoading(false);
+      setDetailLoading(false);
     }
   };
 
-  const handleReviewDraft = async () => {
-    setModalLoading(true);
+  const closeDetail = () => {
+    setSelectedOrder(null);
+    setOrderDetail(null);
+    setAuditLogs([]);
+  };
+
+  const beginAction = (name, order = orderDetail || selectedOrder) => {
+    if (!order) return;
+    setSelectedOrder(order);
+    setForm({
+      ...emptyForm,
+      amountPaid: String(order.formId?.price || ''),
+      printerStage: order.status === 'printing_sent' ? 'in_progress' : 'completed',
+      deliveryAddress: order.dispatchDetails?.deliveryAddress || '',
+      designerId: order.assignedDesigner?._id || '',
+    });
+    setAction(name);
+  };
+
+  const finishAction = async (message) => {
+    setAction(null);
+    setNotice({ type: 'success', text: message });
+    await loadOrders();
+    if (selectedOrder?._id) await openOrder({ ...selectedOrder, _id: selectedOrder._id });
+  };
+
+  const runAction = async (event) => {
+    event.preventDefault();
+    if (!selectedOrder) return;
+    setSubmitting(true);
+    setNotice(null);
     try {
-      await api.manager.reviewDraft(token, selectedOrder._id, {
-        action: draftAction,
-        feedback: draftFeedback,
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message || 'Failed to review draft');
+      let response;
+      if (action === 'payment') response = await api.manager.verifyPayment(token, selectedOrder._id, { lipaNambaReference: form.paymentRef, amountPaid: form.amountPaid });
+      if (action === 'draft') response = await api.manager.reviewDraft(token, selectedOrder._id, { action: form.draftAction, feedback: form.draftFeedback });
+      if (action === 'print') response = await api.manager.authorisePrint(token, selectedOrder._id, {});
+      if (action === 'printer') response = await api.manager.printerUpdate(token, selectedOrder._id, { stage: form.printerStage, notes: form.printerNotes });
+      if (action === 'dispatch') response = await api.manager.authoriseDispatch(token, selectedOrder._id, { carrier: form.carrier, trackingReference: form.trackingReference, deliveryAddress: form.deliveryAddress, notes: form.dispatchNotes });
+      if (action === 'delivery') response = await api.manager.closeOrder(token, selectedOrder._id, { recipientName: form.recipientName, confirmationMethod: form.confirmationMethod, recipientFeedback: form.recipientFeedback });
+      if (action === 'reassign') response = await api.manager.reassign(token, selectedOrder._id, { designerId: form.designerId, reason: form.reassignReason });
+      if (action === 'hold') response = await api.manager.hold(token, selectedOrder._id, { action: 'hold', reason: form.holdReason });
+      if (action === 'resume') response = await api.manager.hold(token, selectedOrder._id, { action: 'resume', reason: 'Manager resolved the recorded hold.' });
+      await finishAction(response?.message || 'Order updated successfully.');
+    } catch (requestError) {
+      setNotice({ type: 'error', text: requestError.message || 'The order could not be updated.' });
     } finally {
-      setModalLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const handleAuthorisePrint = async () => {
-    setModalLoading(true);
-    try {
-      await api.manager.authorisePrint(token, selectedOrder._id, {
-        printerPhone,
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message || 'Failed to authorise print');
-    } finally {
-      setModalLoading(false);
-    }
-  };
+  const summaryCards = [
+    { id: 'awaiting_payment', label: 'Payments to verify', value: summary.payment || 0, icon: CircleDollarSign },
+    { id: 'draft_manager_review', label: 'Drafts to review', value: summary.draftReview || 0, icon: FileCheck2 },
+    { id: 'print_manager_review', label: 'Print approvals', value: summary.printApproval || 0, icon: Printer },
+    { id: 'printing_completed', label: 'Ready to dispatch', value: summary.dispatchReady || 0, icon: Truck },
+    { id: 'on_hold', label: 'Blocked or queued', value: summary.blocked || 0, icon: AlertTriangle },
+  ];
 
-  const handlePrinterStatus = async () => {
-    setModalLoading(true);
-    try {
-      await api.manager.printerUpdate(token, selectedOrder._id, {
-        stage: printerStage,
-        notes: printerNotes,
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message || 'Failed to update printer status');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleAuthoriseDispatch = async () => {
-    setModalLoading(true);
-    try {
-      await api.manager.authoriseDispatch(token, selectedOrder._id, {
-        carrier,
-        trackingReference: trackingRef,
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message || 'Failed to authorise dispatch');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleCloseOrder = async (orderId) => {
-    if (!confirm('Close this order and confirm delivery to client?')) return;
-    try {
-      await api.manager.closeOrder(token, orderId, {
-        recipientFeedback: 'Client confirmed receipt.',
-      });
-      await loadOrders();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleReassign = async () => {
-    if (!targetDesignerId) return;
-    setModalLoading(true);
-    try {
-      await api.manager.reassign(token, selectedOrder._id, {
-        designerId: targetDesignerId,
-        reason: 'Manager reassignment from board',
-      });
-      setActiveModal(null);
-      await loadOrders();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setModalLoading(false);
-    }
+  const nextActionButton = (order, compact = false) => {
+    const map = {
+      awaiting_payment: ['payment', 'Verify payment', CircleDollarSign],
+      queued_for_assignment: ['reassign', 'Assign designer', UserRoundCheck],
+      assigned: ['reassign', 'Reassign', UserRoundCheck],
+      in_design: ['reassign', 'Reassign', UserRoundCheck],
+      draft_manager_review: ['draft', 'Review draft', FileCheck2],
+      print_manager_review: ['print', 'Authorize printing', Printer],
+      printing_sent: ['printer', 'Record acknowledgement', Clock3],
+      printing_in_progress: ['printer', 'Verify completion', CheckCircle2],
+      printing_completed: ['dispatch', 'Authorize dispatch', Truck],
+      dispatched: ['delivery', 'Confirm delivery', CheckCircle2],
+      delivered: ['delivery', 'Close order', CheckCircle2],
+      on_hold: ['resume', 'Resume order', RefreshCw],
+    };
+    const config = map[order.status];
+    if (!config) return null;
+    const [name, label, Icon] = config;
+    return <button type="button" className={`manager-primary-action${compact ? ' is-compact' : ''}`} onClick={(event) => { event.stopPropagation(); beginAction(name, order); }}><Icon size={16} />{label}</button>;
   };
 
   return (
-    <div>
-      {/* Search and Action Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search by Client, Tracking ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
-              style={{
-                padding: '8px 12px 8px 34px',
-                backgroundColor: 'var(--card-bg)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                color: 'var(--text-main)',
-                fontSize: '13px',
-                outline: 'none',
-                width: '280px',
-              }}
-            />
-            <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-          </div>
+    <section className="manager-dashboard" aria-label="Manager production dashboard">
+      <div className="manager-dashboard__intro">
+        <div>
+          <p className="manager-eyebrow">Production control</p>
+          <h1>What needs your attention</h1>
+          <p>Review complete magazines, authorize production, and keep every order moving safely.</p>
+        </div>
+        <button type="button" className="manager-secondary-action" onClick={loadOrders} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} />Refresh</button>
+      </div>
 
-          <button
-            onClick={loadOrders}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--card-bg)',
-              color: 'var(--text-main)',
-              border: '1px solid var(--border-color)',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              fontSize: '13px',
-            }}
-          >
-            <RefreshCw size={13} className={loading ? 'spin' : ''} />
-            Refresh
+      {notice && <div className={`manager-notice is-${notice.type}`} role="status">{notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}<span>{notice.text}</span><button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
+      {error && <div className="manager-notice is-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button type="button" onClick={loadOrders}>Try again</button></div>}
+
+      <div className="manager-summary-grid">
+        {summaryCards.map(({ id, label, value, icon: Icon }) => (
+          <button key={id} type="button" className="manager-summary-card" onClick={() => { setStatusFilter(id === 'on_hold' ? 'all' : id); setView(id === 'on_hold' ? 'attention' : 'board'); setPage(1); }}>
+            <span className="manager-summary-card__icon"><Icon size={20} /></span>
+            <span><strong>{value}</strong><small>{label}</small></span>
           </button>
-        </div>
-
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          Active Orders on Belt: <strong>{orders.length}</strong>
-        </div>
+        ))}
       </div>
 
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#450a0a',
-            border: '1px solid var(--accent-danger)',
-            borderRadius: '6px',
-            padding: '12px',
-            marginBottom: '16px',
-            color: '#fca5a5',
-            fontSize: '13px',
-          }}
-        >
-          {error}
+      <div className="manager-control-bar">
+        <div className="manager-view-switch" aria-label="Dashboard view">
+          <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} />Needs attention</button>
+          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} />Production conveyor</button>
         </div>
-      )}
-
-      {/* Kanban Multi-Column Board */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 300px)',
-          gap: '14px',
-          overflowX: 'auto',
-          paddingBottom: '20px',
-          minHeight: '600px',
-        }}
-      >
-        {STAGE_COLUMNS.map((col) => {
-          const columnOrders = orders.filter((o) => col.statuses.includes(o.status));
-
-          return (
-            <div
-              key={col.id}
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                height: 'fit-content',
-                minHeight: '400px',
-              }}
-            >
-              {/* Column Header */}
-              <div
-                style={{
-                  padding: '14px',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span style={{ fontSize: '13px', fontWeight: '700' }}>{col.title}</span>
-                <span
-                  style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    color: 'var(--text-muted)',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '2px 8px',
-                    borderRadius: '10px',
-                  }}
-                >
-                  {columnOrders.length}
-                </span>
-              </div>
-
-              {/* Order Cards */}
-              <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {columnOrders.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                    No orders at this stage
-                  </div>
-                ) : (
-                  columnOrders.map((ord) => (
-                    <div
-                      key={ord._id}
-                      style={{
-                        backgroundColor: 'var(--card-bg)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        padding: '14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                      }}
-                    >
-                      {/* Tracking / Submission ID Header */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: ord.trackingId ? '#60a5fa' : '#fcd34d' }}>
-                          {ord.trackingId || ord.submissionId}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          {ord.status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-
-                      <div style={{ fontSize: '13px', fontWeight: '600' }}>{ord.clientName}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {ord.formTitle || ord.formId?.title}
-                      </div>
-
-                      {ord.assignedDesigner && (
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          Designer: <strong style={{ color: 'var(--text-main)' }}>{ord.assignedDesigner.name}</strong>
-                        </div>
-                      )}
-
-                      {/* Folder Assets Quick View */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedOrder(ord);
-                          setActiveModal('inspect_order');
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          backgroundColor: '#FAFAF9',
-                          border: '1px solid #E7E5E4',
-                          borderRadius: '4px',
-                          padding: '5px 8px',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          color: '#1C1917',
-                          cursor: 'pointer',
-                          width: '100%',
-                          marginTop: '2px',
-                        }}
-                      >
-                        <Folder size={13} color="#C5A059" />
-                        View Photo Folders ({ord.uploadedPhotos?.length || 0})
-                      </button>
-
-                      {/* Stage-Specific Quick Action Buttons */}
-                      <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
-                        {ord.status === 'awaiting_payment' && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setPaymentRef('');
-                              setAmountPaid(String(ord.formId?.price || 50000));
-                              setActiveModal('verify_payment');
-                            }}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--accent-primary)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <CheckCircle2 size={13} />
-                            Verify Payment
-                          </button>
-                        )}
-
-                        {ord.status === 'draft_manager_review' && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setDraftAction('release_to_client');
-                              setDraftFeedback('');
-                              setActiveModal('review_draft');
-                            }}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--accent-primary)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <FileCheck2 size={13} />
-                            Review Draft V{ord.currentDraftVersion}
-                          </button>
-                        )}
-
-                        {(ord.status === 'client_approved' || ord.status === 'print_manager_review') && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setActiveModal('authorise_print');
-                            }}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--accent-success)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <Printer size={13} />
-                            Dispatch to Printer
-                          </button>
-                        )}
-
-                        {['printing_sent', 'printing_in_progress'].includes(ord.status) && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setPrinterStage(ord.status === 'printing_sent' ? 'in_progress' : 'completed');
-                              setActiveModal('printer_status');
-                            }}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--bg-secondary)',
-                              color: 'var(--text-main)',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <Clock size={13} />
-                            Update Print Status
-                          </button>
-                        )}
-
-                        {ord.status === 'printing_completed' && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setCarrier('FastCourier');
-                              setTrackingRef(`PKG-${Date.now().toString().slice(-6)}`);
-                              setActiveModal('dispatch');
-                            }}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--accent-primary)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <Truck size={13} />
-                            Authorise Dispatch
-                          </button>
-                        )}
-
-                        {ord.status === 'dispatched' && (
-                          <button
-                            onClick={() => handleCloseOrder(ord._id)}
-                            style={{
-                              width: '100%',
-                              backgroundColor: 'var(--accent-success)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                            }}
-                          >
-                            Confirm Delivery & Close
-                          </button>
-                        )}
-
-                        {/* Reassign option if stuck in design */}
-                        {['queued_for_assignment', 'assigned', 'in_design'].includes(ord.status) && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(ord);
-                              setTargetDesignerId(ord.assignedDesigner?._id || '');
-                              setActiveModal('reassign');
-                            }}
-                            style={{
-                              marginTop: '4px',
-                              width: '100%',
-                              backgroundColor: 'transparent',
-                              color: 'var(--text-muted)',
-                              border: '1px dashed var(--border-color)',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '11px',
-                            }}
-                          >
-                            Reassign Designer
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
+        <form className="manager-search" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
+          <Search size={16} />
+          <input aria-label="Search orders" placeholder="Client, WhatsApp or tracking ID" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          {searchInput && <button type="button" aria-label="Clear search" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
+        </form>
+        <label className="manager-filter">Stage
+          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+            <option value="all">All stages</option>
+            {Object.keys(STATUS_LABELS).map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
+          </select>
+        </label>
+        <label className="manager-filter">Orders
+          <select value={scope} onChange={(event) => { setScope(event.target.value); setPage(1); }}>
+            <option value="active">Active only</option>
+            <option value="all">Include closed</option>
+          </select>
+        </label>
       </div>
 
-      {/* --- MODALS --- */}
+      {loading && orders.length === 0 ? <div className="manager-loading"><RefreshCw className="spin" /><span>Loading production orders…</span></div> : null}
 
-      {/* 0. Inspect Order & Photos Folder Modal */}
-      {activeModal === 'inspect_order' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '820px',
-              maxWidth: '95vw',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid #E7E5E4' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
-                  Order Assets: {selectedOrder.trackingId || selectedOrder.submissionId}
-                </h3>
-                <span style={{ fontSize: '12px', color: '#78716C' }}>
-                  Client: {selectedOrder.clientName} ({selectedOrder.clientWhatsApp}) • {selectedOrder.formTitle || selectedOrder.formId?.title}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveModal(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716C' }}
-              >
-                <X size={20} />
-              </button>
+      {!loading && view === 'attention' && (
+        <div className="manager-attention-panel">
+          <div className="manager-panel-heading"><div><h2>Priority queue</h2><p>Oldest manager action first.</p></div><span>{attentionOrders.length} shown</span></div>
+          {attentionOrders.length === 0 ? (
+            <div className="manager-empty"><CheckCircle2 size={32} /><h3>No manager actions are waiting</h3><p>Use the production conveyor to monitor work already with designers, clients, or the printer.</p></div>
+          ) : (
+            <div className="manager-table-wrap">
+              <table className="manager-attention-table">
+                <thead><tr><th>Order</th><th>Required action</th><th>Client</th><th>Designer</th><th>Waiting</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+                <tbody>{attentionOrders.map((order) => {
+                  const age = daysWaiting(order.updatedAt);
+                  return <tr key={order._id} onClick={() => openOrder(order)}>
+                    <td data-label="Order"><strong>{orderId(order)}</strong><small>{order.formTitle || order.formId?.title || 'Magazine order'}</small></td>
+                    <td data-label="Required action"><span className={`manager-status is-${order.status}`}>{NEXT_TASK[order.status] || labelStatus(order.status)}</span></td>
+                    <td data-label="Client">{order.clientName}</td>
+                    <td data-label="Designer">{order.assignedDesigner?.name || 'Not assigned'}</td>
+                    <td data-label="Waiting"><span className={age >= 3 ? 'manager-age is-overdue' : 'manager-age'}>{age === 0 ? 'Today' : `${age} day${age === 1 ? '' : 's'}`}</span></td>
+                    <td data-label="Action">{nextActionButton(order, true)}</td>
+                  </tr>;
+                })}</tbody>
+              </table>
             </div>
-
-            {/* Folder-Organized Client Photos */}
-            <OrderPhotosFolderView
-              uploadedPhotos={selectedOrder.uploadedPhotos}
-              submittedData={selectedOrder.submittedData}
-            />
-          </div>
+          )}
         </div>
       )}
 
-      {/* 1. Verify Payment Modal */}
-      {activeModal === 'verify_payment' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '460px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Verify Lipa Namba Payment</h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Confirming payment will issue the official <strong>TNZ-YYYY-XXXX</strong> Tracking ID and
-              automatically assign the order to the designer with lowest active workload.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  Lipa Namba Reference Code *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. QK8912KL99"
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--input-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-main)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  Amount Paid (TZS)
-                </label>
-                <input
-                  type="number"
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--input-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-main)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleVerifyPayment}
-                disabled={modalLoading}
-                style={{
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                {modalLoading ? 'Verifying...' : 'Confirm & Auto-Assign'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. Review Draft Modal */}
-      {activeModal === 'review_draft' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '520px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>
-                Review Draft V{selectedOrder.currentDraftVersion} Gate
-              </h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Draft is currently hidden from the client. Releasing it will allow the client to review the
-              whole magazine in their private portal.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              <button
-                type="button"
-                onClick={() => setDraftAction('release_to_client')}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  backgroundColor: draftAction === 'release_to_client' ? '#064e3b' : 'var(--bg-secondary)',
-                  color: draftAction === 'release_to_client' ? '#6ee7b7' : 'var(--text-main)',
-                  border: `1px solid ${draftAction === 'release_to_client' ? 'var(--accent-success)' : 'var(--border-color)'}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                Approve & Release to Client
-              </button>
-              <button
-                type="button"
-                onClick={() => setDraftAction('return_to_designer')}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  backgroundColor: draftAction === 'return_to_designer' ? '#451a03' : 'var(--bg-secondary)',
-                  color: draftAction === 'return_to_designer' ? '#fcd34d' : 'var(--text-main)',
-                  border: `1px solid ${draftAction === 'return_to_designer' ? 'var(--accent-warning)' : 'var(--border-color)'}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                Return to Designer
-              </button>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Feedback / Notes:
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Optional notes or change requests for designer..."
-                value={draftFeedback}
-                onChange={(e) => setDraftFeedback(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  color: 'var(--text-main)',
-                  fontSize: '13px',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReviewDraft}
-                disabled={modalLoading}
-                style={{
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                {modalLoading ? 'Executing...' : 'Submit Decision'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Authorise Print Modal */}
-      {activeModal === 'authorise_print' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '480px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Dispatch Print to WhatsApp Partner</h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              This dispatches the final print package and production specifications to the printing person's
-              WhatsApp number via Twilio.
-            </p>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Printer WhatsApp Phone Number:
-              </label>
-              <input
-                type="text"
-                value={printerPhone}
-                onChange={(e) => setPrinterPhone(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  color: 'var(--text-main)',
-                  fontSize: '13px',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAuthorisePrint}
-                disabled={modalLoading}
-                style={{
-                  backgroundColor: 'var(--accent-success)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Send size={14} />
-                {modalLoading ? 'Dispatching...' : 'Dispatch via WhatsApp'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Printer Status Modal */}
-      {activeModal === 'printer_status' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '460px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Log Printer WhatsApp Reply</h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Printer Progress State:
-              </label>
-              <select
-                value={printerStage}
-                onChange={(e) => setPrinterStage(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  color: 'var(--text-main)',
-                  fontSize: '13px',
-                }}
-              >
-                <option value="in_progress">Printing In Progress (Acknowledged by Printer)</option>
-                <option value="completed">Printing Completed (Ready for Pickup / Courier)</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePrinterStatus}
-                disabled={modalLoading}
-                style={{
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                Update Status
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Authorise Dispatch Modal */}
-      {activeModal === 'dispatch' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '460px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Authorise Courier Dispatch</h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  Carrier / Delivery Service:
-                </label>
-                <input
-                  type="text"
-                  value={carrier}
-                  onChange={(e) => setCarrier(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--input-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-main)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  Waybill / Tracking Reference:
-                </label>
-                <input
-                  type="text"
-                  value={trackingRef}
-                  onChange={(e) => setTrackingRef(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--input-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-main)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAuthoriseDispatch}
-                disabled={modalLoading}
-                style={{
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                Dispatch Package
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Reassign Designer Modal */}
-      {activeModal === 'reassign' && selectedOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '460px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Reassign Designer</h3>
-              <button onClick={() => setActiveModal(null)} style={{ background: 'none', color: 'var(--text-muted)' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                Select Active Designer:
-              </label>
-              <select
-                value={targetDesignerId}
-                onChange={(e) => setTargetDesignerId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--input-bg)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  color: 'var(--text-main)',
-                  fontSize: '13px',
-                }}
-              >
-                <option value="">-- Choose Designer --</option>
-                {allDesigners.map((d) => (
-                  <option key={d._id} value={d._id}>
-                    {d.name} (Load: {d.currentActiveWorkload}/{d.maxActiveWorkload})
-                  </option>
+      {!loading && view === 'board' && (
+        <div className="manager-board" aria-label="Production conveyor">
+          {STAGES.map((stage) => {
+            const stageOrders = orders.filter((order) => stage.statuses.includes(order.status));
+            const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
+            return <section key={stage.id} className="manager-board-column">
+              <header><h2>{stage.title}</h2><span>{count}</span></header>
+              <div className="manager-board-column__body">
+                {stageOrders.length === 0 ? <p className="manager-board-empty">No orders at this stage</p> : stageOrders.map((order) => (
+                  <article key={order._id} className="manager-order-card" onClick={() => openOrder(order)}>
+                    <div className="manager-order-card__top"><strong>{orderId(order)}</strong><span>{daysWaiting(order.updatedAt)}d</span></div>
+                    <h3>{order.clientName}</h3>
+                    <p>{order.formTitle || order.formId?.title || 'Magazine order'}</p>
+                    <span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span>
+                    <dl><div><dt>Designer</dt><dd>{order.assignedDesigner?.name || 'Not assigned'}</dd></div><div><dt>Photos</dt><dd>{order.photoCount || 0}</dd></div></dl>
+                    {nextActionButton(order, true)}
+                  </article>
                 ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setActiveModal(null)}
-                style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '8px 14px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReassign}
-                disabled={modalLoading || !targetDesignerId}
-                style={{
-                  backgroundColor: 'var(--accent-primary)',
-                  color: '#ffffff',
-                  padding: '8px 18px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                Reassign Order
-              </button>
-            </div>
-          </div>
+              </div>
+            </section>;
+          })}
         </div>
       )}
-    </div>
+
+      <div className="manager-pagination">
+        <span>Showing {orders.length} of {total} orders</span>
+        <div><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} /></button><span>Page {page} of {pageCount}</span><button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight size={17} /></button></div>
+      </div>
+
+      <Drawer
+        title={selectedOrder ? `${orderId(selectedOrder)} · ${selectedOrder.clientName}` : 'Order details'}
+        width={720}
+        open={Boolean(selectedOrder)}
+        onClose={closeDetail}
+        className="manager-order-drawer"
+      >
+        {detailLoading ? <div className="manager-loading"><RefreshCw className="spin" /><span>Loading complete order…</span></div> : orderDetail ? <OrderDetail order={orderDetail} auditLogs={auditLogs} beginAction={beginAction} nextActionButton={nextActionButton} /> : null}
+      </Drawer>
+
+      <ActionModal action={action} order={selectedOrder} form={form} setForm={setForm} designers={designers} settings={settings} submitting={submitting} onCancel={() => setAction(null)} onSubmit={runAction} />
+    </section>
   );
+}
+
+function OrderDetail({ order, auditLogs, beginAction, nextActionButton }) {
+  const currentDraft = order.draftVersions?.find((draft) => draft.versionNumber === order.currentDraftVersion);
+  const items = [
+    { key: 'overview', label: 'Overview', children: <div className="manager-detail-grid"><Detail label="Status" value={labelStatus(order.status)} /><Detail label="Client" value={order.clientName} /><Detail label="WhatsApp" value={order.clientWhatsApp} /><Detail label="Email" value={order.clientEmail || 'Not provided'} /><Detail label="Magazine" value={order.formTitle || order.formId?.title} /><Detail label="Designer" value={order.assignedDesigner?.name || 'Not assigned'} /><Detail label="Created" value={displayDate(order.createdAt)} /><Detail label="Last updated" value={displayDate(order.updatedAt)} />{order.holdReason && <Detail wide label="Hold reason" value={order.holdReason} />}</div> },
+    { key: 'answers', label: 'Client answers', children: <OrderAnswersView submittedData={order.submittedData} submittedFields={order.submittedFields} formFields={order.formId?.fields} /> },
+    { key: 'photos', label: `Photos (${order.uploadedPhotos?.length || 0})`, children: <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} submittedData={order.submittedData} /> },
+    { key: 'drafts', label: `Drafts (${order.draftVersions?.length || 0})`, children: <div className="manager-version-list">{(order.draftVersions || []).slice().reverse().map((draft) => <article key={draft._id || draft.versionNumber} className={draft.versionNumber === order.currentDraftVersion ? 'is-current' : ''}><div><strong>Version {draft.versionNumber}</strong><span>{displayDate(draft.uploadedAt)}</span></div><p>{draft.designerNotes || 'No designer notes.'}</p><div className="manager-version-actions"><a href={draft.fileUrl} target="_blank" rel="noreferrer">Open complete draft</a><span>Manager: {draft.managerReview?.status || 'pending'}</span><span>Client: {draft.clientReview?.status || 'pending'}</span></div></article>)}</div> },
+    { key: 'production', label: 'Print & delivery', children: <div className="manager-detail-grid"><Detail label="Print file" value={order.printDocument?.url ? <a href={order.printDocument.url} target="_blank" rel="noreferrer">Open print-ready document</a> : 'Not uploaded'} /><Detail label="Quantity" value={order.printDocument?.specs?.quantity || 'Not set'} /><Detail label="Paper" value={order.printDocument?.specs?.paperType || 'Not set'} /><Detail label="Finish" value={order.printDocument?.specs?.coverFinish || 'Not set'} /><Detail label="Printer" value={order.printingDetails?.printerPhone || 'Not dispatched'} /><Detail label="Courier" value={order.dispatchDetails?.carrier || 'Not dispatched'} /><Detail wide label="Delivery address" value={order.dispatchDetails?.deliveryAddress || 'Not recorded'} /></div> },
+    { key: 'activity', label: `Activity (${auditLogs.length})`, children: <ol className="manager-timeline">{auditLogs.map((log) => <li key={log._id}><span>{displayDate(log.createdAt)}</span><strong>{String(log.action).replace(/_/g, ' ')}</strong><small>{log.actor?.name || log.actor?.type || 'System'}</small></li>)}</ol> },
+  ];
+  return <div className="manager-order-detail"><div className="manager-order-detail__hero"><div><span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span><h2>{order.clientName}</h2><p>{order.formTitle || order.formId?.title}</p></div><div className="manager-order-detail__actions">{nextActionButton(order)}{['queued_for_assignment', 'assigned', 'in_design'].includes(order.status) && <button type="button" className="manager-secondary-action" onClick={() => beginAction('reassign', order)}><UserRoundCheck size={16} />Reassign</button>}{order.status !== 'closed' && order.status !== 'on_hold' && <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}><PauseCircle size={16} />Place on hold</button>}</div></div>{order.status === 'draft_manager_review' && currentDraft && <div className="manager-review-callout"><FileCheck2 size={22} /><div><strong>Review the entire magazine before deciding.</strong><p>Version {currentDraft.versionNumber} is hidden from the client until you release it.</p></div><a href={currentDraft.fileUrl} target="_blank" rel="noreferrer">Open complete draft</a></div>}<Tabs items={items} /> </div>;
+}
+
+function Detail({ label, value, wide = false }) {
+  return <div className={wide ? 'manager-detail is-wide' : 'manager-detail'}><dt>{label}</dt><dd>{value || 'Not recorded'}</dd></div>;
+}
+
+function ActionModal({ action, order, form, setForm, designers, settings, submitting, onCancel, onSubmit }) {
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const titles = { payment: 'Verify Lipa Namba payment', draft: `Review complete draft V${order?.currentDraftVersion || ''}`, print: 'Authorize printing', printer: 'Record printer progress', dispatch: 'Authorize courier dispatch', delivery: 'Confirm delivery and close', reassign: 'Assign designer', hold: 'Place order on hold', resume: 'Resume this order' };
+  const destructive = ['payment', 'print', 'dispatch', 'delivery'].includes(action);
+  return <Modal title={titles[action] || 'Manager action'} open={Boolean(action)} onCancel={onCancel} footer={null} destroyOnHidden className="manager-action-modal">
+    {action && <form onSubmit={onSubmit} className="manager-action-form">
+      <p className="manager-action-context"><strong>{orderId(order)}</strong> · {order?.clientName}</p>
+      {action === 'payment' && <><p>Verification issues the client’s official tracking ID and starts designer assignment. Compare the amount with the expected price before confirming.</p><label>Payment reference<input required value={form.paymentRef} onChange={update('paymentRef')} placeholder="Recorded Lipa Namba reference" /></label><label>Amount paid (TZS)<input required type="number" min="1" value={form.amountPaid} onChange={update('amountPaid')} /></label></>}
+      {action === 'draft' && <><p>The complete magazine remains private until you approve it. Returning it requires clear change instructions.</p><fieldset><legend>Decision</legend><label className="manager-radio"><input type="radio" name="draftAction" value="release_to_client" checked={form.draftAction === 'release_to_client'} onChange={update('draftAction')} />Approve and release to client</label><label className="manager-radio"><input type="radio" name="draftAction" value="return_to_designer" checked={form.draftAction === 'return_to_designer'} onChange={update('draftAction')} />Return to designer</label></fieldset><label>Review notes<textarea required={form.draftAction === 'return_to_designer'} rows="4" value={form.draftFeedback} onChange={update('draftFeedback')} placeholder={form.draftAction === 'return_to_designer' ? 'Required change instructions' : 'Optional internal review note'} /></label></>}
+      {action === 'print' && <><p>This sends the client-approved, print-ready document and its specifications to the configured printer.</p><div className={settings.printer?.configured ? 'manager-config-status is-ready' : 'manager-config-status is-blocked'}>{settings.printer?.configured ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}<span>{settings.printer?.configured ? `Verified printer: ${settings.printer.phone}` : 'No verified printer is configured. Ask an administrator to configure it first.'}</span></div></>}
+      {action === 'printer' && <><label>Progress state<select value={form.printerStage} onChange={update('printerStage')}><option value="in_progress">Printer acknowledged — in progress</option><option value="completed">Printing complete — manager verified</option></select></label><label>Printer reply or verification note<textarea required rows="4" value={form.printerNotes} onChange={update('printerNotes')} placeholder="Record what the printer confirmed and how you verified it" /></label></>}
+      {action === 'dispatch' && <><p>Use the genuine courier details; Tinzel will share this reference with the client.</p><label>Carrier or delivery service<input required value={form.carrier} onChange={update('carrier')} /></label><label>Waybill or tracking reference<input required value={form.trackingReference} onChange={update('trackingReference')} /></label><label>Confirmed delivery address<textarea required rows="3" value={form.deliveryAddress} onChange={update('deliveryAddress')} /></label><label>Dispatch notes<textarea rows="3" value={form.dispatchNotes} onChange={update('dispatchNotes')} /></label></>}
+      {action === 'delivery' && <><p>Close the order only after receiving delivery evidence from the client or courier.</p><label>Recipient name<input required value={form.recipientName} onChange={update('recipientName')} /></label><label>Confirmation method<select required value={form.confirmationMethod} onChange={update('confirmationMethod')}><option value="">Choose method</option><option value="client_whatsapp">Client WhatsApp confirmation</option><option value="courier_proof">Courier proof of delivery</option><option value="phone_call">Phone call</option><option value="in_person">Confirmed in person</option></select></label><label>Delivery confirmation details<textarea required rows="4" value={form.recipientFeedback} onChange={update('recipientFeedback')} /></label></>}
+      {action === 'reassign' && <><label>Active designer<select required value={form.designerId} onChange={update('designerId')}><option value="">Choose designer</option>{designers.map((designer) => <option key={designer._id} value={designer._id}>{designer.name} — {designer.currentActiveWorkload}/{designer.maxActiveWorkload} active</option>)}</select></label><label>Reason for assignment<textarea required rows="3" value={form.reassignReason} onChange={update('reassignReason')} /></label></>}
+      {action === 'hold' && <label>Reason for hold<textarea required rows="4" value={form.holdReason} onChange={update('holdReason')} placeholder="Explain the blocker and what is needed to resume" /></label>}
+      {action === 'resume' && <p>Resume this order at the stage it occupied before the hold?</p>}
+      {destructive && <div className="manager-impact-note"><AlertTriangle size={18} /><span>This action changes the official workflow record and may notify an external party.</span></div>}
+      <div className="manager-action-footer"><button type="button" className="manager-secondary-action" onClick={onCancel}>Cancel</button><button type="submit" className="manager-primary-action" disabled={submitting || (action === 'print' && !settings.printer?.configured)}>{submitting ? 'Saving…' : action === 'draft' && form.draftAction === 'return_to_designer' ? 'Return with instructions' : titles[action]}</button></div>
+    </form>}
+  </Modal>;
 }

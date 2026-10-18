@@ -103,6 +103,16 @@ export const api = {
 
   // Manager Endpoints
   manager: {
+    getDesigners: (token) =>
+      fetch(`${API_BASE}/api/manager/designers`, {
+        headers: getHeaders(token),
+      }).then(handleResponse),
+
+    getSettings: (token) =>
+      fetch(`${API_BASE}/api/manager/settings`, {
+        headers: getHeaders(token),
+      }).then(handleResponse),
+
     getOrders: (token, params = {}) => {
       const searchParams = new URLSearchParams(params).toString();
       return fetch(`${API_BASE}/api/manager/orders?${searchParams}`, {

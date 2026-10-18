@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Drawer, Grid } from 'antd';
 import {
   Layers,
   FileText,
@@ -11,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Palette,
+  Menu,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
@@ -24,7 +26,7 @@ const NAVIGATION_ITEMS = [
   {
     id: 'conveyor',
     label: 'Production Conveyor',
-    subtitle: '6-Stage Kanban Pipeline',
+    subtitle: 'Manager Decisions & Production Flow',
     icon: Layers,
     roles: ['admin', 'manager'],
     badge: 'Pipeline',
@@ -34,7 +36,7 @@ const NAVIGATION_ITEMS = [
     label: 'Magazine Form Builder',
     subtitle: 'Editions, Fields & Covers',
     icon: FileText,
-    roles: ['admin', 'manager'],
+    roles: ['admin'],
     badge: 'Templates',
   },
   {
@@ -42,7 +44,7 @@ const NAVIGATION_ITEMS = [
     label: 'Designer Workspace',
     subtitle: 'Draft Proofs & Revisions',
     icon: Palette,
-    roles: ['admin', 'manager', 'designer'],
+    roles: ['admin', 'designer'],
     badge: null,
   },
   {
@@ -56,6 +58,9 @@ const NAVIGATION_ITEMS = [
 ];
 
 export default function StaffWorkspace({ onExitToHome }) {
+  const screens = Grid.useBreakpoint();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef(null);
   const [token, setToken] = useState(localStorage.getItem('tinzel_staff_token') || '');
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -357,12 +362,8 @@ export default function StaffWorkspace({ onExitToHome }) {
   // -------------------------------------------------------------
   // Authenticated: Unified Full-Height Sidebar Dashboard Layout
   // -------------------------------------------------------------
-  return (
-    <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
-      {/* ============================================================ */}
-      {/* 1. Left Sidebar Navigation                                  */}
-      {/* ============================================================ */}
-      <aside
+  const navigation = (
+      <aside className="staff-sidebar"
         style={{
           width: '280px',
           minWidth: '280px',
@@ -479,7 +480,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setActivePage(item.id)}
+                    onClick={() => { setActivePage(item.id); setMenuOpen(false); }}
+                    aria-current={isActive ? 'page' : undefined}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -579,11 +581,20 @@ export default function StaffWorkspace({ onExitToHome }) {
           </button>
         </div>
       </aside>
-
+  );
+  return (
+    <div className="staff-workspace" style={{ display: 'flex', height: '100dvh', width: '100%', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
+      {screens.lg ? navigation : (
+        <Drawer title="Your workspace" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)}
+          afterOpenChange={(open) => { if (!open) menuButton.current?.focus({ preventScroll: true }); }}
+          size="min(90vw, 340px)" styles={{ body: { padding: 0 } }}>
+          {navigation}
+        </Drawer>
+      )}
       {/* ============================================================ */}
       {/* 2. Main Content Viewport                                     */}
       {/* ============================================================ */}
-      <main
+      <main className="staff-main"
         style={{
           flex: 1,
           height: '100vh',
@@ -594,7 +605,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         }}
       >
         {/* Viewport Top Header */}
-        <header
+        <header className="staff-header"
           style={{
             height: '64px',
             backgroundColor: '#FFFFFF',
@@ -608,6 +619,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             zIndex: 30,
           }}
         >
+          {!screens.lg && <button ref={menuButton} type="button" className="staff-menu-toggle" aria-label="Open workspace menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>}
           <div>
             <h2
               style={{
@@ -627,7 +639,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="staff-header-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span
               style={{
                 fontSize: '12px',
@@ -644,12 +656,12 @@ export default function StaffWorkspace({ onExitToHome }) {
         </header>
 
         {/* Viewport Dynamic Page Render based on RBAC */}
-        <div style={{ padding: '28px 32px', flex: 1 }}>
+        <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
           {effectiveActivePage === 'conveyor' && (currentUser.role === 'admin' || currentUser.role === 'manager') && (
-            <ConveyorBeltBoard token={token} staffUser={currentUser} />
+            <ConveyorBeltBoard token={token} staffUser={currentUser} compact={!screens.lg} />
           )}
 
-          {effectiveActivePage === 'form_builder' && (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+          {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && (
             <FormBuilder token={token} />
           )}
 
