@@ -186,17 +186,22 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
-    downloadPhotoFolder: async (token, id, folder) => {
+    downloadPhotoFolder: async (token, id, folder, { signal, onStatus } = {}) => {
+      const requestSignal = () => signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000);
       let result = await fetch(`${API_BASE}/api/designer/orders/${id}/photo-folder-download`, {
-        method: 'POST', headers: getHeaders(token), body: JSON.stringify({ folder }),
+        method: 'POST', headers: getHeaders(token), body: JSON.stringify({ folder }), signal: requestSignal(),
       }).then(handleResponse);
       const deadline = Date.now() + 5 * 60000;
       while (result.state !== 'ready') {
+        onStatus?.(result.state);
+        signal?.throwIfAborted();
         if (result.state === 'failed') throw new Error(result.message || 'Unable to prepare this folder');
         if (Date.now() >= deadline) throw new Error('Your folder is still being prepared. Try downloading again shortly; completed work is saved.');
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        result = await fetch(`${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`, { headers: getHeaders(token) }).then(handleResponse);
+        signal?.throwIfAborted();
+        result = await fetch(`${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`, { headers: getHeaders(token), signal: requestSignal() }).then(handleResponse);
       }
+      onStatus?.('ready');
       return { url: `${API_BASE}${result.url}` };
     },
 

@@ -11,6 +11,8 @@ function load(slug) {
 export function usePhotoUploads(slug, form) {
   const [items, setItems] = useState([]);
   const [notice, setNotice] = useState('');
+  const [recoveryStatus, setRecoveryStatus] = useState('saving');
+  const [phase, setPhase] = useState('idle');
   const state = useMemo(() => ({ ...load(slug), limits: defaults, init: null }), [slug]);
   const alive = useRef(true);
   const queue = useMemo(() => new PhotoUploadQueue(async (item, signal, progress) => {
@@ -23,14 +25,16 @@ export function usePhotoUploads(slug, form) {
   };
   useEffect(() => {
     alive.current = true; queue.closed = false;
+    setPhase('idle'); setNotice(''); setRecoveryStatus('saving');
     const persist = (snapshot) => {
       if (!alive.current || state.finished) return;
       setItems(snapshot);
-      try { localStorage.setItem(keyFor(slug), JSON.stringify({ created: state.created, session: state.session, items: snapshot })); }
-      catch { setNotice('This browser cannot save upload recovery. Keep this page open until you submit.'); }
+      try { localStorage.setItem(keyFor(slug), JSON.stringify({ created: state.created, session: state.session, items: snapshot })); setRecoveryStatus('saved'); }
+      catch { setRecoveryStatus('unavailable'); setNotice('This browser cannot save upload recovery. Keep this page open until you submit.'); }
     };
     let timer;
     queue.onChange = (snapshot) => {
+      setRecoveryStatus((previous) => previous === 'unavailable' ? previous : 'saving');
       setItems(snapshot); clearTimeout(timer); timer = setTimeout(() => persist(queue.snapshot()), 300);
     };
     queue.restore(state.items);
@@ -72,14 +76,19 @@ export function usePhotoUploads(slug, form) {
     queue.remove(id);
   }
   async function submit(body) {
-    await state.recovery;
-    await initialize();
-    const photos = await queue.wait();
-    const result = await submitUploadSession(state.session, { ...body, assetIds: photos.map((p) => p.assetId) });
-    queue.onChange = () => {};
-    try { localStorage.removeItem(keyFor(slug)); } catch { /* no persistent storage */ }
-    state.finished = true;
-    return result;
+    setPhase('waiting');
+    try {
+      await state.recovery;
+      await initialize();
+      const photos = await queue.wait();
+      setPhase('saving');
+      const result = await submitUploadSession(state.session, { ...body, assetIds: photos.map((p) => p.assetId) });
+      queue.onChange = () => {};
+      try { localStorage.removeItem(keyFor(slug)); } catch { /* no persistent storage */ }
+      state.finished = true;
+      setPhase('submitted');
+      return result;
+    } catch (error) { setPhase('idle'); throw error; }
   }
-  return { items, notice, add, remove, retry: (id) => queue.retry(id), submit };
+  return { items, notice, recoveryStatus, phase, add, remove, retry: (id) => queue.retry(id), submit };
 }

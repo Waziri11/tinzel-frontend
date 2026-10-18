@@ -18,6 +18,7 @@ import {
 import { api } from '../../services/api';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import OrderAnswersView from '../common/OrderAnswersView';
+import BrandLoading from '../common/BrandLoading';
 
 export default function DesignerQueue({ token, staffUser }) {
   const [orders, setOrders] = useState([]);
@@ -25,6 +26,9 @@ export default function DesignerQueue({ token, staffUser }) {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [downloadingFolder, setDownloadingFolder] = useState(null);
+  const [downloadStatus, setDownloadStatus] = useState(null);
+  const downloadController = useRef(null);
+  useEffect(() => () => downloadController.current?.abort(), []);
   const detailRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -95,21 +99,28 @@ export default function DesignerQueue({ token, staffUser }) {
     loadOrderDetail(id);
   };
 
-  const handleDownloadFolder = async (folder) => {
+  const handleDownloadFolder = async (folder, orderId = selectedOrder?._id) => {
+    if (downloadController.current || !orderId) return;
+    const controller = new AbortController(); downloadController.current = controller;
+    const update = (state, message) => { if (!controller.signal.aborted) setDownloadStatus({ state, folder, orderId, message }); };
+    update('queued');
     setDownloadingFolder(folder);
     setError(null);
     try {
-      const { url } = await api.designer.downloadPhotoFolder(token, selectedOrder._id, folder);
+      const { url } = await api.designer.downloadPhotoFolder(token, orderId, folder, { signal: controller.signal, onStatus: update });
+      if (controller.signal.aborted) return;
       const link = document.createElement('a');
       link.href = url;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setSuccessMsg(`ZIP download started for ${folder}.`);
+      update('ready');
     } catch (err) {
-      setError(err.message || 'Failed to download photo folder');
+      update('failed', err.message || 'Unable to prepare this folder. Please try again.');
     } finally {
-      setDownloadingFolder(null);
+      if (!controller.signal.aborted) setDownloadingFolder(null);
+      downloadController.current = null;
     }
   };
 
@@ -200,6 +211,14 @@ export default function DesignerQueue({ token, staffUser }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {downloadStatus && <BrandLoading compact complete={downloadStatus.state === 'ready'} animate={downloadStatus.state !== 'failed'}
+        title={downloadStatus.state === 'ready' ? 'Your photo folder is ready' : downloadStatus.state === 'failed' ? 'Your download needs attention' : 'Preparing your photo folder'}
+        description={downloadStatus.state === 'ready' ? `${downloadStatus.folder} — download started. You can request a fresh download below.`
+          : downloadStatus.state === 'failed' ? downloadStatus.message
+            : `${downloadStatus.folder} — ${downloadStatus.state === 'running' ? 'assembling your original photos' : 'waiting for processing'}. You can keep browsing orders in this workspace.`}>
+        {['ready', 'failed'].includes(downloadStatus.state) && <button type="button" className="tinzel-text-button" onClick={() => handleDownloadFolder(downloadStatus.folder, downloadStatus.orderId)}>{downloadStatus.state === 'ready' ? 'Download again' : 'Try again'}</button>}
+        {['ready', 'failed'].includes(downloadStatus.state) && <button type="button" className="tinzel-text-button" style={{ marginLeft: 8 }} onClick={() => setDownloadStatus(null)}>Dismiss</button>}
+      </BrandLoading>}
       {/* Assigned orders table */}
       <div
         style={{
@@ -221,9 +240,7 @@ export default function DesignerQueue({ token, staffUser }) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            Loading assigned orders...
-          </div>
+          <BrandLoading compact title="Loading assigned orders" description="Getting your next stories ready to work on." />
         ) : orders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
             No orders currently assigned to you.
@@ -310,9 +327,7 @@ export default function DesignerQueue({ token, staffUser }) {
         )}
 
         {detailLoading ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-            Loading order details...
-          </div>
+          <BrandLoading title="Opening this magazine order" description="Gathering its details and photo folders." />
         ) : selectedOrder ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Header Card */}

@@ -23,13 +23,13 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
   };
 
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '680px', margin: '0 auto', overflowWrap: 'anywhere' }}>
       <div
         style={{
           backgroundColor: 'var(--card-bg)',
           border: '1px solid var(--border-color)',
           borderRadius: '8px',
-          padding: '32px',
+          padding: 'clamp(16px, 4vw, 32px)',
         }}
       >
         {/* Status Header */}
@@ -38,7 +38,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             style={{
               width: '56px',
               height: '56px',
-              backgroundColor: '#1e3a8a',
+              backgroundColor: '#FBF7EE',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -46,7 +46,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               margin: '0 auto 16px auto',
             }}
           >
-            <CreditCard size={28} color="#93c5fd" />
+            <CreditCard size={28} color="#8A6A30" />
           </div>
           <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>
             {t('pay.title')}
@@ -65,11 +65,13 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             padding: '16px',
             marginBottom: '24px',
             display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <div>
+          <div style={{ minWidth: 0, flex: '1 1 180px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>
               {t('pay.tempId')}
             </span>
@@ -94,8 +96,8 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         {/* Notice on Tracking ID */}
         <div
           style={{
-            backgroundColor: '#172554',
-            border: '1px solid #1e40af',
+            backgroundColor: '#FBF7EE',
+            border: '1px solid #E7D9BD',
             borderRadius: '6px',
             padding: '14px 16px',
             marginBottom: '24px',
@@ -103,7 +105,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             alignItems: 'flex-start',
             gap: '12px',
             fontSize: '13px',
-            color: '#bfdbfe',
+            color: '#674B18',
           }}
         >
           <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
@@ -127,13 +129,13 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             <h2 style={{ fontSize: '16px', fontWeight: '600' }}>{t('pay.instrTitle')}</h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '16px', marginBottom: '20px' }}>
             <div>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                 {t('pay.till')}
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#60a5fa' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#8A6A30' }}>
                   {lipaNambaInstructions?.tillNumber || '55667788'}
                 </span>
                 <button
@@ -160,7 +162,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                 {t('pay.amount')}
               </span>
-              <span style={{ fontSize: '22px', fontWeight: '800', color: '#4ade80' }}>
+              <span style={{ fontSize: '22px', fontWeight: '800', color: '#356148' }}>
                 {order?.price?.toLocaleString()} {order?.currency || 'TZS'}
               </span>
             </div>
@@ -187,7 +189,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
         </div>
 
         {/* Bottom Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
             <Clock size={14} />
             <span>{t('pay.verify')}</span>

@@ -9,7 +9,7 @@ const sleep = (ms, signal) => new Promise((resolve, reject) => {
 export const isRetryable = (e) => e.name !== 'AbortError' && (e.retryable === true ||
   (e.retryable !== false && (!e.status || [408, 429, 502, 503, 504].includes(e.status))));
 
-export async function mediaRequest(path, session, { method = 'GET', body, signal, binary = false, progress } = {}) {
+export async function mediaRequest(path, session, { method = 'GET', body, signal, binary = false, progress, onRetry } = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     signal?.throwIfAborted();
     try {
@@ -35,6 +35,7 @@ export async function mediaRequest(path, session, { method = 'GET', body, signal
       });
     } catch (error) {
       if (attempt === 2 || !isRetryable(error)) throw error;
+      onRetry?.();
       await sleep(600 * 2 ** attempt + Math.random() * 300, signal);
     }
   }
@@ -65,7 +66,7 @@ export async function transferPhoto(session, item, signal, progress) {
     await upload(reservation.path, item.file, { access: 'private', handleUploadUrl: `${root}/blob`,
       contentType: contentType(item.file), abortSignal: signal, multipart: false,
       clientPayload: JSON.stringify({ sessionId: session.id, token: session.token, assetId }),
-      onUploadProgress: ({ percentage }) => progress(Math.min(99, percentage)),
+      onUploadProgress: ({ percentage }) => progress(Math.min(99, percentage), { stage: 'uploading' }),
     });
   } else {
     const chunks = new Map(status.chunks.map((chunk) => [chunk.n, chunk]));
@@ -79,10 +80,12 @@ export async function transferPhoto(session, item, signal, progress) {
         if (hash !== chunks.get(n).sha256) throw new Error('This file differs from its saved upload. Remove it and choose the original again.');
       } else {
         await mediaRequest(`${path}/chunks/${n}`, session, { method: 'PUT', body: part, binary: true, signal,
-          progress: (bytes) => progress(Math.min(99, 100 * (n * size + bytes) / item.size)) });
+          onRetry: () => progress(Math.min(99, 100 * n * size / item.size), { stage: 'retrying' }),
+          progress: (bytes) => progress(Math.min(99, 100 * (n * size + bytes) / item.size), { stage: 'uploading' }) });
       }
       progress(Math.min(99, 100 * Math.min((n + 1) * size, item.size) / item.size));
     }
   }
+  progress(99, { stage: 'confirming' });
   return (await mediaRequest(`${path}/complete`, session, { method: 'POST', signal, body: {} })).photo;
 }

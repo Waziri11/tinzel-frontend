@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Spin } from 'antd';
+import { Row, Col } from 'antd';
+import BrandLoading from '../common/BrandLoading';
 import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import { api } from '../../services/api';
 import DynamicFormRenderer from './DynamicFormRenderer';
@@ -132,7 +133,7 @@ function MagazineCoverCard({ form, onSelect }) {
 }
 
 export default function MagazineShowcase({ onBackToHome, onNavigateToTracking }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFormSlug, setSelectedFormSlug] = useState(null);
@@ -301,10 +302,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <Spin size="large" />
-          <p style={{ marginTop: '16px', color: '#78716C' }}>{t('showcase.loading')}</p>
-        </div>
+        <BrandLoading title={t('showcase.loading')} description={lang === 'sw' ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'} />
       ) : forms.length === 0 ? (
         <div
           style={{

@@ -1,0 +1,51 @@
+.tinzel-loading, .tinzel-upload { color: #332a22; background: #fbf7ee; border: 1px solid #e7d9bd; border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.tinzel-loading { display: flex; align-items: center; justify-content: center; gap: 18px; min-height: 180px; }
+.tinzel-loading--compact { min-height: auto; justify-content: flex-start; padding: 16px; }
+.tinzel-loading__copy { min-width: 0; }
+.tinzel-loading__title, .tinzel-upload h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; line-height: 1.25; margin: 0 0 8px; }
+.tinzel-loading__description, .tinzel-upload__hint { color: #655b4d; font-size: 13px; line-height: 1.6; margin: 6px 0; }
+.tinzel-mark { display: inline-flex; flex: 0 0 52px; position: relative; align-items: center; justify-content: center; }
+.tinzel-mark img { object-fit: contain; mix-blend-mode: multiply; }
+.tinzel-mark--waiting img { animation: tinzel-breathe 2.8s ease-in-out infinite; }
+.tinzel-mark--complete { animation: tinzel-arrive .35s ease-out; }
+.tinzel-mark__check { position: absolute; bottom: 0; right: 0; background: #f8f4e9; color: #356148; border-radius: 50%; }
+.tinzel-upload__summary { display: flex; gap: 12px; align-items: center; }
+.tinzel-upload__heading { flex: 1; min-width: 0; }
+.tinzel-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: #755722; margin: 0 0 5px; }
+.tinzel-upload__heading strong { font-size: 13px; }
+.tinzel-upload__percent { font-size: 22px; color: #755722; font-variant-numeric: tabular-nums; }
+.tinzel-upload progress { appearance: none; display: block; width: 100%; height: 6px; border: 0; border-radius: 20px; overflow: hidden; background: #e9dfcc; accent-color: #9b752e; }
+.tinzel-upload progress::-webkit-progress-bar { background: #e9dfcc; border-radius: 20px; }
+.tinzel-upload progress::-webkit-progress-value { background: #9b752e; border-radius: 20px; }
+.tinzel-upload progress::-moz-progress-bar { background: #9b752e; border-radius: 20px; }
+.tinzel-upload .tinzel-upload__bar { height: 8px; margin: 18px 0 9px; }
+.tinzel-upload__metadata { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; font-size: 11px; color: #655b4d; }
+.tinzel-upload__stages { padding: 12px 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px 16px; list-style: none; border-top: 1px solid #e7d9bd; font-size: 12px; color: #655b4d; }
+.tinzel-upload__stages [data-active='true'] { font-weight: 700; color: #755722; }
+.tinzel-upload ul { list-style: none; padding: 0; margin: 0; }
+.tinzel-upload-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid #e7d9bd; padding: 12px 0; font-size: 12px; }
+.tinzel-upload-row__copy { flex: 1; min-width: 0; }
+.tinzel-upload-row__name, .tinzel-upload-row__state { display: block; overflow-wrap: anywhere; }
+.tinzel-upload-row__name { font-weight: 600; }
+.tinzel-upload-row__state { color: #655b4d; margin: 3px 0 6px; }
+.tinzel-upload button, .tinzel-text-button { font: inherit; font-size: 12px; border: 1px solid #9b752e; background: #fffdf8; color: #674b18; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+.tinzel-upload button:disabled { cursor: wait; opacity: .6; }
+.tinzel-upload__notice { display: flex; align-items: flex-start; gap: 8px; background: #fff4dc; padding: 12px; font-size: 13px; border-radius: 6px; }
+.tinzel-upload__notice svg { flex-shrink: 0; }
+.tinzel-upload__completed { border-top: 1px solid #e7d9bd; padding: 12px 0; font-size: 12px; }
+.tinzel-upload__completed summary, .tinzel-photo-list summary { cursor: pointer; color: #674b18; font-weight: 600; padding: 8px 0; }
+.tinzel-upload__completed ul { max-height: 260px; overflow: auto; }
+.tinzel-upload__dock { position: fixed; bottom: 18px; right: 18px; z-index: 20; background: #332a22; color: #fff9ee; border: 1px solid #c5a059; border-radius: 28px; padding: 10px 16px; font-size: 12px; box-shadow: 0 3px 14px #332a2226; text-decoration: none; }
+#photo-progress, #magazine-client-name { scroll-margin-top: 88px; }
+.tinzel-submit-button .tinzel-mark { flex-basis: 24px; }
+.tinzel-submit-button .tinzel-mark img { width: 24px; height: 24px; }
+.tinzel-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.tinzel-preview-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px; background: #fbf7ee; color: #674b18; font-size: 10px; text-align: center; }
+.tinzel-preview-placeholder .tinzel-mark { flex: 0 0 auto; }
+.tinzel-preview-placeholder .tinzel-mark img { width: 30px; height: 28px; }
+.tinzel-preview-placeholder button { background: white; color: #674b18; border: 1px solid #9b752e; border-radius: 4px; padding: 3px 6px; }
+.tinzel-upload a:focus-visible, .tinzel-upload button:focus-visible, .tinzel-upload summary:focus-visible, .tinzel-preview-placeholder button:focus-visible { outline: 3px solid #674b18; outline-offset: 3px; }
+@keyframes tinzel-breathe { 0%, 100% { transform: translateY(0) scale(1); opacity: .8; } 50% { transform: translateY(-3px) scale(1.04); opacity: 1; } }
+@keyframes tinzel-arrive { from { transform: scale(.9); opacity: .5; } to { transform: scale(1); opacity: 1; } }
+@media (max-width: 480px) { .tinzel-loading, .tinzel-upload { padding: 16px; } .tinzel-upload h2, .tinzel-loading__title { font-size: 20px; } .tinzel-upload__percent { font-size: 18px; } .tinzel-upload__summary { gap: 8px; } .tinzel-upload__dock { bottom: max(12px, env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .tinzel-mark, .tinzel-mark img { animation: none !important; transition: none !important; } }

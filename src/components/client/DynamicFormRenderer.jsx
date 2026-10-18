@@ -9,12 +9,13 @@ import {
   Layers,
   ArrowRight,
   Shield,
-  Loader2,
   Lock,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePhotoUploads } from '../../hooks/usePhotoUploads';
 import LipaNambaScreen from './LipaNambaScreen';
+import UploadJourney from './UploadJourney';
+import BrandLoading, { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
 
@@ -33,13 +34,19 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
+  const confirmationRef = useRef(null);
   const [restoredSlug, setRestoredSlug] = useState(null);
   const uploads = usePhotoUploads(slug, form);
   const fieldPhotos = {};
   uploads.items.forEach((item) => { (fieldPhotos[item.fieldId] ||= []).push(item); });
-  const uploadProgress = { done: uploads.items.filter((i) => i.state === 'complete').length, total: uploads.items.length };
   const draftKey = 'tinzel:answers:v2:' + slug;
   const ui = (en, sw) => lang === 'sw' ? sw : en;
+
+  useEffect(() => {
+    if (!submissionResult) return;
+    confirmationRef.current?.focus();
+    confirmationRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }, [submissionResult]);
 
   useEffect(() => {
     let active = true;
@@ -94,20 +101,22 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-        <Loader2 size={24} className="spin" style={{ marginBottom: '12px' }} />
-        <p>{t('form.loading')}</p>
-      </div>
+      <BrandLoading title={t('form.loading')} description={ui('Opening a new chapter for your story.', 'Tunafungua ukurasa mpya wa hadithi yako.')} />
     );
   }
 
   if (submissionResult) {
     return (
+      <>
+      <div ref={confirmationRef} tabIndex={-1} style={{ scrollMarginTop: 88 }}>
+      <BrandLoading complete compact title={ui('Your order has been saved', 'Oda yako imehifadhiwa')} description={ui('Next: follow the payment instructions below. Your magazine has not entered production yet.', 'Hatua inayofuata: fuata maelekezo ya malipo hapa chini. Uzalishaji wa jarida lako bado haujaanza.')} />
+      </div>
       <LipaNambaScreen
         order={{ ...submissionResult.order, formTitle: L(form, 'title') || submissionResult.order?.formTitle }}
         lipaNambaInstructions={submissionResult.lipaNambaInstructions}
         onNavigateToTracking={onNavigateToTracking}
       />
+      </>
     );
   }
 
@@ -243,6 +252,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
       {error && (
         <div
+          role="alert"
           style={{
             backgroundColor: '#FEF2F2',
             border: '1px solid #DC2626',
@@ -264,19 +274,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       {/* Main Form Fields */}
       <form onSubmit={handleSubmit}>
         {uploads.notice && <p role="status">{uploads.notice}</p>}
-        {uploads.items.length > 0 && (
-          <section aria-label={ui('Photo upload progress', 'Maendeleo ya kupakia picha')} style={{ padding: 16, marginBottom: 20, background: '#FAF5EA', borderRadius: 8 }}>
-            <strong>{ui('Photos ready', 'Picha zilizo tayari')}: {uploadProgress.done}/{uploadProgress.total}</strong>
-            <p style={{ fontSize: 13 }}>{ui('Original photo quality is preserved. Completed uploads are saved; after refreshing, reselect any unfinished files to continue.', 'Ubora wa picha asili unahifadhiwa. Picha zilizokamilika zimehifadhiwa; baada ya kufungua upya, chagua tena faili ambazo hazijakamilika.')}</p>
-            {uploads.items.map((item) => (
-              <div key={item.id} style={{ padding: '8px 0', borderTop: '1px solid #e7e5e4' }}>
-                <span>{item.name} — {item.state === 'complete' ? ui('Ready', 'Tayari') : item.state === 'needs_file' ? ui('Reselect this file below to resume', 'Chagua tena faili hii hapa chini kuendelea') : item.state === 'failed' ? item.error : item.state === 'queued' ? ui('Waiting', 'Inasubiri') : Math.round(item.progress) + '%'}</span>
-                {item.state === 'uploading' && <progress aria-label={item.name} max="100" value={item.progress} style={{ width: '100%' }} />}
-                {item.state === 'failed' && <button type="button" disabled={submitting} onClick={() => uploads.retry(item.id)} style={{ marginLeft: 8 }}>{ui('Retry photo', 'Jaribu tena')}</button>}
-              </div>
-            ))}
-          </section>
-        )}
+        <div id="photo-progress"><UploadJourney uploads={uploads} lang={lang} disabled={submitting}
+          onRemove={async (id) => { try { await uploads.remove(id); } catch (err) { setError(err.message); } }}
+          onContinue={() => document.getElementById('magazine-client-name')?.focus()} /></div>
+        <fieldset disabled={submitting} aria-label={ui('Magazine order details', 'Taarifa za oda ya jarida')} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {/* Contact Information Section */}
         <div
           style={{
@@ -302,10 +303,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              <label htmlFor="magazine-client-name" style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
                 {t('form.fullName')}
               </label>
               <input
+                id="magazine-client-name"
                 type="text"
                 required
                 placeholder={t('form.fullNamePh')}
@@ -456,7 +458,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                         </div>
 
                         {photosForThisField.length > 0 && (
-                          <div>
+                          <details className="tinzel-photo-list">
+                            <summary>{photosForThisField.length} {ui('selected photos · View or remove', 'picha zimechaguliwa · Ona au ondoa')}</summary>
                             <div style={{ fontSize: '12px', fontWeight: '600', color: '#78716C', marginBottom: '8px' }}>
                               {t('form.folderAssets', { count: photosForThisField.length, unit: photosForThisField.length === 1 ? t('form.photo') : t('form.photos') })}
                             </div>
@@ -485,6 +488,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                   </span>
                                   <button
                                     type="button"
+                                    aria-label={`${ui('Remove', 'Ondoa')} ${photo.name}`}
                                     onClick={() => removeFieldPhoto(field.fieldId, idx)}
                                     disabled={submitting}
                                     style={{
@@ -501,7 +505,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                 </div>
                               ))}
                             </div>
-                          </div>
+                          </details>
                         )}
                       </div>
                     );
@@ -700,6 +704,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             borderRadius: '8px',
             padding: '24px',
             display: 'flex',
+            flexWrap: 'wrap',
+            gap: '16px',
             alignItems: 'center',
             justifyContent: 'space-between',
             boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
@@ -713,10 +719,12 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           </div>
 
           <button
+            className="tinzel-submit-button"
             type="submit"
             disabled={submitting}
             style={{
               display: 'flex',
+              maxWidth: '100%',
               alignItems: 'center',
               gap: '8px',
               backgroundColor: '#C5A059',
@@ -732,10 +740,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           >
             {submitting ? (
               <>
-                <Loader2 size={18} className="spin" />{' '}
-                {uploadProgress && uploadProgress.total > 0
-                  ? `${t('form.submitting')} (${uploadProgress.done}/${uploadProgress.total})`
-                  : t('form.submitting')}
+                <BrandMark />
+                {uploads.phase === 'saving' ? ui('Saving your order…', 'Tunahifadhi oda yako…') : ui('Waiting for your photos…', 'Tunasubiri picha zako…')}
               </>
             ) : (
               <>
@@ -744,6 +750,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             )}
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   );

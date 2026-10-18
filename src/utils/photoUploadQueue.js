@@ -29,9 +29,10 @@ export class PhotoUploadQueue {
     for (const item of this.tasks.values()) {
       if (this.active >= this.concurrency) break;
       if (item.state !== 'queued') continue;
-      this.active++; item.state = 'uploading'; item.controller = new AbortController(); this.emit();
+      this.active++; item.state = 'uploading'; item.stage = 'connecting'; item.lastProgressAt = Date.now(); item.controller = new AbortController(); this.emit();
       Promise.resolve().then(() => this.transfer(item, item.controller.signal, (progress, patch = {}) => {
         if (this.tasks.get(item.id) !== item || this.closed) return;
+        if (progress > item.progress) item.lastProgressAt = Date.now();
         Object.assign(item, patch, { progress }); this.emit();
       })).then((photo) => {
         if (this.tasks.get(item.id) !== item || this.closed) return;
