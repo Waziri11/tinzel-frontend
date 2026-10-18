@@ -245,15 +245,6 @@ export default function ConveyorBeltBoard({ token }) {
 
   return (
     <section className="manager-dashboard" aria-label="Manager production dashboard">
-      <div className="manager-dashboard__intro">
-        <div>
-          <p className="manager-eyebrow">Production control</p>
-          <h1>What needs your attention</h1>
-          <p>Review complete magazines, authorize production, and keep every order moving safely.</p>
-        </div>
-        <button type="button" className="manager-secondary-action" onClick={loadOrders} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} />Refresh</button>
-      </div>
-
       {notice && <div className={`manager-notice is-${notice.type}`} role="status">{notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}<span>{notice.text}</span><button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
       {error && <div className="manager-notice is-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button type="button" onClick={loadOrders}>Try again</button></div>}
 
@@ -268,39 +259,40 @@ export default function ConveyorBeltBoard({ token }) {
 
       <div className="manager-control-bar">
         <div className="manager-view-switch" aria-label="Dashboard view">
-          <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} />Needs attention</button>
-          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} />Production conveyor</button>
+          <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} />Queue</button>
+          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} />Board</button>
         </div>
         <form className="manager-search" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
           <Search size={16} />
-          <input aria-label="Search orders" placeholder="Client, WhatsApp or tracking ID" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          <input aria-label="Search orders" placeholder="Search orders" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
           {searchInput && <button type="button" aria-label="Clear search" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
         </form>
-        <label className="manager-filter">Stage
-          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+        <label className="manager-filter"><span className="visually-hidden">Stage</span>
+          <select aria-label="Filter by stage" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
             <option value="all">All stages</option>
             {Object.keys(STATUS_LABELS).map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
           </select>
         </label>
-        <label className="manager-filter">Orders
-          <select value={scope} onChange={(event) => { setScope(event.target.value); setPage(1); }}>
-            <option value="active">Active only</option>
-            <option value="all">Include closed</option>
+        <label className="manager-filter"><span className="visually-hidden">Order scope</span>
+          <select aria-label="Filter order scope" value={scope} onChange={(event) => { setScope(event.target.value); setPage(1); }}>
+            <option value="active">Active</option>
+            <option value="all">All orders</option>
           </select>
         </label>
+        <button type="button" className="manager-icon-action" aria-label="Refresh orders" title="Refresh" onClick={loadOrders} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} /></button>
       </div>
 
       {loading && orders.length === 0 ? <div className="manager-loading"><RefreshCw className="spin" /><span>Loading production orders…</span></div> : null}
 
       {!loading && view === 'attention' && (
         <div className="manager-attention-panel">
-          <div className="manager-panel-heading"><div><h2>Priority queue</h2><p>Oldest manager action first.</p></div><span>{attentionOrders.length} shown</span></div>
+          <div className="manager-panel-heading"><h2>Priority</h2><span>{attentionOrders.length}</span></div>
           {attentionOrders.length === 0 ? (
-            <div className="manager-empty"><CheckCircle2 size={32} /><h3>No manager actions are waiting</h3><p>Use the production conveyor to monitor work already with designers, clients, or the printer.</p></div>
+            <div className="manager-empty"><CheckCircle2 size={32} /><h3>All clear</h3></div>
           ) : (
             <div className="manager-table-wrap">
               <table className="manager-attention-table">
-                <thead><tr><th>Order</th><th>Required action</th><th>Client</th><th>Designer</th><th>Waiting</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+                <thead><tr><th>Order</th><th>Action</th><th>Client</th><th>Designer</th><th>Wait</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
                 <tbody>{attentionOrders.map((order) => {
                   const age = daysWaiting(order.updatedAt);
                   return <tr key={order._id} onClick={() => openOrder(order)}>
@@ -326,11 +318,10 @@ export default function ConveyorBeltBoard({ token }) {
             return <section key={stage.id} className="manager-board-column">
               <header><h2>{stage.title}</h2><span>{count}</span></header>
               <div className="manager-board-column__body">
-                {stageOrders.length === 0 ? <p className="manager-board-empty">No orders at this stage</p> : stageOrders.map((order) => (
+                {stageOrders.length === 0 ? <p className="manager-board-empty">Empty</p> : stageOrders.map((order) => (
                   <article key={order._id} className="manager-order-card" onClick={() => openOrder(order)}>
                     <div className="manager-order-card__top"><strong>{orderId(order)}</strong><span>{daysWaiting(order.updatedAt)}d</span></div>
                     <h3>{order.clientName}</h3>
-                    <p>{order.formTitle || order.formId?.title || 'Magazine order'}</p>
                     <span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span>
                     <dl><div><dt>Designer</dt><dd>{order.assignedDesigner?.name || 'Not assigned'}</dd></div><div><dt>Photos</dt><dd>{order.photoCount || 0}</dd></div></dl>
                     {nextActionButton(order, true)}
@@ -343,8 +334,8 @@ export default function ConveyorBeltBoard({ token }) {
       )}
 
       <div className="manager-pagination">
-        <span>Showing {orders.length} of {total} orders</span>
-        <div><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} /></button><span>Page {page} of {pageCount}</span><button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight size={17} /></button></div>
+        <span>{orders.length} of {total}</span>
+        <div><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} /></button><span>{page} / {pageCount}</span><button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight size={17} /></button></div>
       </div>
 
       <Drawer

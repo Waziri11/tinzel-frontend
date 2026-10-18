@@ -2,17 +2,13 @@
 .staff-main { min-width: 0; height: 100dvh !important; }
 .staff-menu-toggle { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border: 1px solid #e7e5e4; border-radius: 8px; background: #fff; color: #1c1917; }
 .manager-dashboard button, .manager-dashboard input, .manager-dashboard select, .manager-dashboard textarea { font: inherit; }
-.manager-dashboard__intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.manager-eyebrow { margin: 0 0 4px; color: #8a6825 !important; font-size: 11px !important; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.manager-dashboard__intro h1 { margin: 0; font: italic 600 clamp(30px, 3vw, 42px)/1.05 var(--font-brand); }
-.manager-dashboard__intro p { margin: 8px 0 0; color: #57534e; font-size: 14px; }
-.manager-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.manager-summary-card { min-height: 98px; padding: 18px; display: flex; align-items: center; gap: 14px; text-align: left; border: 1px solid #e7e5e4; border-radius: 12px; background: #fff; color: #1c1917; box-shadow: 0 2px 10px rgba(28,25,23,.025); }
+.manager-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.manager-summary-card { min-height: 72px; padding: 12px 14px; display: flex; align-items: center; gap: 11px; text-align: left; border: 1px solid #e7e5e4; border-radius: 10px; background: #fff; color: #1c1917; box-shadow: 0 2px 10px rgba(28,25,23,.025); }
 .manager-summary-card:hover { border-color: #c5a059; box-shadow: 0 5px 18px rgba(28,25,23,.06); }
-.manager-summary-card__icon { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; background: #f4ead5; color: #6f531c; }
+.manager-summary-card__icon { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; background: #f4ead5; color: #6f531c; }
 .manager-summary-card strong, .manager-summary-card small { display: block; }
-.manager-summary-card strong { font-size: 26px; line-height: 1; }
-.manager-summary-card small { margin-top: 6px; color: #57534e; font-size: 12px; font-weight: 650; }
+.manager-summary-card strong { font-size: 22px; line-height: 1; }
+.manager-summary-card small { margin-top: 4px; color: #57534e; font-size: 11px; font-weight: 650; }
 .manager-control-bar { position: sticky; top: 64px; z-index: 20; display: flex; align-items: end; gap: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #e7e5e4; border-radius: 12px; background: rgba(250,250,249,.96); backdrop-filter: blur(10px); }
 .manager-view-switch { display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: #e7e5e4; }
 .manager-view-switch button { min-height: 36px; padding: 7px 11px; display: inline-flex; align-items: center; gap: 7px; border-radius: 7px; background: transparent; color: #57534e; font-size: 12px; font-weight: 700; }
@@ -23,10 +19,12 @@
 .manager-search button { min-width: 28px; min-height: 28px; border-radius: 50%; background: #f5f5f4; color: #57534e; }
 .manager-filter { display: grid; gap: 3px; color: #57534e; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .manager-filter select { height: 44px; min-width: 148px; padding: 0 34px 0 10px; border: 1px solid #d6d3d1; border-radius: 8px; background: #fff; color: #1c1917; font-size: 12px; font-weight: 650; text-transform: none; }
+.manager-icon-action { width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #d6d3d1; border-radius: 8px; background: #fff; color: #57534e; }
+.manager-icon-action:hover { border-color: #8a6825; color: #6f531c; }
+.manager-icon-action:disabled { opacity: .45; }
 .manager-attention-panel { overflow: hidden; border: 1px solid #e7e5e4; border-radius: 12px; background: #fff; }
-.manager-panel-heading { display: flex; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #e7e5e4; }
+.manager-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid #e7e5e4; }
 .manager-panel-heading h2 { margin: 0; font-size: 16px; }
-.manager-panel-heading p { margin: 3px 0 0; color: #78716c; font-size: 12px; }
 .manager-panel-heading > span { align-self: center; color: #78716c; font-size: 12px; }
 .manager-table-wrap { overflow-x: auto; }
 .manager-attention-table { width: 100%; border-collapse: collapse; text-align: left; }
@@ -51,10 +49,9 @@
 .manager-primary-action.is-compact { min-height: 34px; padding: 7px 10px; white-space: nowrap; }
 .manager-secondary-action { border: 1px solid #d6d3d1; background: #fff; color: #44403c; }
 .manager-secondary-action:hover { border-color: #8a6825; color: #6f531c; }
-.manager-empty { padding: 64px 24px; text-align: center; color: #78716c; }
+.manager-empty { padding: 48px 24px; text-align: center; color: #78716c; }
 .manager-empty svg { color: #15803d; }
 .manager-empty h3 { margin: 12px 0 4px; color: #1c1917; font-size: 18px; }
-.manager-empty p { margin: 0 auto; max-width: 540px; font-size: 13px; }
 .manager-board { display: grid; grid-template-columns: repeat(8, 288px); gap: 12px; overflow-x: auto; padding: 2px 2px 18px; scroll-snap-type: x proximity; }
 .manager-board-column { min-height: 420px; overflow: hidden; scroll-snap-align: start; border: 1px solid #e7e5e4; border-radius: 12px; background: #f5f5f4; }
 .manager-board-column > header { min-height: 58px; padding: 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #e7e5e4; background: #fff; }
@@ -140,10 +137,8 @@
 }
 
 @media (max-width: 767px) {
-  .manager-dashboard__intro { align-items: stretch; flex-direction: column; }
-  .manager-dashboard__intro > button { align-self: flex-start; }
   .manager-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .manager-summary-card { min-height: 86px; padding: 13px; }
+  .manager-summary-card { min-height: 68px; padding: 11px; }
   .manager-summary-card:last-child { grid-column: 1 / -1; }
   .manager-control-bar { position: static; align-items: stretch; }
   .manager-view-switch { width: 100%; }

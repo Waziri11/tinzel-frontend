@@ -25,35 +25,27 @@ import TinzelLogo from './TinzelLogo';
 const NAVIGATION_ITEMS = [
   {
     id: 'conveyor',
-    label: 'Production Conveyor',
-    subtitle: 'Manager Decisions & Production Flow',
+    label: 'Orders',
     icon: Layers,
     roles: ['admin', 'manager'],
-    badge: 'Pipeline',
   },
   {
     id: 'form_builder',
-    label: 'Magazine Form Builder',
-    subtitle: 'Editions, Fields & Covers',
+    label: 'Forms',
     icon: FileText,
     roles: ['admin'],
-    badge: 'Templates',
   },
   {
     id: 'designer_queue',
-    label: 'Designer Workspace',
-    subtitle: 'Draft Proofs & Revisions',
+    label: 'Design',
     icon: Palette,
     roles: ['admin', 'designer'],
-    badge: null,
   },
   {
     id: 'staff_roster',
-    label: 'User Management',
-    subtitle: 'Internal Accounts & Access',
+    label: 'Users',
     icon: Users,
     roles: ['admin'],
-    badge: 'Admin Only',
   },
 ];
 
@@ -389,21 +381,6 @@ export default function StaffWorkspace({ onExitToHome }) {
             }}
           >
             <TinzelLogo variant="full" height={36} />
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: '700',
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-                color: '#C5A059',
-                backgroundColor: '#FAF5EA',
-                padding: '3px 7px',
-                borderRadius: '4px',
-                border: '1px solid rgba(197, 160, 89, 0.3)',
-              }}
-            >
-              Staff OS
-            </span>
           </div>
 
           {/* User Profile Card */}
@@ -444,33 +421,15 @@ export default function StaffWorkspace({ onExitToHome }) {
               </span>
             </div>
 
-            <div style={{ fontSize: '12px', color: '#78716C', wordBreak: 'break-all' }}>
-              {currentUser.email}
-            </div>
-
             {currentUser.role === 'designer' && (
               <div style={{ marginTop: '8px', fontSize: '11px', color: '#A8A29E' }}>
-                Active Workload: <strong style={{ color: '#1C1917' }}>{currentUser.currentActiveWorkload || 0}</strong> /{' '}
-                {currentUser.maxActiveWorkload || 5} Orders
+                <strong style={{ color: '#1C1917' }}>{currentUser.currentActiveWorkload || 0}</strong> / {currentUser.maxActiveWorkload || 5} active
               </div>
             )}
           </div>
 
           {/* Navigation Menu by RBAC */}
           <div style={{ padding: '20px 12px 10px 12px' }}>
-            <div
-              style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                color: '#A8A29E',
-                padding: '0 10px 10px 10px',
-              }}
-            >
-              Navigation Menu
-            </div>
-
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {allowedMenuItems.map((item) => {
                 const IconComponent = item.icon;
@@ -500,30 +459,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>
-                          {item.label}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#A8A29E' }}>
-                          {item.subtitle}
-                        </div>
-                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{item.label}</div>
                     </div>
-
-                    {item.badge && (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: isActive ? '#C5A059' : '#F5F5F4',
-                          color: isActive ? '#FFFFFF' : '#78716C',
-                        }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -553,7 +490,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               }}
             >
               <ArrowLeft size={14} />
-              Return to Client Site
+              Client site
             </button>
           )}
 
@@ -577,7 +514,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             }}
           >
             <LogOut size={14} />
-            Sign Out
+            Sign out
           </button>
         </div>
       </aside>
@@ -634,9 +571,6 @@ export default function StaffWorkspace({ onExitToHome }) {
             >
               {NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
             </h2>
-            <span style={{ fontSize: '11px', color: '#78716C' }}>
-              {NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.subtitle}
-            </span>
           </div>
 
           <div className="staff-header-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -650,7 +584,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 borderRadius: '6px',
               }}
             >
-              Logged in as <strong style={{ color: '#1C1917' }}>{currentUser.name}</strong> ({currentUser.role})
+              <strong style={{ color: '#1C1917' }}>{currentUser.name}</strong> · {currentUser.role}
             </span>
           </div>
         </header>

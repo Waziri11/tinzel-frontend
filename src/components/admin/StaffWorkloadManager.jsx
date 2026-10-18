@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users,
-  Shield,
   Activity,
   Plus,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
   Send,
   RefreshCw,
   X,
@@ -150,8 +146,7 @@ export default function StaffWorkloadManager({ token }) {
     <div>
       {notice && <div role="status" style={{ padding: '10px 14px', background: '#ECFDF5', color: '#166534', borderRadius: 6, marginBottom: 14 }}>{notice}</div>}
       {error && !userModal && <div role="alert" style={{ padding: '10px 14px', background: '#FEF2F2', color: '#991B1B', borderRadius: 6, marginBottom: 14 }}>{error}</div>}
-      {/* Sub Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('staff')}
           style={{
@@ -167,7 +162,7 @@ export default function StaffWorkloadManager({ token }) {
             gap: '6px',
           }}
         >
-          <Users size={14} /> Internal Users ({staff.length})
+          <Users size={14} /> Users <span aria-label={`${staff.length} users`}>{staff.length}</span>
         </button>
 
         <button
@@ -185,7 +180,7 @@ export default function StaffWorkloadManager({ token }) {
             gap: '6px',
           }}
         >
-          <Send size={14} /> WhatsApp / Twilio Simulator Logs ({simulatedNotifs.length})
+          <Send size={14} /> Messages <span aria-label={`${simulatedNotifs.length} messages`}>{simulatedNotifs.length}</span>
         </button>
 
         <button
@@ -203,7 +198,7 @@ export default function StaffWorkloadManager({ token }) {
             gap: '6px',
           }}
         >
-          <Activity size={14} /> System Audit Trail ({auditLogs.length})
+          <Activity size={14} /> Audit <span aria-label={`${auditLogs.length} audit entries`}>{auditLogs.length}</span>
         </button>
       </div>
 
@@ -214,16 +209,10 @@ export default function StaffWorkloadManager({ token }) {
             backgroundColor: 'var(--card-bg)',
             border: '1px solid var(--border-color)',
             borderRadius: '8px',
-            padding: '24px',
+            padding: '20px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700' }}>User Management</h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                Create, view, edit, and delete administrator, manager, and designer accounts.
-              </p>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '14px' }}>
             <button
               onClick={() => setShowAddStaffModal(true)}
               style={{
@@ -243,8 +232,8 @@ export default function StaffWorkloadManager({ token }) {
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-            <input type="search" aria-label="Search users" placeholder="Search name, email, or phone" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 220, flex: 1, padding: '8px 10px', border: '1px solid #D6D3D1', borderRadius: 6 }} />
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <input type="search" aria-label="Search users" placeholder="Search users" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 220, flex: 1, padding: '8px 10px', border: '1px solid #D6D3D1', borderRadius: 6 }} />
             <select aria-label="Filter users by role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ padding: '8px 10px', border: '1px solid #D6D3D1', borderRadius: 6 }}>
               <option value="all">All roles</option><option value="admin">Administrators</option><option value="manager">Managers</option><option value="designer">Designers</option>
             </select>
@@ -254,15 +243,12 @@ export default function StaffWorkloadManager({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '10px 8px' }}>Name</th>
-                  <th style={{ padding: '10px 8px' }}>Email</th>
+                  <th style={{ padding: '10px 8px' }}>User</th>
                   <th style={{ padding: '10px 8px' }}>Role</th>
-                  <th style={{ padding: '10px 8px' }}>Phone</th>
-                  <th style={{ padding: '10px 8px' }}>Account</th>
-                  <th style={{ padding: '10px 8px' }}>Workload Meter</th>
-                  <th style={{ padding: '10px 8px' }}>Max Capacity</th>
-                  <th style={{ padding: '10px 8px' }}>Auto-Assign Status</th>
-                  <th style={{ padding: '10px 8px' }}>Actions</th>
+                  <th style={{ padding: '10px 8px' }}>Status</th>
+                  <th style={{ padding: '10px 8px' }}>Workload</th>
+                  <th style={{ padding: '10px 8px' }}>Auto-assign</th>
+                  <th style={{ padding: '10px 8px' }}><span className="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -270,8 +256,11 @@ export default function StaffWorkloadManager({ token }) {
                   const percent = s.maxActiveWorkload ? Math.min(100, (s.currentActiveWorkload / s.maxActiveWorkload) * 100) : 0;
                   return (
                     <tr key={s._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 8px', fontWeight: '600' }}>{s.name}</td>
-                      <td style={{ padding: '12px 8px', color: 'var(--text-muted)' }}>{s.email}</td>
+                      <td style={{ padding: '12px 8px', minWidth: 200 }}>
+                        <strong style={{ display: 'block' }}>{s.name}</strong>
+                        <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12 }}>{s.email}</span>
+                        {s.phone && <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 11 }}>{s.phone}</span>}
+                      </td>
                       <td style={{ padding: '12px 8px' }}>
                         <span
                           style={{
@@ -289,14 +278,24 @@ export default function StaffWorkloadManager({ token }) {
                           {s.role}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 8px' }}>{s.phone || '—'}</td>
                       <td style={{ padding: '12px 8px', color: s.isActive ? '#166534' : '#991B1B' }}>{s.isActive ? 'Active' : 'Inactive'}</td>
-                      <td style={{ padding: '12px 8px', width: '200px' }}>
+                      <td style={{ padding: '12px 8px', width: '180px' }}>
                         {s.role === 'designer' ? (
                           <div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
                               <span>{s.currentActiveWorkload || 0} active</span>
-                              <span>max {s.maxActiveWorkload || 5}</span>
+                              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <span className="visually-hidden">Maximum active orders for {s.name}</span>
+                                / <input
+                                  aria-label={`Maximum active orders for ${s.name}`}
+                                  type="number"
+                                  min={1}
+                                  max={20}
+                                  defaultValue={s.maxActiveWorkload || 5}
+                                  onBlur={(e) => handleUpdateStaff(s._id, { maxActiveWorkload: Number(e.target.value) })}
+                                  style={{ width: 42, padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: 4, fontSize: 11 }}
+                                />
+                              </label>
                             </div>
                             <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-primary)', borderRadius: '3px', overflow: 'hidden' }}>
                               <div
@@ -309,29 +308,7 @@ export default function StaffWorkloadManager({ token }) {
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>N/A (Oversight Role)</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 8px' }}>
-                        {s.role === 'designer' ? (
-                          <input
-                            type="number"
-                            min={1}
-                            max={20}
-                            defaultValue={s.maxActiveWorkload || 5}
-                            onBlur={(e) => handleUpdateStaff(s._id, { maxActiveWorkload: Number(e.target.value) })}
-                            style={{
-                              width: '60px',
-                              padding: '4px 6px',
-                              backgroundColor: 'var(--input-bg)',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: '4px',
-                              color: 'var(--text-main)',
-                              fontSize: '12px',
-                            }}
-                          />
-                        ) : (
-                          '-'
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
                         )}
                       </td>
                       <td style={{ padding: '12px 8px' }}>
@@ -345,7 +322,7 @@ export default function StaffWorkloadManager({ token }) {
                             {s.isEligibleForAssignment !== false ? 'Eligible' : 'Paused'}
                           </label>
                         ) : (
-                          '-'
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
                         )}
                       </td>
                       <td style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}>
@@ -369,11 +346,11 @@ export default function StaffWorkloadManager({ token }) {
             backgroundColor: 'var(--card-bg)',
             border: '1px solid var(--border-color)',
             borderRadius: '8px',
-            padding: '24px',
+            padding: '20px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '700' }}>WhatsApp & Twilio Dispatched Messages</h2>
+            <h2 style={{ fontSize: '16px', fontWeight: '700' }}>Messages</h2>
             <button
               onClick={loadData}
               style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '4px' }}
@@ -384,9 +361,7 @@ export default function StaffWorkloadManager({ token }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {simulatedNotifs.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                No notifications logged yet. Trigger milestones (payment verification, draft release, print dispatch) to test.
-              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No messages.</div>
             ) : (
               simulatedNotifs.map((n) => (
                 <div
@@ -441,10 +416,10 @@ export default function StaffWorkloadManager({ token }) {
             backgroundColor: 'var(--card-bg)',
             border: '1px solid var(--border-color)',
             borderRadius: '8px',
-            padding: '24px',
+            padding: '20px',
           }}
         >
-          <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Conveyor Belt Audit Trail</h2>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Audit log</h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {auditLogs.map((log) => (
