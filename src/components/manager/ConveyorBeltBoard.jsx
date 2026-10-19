@@ -77,6 +77,11 @@ const NEXT_TASK = {
 const labelStatus = (status) => STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
 const orderId = (order) => order?.trackingId || order?.submissionId || 'Order';
 const daysWaiting = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000));
+const compactWait = (date) => {
+  const age = daysWaiting(date);
+  return age === 0 ? 'Today' : `${age}d`;
+};
+const stageForStatus = (status) => STAGES.find((stage) => stage.statuses.includes(status))?.id || '';
 const displayDate = (date) => date ? new Intl.DateTimeFormat('en-TZ', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date)) : 'Not recorded';
 
 const emptyForm = {
@@ -94,6 +99,7 @@ export default function ConveyorBeltBoard({ token }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
   const [view, setView] = useState('attention');
+  const [mobileStage, setMobileStage] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState('active');
@@ -147,6 +153,8 @@ export default function ConveyorBeltBoard({ token }) {
     () => orders.filter((order) => ATTENTION.has(order.status)).sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)),
     [orders]
   );
+
+  const selectedMobileStage = mobileStage || STAGES.find((stage) => orders.some((order) => stage.statuses.includes(order.status)))?.id || STAGES[0].id;
 
   const openOrder = async (order) => {
     setSelectedOrder(order);
@@ -250,7 +258,7 @@ export default function ConveyorBeltBoard({ token }) {
 
       <div className="manager-summary-grid">
         {summaryCards.map(({ id, label, value, icon: Icon }) => (
-          <button key={id} type="button" className="manager-summary-card" onClick={() => { setStatusFilter(id === 'on_hold' ? 'all' : id); setView(id === 'on_hold' ? 'attention' : 'board'); setPage(1); }}>
+          <button key={id} type="button" className="manager-summary-card" onClick={() => { setStatusFilter(id === 'on_hold' ? 'all' : id); setMobileStage(stageForStatus(id)); setView(id === 'on_hold' ? 'attention' : 'board'); setPage(1); }}>
             <span className="manager-summary-card__icon"><Icon size={20} /></span>
             <span><strong>{value}</strong><small>{label}</small></span>
           </button>
@@ -268,7 +276,7 @@ export default function ConveyorBeltBoard({ token }) {
           {searchInput && <button type="button" aria-label="Clear search" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
         </form>
         <label className="manager-filter"><span className="visually-hidden">Stage</span>
-          <select aria-label="Filter by stage" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+          <select aria-label="Filter by stage" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); if (event.target.value !== 'all') setMobileStage(stageForStatus(event.target.value)); setPage(1); }}>
             <option value="all">All stages</option>
             {Object.keys(STATUS_LABELS).map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
           </select>
@@ -292,16 +300,14 @@ export default function ConveyorBeltBoard({ token }) {
           ) : (
             <div className="manager-table-wrap">
               <table className="manager-attention-table">
-                <thead><tr><th>Order</th><th>Action</th><th>Client</th><th>Designer</th><th>Wait</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+                <thead><tr><th>Order</th><th>Client</th><th>Required action</th><th>Wait</th></tr></thead>
                 <tbody>{attentionOrders.map((order) => {
                   const age = daysWaiting(order.updatedAt);
-                  return <tr key={order._id} onClick={() => openOrder(order)}>
-                    <td data-label="Order"><strong>{orderId(order)}</strong><small>{order.formTitle || order.formId?.title || 'Magazine order'}</small></td>
-                    <td data-label="Required action"><span className={`manager-status is-${order.status}`}>{NEXT_TASK[order.status] || labelStatus(order.status)}</span></td>
+                  return <tr key={order._id} role="button" tabIndex={0} aria-label={`Open ${orderId(order)} for ${order.clientName}`} onClick={() => openOrder(order)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOrder(order); } }}>
+                    <td data-label="Order"><strong>{orderId(order)}</strong></td>
                     <td data-label="Client">{order.clientName}</td>
-                    <td data-label="Designer">{order.assignedDesigner?.name || 'Not assigned'}</td>
+                    <td data-label="Required action"><span className={`manager-status is-${order.status}`}>{NEXT_TASK[order.status] || labelStatus(order.status)}</span></td>
                     <td data-label="Waiting"><span className={age >= 3 ? 'manager-age is-overdue' : 'manager-age'}>{age === 0 ? 'Today' : `${age} day${age === 1 ? '' : 's'}`}</span></td>
-                    <td data-label="Action">{nextActionButton(order, true)}</td>
                   </tr>;
                 })}</tbody>
               </table>
@@ -311,26 +317,34 @@ export default function ConveyorBeltBoard({ token }) {
       )}
 
       {!loading && view === 'board' && (
-        <div className="manager-board" aria-label="Production conveyor">
+        <>
+          <label className="manager-mobile-stage-picker">Stage
+            <select aria-label="Board stage" value={selectedMobileStage} onChange={(event) => setMobileStage(event.target.value)}>
+              {STAGES.map((stage) => {
+                const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
+                return <option key={stage.id} value={stage.id}>{stage.title} ({count})</option>;
+              })}
+            </select>
+          </label>
+          <div className="manager-board" aria-label="Production conveyor">
           {STAGES.map((stage) => {
             const stageOrders = orders.filter((order) => stage.statuses.includes(order.status));
             const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
-            return <section key={stage.id} className="manager-board-column">
+            return <section key={stage.id} className={`manager-board-column${selectedMobileStage === stage.id ? ' is-mobile-active' : ''}`}>
               <header><h2>{stage.title}</h2><span>{count}</span></header>
               <div className="manager-board-column__body">
-                {stageOrders.length === 0 ? <p className="manager-board-empty">Empty</p> : stageOrders.map((order) => (
-                  <article key={order._id} className="manager-order-card" onClick={() => openOrder(order)}>
-                    <div className="manager-order-card__top"><strong>{orderId(order)}</strong><span>{daysWaiting(order.updatedAt)}d</span></div>
-                    <h3>{order.clientName}</h3>
-                    <span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span>
-                    <dl><div><dt>Designer</dt><dd>{order.assignedDesigner?.name || 'Not assigned'}</dd></div><div><dt>Photos</dt><dd>{order.photoCount || 0}</dd></div></dl>
-                    {nextActionButton(order, true)}
-                  </article>
+                {stageOrders.length === 0 ? <p className="manager-board-empty">{count > 0 ? 'No orders on this page' : 'Empty'}</p> : stageOrders.map((order) => (
+                  <button key={order._id} type="button" className="manager-stage-row" aria-label={`Open ${orderId(order)} for ${order.clientName}, waiting ${compactWait(order.updatedAt)}`} onClick={() => openOrder(order)}>
+                    <span className="manager-stage-row__id">{orderId(order)}</span>
+                    <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
+                    <strong>{order.clientName}</strong>
+                  </button>
                 ))}
               </div>
             </section>;
           })}
-        </div>
+          </div>
+        </>
       )}
 
       <div className="manager-pagination">
@@ -363,7 +377,7 @@ function OrderDetail({ order, auditLogs, beginAction, nextActionButton }) {
     { key: 'production', label: 'Print & delivery', children: <div className="manager-detail-grid"><Detail label="Print file" value={order.printDocument?.url ? <a href={order.printDocument.url} target="_blank" rel="noreferrer">Open print-ready document</a> : 'Not uploaded'} /><Detail label="Quantity" value={order.printDocument?.specs?.quantity || 'Not set'} /><Detail label="Paper" value={order.printDocument?.specs?.paperType || 'Not set'} /><Detail label="Finish" value={order.printDocument?.specs?.coverFinish || 'Not set'} /><Detail label="Printer" value={order.printingDetails?.printerPhone || 'Not dispatched'} /><Detail label="Courier" value={order.dispatchDetails?.carrier || 'Not dispatched'} /><Detail wide label="Delivery address" value={order.dispatchDetails?.deliveryAddress || 'Not recorded'} /></div> },
     { key: 'activity', label: `Activity (${auditLogs.length})`, children: <ol className="manager-timeline">{auditLogs.map((log) => <li key={log._id}><span>{displayDate(log.createdAt)}</span><strong>{String(log.action).replace(/_/g, ' ')}</strong><small>{log.actor?.name || log.actor?.type || 'System'}</small></li>)}</ol> },
   ];
-  return <div className="manager-order-detail"><div className="manager-order-detail__hero"><div><span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span><h2>{order.clientName}</h2><p>{order.formTitle || order.formId?.title}</p></div><div className="manager-order-detail__actions">{nextActionButton(order)}{['queued_for_assignment', 'assigned', 'in_design'].includes(order.status) && <button type="button" className="manager-secondary-action" onClick={() => beginAction('reassign', order)}><UserRoundCheck size={16} />Reassign</button>}{order.status !== 'closed' && order.status !== 'on_hold' && <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}><PauseCircle size={16} />Place on hold</button>}</div></div>{order.status === 'draft_manager_review' && currentDraft && <div className="manager-review-callout"><FileCheck2 size={22} /><div><strong>Review the entire magazine before deciding.</strong><p>Version {currentDraft.versionNumber} is hidden from the client until you release it.</p></div><a href={currentDraft.fileUrl} target="_blank" rel="noreferrer">Open complete draft</a></div>}<Tabs items={items} /> </div>;
+  return <div className="manager-order-detail"><div className="manager-order-detail__hero"><div><span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span><h2>{order.clientName}</h2><p>{order.formTitle || order.formId?.title}</p></div><div className="manager-order-detail__actions">{nextActionButton(order)}{order.status !== 'closed' && order.status !== 'on_hold' && <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}><PauseCircle size={16} />Place on hold</button>}</div></div>{order.status === 'draft_manager_review' && currentDraft && <div className="manager-review-callout"><FileCheck2 size={22} /><div><strong>Review the entire magazine before deciding.</strong><p>Version {currentDraft.versionNumber} is hidden from the client until you release it.</p></div><a href={currentDraft.fileUrl} target="_blank" rel="noreferrer">Open complete draft</a></div>}<Tabs items={items} /> </div>;
 }
 
 function Detail({ label, value, wide = false }) {
