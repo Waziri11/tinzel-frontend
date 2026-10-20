@@ -20,12 +20,14 @@ import { useLanguage } from './i18n/LanguageContext';
 
 export default function App() {
   const { lang, t } = useLanguage();
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'showcase' | 'tracking' | 'staff'
+  const initialView = window.location.pathname.startsWith('/staff') ? 'staff' : window.location.pathname.startsWith('/track') ? 'tracking' : 'home';
+  const [currentView, setCurrentView] = useState(initialView); // 'home' | 'showcase' | 'tracking' | 'staff'
   const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const navigateView = (view, path) => { window.history.pushState({}, '', path); setCurrentView(view); };
 
   const handleFollowUpSuccess = () => {
     setFollowUpModalOpen(false);
-    setCurrentView('tracking');
+    navigateView('tracking', '/track');
   };
 
   // First page: visitors must pick a language (English or Swahili) before anything else.
@@ -114,7 +116,7 @@ export default function App() {
 
                   {currentView !== 'staff' && (
                     <Button
-                      onClick={() => setCurrentView('staff')}
+                      onClick={() => { window.history.pushState({}, '', '/staff'); setCurrentView('staff'); }}
                       icon={<UserOutlined style={{ color: '#991B1B' }} />}
                       style={{
                         backgroundColor: '#FFFFFF',
@@ -167,7 +169,7 @@ export default function App() {
 
           {/* View 4: Staff Workstation with Sidebar Navigation and RBAC */}
           {currentView === 'staff' && (
-            <StaffWorkspace onExitToHome={() => setCurrentView('home')} />
+            <StaffWorkspace onExitToHome={() => navigateView('home', '/')} />
           )}
         </main>
 

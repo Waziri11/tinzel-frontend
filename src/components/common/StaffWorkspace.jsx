@@ -13,10 +13,13 @@ import {
   EyeOff,
   Palette,
   Menu,
+  RotateCcw,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
 import DesignerQueue from '../designer/DesignerQueue';
+import DesignerOrderPage from '../designer/DesignerOrderPage';
+import ReturnsPage from '../designer/ReturnsPage';
 import FormBuilder from '../admin/FormBuilder';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
 import TinzelLogo from './TinzelLogo';
@@ -42,6 +45,12 @@ const NAVIGATION_ITEMS = [
     roles: ['admin', 'designer'],
   },
   {
+    id: 'returns',
+    label: 'Returns',
+    icon: RotateCcw,
+    roles: ['admin', 'manager', 'designer'],
+  },
+  {
     id: 'staff_roster',
     label: 'Users',
     icon: Users,
@@ -64,7 +73,20 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [showPassword, setShowPassword] = useState(false);
 
   // Active page state
-  const [activePage, setActivePage] = useState('conveyor');
+  const readRoute = () => {
+    const orderMatch = window.location.pathname.match(/^\/staff\/design\/orders\/([^/]+)/);
+    if (orderMatch) return { page: 'designer_order', orderId: decodeURIComponent(orderMatch[1]) };
+    if (window.location.pathname.startsWith('/staff/returns')) return { page: 'returns', orderId: null };
+    if (window.location.pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
+    return { page: 'conveyor', orderId: null };
+  };
+  const initialRoute = readRoute();
+  const [activePage, setActivePage] = useState(initialRoute.page);
+  const [routeOrderId, setRouteOrderId] = useState(initialRoute.orderId);
+  const navigateStaff = (path, page, orderId = null) => {
+    window.history.pushState({}, '', path); setActivePage(page); setRouteOrderId(orderId); setMenuOpen(false);
+  };
+  useEffect(() => { const pop = () => { const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);
 
   useEffect(() => {
     if (token) {
@@ -79,7 +101,9 @@ export default function StaffWorkspace({ onExitToHome }) {
       setCurrentUser(data.user);
 
       // Default page based on RBAC role
-      if (data.user.role === 'designer') {
+      if (readRoute().page === 'designer_order' || readRoute().page === 'returns') {
+        const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId);
+      } else if (data.user.role === 'designer') {
         setActivePage('designer_queue');
       } else if (data.user.role === 'manager') {
         setActivePage('conveyor');
@@ -105,7 +129,9 @@ export default function StaffWorkspace({ onExitToHome }) {
       setCurrentUser(data.user);
       setPassword('');
 
-      if (data.user.role === 'designer') {
+      if (readRoute().page === 'designer_order' || readRoute().page === 'returns') {
+        const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId);
+      } else if (data.user.role === 'designer') {
         setActivePage('designer_queue');
       } else {
         setActivePage('conveyor');
@@ -129,7 +155,8 @@ export default function StaffWorkspace({ onExitToHome }) {
     : [];
 
   // Enforce that active page is always permitted by RBAC
-  const effectiveActivePage = allowedMenuItems.some((item) => item.id === activePage)
+  const orderPageAllowed = activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
+  const effectiveActivePage = orderPageAllowed ? activePage : allowedMenuItems.some((item) => item.id === activePage)
     ? activePage
     : allowedMenuItems[0]?.id || 'conveyor';
 
@@ -433,13 +460,13 @@ export default function StaffWorkspace({ onExitToHome }) {
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {allowedMenuItems.map((item) => {
                 const IconComponent = item.icon;
-                const isActive = effectiveActivePage === item.id;
+                const isActive = effectiveActivePage === item.id || (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
 
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => { setActivePage(item.id); setMenuOpen(false); }}
+                    onClick={() => navigateStaff(item.id === 'designer_queue' ? '/staff/design' : item.id === 'returns' ? '/staff/returns' : '/staff', item.id)}
                     aria-current={isActive ? 'page' : undefined}
                     style={{
                       display: 'flex',
@@ -569,7 +596,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 lineHeight: '1.2',
               }}
             >
-              {NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
+              {effectiveActivePage === 'designer_order' ? 'Design order' : NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
             </h2>
           </div>
 
@@ -600,7 +627,15 @@ export default function StaffWorkspace({ onExitToHome }) {
           )}
 
           {effectiveActivePage === 'designer_queue' && (
-            <DesignerQueue token={token} staffUser={currentUser} />
+            <DesignerQueue token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+          )}
+
+          {effectiveActivePage === 'designer_order' && routeOrderId && (
+            <DesignerOrderPage token={token} staffUser={currentUser} orderId={routeOrderId} onBack={() => currentUser.role === 'manager' ? navigateStaff('/staff/returns', 'returns') : navigateStaff('/staff/design', 'designer_queue')} />
+          )}
+
+          {effectiveActivePage === 'returns' && (
+            <ReturnsPage token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
           )}
 
           {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (

@@ -1,0 +1,14 @@
+.pdf-book { background:#171412; border:1px solid #292524; border-radius:12px; overflow:hidden; color:#fff; outline:none; }
+.pdf-book:focus-visible { box-shadow:0 0 0 3px rgba(197,160,89,.45); }
+.pdf-book header,.pdf-book footer { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#1c1917; }
+.pdf-book header div { display:flex; flex-direction:column; gap:2px; }
+.pdf-book header span,.pdf-book footer span { color:#a8a29e; font-size:12px; }
+.pdf-book button { display:inline-flex; align-items:center; gap:7px; border:1px solid #57534e; border-radius:7px; background:#292524; color:#fff; padding:8px 12px; }
+.pdf-book button:disabled { opacity:.35; }
+.pdf-book-spread { min-height:460px; display:flex; align-items:center; justify-content:center; gap:3px; padding:20px; perspective:1400px; background:radial-gradient(circle at center,#44403c,#0c0a09 72%); }
+.pdf-book-spread.is-turning .pdf-book-page { animation:tinzel-page-turn .28s ease; }
+.pdf-book-page { max-width:calc(50% - 2px); max-height:70vh; width:auto; height:auto; background:#fff; box-shadow:0 12px 35px rgba(0,0,0,.45); }
+.pdf-book-state { min-height:260px; display:flex; gap:10px; align-items:center; justify-content:center; border:1px solid #e7e5e4; border-radius:10px; background:#fff; color:#78716c; }
+.pdf-book-state.is-error { color:#991b1b; }
+@keyframes tinzel-page-turn { from { transform:rotateY(-8deg); opacity:.6; } to { transform:rotateY(0); opacity:1; } }
+@media(max-width:760px){ .pdf-book-spread{min-height:380px;padding:10px}.pdf-book-page{max-width:100%;max-height:66vh}.pdf-book header{align-items:flex-start}.pdf-book header button{font-size:0;padding:8px}.pdf-book footer{padding:10px} }

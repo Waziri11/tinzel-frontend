@@ -25,6 +25,14 @@ const handleResponse = async (res) => {
   return data;
 };
 
+const handleBlob = async (res) => {
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || `Request failed with status ${res.status}`);
+  }
+  return res.blob();
+};
+
 export const api = {
   // Public Form Endpoints
   public: {
@@ -78,12 +86,15 @@ export const api = {
         body: JSON.stringify({ feedback }),
       }).then(handleResponse),
 
-    requestRevision: (clientToken, feedback) =>
+    requestRevision: (clientToken, items, expectedVersion) =>
       fetch(`${API_BASE}/api/client/request-revision`, {
         method: 'POST',
         headers: getHeaders(clientToken),
-        body: JSON.stringify({ feedback }),
+        body: JSON.stringify({ items, expectedVersion }),
       }).then(handleResponse),
+    viewDraft: (clientToken) => fetch(`${API_BASE}/api/client/draft/view`, {
+      headers: getHeaders(clientToken),
+    }).then(handleBlob),
   },
 
   // Staff Auth Endpoints
@@ -152,6 +163,12 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify(data),
       }).then(handleResponse),
+    viewDraft: (token, id, version) => fetch(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
+      headers: getHeaders(token),
+    }).then(handleBlob),
+    downloadDraft: (token, id, version) => fetch(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/download`, {
+      headers: getHeaders(token),
+    }).then(handleBlob),
 
     authorisePrint: (token, id, data) =>
       fetch(`${API_BASE}/api/manager/orders/${id}/authorise-print`, {
@@ -195,6 +212,20 @@ export const api = {
       fetch(`${API_BASE}/api/designer/orders/${id}`, {
         headers: getHeaders(token),
       }).then(handleResponse),
+
+    getReturns: (token, params = {}) => {
+      const searchParams = new URLSearchParams(params).toString();
+      return fetch(`${API_BASE}/api/designer/returns?${searchParams}`, { headers: getHeaders(token) }).then(handleResponse);
+    },
+
+    addressFix: (token, orderId, requestId, itemId, response) =>
+      fetch(`${API_BASE}/api/designer/orders/${orderId}/returns/${requestId}/items/${itemId}`, {
+        method: 'PATCH', headers: getHeaders(token), body: JSON.stringify({ response }),
+      }).then(handleResponse),
+
+    viewDraft: (token, id, version) => fetch(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
+      headers: getHeaders(token),
+    }).then(handleBlob),
 
     downloadPhotoFolder: async (token, id, folder, { signal, onStatus } = {}) => {
       const requestSignal = () => signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000);
@@ -342,4 +373,30 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
   },
+
+  notifications: {
+    getHistory: (token, params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return fetch(`${API_BASE}/api/notifications/history${query ? `?${query}` : ''}`, {
+        headers: getHeaders(token),
+      }).then(handleResponse);
+    },
+    getDiagnostics: (token) =>
+      fetch(`${API_BASE}/api/notifications/diagnostics`, {
+        headers: getHeaders(token),
+      }).then(handleResponse),
+    resend: (token, id, channel) =>
+      fetch(`${API_BASE}/api/notifications/resend/${id}`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ channel }),
+      }).then(handleResponse),
+    testSend: (token, data) =>
+      fetch(`${API_BASE}/api/notifications/test-send`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+  },
 };
+

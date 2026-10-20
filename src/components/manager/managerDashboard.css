@@ -1,6 +1,9 @@
 .manager-dashboard { color: #1c1917; min-width: 0; }
 .staff-main { min-width: 0; height: 100dvh !important; }
 .staff-menu-toggle { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border: 1px solid #e7e5e4; border-radius: 8px; background: #fff; color: #1c1917; }
+.manager-fix-editor { display:grid; grid-template-columns:100px 1fr auto; gap:8px; margin:8px 0; }
+.manager-fix-editor button { border:0; background:transparent; color:#991b1b; }
+@media(max-width:640px){.manager-fix-editor{grid-template-columns:1fr}.manager-fix-editor button{text-align:left}}
 .manager-dashboard button, .manager-dashboard input, .manager-dashboard select, .manager-dashboard textarea { font: inherit; }
 .manager-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .manager-summary-card { min-height: 72px; padding: 12px 14px; display: flex; align-items: center; gap: 11px; text-align: left; border: 1px solid #e7e5e4; border-radius: 10px; background: #fff; color: #1c1917; box-shadow: 0 2px 10px rgba(28,25,23,.025); }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Lock,
@@ -7,10 +7,7 @@ import {
   AlertCircle,
   Clock,
   Layers,
-  ChevronLeft,
-  ChevronRight,
   Send,
-  FileCheck2,
   Truck,
   Printer,
   Sparkles,
@@ -19,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+import PdfBookReader from '../common/PdfBookReader';
 
 const STAGES = [
   { key: 'submission', labelKey: 'track.stage.submission' },
@@ -43,10 +41,10 @@ export default function ClientTrackingPortal() {
   const [devOtp, setDevOtp] = useState(null);
 
   // Reader state
-  const [currentPage, setCurrentPage] = useState(0);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
-  const [revisionFeedback, setRevisionFeedback] = useState('');
+  const [revisionItems, setRevisionItems] = useState([{ text: '', pageReference: '' }]);
   const [submittingDecision, setSubmittingDecision] = useState(false);
+  const loadMagazinePdf = useCallback(() => api.client.viewDraft(clientToken), [clientToken]);
 
   useEffect(() => {
     if (clientToken) {
@@ -136,7 +134,8 @@ export default function ClientTrackingPortal() {
 
   const handleRequestRevision = async (e) => {
     e.preventDefault();
-    if (!revisionFeedback.trim()) {
+    const items = revisionItems.map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() })).filter((item) => item.text);
+    if (!items.length) {
       setError(t('track.err.describeChanges'));
       return;
     }
@@ -144,10 +143,10 @@ export default function ClientTrackingPortal() {
     setSubmittingDecision(true);
     setError(null);
     try {
-      const res = await api.client.requestRevision(clientToken, revisionFeedback.trim());
+      const res = await api.client.requestRevision(clientToken, items, order.currentDraftVersion);
       setOrder(res.order);
       setShowRevisionForm(false);
-      setRevisionFeedback('');
+      setRevisionItems([{ text: '', pageReference: '' }]);
       setSuccessMsg(t('track.ok.revisionSent'));
     } catch (err) {
       setError(err.message || t('track.err.revision'));
@@ -408,7 +407,6 @@ export default function ClientTrackingPortal() {
   // Active Order & Whole-Magazine Review Portal View
   const currentStageIdx = getStageIndex(order.status);
   const releasedDraft = (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion);
-  const previewPages = releasedDraft?.previewPages || [];
 
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '60px' }}>
@@ -566,8 +564,18 @@ export default function ClientTrackingPortal() {
         </div>
       )}
 
+      {(order.revisionRequests || []).length > 0 && (
+        <section style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 20, marginBottom: 24 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>Your requested fixes</h2>
+          {(order.revisionRequests || []).slice().reverse().map((request) => <div key={request._id} style={{ borderTop: '1px solid var(--border-color)', padding: '12px 0' }}>
+            <strong style={{ fontSize: 13 }}>Round {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}</strong>
+            <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>{request.items.map((item) => <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>{item.pageReference ? `Page ${item.pageReference}: ` : ''}{item.text}</li>)}</ul>
+          </div>)}
+        </section>
+      )}
+
       {/* Whole-Magazine Reader Section */}
-      {previewPages.length > 0 ? (
+      {releasedDraft ? (
         <div
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -595,140 +603,9 @@ export default function ClientTrackingPortal() {
                 {t('track.proof.hint')}
               </p>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>
-              {t('track.page.of', { current: currentPage + 1, total: previewPages.length })}
-            </div>
           </div>
 
-          {/* Interactive Page Spread / Viewer */}
-          <div
-            style={{
-              position: 'relative',
-              backgroundColor: '#020617',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              minHeight: '480px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '20px',
-              marginBottom: '16px',
-            }}
-          >
-            <img
-              src={previewPages[currentPage]}
-              alt={t('track.page.alt', { n: currentPage + 1 })}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '520px',
-                borderRadius: '4px',
-                objectFit: 'contain',
-              }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
-              }}
-            />
-            {/* Fallback mock page renderer if PDF image preview is not generated locally */}
-            <div
-              style={{
-                display: 'none',
-                textAlign: 'center',
-                padding: '40px',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <FileCheck2 size={48} color="var(--accent-primary)" style={{ margin: '0 auto 12px auto' }} />
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px' }}>
-                {t('track.page.proof', { n: currentPage + 1 })}
-              </h3>
-              <p style={{ fontSize: '13px', maxWidth: '360px', margin: '0 auto 16px auto' }}>
-                {t('track.page.hires')} <strong>{releasedDraft?.fileUrl}</strong>
-              </p>
-              <a
-                href={releasedDraft?.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'inline-block',
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  textDecoration: 'none',
-                }}
-              >
-                {t('track.page.openDraft')}
-              </a>
-            </div>
-
-            {/* Navigation Arrows */}
-            {currentPage > 0 && (
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-                style={{
-                  position: 'absolute',
-                  left: '12px',
-                  backgroundColor: '#0f172a',
-                  border: '1px solid var(--border-color)',
-                  color: '#ffffff',
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ChevronLeft size={20} />
-              </button>
-            )}
-
-            {currentPage < previewPages.length - 1 && (
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(previewPages.length - 1, p + 1))}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  backgroundColor: '#0f172a',
-                  border: '1px solid var(--border-color)',
-                  color: '#ffffff',
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ChevronRight size={20} />
-              </button>
-            )}
-          </div>
-
-          {/* Thumbnail Strip */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '24px' }}>
-            {previewPages.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentPage(idx)}
-                style={{
-                  padding: '6px 14px',
-                  backgroundColor: idx === currentPage ? 'var(--accent-primary)' : 'var(--bg-secondary)',
-                  color: '#ffffff',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('track.page.n', { n: idx + 1 })}
-              </button>
-            ))}
-          </div>
+          <PdfBookReader loadPdf={loadMagazinePdf} title={t('track.proof.title', { version: releasedDraft?.versionNumber })} />
 
           {/* Action Decision Controls (Whole-Magazine Approval Gate) */}
           {order.status === 'client_review' ? (
@@ -793,24 +670,8 @@ export default function ClientTrackingPortal() {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
                     {t('track.decision.describe')}
                   </label>
-                  <textarea
-                    rows={4}
-                    required
-                    placeholder={t('track.decision.describePh')}
-                    value={revisionFeedback}
-                    onChange={(e) => setRevisionFeedback(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      backgroundColor: 'var(--input-bg)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '6px',
-                      color: 'var(--text-main)',
-                      fontSize: '14px',
-                      outline: 'none',
-                      marginBottom: '16px',
-                    }}
-                  />
+                  {revisionItems.map((item,index)=><div key={index} style={{display:'grid',gridTemplateColumns:'110px 1fr auto',gap:8,marginBottom:10}}><input aria-label={`Page reference ${index+1}`} placeholder="Page (optional)" value={item.pageReference} onChange={(e)=>setRevisionItems((rows)=>rows.map((row,i)=>i===index?{...row,pageReference:e.target.value}:row))} style={{padding:'10px 12px',border:'1px solid var(--border-color)',borderRadius:6}}/><textarea rows={2} required placeholder={t('track.decision.describePh')} value={item.text} onChange={(e)=>setRevisionItems((rows)=>rows.map((row,i)=>i===index?{...row,text:e.target.value}:row))} style={{padding:'10px 12px',border:'1px solid var(--border-color)',borderRadius:6}}/>{revisionItems.length>1&&<button type="button" onClick={()=>setRevisionItems((rows)=>rows.filter((_,i)=>i!==index))} style={{border:0,background:'transparent',color:'#991B1B'}}>Remove</button>}</div>)}
+                  <button type="button" onClick={()=>setRevisionItems((rows)=>[...rows,{text:'',pageReference:''}])} style={{background:'transparent',border:'1px solid var(--border-color)',borderRadius:6,padding:'8px 12px',marginBottom:16}}>Add another fix</button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <button
                       type="submit"
