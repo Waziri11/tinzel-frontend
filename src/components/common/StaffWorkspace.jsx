@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Drawer, Grid } from 'antd';
 import {
   Layers,
@@ -14,12 +14,16 @@ import {
   Palette,
   Menu,
   RotateCcw,
+  ClipboardList,
+  Printer,
+  Bell,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
 import DesignerQueue from '../designer/DesignerQueue';
 import DesignerOrderPage from '../designer/DesignerOrderPage';
 import ReturnsPage from '../designer/ReturnsPage';
+import NotificationsPage from './NotificationsPage';
 import FormBuilder from '../admin/FormBuilder';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
 import TinzelLogo from './TinzelLogo';
@@ -27,32 +31,66 @@ import TinzelLogo from './TinzelLogo';
 // RBAC Navigation Configuration
 const NAVIGATION_ITEMS = [
   {
-    id: 'conveyor',
-    label: 'Orders',
-    icon: Layers,
+    id: 'pre_design',
+    label: 'Pre-Design',
+    path: '/staff/pre-design',
+    section: 'Kanban Phases',
+    icon: ClipboardList,
     roles: ['admin', 'manager'],
   },
   {
-    id: 'form_builder',
-    label: 'Forms',
-    icon: FileText,
-    roles: ['admin'],
+    id: 'design_phase',
+    label: 'Design Phase',
+    path: '/staff/design-phase',
+    section: 'Kanban Phases',
+    icon: Palette,
+    roles: ['admin', 'manager'],
+  },
+  {
+    id: 'post_design',
+    label: 'Post-Design Phase',
+    path: '/staff/post-design',
+    section: 'Kanban Phases',
+    icon: Printer,
+    roles: ['admin', 'manager'],
   },
   {
     id: 'designer_queue',
-    label: 'Design',
-    icon: Palette,
+    label: 'Design Orders',
+    path: '/staff/design',
+    section: 'Editorial',
+    icon: Layers,
     roles: ['admin', 'designer'],
   },
   {
     id: 'returns',
     label: 'Returns',
+    path: '/staff/returns',
+    section: 'Operations',
     icon: RotateCcw,
     roles: ['admin', 'manager', 'designer'],
   },
   {
+    id: 'notifications',
+    label: 'Notifications',
+    path: '/staff/notifications',
+    section: 'Operations',
+    icon: Bell,
+    roles: ['admin', 'manager', 'designer'],
+  },
+  {
+    id: 'form_builder',
+    label: 'Forms',
+    path: '/staff/forms',
+    section: 'Administration',
+    icon: FileText,
+    roles: ['admin'],
+  },
+  {
     id: 'staff_roster',
     label: 'Users',
+    path: '/staff/users',
+    section: 'Administration',
     icon: Users,
     roles: ['admin'],
   },
@@ -66,6 +104,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -74,11 +113,18 @@ export default function StaffWorkspace({ onExitToHome }) {
 
   // Active page state
   const readRoute = () => {
-    const orderMatch = window.location.pathname.match(/^\/staff\/design\/orders\/([^/]+)/);
+    const pathname = window.location.pathname;
+    const orderMatch = pathname.match(/^\/staff\/design\/orders\/([^/]+)/);
     if (orderMatch) return { page: 'designer_order', orderId: decodeURIComponent(orderMatch[1]) };
-    if (window.location.pathname.startsWith('/staff/returns')) return { page: 'returns', orderId: null };
-    if (window.location.pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
-    return { page: 'conveyor', orderId: null };
+    if (pathname.startsWith('/staff/pre-design')) return { page: 'pre_design', orderId: null };
+    if (pathname.startsWith('/staff/design-phase')) return { page: 'design_phase', orderId: null };
+    if (pathname.startsWith('/staff/post-design')) return { page: 'post_design', orderId: null };
+    if (pathname.startsWith('/staff/returns')) return { page: 'returns', orderId: null };
+    if (pathname.startsWith('/staff/notifications')) return { page: 'notifications', orderId: null };
+    if (pathname.startsWith('/staff/forms')) return { page: 'form_builder', orderId: null };
+    if (pathname.startsWith('/staff/users')) return { page: 'staff_roster', orderId: null };
+    if (pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
+    return { page: 'pre_design', orderId: null };
   };
   const initialRoute = readRoute();
   const [activePage, setActivePage] = useState(initialRoute.page);
@@ -88,11 +134,26 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
   useEffect(() => { const pop = () => { const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);
 
+  const refreshUnreadCount = useCallback(async (authToken = token) => {
+    if (!authToken) return;
+    try {
+      const data = await api.notifications.getHistory(authToken, { limit: 100 });
+      if (typeof data.unreadCount === 'number') {
+        setUnreadNotifications(data.unreadCount);
+      } else {
+        setUnreadNotifications((data.notifications || []).filter((n) => !n.isRead).length);
+      }
+    } catch {
+      // Ignore background badge refresh errors
+    }
+  }, [token]);
+
   useEffect(() => {
     if (token) {
       loadProfile(token);
+      refreshUnreadCount(token);
     }
-  }, [token]);
+  }, [token, refreshUnreadCount]);
 
   const loadProfile = async (authToken) => {
     setLoading(true);
@@ -100,15 +161,15 @@ export default function StaffWorkspace({ onExitToHome }) {
       const data = await api.staffAuth.getMe(authToken);
       setCurrentUser(data.user);
 
-      // Default page based on RBAC role
-      if (readRoute().page === 'designer_order' || readRoute().page === 'returns') {
-        const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId);
+      // Default page based on RBAC role and current URL
+      const route = readRoute();
+      if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+        setActivePage(route.page);
+        setRouteOrderId(route.orderId);
       } else if (data.user.role === 'designer') {
         setActivePage('designer_queue');
-      } else if (data.user.role === 'manager') {
-        setActivePage('conveyor');
       } else {
-        setActivePage('conveyor');
+        setActivePage('pre_design');
       }
     } catch (err) {
       setToken('');
@@ -128,13 +189,16 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.setItem('tinzel_staff_token', data.token);
       setCurrentUser(data.user);
       setPassword('');
+      refreshUnreadCount(data.token);
 
-      if (readRoute().page === 'designer_order' || readRoute().page === 'returns') {
-        const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId);
+      const route = readRoute();
+      if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+        setActivePage(route.page);
+        setRouteOrderId(route.orderId);
       } else if (data.user.role === 'designer') {
         setActivePage('designer_queue');
       } else {
-        setActivePage('conveyor');
+        setActivePage('pre_design');
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
@@ -158,7 +222,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const orderPageAllowed = activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
   const effectiveActivePage = orderPageAllowed ? activePage : allowedMenuItems.some((item) => item.id === activePage)
     ? activePage
-    : allowedMenuItems[0]?.id || 'conveyor';
+    : allowedMenuItems[0]?.id || 'pre_design';
 
   // -------------------------------------------------------------
   // Unauthenticated: High-End Minimalist Login Screen
@@ -456,39 +520,74 @@ export default function StaffWorkspace({ onExitToHome }) {
           </div>
 
           {/* Navigation Menu by RBAC */}
-          <div style={{ padding: '20px 12px 10px 12px' }}>
+          <div style={{ padding: '16px 12px 10px 12px' }}>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {allowedMenuItems.map((item) => {
+              {allowedMenuItems.map((item, idx) => {
                 const IconComponent = item.icon;
-                const isActive = effectiveActivePage === item.id || (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
+                const isActive =
+                  effectiveActivePage === item.id ||
+                  (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
+                const prevSection = idx > 0 ? allowedMenuItems[idx - 1].section : null;
+                const showSectionHeader = item.section && item.section !== prevSection;
 
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => navigateStaff(item.id === 'designer_queue' ? '/staff/design' : item.id === 'returns' ? '/staff/returns' : '/staff', item.id)}
-                    aria-current={isActive ? 'page' : undefined}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: isActive ? '#FAF5EA' : 'transparent',
-                      borderLeft: isActive ? '3px solid #C5A059' : '3px solid transparent',
-                      color: isActive ? '#1C1917' : '#57534E',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
-                      <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{item.label}</div>
-                    </div>
-                  </button>
+                  <React.Fragment key={item.id}>
+                    {showSectionHeader && (
+                      <div
+                        style={{
+                          padding: idx === 0 ? '0 14px 4px 14px' : '12px 14px 4px 14px',
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: '#A8A29E',
+                        }}
+                      >
+                        {item.section}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigateStaff(item.path || '/staff', item.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: isActive ? '#FAF5EA' : 'transparent',
+                        borderLeft: isActive ? '3px solid #C5A059' : '3px solid transparent',
+                        color: isActive ? '#1C1917' : '#57534E',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
+                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{item.label}</div>
+                      </div>
+                      {item.id === 'notifications' && unreadNotifications > 0 && (
+                        <span
+                          style={{
+                            minWidth: '20px',
+                            padding: '2px 6px',
+                            borderRadius: '999px',
+                            backgroundColor: '#C5A059',
+                            color: '#FFFFFF',
+                            fontSize: '10px',
+                            fontWeight: '800',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {unreadNotifications}
+                        </span>
+                      )}
+                    </button>
+                  </React.Fragment>
                 );
               })}
             </nav>
@@ -601,6 +700,42 @@ export default function StaffWorkspace({ onExitToHome }) {
           </div>
 
           <div className="staff-header-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              aria-label={`Notifications${unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : ''}`}
+              onClick={() => navigateStaff('/staff/notifications', 'notifications')}
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #E7E5E4',
+                backgroundColor: effectiveActivePage === 'notifications' ? '#FAF5EA' : '#FFFFFF',
+                color: '#1C1917',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Bell size={15} color="#8A6825" />
+              <span>Notifications</span>
+              {unreadNotifications > 0 && (
+                <span
+                  style={{
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    backgroundColor: '#C5A059',
+                    color: '#FFFFFF',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                  }}
+                >
+                  {unreadNotifications}
+                </span>
+              )}
+            </button>
             <span
               style={{
                 fontSize: '12px',
@@ -618,9 +753,17 @@ export default function StaffWorkspace({ onExitToHome }) {
 
         {/* Viewport Dynamic Page Render based on RBAC */}
         <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
-          {effectiveActivePage === 'conveyor' && (currentUser.role === 'admin' || currentUser.role === 'manager') && (
-            <ConveyorBeltBoard token={token} staffUser={currentUser} compact={!screens.lg} />
-          )}
+          {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
+            (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+              <ConveyorBeltBoard
+                key={effectiveActivePage}
+                token={token}
+                phase={effectiveActivePage}
+                staffUser={currentUser}
+                compact={!screens.lg}
+                onNavigateToReturns={() => navigateStaff('/staff/returns', 'returns')}
+              />
+            )}
 
           {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && (
             <FormBuilder token={token} />
@@ -636,6 +779,15 @@ export default function StaffWorkspace({ onExitToHome }) {
 
           {effectiveActivePage === 'returns' && (
             <ReturnsPage token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+          )}
+
+          {effectiveActivePage === 'notifications' && (
+            <NotificationsPage
+              token={token}
+              staffUser={currentUser}
+              onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+              onUnreadCountChange={setUnreadNotifications}
+            />
           )}
 
           {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (

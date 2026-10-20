@@ -7,15 +7,16 @@ import {
   ChevronRight,
   CircleDollarSign,
   Clock3,
+  Eye,
   FileCheck2,
-  FolderOpen,
   LayoutDashboard,
   ListChecks,
+  Palette,
   PauseCircle,
   Printer,
   RefreshCw,
+  RotateCcw,
   Search,
-  Send,
   Truck,
   UserRoundCheck,
   XCircle,
@@ -26,7 +27,7 @@ import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import PdfBookReader from '../common/PdfBookReader';
 import './managerDashboard.css';
 
-const STAGES = [
+const ALL_STAGES = [
   { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },
   { id: 'payment', title: 'Payment', statuses: ['awaiting_payment', 'payment_verified'] },
   { id: 'design', title: 'Design', statuses: ['queued_for_assignment', 'assigned', 'in_design'] },
@@ -36,6 +37,74 @@ const STAGES = [
   { id: 'printing', title: 'Printing', statuses: ['printing_sent', 'printing_in_progress', 'printing_completed'] },
   { id: 'delivery', title: 'Delivery & Closure', statuses: ['dispatched', 'delivered', 'closed'] },
 ];
+
+const PHASE_CONFIGS = {
+  pre_design: {
+    title: 'Pre-Design Phase',
+    description: 'Payment verification, Tracking ID issuance, and initial designer capacity assignment.',
+    stages: [
+      { id: 'awaiting_payment', title: 'Awaiting Payment', statuses: ['awaiting_payment'] },
+      { id: 'payment_verified', title: 'Payment Verified', statuses: ['payment_verified'] },
+      { id: 'queued_for_assignment', title: 'Queued for Assignment', statuses: ['queued_for_assignment'] },
+      { id: 'exceptions', title: 'On Hold (Pre-Design)', statuses: ['on_hold'] },
+    ],
+    statuses: ['awaiting_payment', 'payment_verified', 'queued_for_assignment', 'on_hold'],
+    summaryCards: (summary, counts) => [
+      { id: 'awaiting_payment', label: 'Payments to verify', value: counts.awaiting_payment ?? summary.payment ?? 0, icon: CircleDollarSign },
+      { id: 'payment_verified', label: 'Payment verified', value: counts.payment_verified ?? summary.paymentVerified ?? 0, icon: CheckCircle2 },
+      { id: 'queued_for_assignment', label: 'Queued for designer', value: counts.queued_for_assignment ?? summary.queuedAssignment ?? 0, icon: UserRoundCheck },
+      { id: 'on_hold', label: 'On hold in Pre-Design', value: counts.on_hold ?? 0, icon: AlertTriangle },
+    ],
+  },
+  design_phase: {
+    title: 'Design Phase',
+    description: 'Active editorial layout, manager whole-magazine draft inspection, and client proof review.',
+    stages: [
+      { id: 'assigned', title: 'Assigned to Designer', statuses: ['assigned'] },
+      { id: 'in_design', title: 'In Design', statuses: ['in_design'] },
+      { id: 'draft_manager_review', title: 'Manager Review', statuses: ['draft_manager_review'] },
+      { id: 'client_review', title: 'Client Review', statuses: ['client_review'] },
+      { id: 'revision_requested', title: 'Returned for Changes', statuses: ['revision_requested'] },
+      { id: 'exceptions', title: 'On Hold (Design)', statuses: ['on_hold'] },
+    ],
+    statuses: ['assigned', 'in_design', 'draft_manager_review', 'client_review', 'revision_requested', 'on_hold'],
+    summaryCards: (summary, counts) => [
+      { id: 'in_design', label: 'Assigned & In Design', value: (counts.assigned || 0) + (counts.in_design || 0), icon: Palette },
+      { id: 'draft_manager_review', label: 'Drafts to review', value: counts.draft_manager_review ?? summary.draftReview ?? 0, icon: FileCheck2 },
+      { id: 'client_review', label: 'In client review', value: counts.client_review ?? summary.clientReview ?? 0, icon: Eye },
+      { id: 'revision_requested', label: 'Returned for changes', value: counts.revision_requested ?? summary.returns ?? 0, icon: RotateCcw },
+    ],
+  },
+  post_design: {
+    title: 'Post-Design Phase',
+    description: 'Print-ready document authorization, printing press tracking, courier dispatch, and delivery closure.',
+    stages: [
+      { id: 'print_prep', title: 'Print Preparation', statuses: ['client_approved', 'print_document_prep'] },
+      { id: 'print_approval', title: 'Print Approval', statuses: ['print_manager_review'] },
+      { id: 'printing', title: 'Printing', statuses: ['printing_sent', 'printing_in_progress', 'printing_completed'] },
+      { id: 'delivery', title: 'Dispatched & Delivered', statuses: ['dispatched', 'delivered', 'closed'] },
+      { id: 'exceptions', title: 'On Hold (Post-Design)', statuses: ['on_hold'] },
+    ],
+    statuses: [
+      'client_approved',
+      'print_document_prep',
+      'print_manager_review',
+      'printing_sent',
+      'printing_in_progress',
+      'printing_completed',
+      'dispatched',
+      'delivered',
+      'closed',
+      'on_hold',
+    ],
+    summaryCards: (summary, counts) => [
+      { id: 'client_approved', label: 'Print preparation', value: (counts.client_approved || 0) + (counts.print_document_prep || 0), icon: FileCheck2 },
+      { id: 'print_manager_review', label: 'Print approvals', value: counts.print_manager_review ?? summary.printApproval ?? 0, icon: Printer },
+      { id: 'printing_completed', label: 'Ready to dispatch', value: counts.printing_completed ?? summary.dispatchReady ?? 0, icon: Truck },
+      { id: 'dispatched', label: 'Dispatched & delivered', value: (counts.dispatched || 0) + (counts.delivered || 0) + (counts.closed || 0), icon: CheckCircle2 },
+    ],
+  },
+};
 
 const ATTENTION = new Set([
   'awaiting_payment', 'queued_for_assignment', 'draft_manager_review', 'print_manager_review',
@@ -50,7 +119,7 @@ const STATUS_LABELS = {
   in_design: 'In design',
   draft_manager_review: 'Draft awaiting manager review',
   client_review: 'Client reviewing whole magazine',
-  revision_requested: 'Client requested changes',
+  revision_requested: 'Returned for changes',
   client_approved: 'Client approved — print file pending',
   print_document_prep: 'Print file in preparation',
   print_manager_review: 'Print file awaiting authorization',
@@ -59,7 +128,7 @@ const STATUS_LABELS = {
   printing_completed: 'Printing complete — dispatch pending',
   dispatched: 'Dispatched — delivery confirmation pending',
   delivered: 'Delivered — closure pending',
-  closed: 'Closed',
+  closed: 'Delivered & closed',
   on_hold: 'On hold',
 };
 
@@ -82,7 +151,6 @@ const compactWait = (date) => {
   const age = daysWaiting(date);
   return age === 0 ? 'Today' : `${age}d`;
 };
-const stageForStatus = (status) => STAGES.find((stage) => stage.statuses.includes(status))?.id || '';
 const displayDate = (date) => date ? new Intl.DateTimeFormat('en-TZ', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date)) : 'Not recorded';
 
 const emptyForm = {
@@ -92,18 +160,25 @@ const emptyForm = {
   recipientFeedback: '', designerId: '', reassignReason: '', holdReason: '',
 };
 
-export default function ConveyorBeltBoard({ token }) {
+export default function ConveyorBeltBoard({ token, phase = null, onNavigateToReturns = null }) {
+  const phaseConfig = phase ? PHASE_CONFIGS[phase] : null;
+  const activeStages = useMemo(() => (phaseConfig ? phaseConfig.stages : ALL_STAGES), [phaseConfig]);
+  const stageForStatus = useCallback(
+    (status) => activeStages.find((stage) => stage.statuses.includes(status))?.id || activeStages[0]?.id || '',
+    [activeStages]
+  );
+
   const [orders, setOrders] = useState([]);
   const [summary, setSummary] = useState({});
   const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
-  const [view, setView] = useState('attention');
+  const [view, setView] = useState('board');
   const [mobileStage, setMobileStage] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [scope, setScope] = useState('active');
+  const [scope, setScope] = useState(phase === 'post_design' ? 'all' : 'active');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -118,17 +193,29 @@ export default function ConveyorBeltBoard({ token }) {
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
+  // Reset stage/filter when switching between Pre-Design, Design Phase, and Post-Design Phase
+  useEffect(() => {
+    setStatusFilter('all');
+    setMobileStage('');
+    setPage(1);
+    setView('board');
+    setScope(phase === 'post_design' ? 'all' : 'active');
+  }, [phase]);
+
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.manager.getOrders(token, {
+      const queryParams = {
         search,
         status: statusFilter,
         scope,
         page,
         limit: 100,
-      });
+      };
+      if (phase) queryParams.phase = phase;
+
+      const data = await api.manager.getOrders(token, queryParams);
       setOrders(data.orders || []);
       setSummary(data.summary || {});
       setStatusCounts(data.statusCounts || {});
@@ -139,7 +226,7 @@ export default function ConveyorBeltBoard({ token }) {
     } finally {
       setLoading(false);
     }
-  }, [page, scope, search, statusFilter, token]);
+  }, [page, phase, scope, search, statusFilter, token]);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
@@ -155,7 +242,10 @@ export default function ConveyorBeltBoard({ token }) {
     [orders]
   );
 
-  const selectedMobileStage = mobileStage || STAGES.find((stage) => orders.some((order) => stage.statuses.includes(order.status)))?.id || STAGES[0].id;
+  const selectedMobileStage =
+    mobileStage ||
+    activeStages.find((stage) => orders.some((order) => stage.statuses.includes(order.status)))?.id ||
+    activeStages[0]?.id;
 
   const openOrder = async (order) => {
     setSelectedOrder(order);
@@ -223,17 +313,28 @@ export default function ConveyorBeltBoard({ token }) {
     }
   };
 
-  const summaryCards = [
-    { id: 'awaiting_payment', label: 'Payments to verify', value: summary.payment || 0, icon: CircleDollarSign },
-    { id: 'draft_manager_review', label: 'Drafts to review', value: summary.draftReview || 0, icon: FileCheck2 },
-    { id: 'print_manager_review', label: 'Print approvals', value: summary.printApproval || 0, icon: Printer },
-    { id: 'printing_completed', label: 'Ready to dispatch', value: summary.dispatchReady || 0, icon: Truck },
-    { id: 'on_hold', label: 'Blocked or queued', value: summary.blocked || 0, icon: AlertTriangle },
-  ];
+  const summaryCards = useMemo(() => {
+    if (phaseConfig) {
+      return phaseConfig.summaryCards(summary, statusCounts);
+    }
+    return [
+      { id: 'awaiting_payment', label: 'Payments to verify', value: summary.payment || 0, icon: CircleDollarSign },
+      { id: 'draft_manager_review', label: 'Drafts to review', value: summary.draftReview || 0, icon: FileCheck2 },
+      { id: 'print_manager_review', label: 'Print approvals', value: summary.printApproval || 0, icon: Printer },
+      { id: 'printing_completed', label: 'Ready to dispatch', value: summary.dispatchReady || 0, icon: Truck },
+      { id: 'on_hold', label: 'Blocked or queued', value: summary.blocked || 0, icon: AlertTriangle },
+    ];
+  }, [phaseConfig, summary, statusCounts]);
+
+  const allowedFilterStatuses = useMemo(
+    () => (phaseConfig ? phaseConfig.statuses : Object.keys(STATUS_LABELS)),
+    [phaseConfig]
+  );
 
   const nextActionButton = (order, compact = false) => {
     const map = {
       awaiting_payment: ['payment', 'Verify payment', CircleDollarSign],
+      payment_verified: ['reassign', 'Assign designer', UserRoundCheck],
       queued_for_assignment: ['reassign', 'Assign designer', UserRoundCheck],
       assigned: ['reassign', 'Reassign', UserRoundCheck],
       in_design: ['reassign', 'Reassign', UserRoundCheck],
@@ -249,17 +350,56 @@ export default function ConveyorBeltBoard({ token }) {
     const config = map[order.status];
     if (!config) return null;
     const [name, label, Icon] = config;
-    return <button type="button" className={`manager-primary-action${compact ? ' is-compact' : ''}`} onClick={(event) => { event.stopPropagation(); beginAction(name, order); }}><Icon size={16} />{label}</button>;
+    return (
+      <button
+        type="button"
+        className={`manager-primary-action${compact ? ' is-compact' : ''}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          beginAction(name, order);
+        }}
+      >
+        <Icon size={15} />
+        {label}
+      </button>
+    );
   };
 
   return (
-    <section className="manager-dashboard" aria-label="Manager production dashboard">
+    <section className="manager-dashboard" aria-label={phaseConfig ? phaseConfig.title : 'Manager production dashboard'}>
+      {phaseConfig && (
+        <div className="manager-phase-banner">
+          <div>
+            <span className="manager-phase-eyebrow">Kanban Phase</span>
+            <h1 className="manager-phase-title">{phaseConfig.title}</h1>
+            <p className="manager-phase-description">{phaseConfig.description}</p>
+          </div>
+          {phase === 'design_phase' && onNavigateToReturns && (
+            <button type="button" className="manager-secondary-action" onClick={onNavigateToReturns}>
+              <RotateCcw size={15} />
+              View Returns Page
+            </button>
+          )}
+        </div>
+      )}
+
       {notice && <div className={`manager-notice is-${notice.type}`} role="status">{notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}<span>{notice.text}</span><button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
       {error && <div className="manager-notice is-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button type="button" onClick={loadOrders}>Try again</button></div>}
 
-      <div className="manager-summary-grid">
+      <div className={`manager-summary-grid${phaseConfig ? ' is-four-col' : ''}`}>
         {summaryCards.map(({ id, label, value, icon: Icon }) => (
-          <button key={id} type="button" className="manager-summary-card" onClick={() => { setStatusFilter(id === 'on_hold' ? 'all' : id); setMobileStage(stageForStatus(id)); setView(id === 'on_hold' ? 'attention' : 'board'); setPage(1); }}>
+          <button
+            key={id}
+            type="button"
+            className={`manager-summary-card${statusFilter === id ? ' is-selected' : ''}`}
+            onClick={() => {
+              const nextStatus = statusFilter === id ? 'all' : id;
+              setStatusFilter(nextStatus);
+              if (nextStatus !== 'all') setMobileStage(stageForStatus(nextStatus));
+              setView('board');
+              setPage(1);
+            }}
+          >
             <span className="manager-summary-card__icon"><Icon size={20} /></span>
             <span><strong>{value}</strong><small>{label}</small></span>
           </button>
@@ -268,18 +408,18 @@ export default function ConveyorBeltBoard({ token }) {
 
       <div className="manager-control-bar">
         <div className="manager-view-switch" aria-label="Dashboard view">
-          <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} />Queue</button>
-          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} />Board</button>
+          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} />Kanban Board</button>
+          <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} />Priority Queue ({attentionOrders.length})</button>
         </div>
         <form className="manager-search" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
           <Search size={16} />
-          <input aria-label="Search orders" placeholder="Search orders" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          <input aria-label="Search orders" placeholder="Search by Tracking ID, Submission ID, or Client" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
           {searchInput && <button type="button" aria-label="Clear search" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
         </form>
         <label className="manager-filter"><span className="visually-hidden">Stage</span>
           <select aria-label="Filter by stage" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); if (event.target.value !== 'all') setMobileStage(stageForStatus(event.target.value)); setPage(1); }}>
-            <option value="all">All stages</option>
-            {Object.keys(STATUS_LABELS).map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
+            <option value="all">All stages in phase</option>
+            {allowedFilterStatuses.map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
           </select>
         </label>
         <label className="manager-filter"><span className="visually-hidden">Order scope</span>
@@ -295,20 +435,22 @@ export default function ConveyorBeltBoard({ token }) {
 
       {!loading && view === 'attention' && (
         <div className="manager-attention-panel">
-          <div className="manager-panel-heading"><h2>Priority</h2><span>{attentionOrders.length}</span></div>
+          <div className="manager-panel-heading"><h2>Priority Actions Required</h2><span>{attentionOrders.length}</span></div>
           {attentionOrders.length === 0 ? (
-            <div className="manager-empty"><CheckCircle2 size={32} /><h3>All clear</h3></div>
+            <div className="manager-empty"><CheckCircle2 size={32} /><h3>All clear in this phase</h3></div>
           ) : (
             <div className="manager-table-wrap">
               <table className="manager-attention-table">
-                <thead><tr><th>Order</th><th>Client</th><th>Required action</th><th>Wait</th></tr></thead>
+                <thead><tr><th>Order</th><th>Client</th><th>Edition</th><th>Required action</th><th>Wait</th><th>Action</th></tr></thead>
                 <tbody>{attentionOrders.map((order) => {
                   const age = daysWaiting(order.updatedAt);
                   return <tr key={order._id} role="button" tabIndex={0} aria-label={`Open ${orderId(order)} for ${order.clientName}`} onClick={() => openOrder(order)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openOrder(order); } }}>
                     <td data-label="Order"><strong>{orderId(order)}</strong></td>
                     <td data-label="Client">{order.clientName}</td>
+                    <td data-label="Edition">{order.formTitle || order.formId?.title || 'Magazine'}</td>
                     <td data-label="Required action"><span className={`manager-status is-${order.status}`}>{NEXT_TASK[order.status] || labelStatus(order.status)}</span></td>
                     <td data-label="Waiting"><span className={age >= 3 ? 'manager-age is-overdue' : 'manager-age'}>{age === 0 ? 'Today' : `${age} day${age === 1 ? '' : 's'}`}</span></td>
+                    <td data-label="Action">{nextActionButton(order, true)}</td>
                   </tr>;
                 })}</tbody>
               </table>
@@ -321,29 +463,64 @@ export default function ConveyorBeltBoard({ token }) {
         <>
           <label className="manager-mobile-stage-picker">Stage
             <select aria-label="Board stage" value={selectedMobileStage} onChange={(event) => setMobileStage(event.target.value)}>
-              {STAGES.map((stage) => {
+              {activeStages.map((stage) => {
                 const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
                 return <option key={stage.id} value={stage.id}>{stage.title} ({count})</option>;
               })}
             </select>
           </label>
-          <div className="manager-board" aria-label="Production conveyor">
-          {STAGES.map((stage) => {
-            const stageOrders = orders.filter((order) => stage.statuses.includes(order.status));
-            const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
-            return <section key={stage.id} className={`manager-board-column${selectedMobileStage === stage.id ? ' is-mobile-active' : ''}`}>
-              <header><h2>{stage.title}</h2><span>{count}</span></header>
-              <div className="manager-board-column__body">
-                {stageOrders.length === 0 ? <p className="manager-board-empty">{count > 0 ? 'No orders on this page' : 'Empty'}</p> : stageOrders.map((order) => (
-                  <button key={order._id} type="button" className="manager-stage-row" aria-label={`Open ${orderId(order)} for ${order.clientName}, waiting ${compactWait(order.updatedAt)}`} onClick={() => openOrder(order)}>
-                    <span className="manager-stage-row__id">{orderId(order)}</span>
-                    <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
-                    <strong>{order.clientName}</strong>
-                  </button>
-                ))}
-              </div>
-            </section>;
-          })}
+          <div
+            className="manager-board"
+            style={{ gridTemplateColumns: `repeat(${activeStages.length}, minmax(265px, 1fr))` }}
+            aria-label="Production conveyor"
+          >
+            {activeStages.map((stage) => {
+              const stageOrders = orders.filter((order) => stage.statuses.includes(order.status));
+              const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
+              return (
+                <section key={stage.id} className={`manager-board-column${selectedMobileStage === stage.id ? ' is-mobile-active' : ''}`}>
+                  <header>
+                    <h2>{stage.title}</h2>
+                    <span>{count}</span>
+                  </header>
+                  <div className="manager-board-column__body">
+                    {stageOrders.length === 0 ? (
+                      <p className="manager-board-empty">{count > 0 ? 'No orders on this page' : 'No orders in this column'}</p>
+                    ) : (
+                      stageOrders.map((order) => (
+                        <div
+                          key={order._id}
+                          role="button"
+                          tabIndex={0}
+                          className="manager-stage-row"
+                          aria-label={`Open ${orderId(order)} for ${order.clientName}, waiting ${compactWait(order.updatedAt)}`}
+                          onClick={() => openOrder(order)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openOrder(order);
+                            }
+                          }}
+                        >
+                          <span className="manager-stage-row__id">{orderId(order)}</span>
+                          <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
+                          <strong>{order.clientName}</strong>
+                          <span className="manager-stage-row__subtitle">
+                            {order.formTitle || order.formId?.title || 'Tinzel Magazine'}
+                          </span>
+                          <div className="manager-stage-row__meta">
+                            <span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span>
+                            {order.assignedDesigner?.name && (
+                              <span className="manager-stage-row__designer">{order.assignedDesigner.name}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </>
       )}

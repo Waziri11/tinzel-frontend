@@ -385,6 +385,16 @@ export const api = {
       fetch(`${API_BASE}/api/notifications/diagnostics`, {
         headers: getHeaders(token),
       }).then(handleResponse),
+    markRead: (token, id) =>
+      fetch(`${API_BASE}/api/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+        headers: getHeaders(token),
+      }).then(handleResponse),
+    markAllRead: (token) =>
+      fetch(`${API_BASE}/api/notifications/mark-all-read`, {
+        method: 'POST',
+        headers: getHeaders(token),
+      }).then(handleResponse),
     resend: (token, id, channel) =>
       fetch(`${API_BASE}/api/notifications/resend/${id}`, {
         method: 'POST',
