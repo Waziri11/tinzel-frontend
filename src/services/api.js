@@ -407,6 +407,33 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify(data),
       }).then(handleResponse),
+    getSettings: (token) =>
+      fetch(`${API_BASE}/api/notifications/settings`, {
+        headers: getHeaders(token),
+      }).then(handleResponse),
+    updateSettings: (token, data) =>
+      fetch(`${API_BASE}/api/notifications/settings`, {
+        method: 'PUT',
+        headers: getHeaders(token),
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    resetSettings: (token) =>
+      fetch(`${API_BASE}/api/notifications/settings/reset`, {
+        method: 'POST',
+        headers: getHeaders(token),
+      }).then(handleResponse),
+    testSmsHealth: (token, data) =>
+      fetch(`${API_BASE}/api/notifications/health-test/sms`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    testEmailHealth: (token, data) =>
+      fetch(`${API_BASE}/api/notifications/health-test/email`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(data),
+      }).then(handleResponse),
   },
 };
 
