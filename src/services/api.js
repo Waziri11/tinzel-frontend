@@ -79,11 +79,11 @@ export const api = {
         headers: getHeaders(clientToken),
       }).then(handleResponse),
 
-    approveDraft: (clientToken, feedback) =>
+    approveDraft: (clientToken, feedback, expectedVersion) =>
       fetch(`${API_BASE}/api/client/approve-draft`, {
         method: 'POST',
         headers: getHeaders(clientToken),
-        body: JSON.stringify({ feedback }),
+        body: JSON.stringify({ feedback, expectedVersion }),
       }).then(handleResponse),
 
     requestRevision: (clientToken, items, expectedVersion) =>
@@ -437,3 +437,23 @@ export const api = {
   },
 };
 
+
+export function proofApi(token, orderId, version, client = false) {
+  const base = `${API_BASE}/api/proofs/${client ? 'client' : `staff/${orderId}`}/${version}`;
+  const request = (suffix = '', method = 'GET', body) => fetch(base + suffix, {
+    method, headers: getHeaders(token), cache: 'no-store', ...(body ? { body: JSON.stringify(body) } : {}),
+  }).then(handleResponse);
+  return {
+    metadata: () => request(),
+    page: async (page) => {
+      const response = await fetch(`${base}/pages/${page}`, { headers: getHeaders(token), cache: 'no-store' });
+      if (response.status === 202) { const error = new Error('Page is being prepared'); error.pending = true; throw error; }
+      return handleBlob(response);
+    },
+    text: (page) => request(`/pages/${page}?text=1`),
+    save: (body) => request('/annotations', 'POST', body),
+    discard: (id) => request(`/annotations/${id}`, 'DELETE'),
+    retry: () => request('/retry', 'POST'),
+    submit: () => client ? api.client.requestRevision(token, [], version) : api.manager.reviewDraft(token, orderId, { action: 'return_to_designer', expectedVersion: version, items: [] }),
+  };
+}

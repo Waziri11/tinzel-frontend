@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 
 const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
 const manager = { _id: 'manager-1', name: 'Neema Manager', email: 'manager@tinzel.test', role: 'manager', isActive: true };
-const onePagePdf = Buffer.from('JVBERi0xLjQKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHMgWzMgMCBSXS9Db3VudCAxPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdPj4KZW5kb2JqCnhyZWYKMCA0CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAp0cmFpbGVyCjw8L1NpemUgNC9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjE5NQolJUVPRgo=', 'base64');
 const baseOrder = {
   _id: 'order-1', trackingId: 'TNZ-2026-0042', submissionId: 'SUB-2026-0042', clientName: 'Asha Mushi',
   clientWhatsApp: '+255700000001', clientEmail: 'asha@example.test', formTitle: 'Anniversary Magazine',
@@ -33,10 +32,14 @@ async function openManagerDashboard(page) {
     });
   });
   await page.route('**/api/manager/orders/order-1', (route) => json(route, { order: baseOrder, auditLogs: [{ _id: 'log-1', action: 'DRAFT_UPLOADED', actor: { name: 'Juma Designer' }, createdAt: '2026-10-15T09:00:00Z' }] }));
-  await page.route('**/api/designer/orders/order-1/drafts/2/view', (route) => route.fulfill({ contentType: 'application/pdf', body: onePagePdf }));
+  await page.route('**/api/proofs/staff/order-1/2', route => json(route, {state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:true}));
+  await page.route('**/api/proofs/staff/order-1/2/pages/1*', route => new URL(route.request().url()).searchParams.has('text') ? json(route,{width:600,height:800,text:[]}) : route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>'}));
   await page.goto('/');
   await page.getByRole('button', { name: 'English EN' }).click();
   await page.getByRole('button', { name: /Login/ }).click();
+  const menu = page.getByRole('button', { name: 'Open workspace menu' });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole('button', { name: 'Design Phase', exact: true }).click();
   await expect(page.getByText('Drafts to review')).toBeVisible();
 }
 
@@ -53,7 +56,8 @@ test('manager gets an action-first dashboard and complete draft review context',
   await expect(page.getByRole('link', { name: 'Open complete draft' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Drafts (1)' })).toBeVisible();
   await page.getByRole('tab', { name: 'Drafts (1)' }).click();
-  await expect(page.getByRole('button', { name: 'Download PDF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
+  await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Forms', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
 });
@@ -79,10 +83,10 @@ test('manager dashboard remains readable and actionable on a phone', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await openManagerDashboard(page);
   await expect(page.getByRole('button', { name: 'Open workspace menu' })).toBeVisible();
-  await page.getByRole('button', { name: 'Board', exact: true }).click();
+  await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
   await expect(page.getByLabel('Board stage')).toBeVisible();
-  await page.getByLabel('Board stage').selectOption('draft');
-  await expect(page.locator('.manager-board-column')).toHaveCount(8);
+  await page.getByLabel('Board stage').selectOption('draft_manager_review');
+  await expect(page.locator('.manager-board-column')).toHaveCount(6);
   await expect(page.locator('.manager-board-column:visible')).toHaveCount(1);
   await expect(page.getByRole('button', { name: /Open TNZ-2026-0042/ })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
@@ -92,13 +96,13 @@ test('manager dashboard remains readable and actionable on a phone', async ({ pa
 test('board uses compact stage rows and supports keyboard detail access', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await openManagerDashboard(page);
-  await page.getByRole('button', { name: 'Board', exact: true }).click();
-  await expect(page.locator('.manager-board-column')).toHaveCount(8);
-  await expect(page.locator('.manager-stage-row')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
+  await expect(page.locator('.manager-board-column')).toHaveCount(6);
+  await expect(page.locator('.manager-stage-row')).toHaveCount(2);
   const draftRow = page.getByRole('button', { name: /Open TNZ-2026-0042/ });
   await expect(draftRow).toContainText('TNZ-2026-0042');
   await expect(draftRow).toContainText('Asha Mushi');
-  await expect(draftRow).not.toContainText('Juma Designer');
+  await expect(draftRow).toContainText('Juma Designer');
   await expect(draftRow).not.toContainText('Photos');
   await draftRow.focus();
   await page.keyboard.press('Enter');

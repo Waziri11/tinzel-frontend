@@ -44,7 +44,7 @@ export default function ClientTrackingPortal() {
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [revisionItems, setRevisionItems] = useState([{ text: '', pageReference: '' }]);
   const [submittingDecision, setSubmittingDecision] = useState(false);
-  const loadMagazinePdf = useCallback(() => api.client.viewDraft(clientToken), [clientToken]);
+  const [readerVersion,setReaderVersion] = useState(null);
 
   useEffect(() => {
     if (clientToken) {
@@ -122,7 +122,7 @@ export default function ClientTrackingPortal() {
     setSubmittingDecision(true);
     setError(null);
     try {
-      const res = await api.client.approveDraft(clientToken, 'Client approved whole magazine.');
+      const res = await api.client.approveDraft(clientToken, 'Client approved whole magazine.', order.currentDraftVersion);
       setOrder(res.order);
       setSuccessMsg(t('track.ok.approved'));
     } catch (err) {
@@ -406,7 +406,7 @@ export default function ClientTrackingPortal() {
 
   // Active Order & Whole-Magazine Review Portal View
   const currentStageIdx = getStageIndex(order.status);
-  const releasedDraft = (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion);
+  const releasedDraft = (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) || (order.draftVersions || []).at(-1);
 
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '60px' }}>
@@ -605,7 +605,8 @@ export default function ClientTrackingPortal() {
             </div>
           </div>
 
-          <PdfBookReader loadPdf={loadMagazinePdf} title={t('track.proof.title', { version: releasedDraft?.versionNumber })} />
+          <label>Magazine version <select aria-label="Magazine version" value={readerVersion||releasedDraft?.versionNumber} onChange={(e)=>setReaderVersion(Number(e.target.value))}>{(order.draftVersions||[]).map((v)=><option key={v.versionNumber} value={v.versionNumber}>Version {v.versionNumber}</option>)}</select></label>
+          <PdfBookReader token={clientToken} version={readerVersion||releasedDraft?.versionNumber} client title={t('track.proof.title', { version: readerVersion||releasedDraft?.versionNumber })} onReviewed={()=>loadOrder(clientToken)} />
 
           {/* Action Decision Controls (Whole-Magazine Approval Gate) */}
           {order.status === 'client_review' ? (

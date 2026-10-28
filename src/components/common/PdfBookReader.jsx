@@ -1,84 +1,94 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { proofApi } from '../../services/api';
 import './pdfBookReader.css';
 
-function PdfPage({ document, pageNumber }) {
-  const canvas = useRef(null);
+function Page({ reader, number, annotations, mode, onSelect, onFocus, focused }) {
+  const [image, setImage] = useState(''); const [text, setText] = useState(null); const [error, setError] = useState('');
+  const [attempt,setAttempt]=useState(0);
+  const surface = useRef(null); const drag = useRef(null); const [box, setBox] = useState(null);
   useEffect(() => {
-    let cancelled = false;
-    let task;
-    document.getPage(pageNumber).then((page) => {
-      if (cancelled) return;
-      const viewport = page.getViewport({ scale: Math.min(1.45, 900 / page.getViewport({ scale: 1 }).width) });
-      const target = canvas.current;
-      target.width = viewport.width; target.height = viewport.height;
-      task = page.render({ canvasContext: target.getContext('2d'), viewport });
-      return task.promise;
-    }).catch(() => {});
-    return () => { cancelled = true; task?.cancel(); };
-  }, [document, pageNumber]);
-  return <canvas ref={canvas} className="pdf-book-page" aria-label={`Page ${pageNumber}`} />;
+    let active = true; let timer; let url;
+    setImage(''); setText(null); setError('');
+    const load = async () => {
+      try {
+        const blob = await reader.page(number);
+        const positions = await reader.text(number);
+        if (!active) return;
+        url = URL.createObjectURL(blob); setImage(url); setText(positions);
+      } catch (e) { if (active) { if (e.pending) timer = setTimeout(load, 2000); else setError(e.message); } }
+    };
+    load(); return () => { active = false; clearTimeout(timer); if (url) URL.revokeObjectURL(url); };
+  }, [reader, number, attempt]);
+  const point = (event) => { const r = surface.current.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX-r.left)/r.width)), y: Math.max(0, Math.min(1, (event.clientY-r.top)/r.height)) }; };
+  const rectangle = (a, b) => ({ x: Math.min(a.x,b.x), y: Math.min(a.y,b.y), width: Math.abs(a.x-b.x), height: Math.abs(a.y-b.y) });
+  const finish = (event) => {
+    if (mode === 'area' && drag.current) {
+      const rect = rectangle(drag.current, point(event)); drag.current = null; setBox(null);
+      if (rect.width > .003 && rect.height > .003) onSelect({ page: number, kind: 'area', rects: [rect], selectedText: '' });
+    } else if (mode === 'text') {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount || !selection.toString().trim() || !surface.current.contains(selection.anchorNode) || !surface.current.contains(selection.focusNode)) return;
+      const r = surface.current.getBoundingClientRect();
+      const rects = [...selection.getRangeAt(0).getClientRects()].map((b) => ({ x: Math.max(0,(b.left-r.left)/r.width), y: Math.max(0,(b.top-r.top)/r.height), width: Math.min(b.width/r.width, (r.right-b.left)/r.width), height: Math.min(b.height/r.height,(r.bottom-b.top)/r.height) })).filter((b) => b.width>0 && b.height>0);
+      if (rects.length) onSelect({ page: number, kind: 'text', rects, selectedText: selection.toString() });
+      selection.removeAllRanges();
+    }
+  };
+  if (error) return <div className="proof-page-message" role="alert">{error}<button onClick={async () => { try { await reader.retry(); setAttempt((n)=>n+1); } catch(e) { setError(e.message); } }}>Retry preparation</button></div>;
+  if (!image || !text) return <div className="proof-page-message" role="status">Preparing page {number}…</div>;
+  const styleRect = (r) => ({ left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.width*100}%`,height:`${r.height*100}%` });
+  return <div className={`proof-sheet mode-${mode}`} ref={surface} style={{ aspectRatio: `${text.width}/${text.height}` }}
+    onPointerDown={(e) => { if (mode === 'area') { drag.current=point(e); surface.current.setPointerCapture(e.pointerId); } }}
+    onPointerMove={(e) => { if (drag.current) setBox(rectangle(drag.current,point(e))); }} onPointerCancel={() => {drag.current=null;setBox(null);}} onPointerUp={finish}>
+    <img src={image} alt={`Magazine page ${number}`} draggable={false}/>
+    <div className="proof-text-layer" aria-label={`Page ${number} text`}>
+      {text.text.map((t,i) => <span key={i} style={{left:`${t.x*100}%`,top:`${t.y*100}%`,width:`${t.width*100}%`,height:`${t.height*100}%`,fontSize:`${Math.max(1,t.height*text.height/text.width*100)}cqw`,transform:`rotate(${t.angle||0}deg)`}}>{t.str}</span>)}
+    </div>
+    {annotations.filter((a)=>a.page===number).flatMap((a)=>a.rects.map((r,i)=><button key={`${a._id}-${i}`} aria-label={`Comment: ${a.text}`} className={`proof-mark${focused===a._id?' is-focused':''}`} style={styleRect(r)} onClick={()=>onFocus(a._id)}/>))}
+    {box&&<div className="proof-drag-box" style={styleRect(box)}/>}
+  </div>;
 }
-
-export default function PdfBookReader({ loadPdf, title = 'Magazine proof', allowDownload = false, onDownload }) {
-  const [document, setDocument] = useState(null);
-  const [page, setPage] = useState(1);
-  const [singlePage, setSinglePage] = useState(() => window.matchMedia('(max-width: 760px)').matches);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [turning, setTurning] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 760px)');
-    const update = () => setSinglePage(media.matches);
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true); setError(''); setDocument(null); setPage(1);
-    Promise.all([loadPdf().then((blob) => blob.arrayBuffer()), import('pdfjs-dist')])
-      .then(([data, pdfjsLib]) => {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-        return pdfjsLib.getDocument({ data }).promise;
-      })
-      .then((pdf) => { if (active) setDocument(pdf); })
-      .catch((err) => { if (active) setError(err.message || 'Unable to open this PDF'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [loadPdf]);
-
-  const step = singlePage ? 1 : 2;
-  const go = (next) => {
-    if (!document) return;
-    setTurning(true);
-    setPage(Math.max(1, Math.min(document.numPages, next)));
-    window.setTimeout(() => setTurning(false), 280);
-  };
-  const onKeyDown = (event) => {
-    if (event.key === 'ArrowLeft') go(page - step);
-    if (event.key === 'ArrowRight') go(page + step);
-  };
-
-  if (loading) return <div className="pdf-book-state"><Loader2 className="spin" /> Loading magazine…</div>;
-  if (error) return <div className="pdf-book-state is-error">{error}</div>;
-  if (!document) return null;
-
-  return (
-    <section className="pdf-book" tabIndex={0} onKeyDown={onKeyDown} aria-label={`${title} PDF reader`}>
-      <header><div><strong>{title}</strong><span>Page {page}{!singlePage && page < document.numPages ? `–${page + 1}` : ''} of {document.numPages}</span></div>
-        {allowDownload && <button type="button" onClick={onDownload}><Download size={16} /> Download PDF</button>}
-      </header>
-      <div className={`pdf-book-spread${turning ? ' is-turning' : ''}`}>
-        <PdfPage document={document} pageNumber={page} />
-        {!singlePage && page < document.numPages && <PdfPage document={document} pageNumber={page + 1} />}
+export default function PdfBookReader({ token, orderId, version, client = false, title = 'Magazine proof', onReviewed, focusAnnotation }) {
+  const reader = useMemo(()=>proofApi(token,orderId,version,client),[token,orderId,version,client]);
+  const [refresh,setRefresh]=useState(0);
+  const root=useRef(null); const [metadata,setMetadata]=useState(null); const [error,setError]=useState('');
+  const [page,setPage]=useState(1); const [single,setSingle]=useState(window.innerWidth<=760); const [zoom,setZoom]=useState(1);
+  const [mode,setMode]=useState('read'); const [selection,setSelection]=useState(null); const [comment,setComment]=useState('');
+  const [saving,setSaving]=useState(false); const [sync,setSync]=useState(''); const [focused,setFocused]=useState(null); const [showComments,setShowComments]=useState(true);
+  useEffect(()=>{const media=window.matchMedia('(max-width:760px)');const change=()=>setSingle(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+  useEffect(()=>{
+    let active=true;let timer;setMetadata(null);setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    const load=async()=>{try{const data=await reader.metadata();if(!active)return;setMetadata(data);if(data.state!=='failed'&&!data.pageCount)timer=setTimeout(load,3000);}catch(e){if(active)setError(e.message);}};
+    load();return()=>{active=false;clearTimeout(timer);};
+  },[reader,refresh]);
+  useEffect(()=>{if(focusAnnotation&&metadata){const a=metadata.annotations.find((a)=>a._id===focusAnnotation);if(a){setPage(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);setShowComments(true);}}},[focusAnnotation,metadata,single]);
+  useEffect(()=>{if(!single)setPage((p)=>p>1&&p%2===1?p-1:p);},[single]);
+  const annotations=metadata?.annotations||[];
+  const pending=annotations.filter((a)=>!a.submittedAt);
+  const next=()=>setPage((p)=>Math.min(metadata.pageCount,p===1||single?p+1:p+2));
+  const previous=()=>setPage((p)=>Math.max(1,single?p-1:p===2?1:p-2));
+  const save=async(e)=>{e.preventDefault();if(!selection||!comment.trim())return;setSaving(true);setSync('Saving…');setError('');try{const data=await reader.save({...selection,text:comment});setMetadata((m)=>({...m,annotations:data.annotations}));setSelection(null);setComment('');setSync('Saved');}catch(e){setError(e.message);setSync('Save failed — retry');}finally{setSaving(false);}};
+  const discard=async(id)=>{setError('');try{const data=await reader.discard(id);setMetadata((m)=>({...m,annotations:data.annotations}));setSync('Saved');}catch(e){setError(e.message);}};
+  const submit=async()=>{if(selection){setError('Save or cancel the current comment first.');return;}setSaving(true);setError('');try{await reader.submit();const data=await reader.metadata();setMetadata(data);setMode('read');setSync('Corrections submitted');onReviewed?.();}catch(e){setError(e.message);}finally{setSaving(false);}};
+  const jump=(a)=>{setPage(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);};
+  return <section ref={root} className="pdf-book" aria-label={`${title} reader`} onContextMenu={(e)=>e.preventDefault()} onKeyDown={(e)=>{if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(!metadata?.pageCount)return;if(e.key==='ArrowRight'){e.preventDefault();next();}if(e.key==='ArrowLeft'){e.preventDefault();previous();}if((e.ctrlKey||e.metaKey)&&['p','s'].includes(e.key.toLowerCase()))e.preventDefault();}} tabIndex={0}>
+    <header><strong>{title}</strong><div className="proof-tools"><button onClick={()=>setZoom((z)=>Math.max(.6,z-.2))} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>setZoom((z)=>Math.min(2,z+.2))} aria-label="Zoom in">+</button><button onClick={()=>setSingle(!single)}>{single?'Book view':'Single page'}</button><button onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else root.current.requestFullscreen?.().catch(()=>setError('Fullscreen is unavailable'));}}>Fullscreen</button><button onClick={()=>setShowComments(!showComments)}>Comments ({annotations.length})</button></div></header>
+    {metadata?.canComment&&<div className="proof-tools proof-mode">{[['read','Read'],['text','Select text'],['area','Mark image / area']].map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}<span role="status">{sync}</span></div>}
+    {error&&<div className="proof-error" role="alert">{error}</div>}
+    {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!metadata.pageCount?<div className="proof-page-message">Preparing protected magazine…</div>:<>
+      <div className={`proof-layout${showComments?'':' no-comments'}`}>
+        <div className="proof-scroll"><div className="pdf-book-spread" style={{width:`${zoom*100}%`,minWidth:'100%'}}>
+          <Page key={`${version}-${page}`} reader={reader} number={page} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>
+          {!single&&page>1&&page<metadata.pageCount&&<Page key={`${version}-${page+1}`} reader={reader} number={page+1} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>}
+        </div></div>
+        {showComments&&<aside className="proof-comments" aria-label="Magazine comments">
+          {selection&&metadata.canComment&&<form onSubmit={save}><strong>Page {selection.page} correction</strong>{selection.selectedText&&<blockquote>{selection.selectedText}</blockquote>}<textarea aria-label="Correction comment" value={comment} onChange={(e)=>setComment(e.target.value)} required maxLength={4000}/><button disabled={saving}>Save comment</button><button type="button" disabled={saving} onClick={()=>{setSelection(null);setComment('');}}>Cancel</button></form>}
+          {!annotations.length&&<p>{metadata.canComment?'Select text or mark an image area to add a correction.':'No submitted corrections for this version.'}</p>}
+          {annotations.map((a)=><article key={a._id} className={focused===a._id?'is-focused':''}><button onClick={()=>jump(a)}>Page {a.page} · {a.authorName}</button>{a.selectedText&&<blockquote>{a.selectedText}</blockquote>}<p>{a.text}</p><small>{a.submittedAt?'Submitted':'Private review comment'} · {new Date(a.createdAt).toLocaleString()}</small>{!a.submittedAt&&metadata.canComment&&<button onClick={()=>discard(a._id)}>Discard</button>}</article>)}
+          {metadata.canComment&&pending.length>0&&<button disabled={saving} onClick={submit}>Return for corrections ({pending.length})</button>}
+        </aside>}
       </div>
-      <footer>
-        <button type="button" aria-label="Previous page" disabled={page === 1} onClick={() => go(page - step)}><ChevronLeft /></button>
-        <span>{singlePage ? 'Single page' : 'Book view'}</span>
-        <button type="button" aria-label="Next page" disabled={page + step > document.numPages} onClick={() => go(page + step)}><ChevronRight /></button>
-      </footer>
-    </section>
-  );
+      <footer><button aria-label="Previous page" disabled={page===1} onClick={previous}>←</button><label>Page <input aria-label="Go to page" type="number" min="1" max={metadata.pageCount} value={page} onChange={(e)=>{const n=Number(e.target.value);if(n>=1&&n<=metadata.pageCount)setPage(single||n===1?n:n%2===0?n:n-1);}}/> of {metadata.pageCount}</label><button aria-label="Next page" disabled={page+(single||page===1?1:2)>metadata.pageCount} onClick={next}>→</button></footer>
+    </>}
+  </section>;
 }
