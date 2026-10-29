@@ -17,3 +17,8 @@ test('failed page loads can retry without poisoning the cache',async()=>{
   let failures=1;const cache=createProofPageCache({page:async()=>{if(failures--)throw new Error('Temporary failure');return 1;},text:async()=>({text:[]})},{decode:async()=>{},createUrl:()=>'/page',revokeUrl:()=>{}});
   await assert.rejects(cache.get(1),/Temporary/);assert.equal((await cache.get(1)).image,'/page');cache.dispose();
 });
+test('bundles load once and navigation aborts obsolete prefetch before visible work',async()=>{
+ const started=[],aborted=[];const reader={bundle:(n,signal)=>new Promise((resolve,reject)=>{started.push(n);if(n===1)return resolve({blob:n,text:{text:[]}});signal.addEventListener('abort',()=>{aborted.push(n);reject(new DOMException('Cancelled','AbortError'));});if(n===10)resolve({blob:n,text:{text:[]}});}),page:()=>{throw new Error('Bundle should avoid fallback');}};
+ const cache=createProofPageCache(reader,{decode:async()=>{},createUrl:n=>`page:${n}`,revokeUrl:()=>{}});await cache.get(1);cache.get(2,{priority:0}).catch(()=>{});cache.get(3,{priority:0}).catch(()=>{});cache.get(4,{priority:0}).catch(()=>{});
+ cache.setVisible([10]);assert.equal((await cache.get(10)).image,'page:10');assert.deepEqual(aborted,[2,3]);assert.ok(!started.includes(4));cache.dispose();
+});

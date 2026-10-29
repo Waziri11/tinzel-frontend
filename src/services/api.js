@@ -440,14 +440,24 @@ export const api = {
 
 export function proofApi(token, orderId, version, client = false) {
   const base = `${API_BASE}/api/proofs/${client ? 'client' : `staff/${orderId}`}/${version}`;
+  const view=crypto.randomUUID();
   const request = (suffix = '', method = 'GET', body) => fetch(base + suffix, {
     method, headers: getHeaders(token), cache: 'no-store', ...(body ? { body: JSON.stringify(body) } : {}),
   }).then(handleResponse);
   return {
     metadata: () => request(),
     prepare: (pages) => request('/prepare', 'POST', { pages }),
-    page: async (page) => {
-      const response = await fetch(`${base}/pages/${page}`, { headers: getHeaders(token), cache: 'no-store' });
+    bundle: import.meta.env.VITE_PROOF_FAST_READER === 'false' ? undefined : async (page,signal) => {
+      const res=await fetch(`${base}/pages/${page}?bundle=1&view=${view}`,{headers:getHeaders(token),cache:'no-store',signal});
+      if(res.status===202)throw Object.assign(new Error('Page is being prepared'),{pending:true});
+      if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error((data.message||'Page could not be opened')+(data.diagnostic?.reference?` Reference: ${data.diagnostic.reference}`:''));}
+      if(!res.headers.get('content-type')?.includes('application/vnd.tinzel.proof-page'))return null;
+      const bytes=await res.arrayBuffer();if(bytes.byteLength<4)throw new Error('Incomplete magazine page');
+      const length=new DataView(bytes).getUint32(0);if(length>2*1024*1024||4+length>=bytes.byteLength)throw new Error('Invalid magazine page bundle');
+      return {blob:new Blob([bytes.slice(4+length)],{type:'image/webp'}),text:JSON.parse(new TextDecoder().decode(bytes.slice(4,4+length)))};
+    },
+    page: async (page,signal) => {
+      const response = await fetch(`${base}/pages/${page}`, { headers: getHeaders(token), cache: 'no-store', signal });
       if (response.status === 202) { const error = new Error('Page is being prepared'); error.pending = true; throw error; }
       return handleBlob(response);
     },

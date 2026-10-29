@@ -173,7 +173,7 @@ test('draft upload shows real progress, resumes after reload, and waits for serv
   completeRelease();await expect(page.getByRole('dialog',{name:'Upload new draft'})).toHaveCount(0);await expect(page.getByText(/Draft uploaded and sent to manager review/)).toBeVisible();
 });
 
-test('reader waits for five opening pages and fetches later batches only on navigation',async({page})=>{
+test('reader shows the cover without waiting for later opening pages and prepares distant batches',async({page})=>{
   await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
   await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
   let release;const prepared=new Set([1,2,3,4,5]),requested=[];
@@ -181,7 +181,7 @@ test('reader waits for five opening pages and fetches later batches only on navi
     const url=new URL(route.request().url());
     if(url.pathname.includes('/pages/')){
       const n=Number(url.pathname.split('/').at(-1));if(!prepared.has(n))return route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({message:'Preparing page'})});requested.push(n);
-      if(n===5&&!url.searchParams.has('text'))await new Promise(resolve=>release=resolve);
+      if(n===5)return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({message:'Page 5 failed'})});
       if(url.searchParams.has('text'))return json(route,{width:600,height:800,text:[]});
       return route.fulfill({contentType:'image/svg+xml',body:samplePage});
     }
@@ -189,7 +189,17 @@ test('reader waits for five opening pages and fetches later batches only on navi
     return json(route,{state:'ready',pageCount:12,pages:[...prepared].map(page=>({page})),annotations:[],canComment:false});
   });
   await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
-  await expect(page.getByText('Preparing opening pages — 4 of 5')).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toHaveCount(0);expect(requested.every(n=>n<=5)).toBe(true);
-  release();await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(prepared.size).toBe(5);
+  await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(requested.every(n=>n<=5)).toBe(true);expect(prepared.size).toBe(5);
   await page.getByLabel('Go to page').fill('10');await expect(page.getByAltText('Magazine page 10')).toBeVisible();await expect(page.getByAltText('Magazine page 11')).toBeVisible();expect(prepared.has(12)).toBe(true);
+});
+
+test('direct multipart transfer hashes parts in the real browser worker with four bounded lanes',async({page})=>{
+ await setup(page);await page.goto('/staff/design');
+ const result=await page.evaluate(async()=>{
+  const {transferBlobDraft}=await import('/src/services/blobDraftTransfer.js');let active=0,peak=0;const checkpoints=[];
+  const storage={createMultipartUpload:async()=>({uploadId:'test-upload',key:'test-key'}),uploadPart:async(_path,blob,o)=>{peak=Math.max(peak,++active);await new Promise(r=>setTimeout(r,25));o.onUploadProgress({loaded:blob.size});active--;return {etag:`part-${o.partNumber}`};},completeMultipartUpload:async()=>{}};
+  await transferBlobDraft({session:{pathname:'private/test.pdf',state:'open',chunkBytes:8*1024*1024,authorization:{token:'write-only-fixture',validUntil:Date.now()+3600000}},file:new Blob([new Uint8Array(40*1024*1024+13)]),storage,call:async(_path,body)=>{checkpoints.push(body);}});
+  return {peak,checkpoints:checkpoints.map(c=>c.parts.length),hashes:checkpoints.flatMap(c=>c.parts.map(p=>p.sha256))};
+ });
+ expect(result.peak).toBe(4);expect(result.checkpoints).toEqual([0,4,2]);expect(result.hashes).toHaveLength(6);expect(result.hashes.every(hash=>/^[a-f0-9]{64}$/.test(hash))).toBe(true);
 });

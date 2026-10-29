@@ -51,7 +51,6 @@ function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, foc
 export default function PdfBookReader({ token, orderId, version, client = false, title = 'Magazine proof', onReviewed, focusAnnotation }) {
   const reader = useMemo(()=>proofApi(token,orderId,version,client),[token,orderId,version,client]);
   const [cache,setCache]=useState(null);
-  const [opening,setOpening]=useState({ready:0,total:5});
   const [opened,setOpened]=useState(false);
   const [refresh,setRefresh]=useState(0);
   const root=useRef(null); const [metadata,setMetadata]=useState(null); const [error,setError]=useState('');
@@ -61,19 +60,21 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   useEffect(()=>{const media=window.matchMedia('(max-width:760px)');const change=()=>setSingle(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
   useEffect(()=>{
     let active=true,timer;const localCache=createProofPageCache(reader);setCache(localCache);
-    setMetadata(null);setOpened(false);setOpening({ready:0,total:5});setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    setMetadata(null);setOpened(false);setPage(1);setSelection(null);setComment('');setError('');setSync('');
     const load=async()=>{
       try{
         let data=await reader.metadata();if(!active)return;setMetadata(data);
-        if(data.state==='failed')return;
-        data=await reader.prepare([1]);if(!active)return;setMetadata(data);
-        if(data.failedPages?.some((n)=>n<=5))throw new Error('An opening page could not be prepared. Retry preparation.');
-        const count=Math.min(5,data.pageCount||0);
-        setOpening({ready:0,total:count||5});
-        if(!count||data.pages.filter((p)=>p.page<=count).length<count){timer=setTimeout(load,2000);return;}
-        let ready=0;
-        await Promise.all(Array.from({length:count},(_,i)=>localCache.get(i+1).then(()=>{ready++;if(active)setOpening({ready,total:count});})));
-        if(active)setOpened(true);
+        const cover=data.pages?.some(p=>p.page===1);
+        if(!cover){
+          const diagnostic=data.diagnostics?.find(d=>d.page===0||d.page===1);
+          if(data.state==='failed'||diagnostic)throw new Error((diagnostic?.message||data.message||'Cover preparation failed')+(diagnostic?.reference?` Reference: ${diagnostic.reference}`:''));
+          data=await reader.prepare([1]);if(!active)return;setMetadata(data);
+        }
+        if(data.pages?.some(p=>p.page===1)){
+          await localCache.get(1);if(!active)return;
+          setOpened(true);return;
+        }
+        timer=setTimeout(load,1000);
       }catch(e){if(active)setError(e.message);}
     };
     load();return()=>{active=false;clearTimeout(timer);localCache.dispose();};
@@ -85,11 +86,14 @@ export default function PdfBookReader({ token, orderId, version, client = false,
     const desired=[...new Set(visible.flatMap((number)=>proofBatch(number,metadata.pageCount)))];
     const load=async()=>{
       try{
-        const data=await reader.prepare(visible);if(!active)return;
-        if(data.failedPages?.some((n)=>desired.includes(n)))throw new Error('Page preparation failed. Use Retry preparation on the affected page.');
+        cache.setVisible(visible);
+        const current=await reader.metadata();if(!active)return;
+        const known=new Set(current.pages.map(p=>p.page));
+        const data=desired.every(n=>known.has(n))?current:await reader.prepare(visible);if(!active)return;
+        const failedVisible=data.diagnostics?.find(d=>visible.includes(d.page));if(failedVisible)throw new Error(`${failedVisible.message} Reference: ${failedVisible.reference}`);
         const ready=new Set(data.pages.map((p)=>p.page));
-        // Touch visible pages last so LRU eviction favors the pages being read.
-        for(const number of [...desired.filter((n)=>!visible.includes(n)),...visible])if(ready.has(number))cache.get(number).catch(()=>{});
+        // Fetch visible pages before background pages; the cache pins the current spread.
+        for(const number of [...visible,...desired.filter((n)=>!visible.includes(n))])if(ready.has(number))cache.get(number,{priority:visible.includes(number)?100:0}).catch(()=>{});
         if(desired.some((n)=>!ready.has(n)))timer=setTimeout(load,2000);
       }catch(e){if(active)setError(e.message);}
     };
@@ -109,7 +113,7 @@ export default function PdfBookReader({ token, orderId, version, client = false,
     <header><strong>{title}</strong><div className="proof-tools"><button onClick={()=>setZoom((z)=>Math.max(.6,z-.2))} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>setZoom((z)=>Math.min(2,z+.2))} aria-label="Zoom in">+</button><button onClick={()=>setSingle(!single)}>{single?'Book view':'Single page'}</button><button onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else root.current.requestFullscreen?.().catch(()=>setError('Fullscreen is unavailable'));}}>Fullscreen</button><button onClick={()=>setShowComments(!showComments)}>Comments ({annotations.length})</button></div></header>
     {metadata?.canComment&&<div className="proof-tools proof-mode">{[['read','Read'],['text','Select text'],['area','Mark image / area']].map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}<span role="status">{sync}</span></div>}
     {error&&<div className="proof-error" role="alert">{error}</div>}
-    {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!opened?<div className="proof-page-message" role="status">Preparing opening pages — {opening.ready} of {opening.total}{error&&<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button>}</div>:<>
+    {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'&&!opened?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!opened?<div className="proof-page-message" role="status">Preparing magazine cover…{error&&<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button>}</div>:<>
       <div className={`proof-layout${showComments?'':' no-comments'}`}>
         <div className="proof-scroll"><div className="pdf-book-spread" style={{width:`${zoom*100}%`,minWidth:'100%'}}>
           <Page cache={cache} key={`${version}-${page}`} reader={reader} number={page} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>

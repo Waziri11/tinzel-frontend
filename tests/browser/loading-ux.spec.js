@@ -133,7 +133,7 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   await page.getByRole('button', { name: 'Refresh preview for story.jpg' }).click();
   await expect(page.locator('.tinzel-preview-placeholder')).toHaveCount(0);
   await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).click();
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Design Orders', exact: true }).click();
   await page.getByRole('button', { name: 'Open TNZ-OTHER' }).click();
   await expect(page.getByRole('heading', { name: 'TNZ-OTHER' })).toBeVisible();
   const downloading = page.waitForEvent('download'); jobReady = true; await downloading;

@@ -74,7 +74,11 @@ export async function transferDraft({ token, staffId, orderId, file, metadata, s
     saved={id:session.id,fingerprint:identity,name:file.name,size:file.size,metadata};remember(staffId,orderId,saved);
   }
   if(session.fingerprint!==identity)throw new Error('Select the same PDF to resume, or cancel this upload and start again.');
-  if(session.state!=='complete') {
+  if(session.provider==='blob'){
+    const {transferBlobDraft}=await import('./blobDraftTransfer');
+    await transferBlobDraft({session,file,signal,emit:onProgress,call:(suffix,body)=>request(`${prefix}/${session.id}${suffix}`,token,{method:'POST',body,signal,complete:suffix==='/complete'}),renew:()=>request(`${prefix}/${session.id}`,token,{signal})});
+    acknowledged=file.size;
+  } else if(session.state!=='complete') {
     const chunks=new Map(session.chunks.map((c)=>[c.n,c]));
     for(let n=0;n<Math.ceil(file.size/session.chunkBytes);n++){
       signal?.throwIfAborted();const bytes=await file.slice(n*session.chunkBytes,Math.min(file.size,(n+1)*session.chunkBytes)).arrayBuffer();
