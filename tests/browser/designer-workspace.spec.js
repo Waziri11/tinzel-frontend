@@ -213,7 +213,8 @@ test('fullscreen book fits both pages, turns a two-sided leaf, and cached naviga
  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  await expect(page.getByRole('complementary',{name:'Magazine comments'})).toHaveCount(0);
  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
- const initial=metadataRequests;await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn-leaf')).toBeVisible();await expect(page.locator('.book-turn-front')).toHaveCount(1);await expect(page.locator('.book-turn-back')).toHaveCount(1);
+ const initial=metadataRequests;await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn-leaf')).toBeVisible();await expect(page.locator('.book-turn-front')).toHaveCount(16);await expect(page.locator('.book-turn-back')).toHaveCount(16);
+ await expect.poll(()=>page.locator('.book-paper-segment').first().evaluate(el=>getComputedStyle(el).transform)).toContain('matrix3d');
  await expect.poll(()=>page.locator('.book-turn-leaf').evaluate(el=>getComputedStyle(el).transform)).toContain('matrix3d');
  await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.getByAltText('Magazine page 3')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
  for(const n of [2,3]){const b=await page.getByAltText(`Magazine page ${n}`).boundingBox();expect(b.x).toBeGreaterThanOrEqual(0);expect(b.y).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(856);expect(b.width).toBeGreaterThan(400);}
@@ -260,4 +261,50 @@ test('landscape PDF pages keep their aspect ratio and correction coordinates ins
  await page.route('**/api/proofs/staff/order-1/1/pages/2*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:800,height:600,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage.replace('width="600" height="800"','width="800" height="600"')}));
  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark image / area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
  await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();await page.getByLabel('Correction comment').fill('Landscape layout correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const annotation=(await sent).postDataJSON();expect(annotation.page).toBe(2);expect(annotation.rects[0].width).toBeCloseTo(.3,1);expect(annotation.rects[0].height).toBeCloseTo(.2,1);
+});
+
+test('saving an earlier comment preserves newer typing and its marked region',async({page})=>{
+ await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
+ await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
+ let release;const gate=new Promise(resolve=>release=resolve);
+ await page.route('**/api/proofs/staff/order-1/1/annotations',async route=>{const body=route.request().postDataJSON();await gate;return json(route,{annotations:[{...body,_id:'saved-1',authorName:'Manager'}]});});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Mark image / area',exact:true}).click();
+ const b=await page.getByAltText('Magazine page 1').boundingBox();await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();
+ await expect(page.locator('.proof-selection-mark')).toBeVisible();await page.getByLabel('Correction comment').fill('First correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const payload=(await sent).postDataJSON();expect(payload.clientMutationId).toMatch(/^[a-f0-9-]{36}$/i);
+ await page.getByLabel('Correction comment').fill('Newer correction still being written');release();await expect(page.getByText('Saved earlier comment — your current draft is still here')).toBeVisible();await expect(page.getByLabel('Correction comment')).toHaveValue('Newer correction still being written');await expect(page.locator('.proof-selection-mark')).toBeVisible();
+});
+
+test('temporary profile failure preserves sign-in and retries without showing protected content',async({page})=>{
+ await setup(page);let unavailable=true;
+ await page.route('**/api/staff/me',route=>unavailable?route.fulfill({status:503,contentType:'application/json',body:'{}'}):json(route,{user:designer}));
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByRole('button',{name:'Retry connection'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBe('designer-test');
+ unavailable=false;await page.getByRole('button',{name:'Retry connection'}).click();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toBeVisible();
+});
+
+test('invalid staff session is cleared and requires sign-in',async({page})=>{
+ await setup(page);await page.route('**/api/staff/me',route=>route.fulfill({status:401,contentType:'application/json',body:'{}'}));
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByRole('heading',{name:'Staff Workstation Sign In'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
+});
+
+test('cover transfer overlaps metadata and a compatible image response is downloaded only once',async({page})=>{
+ await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page);
+ let release;const metadataGate=new Promise(resolve=>release=resolve);let imageRequests=0,rawImageRequests=0;
+ await page.route('**/api/proofs/staff/order-1/1',async route=>{await metadataGate;return json(route,{state:'ready',pageCount:3,pages:[1,2,3].map(page=>({page,width:600,height:800})),annotations:[],canComment:false});});
+ page.on('request',r=>{const url=new URL(r.url());if(url.pathname.endsWith('/pages/1')&&!url.searchParams.has('text')){imageRequests++;if(!url.searchParams.has('bundle'))rawImageRequests++;}});
+ const coverRequested=page.waitForRequest(r=>new URL(r.url()).pathname.endsWith('/pages/1'));
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+ try{await coverRequested;expect(imageRequests).toBeGreaterThan(0);}finally{release();}
+ await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(rawImageRequests).toBe(0);
+});
+
+test('paper bends through connected hinges during the turn and settles flat',async({page})=>{
+ await setup(page);await page.setViewportSize({width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn')).toHaveCount(0);
+ // Hold the decorative leaf long enough to capture and inspect its half-turn geometry.
+ await page.evaluate(()=>{const schedule=window.setTimeout;window.setTimeout=(fn,ms,...args)=>schedule(fn,ms===660?4000:ms,...args);});
+ await page.addStyleTag({content:'.book-turn-leaf,.book-paper-segment,.book-turn::before,.book-turn-front::after,.book-turn-back::after{animation-play-state:paused!important;animation-delay:-.32s!important}'});
+ await page.getByRole('button',{name:'Next page',exact:true}).click();
+ const bends=await page.locator('.book-paper-segment').evaluateAll(elements=>elements.map(el=>getComputedStyle(el).transform));expect(bends.length).toBe(16);expect(new Set(bends).size).toBeGreaterThan(8);expect(bends.every(value=>value.includes('matrix3d'))).toBe(true);
+ await page.screenshot({path:'/tmp/tinzel-paper-curl.png'});await expect(page.locator('.book-turn')).toHaveCount(0);await expect(page.getByAltText('Magazine page 4')).toBeVisible();
 });

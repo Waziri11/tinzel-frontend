@@ -30,3 +30,17 @@ test('an aborted prefetch cannot remove its newer replacement from the cache',as
  let calls=0;const reader={bundle:(n,signal)=>{calls++;if(calls>1)return Promise.resolve({blob:n,text:{text:[]}});return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>queueMicrotask(()=>reject(new DOMException('Cancelled','AbortError')))));}};
  const cache=createProofPageCache(reader,{decode:async()=>{},createUrl:n=>`page:${n}`,revokeUrl:()=>{}});cache.get(2,{priority:0}).catch(()=>{});cache.setVisible([3]);const replacement=cache.get(2);await replacement;assert.equal(cache.get(2),replacement);assert.equal(calls,2);cache.dispose();
 });
+test('turning animation keeps the useful prefetch window alive instead of restarting it',async()=>{
+ const releases=new Map(),aborted=[],loads=[];
+ const cache=createProofPageCache({bundle:(n,signal)=>new Promise((resolve,reject)=>{loads.push(n);releases.set(n,()=>resolve({blob:new Blob([String(n)]),text:{text:[]}}));signal.addEventListener('abort',()=>{aborted.push(n);reject(new DOMException('Cancelled','AbortError'));});})},{decode:async()=>{},createUrl:()=>'/cached',revokeUrl:()=>{}});
+ const second=cache.get(2,{priority:0}),third=cache.get(3,{priority:0});cache.setVisible([1,2,3],{retain:[1,2,3,4,5]});cache.setVisible([2,3],{retain:[1,2,3,4,5]});assert.deepEqual(aborted,[]);releases.get(2)();releases.get(3)();await Promise.all([second,third]);assert.deepEqual(loads,[2,3]);cache.dispose();
+});
+test('revisiting a decoded-cache eviction reuses its compressed private bundle',async()=>{
+ let loads=0;const cache=createProofPageCache({bundle:async n=>{loads++;return {blob:new Blob([String(n)]),text:{width:600,height:800,text:[]}};}},{limit:2,decode:async()=>{},createUrl:()=>'/cached',revokeUrl:()=>{}});
+ for(let n=1;n<=5;n++)await cache.get(n);assert.equal(cache.size,2);assert.equal(cache.encodedSize,5);await cache.get(1);assert.equal(loads,5);assert.equal(cache.size,2);cache.dispose();assert.equal(cache.encodedBytes,0);assert.equal(cache.encodedSize,0);
+});
+test('compressed bundles enforce their memory budget and never cross reader instances',async()=>{
+ let loads=0;const reader={bundle:async()=>{loads++;return {blob:new Blob([new Uint8Array(900)]),text:{text:[]}};}};
+ const options={limit:1,maxEncodedBytes:2000,decode:async()=>{},createUrl:()=>'/cached',revokeUrl:()=>{}};const first=createProofPageCache(reader,options);
+ for(let n=1;n<=6;n++)await first.get(n);assert.ok(first.encodedBytes<=2000);assert.equal(first.encodedSize,2);await first.get(1);assert.equal(loads,7);first.dispose();const second=createProofPageCache(reader,options);await second.get(1);assert.equal(loads,8);second.dispose();
+});

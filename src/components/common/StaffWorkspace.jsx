@@ -156,7 +156,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   }, [token, refreshUnreadCount]);
 
   const loadProfile = async (authToken) => {
-    setLoading(true);
+    setLoading(true);setError(null);
     try {
       const data = await api.staffAuth.getMe(authToken);
       setCurrentUser(data.user);
@@ -172,9 +172,11 @@ export default function StaffWorkspace({ onExitToHome }) {
         setActivePage('pre_design');
       }
     } catch (err) {
-      setToken('');
       setCurrentUser(null);
-      localStorage.removeItem('tinzel_staff_token');
+      if ([401,403].includes(err.status)) {
+        setToken('');
+        localStorage.removeItem('tinzel_staff_token');
+      } else setError('Unable to reconnect to your workspace. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -227,6 +229,13 @@ export default function StaffWorkspace({ onExitToHome }) {
   // -------------------------------------------------------------
   // Unauthenticated: High-End Minimalist Login Screen
   // -------------------------------------------------------------
+  if (token && !currentUser) {
+    return <main style={{minHeight:'100dvh',display:'grid',placeContent:'center',gap:16,textAlign:'center',padding:24}} aria-busy={loading}>
+      <p role="status">{error || 'Reconnecting to your workspace…'}</p>
+      {error && <button type="button" disabled={loading} onClick={()=>loadProfile(token)}>Retry connection</button>}
+    </main>;
+  }
+
   if (!token || !currentUser) {
     return (
       <div

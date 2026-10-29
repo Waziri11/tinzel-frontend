@@ -1,12 +1,12 @@
-import { createProofPageCache, proofBatch } from '../../utils/proofPageCache';
+import { createProofPageCache, proofWindow } from '../../utils/proofPageCache';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { proofApi } from '../../services/api';
 import './pdfBookReader.css';
-import BookStage from './BookStage';
+import BookStage, {PAPER_TURN_MS} from './BookStage';
 import {createPortal} from 'react-dom';
 import {Maximize, Minimize, MessageSquare, X, ChevronLeft, ChevronRight, Columns2, Square, Minus, Plus} from 'lucide-react';
 
-const Page=React.memo(function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, focused }) {
+const Page=React.memo(function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, focused, pendingSelection, onUseArea }) {
   const cached=cache.peek(number);
   const [image, setImage] = useState(cached?.image||''); const [text, setText] = useState(cached?.text||null); const [error, setError] = useState('');
   const [attempt,setAttempt]=useState(0);
@@ -48,6 +48,8 @@ const Page=React.memo(function Page({ reader, cache, number, annotations, mode, 
     {mode==='text'&&<div className="proof-text-layer" aria-label={`Page ${number} text`}>
       {text.text.map((t,i) => <span key={i} style={{left:`${t.x*100}%`,top:`${t.y*100}%`,width:`${t.width*100}%`,height:`${t.height*100}%`,fontSize:`${Math.max(1,t.height*text.height/text.width*100)}cqw`,transform:`rotate(${t.angle||0}deg)`}}>{t.str}</span>)}
     </div>}
+    {pendingSelection?.rects.map((rect,index)=><div key={`draft-${index}`} className="proof-selection-mark" style={styleRect(rect)} aria-label="Unsaved correction selection"/>)}
+    {mode==='text'&&!text.text.length&&<button className="proof-image-page-hint" onClick={onUseArea}>This page is image-based. Mark an area instead.</button>}
     {annotations.filter((a)=>a.page===number).flatMap((a)=>a.rects.map((r,i)=><button key={`${a._id}-${i}`} aria-label={`Comment: ${a.text}`} className={`proof-mark${focused===a._id?' is-focused':''}`} style={styleRect(r)} onClick={()=>onFocus(a._id)}/>))}
     {box&&<div className="proof-drag-box" style={styleRect(box)}/>}
   </div>;
@@ -64,12 +66,24 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   const navigation=useRef(0),turnTimer=useRef(null),jumpTimer=useRef(null),metadataRef=useRef(null),busy=useRef(false);
   const [pageInput,setPageInput]=useState('1');
   useEffect(()=>setPageInput(String(page)),[page]);
+  const reviewGeneration=useRef(0),discardLock=useRef(false);
+  const [discarding,setDiscarding]=useState(null);
+  const annotationRevision=useRef(0),saveAttempt=useRef(null),draftRef=useRef(null),commentInput=useRef(null);
   const rememberMetadata=(data)=>{metadataRef.current=data;setMetadata(data);};
+  const readReview=async(load)=>{
+    const revision=annotationRevision.current,data=await load();
+    return revision===annotationRevision.current?data:{...data,annotations:metadataRef.current?.annotations||data.annotations};
+  };
+  const readMetadata=()=>readReview(()=>reader.metadata());
+  const preparePages=pages=>readReview(()=>reader.prepare(pages));
   const pagesAt=(number)=>[number,...(!single&&number>1&&number<metadataRef.current?.pageCount?[number+1]:[])];
   const [mode,setMode]=useState('read'); const [selection,setSelection]=useState(null); const [comment,setComment]=useState('');
   const select=useCallback(value=>{setSelection(value);setShowComments(true);},[]);
+  const useArea=useCallback(()=>setMode('area'),[]);
   const focus=useCallback(id=>{setFocused(id);setShowComments(true);},[]);
   const [saving,setSaving]=useState(false); const [sync,setSync]=useState(''); const [focused,setFocused]=useState(null); const [showComments,setShowComments]=useState(false);
+  draftRef.current={selection,comment};
+  useEffect(()=>{if(selection&&showComments)commentInput.current?.focus({preventScroll:true});},[selection,showComments]);
   useLayoutEffect(()=>{
     if(expanded)return;
     const element=root.current;
@@ -80,18 +94,21 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   useEffect(()=>{const media=window.matchMedia(MOBILE_QUERY);const change=()=>setMobile(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
   useEffect(()=>{
     let active=true,timer;const localCache=createProofPageCache(reader);setCache(localCache);
-    metadataRef.current=null;setMetadata(null);setOpened(false);setTurn(null);busy.current=false;setNavigating(false);setShowComments(false);setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    reviewGeneration.current++;discardLock.current=false;setDiscarding(null);setSaving(false);annotationRevision.current=0;saveAttempt.current=null;metadataRef.current=null;setMetadata(null);setOpened(false);setTurn(null);busy.current=false;setNavigating(false);setShowComments(false);setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    // Both endpoints authenticate independently. Start the cover while metadata is in flight.
+    let openingCover=localCache.get(1).then(value=>({value}),error=>({error}));
     const load=async()=>{
       try{
-        let data=await reader.metadata();if(!active)return;rememberMetadata(data);
+        let data=await readMetadata();if(!active)return;rememberMetadata(data);
         const cover=data.pages?.some(p=>p.page===1);
         if(!cover){
           const diagnostic=data.diagnostics?.find(d=>d.page===0||d.page===1);
           if(data.state==='failed'||diagnostic)throw new Error((diagnostic?.message||data.message||'Cover preparation failed')+(diagnostic?.reference?` Reference: ${diagnostic.reference}`:''));
-          data=await reader.prepare([1]);if(!active)return;rememberMetadata(data);
+          data=await preparePages([1]);if(!active)return;rememberMetadata(data);
         }
         if(data.pages?.some(p=>p.page===1)){
-          await localCache.get(1);if(!active)return;
+          const first=openingCover?await openingCover:null;openingCover=null;
+          if(!first?.value)await localCache.get(1);if(!active)return;
           setOpened(true);return;
         }
         timer=setTimeout(load,1000);
@@ -102,18 +119,15 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   useEffect(()=>{
     if(!opened||!metadata?.pageCount||!cache)return;
     let active=true,timer,prepared=false;
-    const visible=pagesAt(page),nextPage=Math.min(metadata.pageCount,page+(single||page===1?1:2));
-    const ahead=nextPage!==page?pagesAt(nextPage):[];
-    const desired=[...new Set([...visible,...ahead,...visible.flatMap(number=>proofBatch(number,metadata.pageCount))])];
-    cache.setVisible([...visible,...(turn?.oldPages||[])]);
+    const {visible,desired}=proofWindow(page,metadata.pageCount,single);
     const load=async()=>{
       try{
         let data=metadataRef.current;
         const ready=new Set(data.pages.map(p=>p.page)),failed=new Set((data.diagnostics||[]).map(d=>d.page));
         const missing=desired.filter(n=>!ready.has(n)&&!failed.has(n));
         if(missing.length){
-          if(!prepared){prepared=true;data=await reader.prepare([missing[0],missing.at(-1)].filter((n,i,a)=>a.indexOf(n)===i));}
-          else data=await reader.metadata();
+          if(!prepared){prepared=true;data=await preparePages([missing[0],missing.at(-1)].filter((n,i,a)=>a.indexOf(n)===i));}
+          else data=await readMetadata();
           if(!active)return;rememberMetadata(data);
         }
         const available=new Set(data.pages.map(p=>p.page));
@@ -122,7 +136,12 @@ export default function PdfBookReader({ token, orderId, version, client = false,
       }catch(e){if(active)setError(e.message);}
     };
     load();return()=>{active=false;clearTimeout(timer);};
-  },[reader,cache,opened,page,single,metadata?.pageCount,turn]);
+  },[reader,cache,opened,page,single,metadata?.pageCount]);
+  useEffect(()=>{
+    if(!cache||!opened||!metadata?.pageCount)return;
+    const {visible,desired}=proofWindow(page,metadata.pageCount,single);
+    cache.setVisible([...visible,...(turn?.oldPages||[])],{retain:desired});
+  },[cache,opened,page,single,metadata?.pageCount,turn]);
   useEffect(()=>{const changed=()=>{if(!document.fullscreenElement)setExpanded(false);};document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
   useEffect(()=>{if(!expanded)return;const overflow=document.body.style.overflow;document.body.style.overflow='hidden';root.current.focus({preventScroll:true});root.current.requestFullscreen?.().catch(()=>{});return()=>{document.body.style.overflow=overflow;};},[expanded]);
   const toggleFullscreen=()=>{
@@ -132,17 +151,17 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   const navigate=async(target)=>{
     if(!cache||busy.current||target===page||target<1||target>metadataRef.current?.pageCount)return;
     const id=++navigation.current,oldPages=pagesAt(page),targetPages=pagesAt(target);
-    busy.current=true;setNavigating(true);setError('');cache.setVisible([...oldPages,...targetPages]);
+    busy.current=true;setNavigating(true);setError('');cache.setVisible([...oldPages,...targetPages],{retain:proofWindow(target,metadataRef.current.pageCount,single).desired});
     try{
       const load=()=>Promise.all(targetPages.map(number=>cache.get(number)));
       try{await load();}catch(e){
         if(!e.pending)throw e;
-        let data=await reader.prepare(targetPages);if(id!==navigation.current)return;rememberMetadata(data);
+        let data=await preparePages(targetPages);if(id!==navigation.current)return;rememberMetadata(data);
         for(let attempt=0;!targetPages.every(n=>data.pages.some(p=>p.page===n));attempt++){
           const failure=data.diagnostics?.find(d=>targetPages.includes(d.page));if(failure)throw new Error(`${failure.message} Reference: ${failure.reference}`);
           if(attempt>=90)throw new Error('These pages are still being prepared. Please try again shortly.');
           await new Promise(resolve=>setTimeout(resolve,1500));if(id!==navigation.current)return;
-          data=await reader.metadata();if(id!==navigation.current)return;rememberMetadata(data);
+          data=await readMetadata();if(id!==navigation.current)return;rememberMetadata(data);
         }
         await load();
       }
@@ -152,8 +171,8 @@ export default function PdfBookReader({ token, orderId, version, client = false,
       if(!reduced){setTurn({direction,front,back,oldPages,fromCover:page===1,toCover:target===1,stationary:!single&&oldPages.length===2?cache.peek(direction==='forward'?oldPages[0]:oldPages[1]):null});}
       setPage(target);setNavigating(false);
       if(reduced)busy.current=false;
-      else turnTimer.current=setTimeout(()=>{setTurn(null);busy.current=false;},560);
-    }catch(e){if(id===navigation.current){setError(e.message);setNavigating(false);busy.current=false;cache.setVisible(pagesAt(page));}}
+      else turnTimer.current=setTimeout(()=>{setTurn(null);busy.current=false;},PAPER_TURN_MS+20);
+    }catch(e){if(id===navigation.current){setError(e.message);setNavigating(false);busy.current=false;cache.setVisible(pagesAt(page),{retain:proofWindow(page,metadataRef.current.pageCount,single).desired});}}
   };
   useEffect(()=>{if(focusAnnotation&&metadata){const a=metadata.annotations.find((a)=>a._id===focusAnnotation);if(a){navigate(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);setShowComments(true);}}},[focusAnnotation,metadata,single]);
   useEffect(()=>{if(!single)setPage((p)=>p>1&&p%2===1?p-1:p);},[single]);
@@ -161,9 +180,28 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   const pending=annotations.filter((a)=>!a.submittedAt);
   const next=()=>navigate(Math.min(metadata.pageCount,page===1||single?page+1:page+2));
   const previous=()=>navigate(Math.max(1,single?page-1:page===2?1:page-2));
-  const save=async(e)=>{e.preventDefault();if(!selection||!comment.trim())return;setSaving(true);setSync('Saving…');setError('');try{const data=await reader.save({...selection,text:comment});rememberMetadata({...metadataRef.current,annotations:data.annotations});setSelection(null);setComment('');setSync('Saved');}catch(e){setError(e.message);setSync('Save failed — retry');}finally{setSaving(false);}};
-  const discard=async(id)=>{setError('');try{const data=await reader.discard(id);rememberMetadata({...metadataRef.current,annotations:data.annotations});setSync('Saved');}catch(e){setError(e.message);}};
-  const submit=async()=>{if(selection){setError('Save or cancel the current comment first.');return;}setSaving(true);setError('');try{await reader.submit();const data=await reader.metadata();rememberMetadata(data);setMode('read');setSync('Corrections submitted');onReviewed?.();}catch(e){setError(e.message);}finally{setSaving(false);}};
+  const save=async(e)=>{
+    e.preventDefault();if(!selection||!comment.trim()||saving)return;
+    const generation=reviewGeneration.current,submitted={selection,comment},body={...selection,text:comment.trim()},key=JSON.stringify(body);
+    if(saveAttempt.current?.key!==key)saveAttempt.current={key,id:crypto.randomUUID()};
+    setSaving(true);setSync('Saving…');setError('');
+    try{
+      const data=await reader.save({...body,clientMutationId:saveAttempt.current.id});
+      if(generation!==reviewGeneration.current)return;
+      annotationRevision.current++;rememberMetadata({...metadataRef.current,annotations:data.annotations});
+      if(draftRef.current.selection===submitted.selection&&draftRef.current.comment===submitted.comment){setSelection(null);setComment('');saveAttempt.current=null;setSync('Saved');}
+      else setSync('Saved earlier comment — your current draft is still here');
+    }catch(e){if(generation===reviewGeneration.current){setError(e.message);setSync('Save failed — retry');}}
+    finally{if(generation===reviewGeneration.current)setSaving(false);}
+  };
+  const discard=async(id)=>{
+    if(discardLock.current)return;
+    const generation=reviewGeneration.current;discardLock.current=true;setDiscarding(id);setError('');
+    try{const data=await reader.discard(id);if(generation!==reviewGeneration.current)return;annotationRevision.current++;rememberMetadata({...metadataRef.current,annotations:data.annotations});setSync('Saved');}
+    catch(e){if(generation===reviewGeneration.current)setError(e.message);}
+    finally{if(generation===reviewGeneration.current){discardLock.current=false;setDiscarding(null);}}
+  };
+  const submit=async()=>{if(selection){setError('Save or cancel the current comment first.');return;}setSaving(true);setError('');try{await reader.submit();const data=await readMetadata();rememberMetadata(data);setMode('read');setSync('Corrections submitted');onReviewed?.();}catch(e){setError(e.message);}finally{setSaving(false);}};
   const jump=(a)=>{navigate(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);};
   const content=<section ref={root} role={expanded?'dialog':'region'} aria-modal={expanded?true:undefined} className={`pdf-book${expanded?' is-expanded':''}${turn?' is-turning':''}`}  aria-label={`${title} reader`} onContextMenu={(e)=>e.preventDefault()} onKeyDown={(e)=>{if(expanded&&e.key==='Tab'){const items=[...root.current.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)')].filter(el=>el.getClientRects().length);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}if(e.key==='Escape'&&expanded){e.preventDefault();e.stopPropagation();setExpanded(false);return;}if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(!metadata?.pageCount)return;if(e.key==='ArrowRight'){e.preventDefault();next();}if(e.key==='ArrowLeft'){e.preventDefault();previous();}if((e.ctrlKey||e.metaKey)&&['p','s'].includes(e.key.toLowerCase()))e.preventDefault();}} tabIndex={0}>
     <header className="proof-toolbar"><strong>{title}</strong>
@@ -178,11 +216,11 @@ export default function PdfBookReader({ token, orderId, version, client = false,
     {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'&&!opened?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!opened?<div className="proof-page-message" role="status">Preparing magazine cover…{error&&<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button>}</div>:<>
       <div className={`proof-layout${showComments?'':' no-comments'}`}>
         <BookStage page={page} single={single} zoom={zoom} cache={cache} turn={turn} mode={mode} onNext={next} onPrevious={previous}
-          renderPage={number=>number<=metadata.pageCount?<Page cache={cache} key={`${version}-${number}`} reader={reader} number={number} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={select} onFocus={focus} focused={focused}/>:null}/>
+          renderPage={number=>number<=metadata.pageCount?<Page cache={cache} key={`${version}-${number}`} reader={reader} number={number} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={select} onFocus={focus} focused={focused} pendingSelection={selection?.page===number?selection:null} onUseArea={useArea}/>:null}/>
         {showComments&&<aside className="proof-comments" aria-label="Magazine comments"><div className="proof-comments-heading"><strong>Corrections</strong><button aria-label="Close comments" onClick={()=>setShowComments(false)}><X size={16}/></button></div>
-          {selection&&metadata.canComment&&<form onSubmit={save}><strong>Page {selection.page} correction</strong>{selection.selectedText&&<blockquote>{selection.selectedText}</blockquote>}<textarea aria-label="Correction comment" value={comment} onChange={(e)=>setComment(e.target.value)} required maxLength={4000}/><button disabled={saving}>Save comment</button><button type="button" disabled={saving} onClick={()=>{setSelection(null);setComment('');}}>Cancel</button></form>}
-          {!annotations.length&&<p>{metadata.canComment?'Select text or mark an image area to add a correction.':'No submitted corrections for this version.'}</p>}
-          {annotations.map((a)=><article key={a._id} className={focused===a._id?'is-focused':''}><button onClick={()=>jump(a)}>Page {a.page} · {a.authorName}</button>{a.selectedText&&<blockquote>{a.selectedText}</blockquote>}<p>{a.text}</p><small>{a.submittedAt?'Submitted':'Private review comment'} · {new Date(a.createdAt).toLocaleString()}</small>{!a.submittedAt&&metadata.canComment&&<button onClick={()=>discard(a._id)}>Discard</button>}</article>)}
+          {selection&&metadata.canComment&&<form onSubmit={save}><strong>Page {selection.page} correction</strong>{selection.selectedText&&<blockquote>{selection.selectedText}</blockquote>}<textarea ref={commentInput} aria-label="Correction comment" value={comment} onChange={(e)=>setComment(e.target.value)} required maxLength={4000}/><button disabled={saving}>Save comment</button><button type="button" disabled={saving} onClick={()=>{setSelection(null);setComment('');}}>Cancel</button></form>}
+          {!annotations.length&&!selection&&<p>{metadata.canComment?'Select text or mark an image area to add a correction.':'No submitted corrections for this version.'}</p>}
+          {annotations.map((a)=><article key={a._id} className={focused===a._id?'is-focused':''}><button onClick={()=>jump(a)}>Page {a.page} · {a.authorName}</button>{a.selectedText&&<blockquote>{a.selectedText}</blockquote>}<p>{a.text}</p><small>{a.submittedAt?'Submitted':'Private review comment'} · {new Date(a.createdAt).toLocaleString()}</small>{!a.submittedAt&&metadata.canComment&&<button disabled={Boolean(discarding)} onClick={()=>discard(a._id)}>{discarding===a._id?'Removing…':'Discard'}</button>}</article>)}
           {metadata.canComment&&pending.length>0&&<button disabled={saving} onClick={submit}>Return for corrections ({pending.length})</button>}
         </aside>}
       </div>

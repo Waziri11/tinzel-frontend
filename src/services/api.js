@@ -451,7 +451,11 @@ export function proofApi(token, orderId, version, client = false) {
       const res=await fetch(`${base}/pages/${page}?bundle=1&view=${view}`,{headers:getHeaders(token),cache:'no-store',signal});
       if(res.status===202)throw Object.assign(new Error('Page is being prepared'),{pending:true});
       if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error((data.message||'Page could not be opened')+(data.diagnostic?.reference?` Reference: ${data.diagnostic.reference}`:''));}
-      if(!res.headers.get('content-type')?.includes('application/vnd.tinzel.proof-page'))return null;
+      if(!res.headers.get('content-type')?.includes('application/vnd.tinzel.proof-page')){
+        // Older compatible servers already returned the image: consume it instead of downloading it twice.
+        const [blob,text]=await Promise.all([res.blob(),fetch(`${base}/pages/${page}?text=1`,{headers:getHeaders(token),cache:'no-store',signal}).then(handleResponse)]);
+        return {blob,text};
+      }
       const bytes=await res.arrayBuffer();if(bytes.byteLength<4)throw new Error('Incomplete magazine page');
       const length=new DataView(bytes).getUint32(0);if(length>2*1024*1024||4+length>=bytes.byteLength)throw new Error('Invalid magazine page bundle');
       return {blob:new Blob([bytes.slice(4+length)],{type:'image/webp'}),text:JSON.parse(new TextDecoder().decode(bytes.slice(4,4+length)))};
