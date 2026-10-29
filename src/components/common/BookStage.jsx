@@ -6,16 +6,16 @@ const PAPER_SEGMENTS=16;
 
 // Each hinge bends a little more toward the free edge. Nesting the strips keeps
 // their edges joined while the sheet curls; the annotation surface never moves.
-function PaperLeaf({turn,width}){
-  const backward=turn.direction==='backward';
+function PaperLeaf({turn,width,single}){
+  const backward=!single&&turn.direction==='backward';
   const strip=width/PAPER_SEGMENTS;
   const section=index=>{
     const frontIndex=backward?PAPER_SEGMENTS-1-index:index;
     const backIndex=PAPER_SEGMENTS-1-frontIndex;
     const face=(value,offset,className)=><div className={className}>{value&&<img src={value.image} alt="" draggable={false} style={{width,left:1-offset*strip}}/>}</div>;
     return <div className="book-paper-segment" style={{'--hinge-bend':`${(backward?-1:1)*(1.8+index*.22)}deg`,'--shade-start':.06+index*.012,'--shade-end':.06+(index+1)*.012}} key={index}>
-      {face(turn.front,frontIndex,'book-turn-front')}
-      {face(turn.back,backIndex,'book-turn-back')}
+      {face(single&&turn.direction==='backward'?turn.back:turn.front,frontIndex,'book-turn-front')}
+      {face(single?null:turn.back,backIndex,'book-turn-back')}
       {index<PAPER_SEGMENTS-1&&section(index+1)}
     </div>;
   };
@@ -47,8 +47,8 @@ export default function BookStage({page,single,zoom,cache,turn,mode,renderPage,o
       {spread&&<div className="book-page-slot">{renderPage(page+1)}</div>}
       {spread&&<div className="book-spine" aria-hidden="true"/>}
       {turn&&<div className={`book-turn turn-${turn.direction}${single?' turn-single':''}${turn.fromCover?' from-cover':''}${turn.toCover?' to-cover':''}`} aria-hidden="true">
-        {turn.stationary&&<div className="book-stationary">{portrait(turn.stationary)}</div>}
-        <PaperLeaf turn={turn} width={width}/>
+        {(turn.stationary||(single&&turn.direction==='backward'))&&<div className="book-stationary">{portrait(single?turn.front:turn.stationary)}</div>}
+        <PaperLeaf turn={turn} width={width} single={single}/>
       </div>}
     </div>
   </div>;

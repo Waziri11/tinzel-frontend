@@ -308,3 +308,18 @@ test('paper bends through connected hinges during the turn and settles flat',asy
  const bends=await page.locator('.book-paper-segment').evaluateAll(elements=>elements.map(el=>getComputedStyle(el).transform));expect(bends.length).toBe(16);expect(new Set(bends).size).toBeGreaterThan(8);expect(bends.every(value=>value.includes('matrix3d'))).toBe(true);
  await page.screenshot({path:'/tmp/tinzel-paper-curl.png'});await expect(page.locator('.book-turn')).toHaveCount(0);await expect(page.getByAltText('Magazine page 4')).toBeVisible();
 });
+
+test('mobile pages fold at the binding and backward navigation unfolds the incoming page',async({page})=>{
+ await setup(page);await page.setViewportSize({width:390,height:844});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+ await page.evaluate(()=>{const schedule=window.setTimeout;window.setTimeout=(fn,ms,...args)=>schedule(fn,ms===660?2500:ms,...args);});
+ await page.addStyleTag({content:'.book-turn-leaf,.book-paper-segment,.book-turn::before,.book-turn-front::after,.book-turn-back::after{animation-play-state:paused!important;animation-delay:-.12s!important}'});
+ const old=await page.getByAltText('Magazine page 1').getAttribute('src');
+ await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();
+ const binding=await page.locator('.book-turn-leaf').evaluate(el=>getComputedStyle(el).transformOrigin);expect(parseFloat(binding)).toBe(0);
+ expect(await page.locator('.book-turn-front img').first().getAttribute('src')).toBe(old);await expect(page.locator('.book-turn-back img')).toHaveCount(0);
+ await page.screenshot({path:'/tmp/tinzel-mobile-edge-fold.png'});await expect(page.locator('.book-turn')).toHaveCount(0);
+ const current=await page.getByAltText('Magazine page 2').getAttribute('src');await page.getByRole('button',{name:'Previous page',exact:true}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ expect(await page.locator('.book-turn-front img').first().getAttribute('src')).toBe(old);expect(await page.locator('.book-stationary img').getAttribute('src')).toBe(current);
+ expect(parseFloat(await page.locator('.book-turn-leaf').evaluate(el=>getComputedStyle(el).transformOrigin))).toBe(0);await expect(page.locator('.book-turn-back img')).toHaveCount(0);await expect(page.locator('.book-turn')).toHaveCount(0);
+});
