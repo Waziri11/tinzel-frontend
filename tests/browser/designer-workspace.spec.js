@@ -48,12 +48,12 @@ test('protected reader uses book view on desktop, single page on mobile, and no 
   await expect(page.getByRole('button', { name: 'Single page', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Book view', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Book view', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
 
 const samplePage = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/><text x="60" y="100" font-size="24">Magazine correction text</text><rect x="60" y="220" width="300" height="200" fill="#c5a059"/><text x="40" y="600" fill="#999">Viewer · TNZ-2026-0099 · v1</text></svg>`;
-async function mockReader(page, { canComment = false, failOnce = false } = {}) {
+async function mockReader(page, { canComment = false, failOnce = false, pageCount=3 } = {}) {
   let annotations = []; let failed = false;
   await page.route('**/api/proofs/staff/order-1/**', async (route) => {
     const url = new URL(route.request().url());
@@ -67,7 +67,7 @@ async function mockReader(page, { canComment = false, failOnce = false } = {}) {
       if (url.searchParams.has('text')) return json(route,{width:600,height:800,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03}]});
       return route.fulfill({contentType:'image/svg+xml',body:samplePage});
     }
-    return json(route,{state:'ready',pageCount:3,pages:[{page:1},{page:2},{page:3}],annotations,canComment});
+    return json(route,{state:'ready',pageCount,pages:Array.from({length:pageCount},(_,i)=>({page:i+1,width:600,height:800})),annotations,canComment});
   });
 }
 
@@ -89,6 +89,7 @@ test('reader retains failed comments, saves selected areas, and opens historical
   await expect(page.getByText('Saved',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Return for corrections (1)'})).toBeVisible();
   await page.reload();await page.getByRole('button',{name:'English EN'}).click();
+  await page.getByRole('button',{name:'Comments (1)',exact:true}).click();
   await expect(page.getByText('Replace this photograph',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Zoom in'}).click();
   await expect(page.getByText('120%',{exact:true})).toBeVisible();
@@ -100,7 +101,7 @@ test('reader retains failed comments, saves selected areas, and opens historical
   await page.getByRole('button',{name:'Open version 1',exact:true}).click();
   await expect(page.getByText('Draft version 1',{exact:true})).toBeVisible();
   await page.setViewportSize({width:390,height:844});
-  await expect(page.getByRole('button',{name:'Book view',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Book view',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
   await page.screenshot({path:'/tmp/tinzel-protected-reader-mobile.png',fullPage:true});
 });
@@ -202,4 +203,61 @@ test('direct multipart transfer hashes parts in the real browser worker with fou
   return {peak,checkpoints:checkpoints.map(c=>c.parts.length),hashes:checkpoints.flatMap(c=>c.parts.map(p=>p.sha256))};
  });
  expect(result.peak).toBe(4);expect(result.checkpoints).toEqual([0,4,2]);expect(result.hashes).toHaveLength(6);expect(result.hashes.every(hash=>/^[a-f0-9]{64}$/.test(hash))).toBe(true);
+});
+
+test('fullscreen book fits both pages, turns a two-sided leaf, and cached navigation avoids metadata round trips',async({page})=>{
+ await setup(page);await page.setViewportSize({width:1440,height:900});
+ const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
+ await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
+ let metadataRequests=0;page.on('request',request=>{if(/\/proofs\/staff\/order-1\/1(?:\/prepare)?$/.test(new URL(request.url()).pathname))metadataRequests++;});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await expect(page.getByRole('complementary',{name:'Magazine comments'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+ const initial=metadataRequests;await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn-leaf')).toBeVisible();await expect(page.locator('.book-turn-front')).toHaveCount(1);await expect(page.locator('.book-turn-back')).toHaveCount(1);
+ await expect.poll(()=>page.locator('.book-turn-leaf').evaluate(el=>getComputedStyle(el).transform)).toContain('matrix3d');
+ await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.getByAltText('Magazine page 3')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
+ for(const n of [2,3]){const b=await page.getByAltText(`Magazine page ${n}`).boundingBox();expect(b.x).toBeGreaterThanOrEqual(0);expect(b.y).toBeGreaterThanOrEqual(44);expect(b.y+b.height).toBeLessThanOrEqual(856);expect(b.width).toBeGreaterThan(400);}
+ await page.screenshot({path:'/tmp/tinzel-book-fullscreen-desktop.png'});
+ await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 4')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);expect(metadataRequests).toBe(initial);
+ await page.getByRole('button',{name:'Exit fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toHaveCount(0);
+});
+
+test('mobile fits one page, swipes in either direction, and preserves annotation selection at zoom',async({page})=>{
+ await setup(page);await page.setViewportSize({width:390,height:844});
+ const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
+ await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true,pageCount:12});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Book view',exact:true})).toHaveCount(0);
+ const bounds=await page.getByAltText('Magazine page 1').boundingBox();expect(bounds.width).toBeGreaterThan(340);expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThan(800);
+ const stage=await page.locator('.proof-stage').boundingBox();
+ const swipe=async(from,to)=>{await page.mouse.move(stage.x+stage.width*from,stage.y+stage.height*.5);await page.mouse.down();await page.mouse.move(stage.x+stage.width*to,stage.y+stage.height*.5,{steps:8});await page.mouse.up();};
+ await swipe(.8,.2);await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.proof-sheet')).toHaveCount(1);await expect(page.locator('.book-turn')).toHaveCount(0);
+ await page.screenshot({path:'/tmp/tinzel-book-fullscreen-mobile.png'});
+ await swipe(.2,.8);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
+ await page.getByRole('button',{name:'Zoom in',exact:true}).click();await page.getByRole('button',{name:'Mark image / area',exact:true}).click();
+ const sheet=await page.locator('.proof-sheet').boundingBox();await page.mouse.move(sheet.x+sheet.width*.2,sheet.y+sheet.height*.3);await page.mouse.down();await page.mouse.move(sheet.x+sheet.width*.6,sheet.y+sheet.height*.45);await page.mouse.up();
+ await expect(page.getByLabel('Correction comment')).toBeVisible();await page.getByLabel('Correction comment').fill('Mobile photo correction');
+ const saved=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const data=(await saved).postDataJSON();expect(data.page).toBe(1);expect(data.rects[0].width).toBeCloseTo(.4,1);
+});
+
+test('reduced motion skips page rotation and a slow next spread keeps the current page visible',async({page})=>{
+ await setup(page);await page.emulateMedia({reducedMotion:'reduce'});
+ const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page);
+ let release,blocked=true;const gate=new Promise(resolve=>release=resolve);
+ await page.route('**/api/proofs/staff/order-1/1/pages/2*',async route=>{if(blocked)await gate;return new URL(route.request().url()).searchParams.has('text')?json(route,{width:600,height:800,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage});});
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByText('Preparing pages…',{exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();blocked=false;release();
+ await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
+});
+
+test('touch devices stay single-page in landscape orientation',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});const page=await context.newPage();
+ try{await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await expect(page.getByRole('button',{name:'Single page',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.proof-sheet')).toHaveCount(1);}finally{await context.close();}
+});
+
+test('landscape PDF pages keep their aspect ratio and correction coordinates inside desktop spreads',async({page})=>{
+ await setup(page);await page.setViewportSize({width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
+ await page.route('**/api/proofs/staff/order-1/1/pages/2*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:800,height:600,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage.replace('width="600" height="800"','width="800" height="600"')}));
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark image / area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
+ await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();await page.getByLabel('Correction comment').fill('Landscape layout correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const annotation=(await sent).postDataJSON();expect(annotation.page).toBe(2);expect(annotation.rects[0].width).toBeCloseTo(.3,1);expect(annotation.rects[0].height).toBeCloseTo(.2,1);
 });

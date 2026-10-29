@@ -1,15 +1,19 @@
 import { createProofPageCache, proofBatch } from '../../utils/proofPageCache';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { proofApi } from '../../services/api';
 import './pdfBookReader.css';
+import BookStage from './BookStage';
+import {createPortal} from 'react-dom';
+import {Maximize, Minimize, MessageSquare, X, ChevronLeft, ChevronRight, Columns2, Square, Minus, Plus} from 'lucide-react';
 
-function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, focused }) {
-  const [image, setImage] = useState(''); const [text, setText] = useState(null); const [error, setError] = useState('');
+const Page=React.memo(function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, focused }) {
+  const cached=cache.peek(number);
+  const [image, setImage] = useState(cached?.image||''); const [text, setText] = useState(cached?.text||null); const [error, setError] = useState('');
   const [attempt,setAttempt]=useState(0);
   const surface = useRef(null); const drag = useRef(null); const [box, setBox] = useState(null);
   useEffect(() => {
     let active = true; let timer;
-    setImage(''); setText(null); setError('');
+    const known=cache.peek(number);setImage(known?.image||'');setText(known?.text||null);setError('');
     const load = async () => {
       try {
         const value = await cache.get(number);
@@ -37,38 +41,54 @@ function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, foc
   if (error) return <div className="proof-page-message" role="alert">{error}<button onClick={async () => { try { await reader.retry(); await reader.prepare([number]); setAttempt((n)=>n+1); } catch(e) { setError(e.message); } }}>Retry preparation</button></div>;
   if (!image || !text) return <div className="proof-page-message" role="status">Preparing page {number}…</div>;
   const styleRect = (r) => ({ left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.width*100}%`,height:`${r.height*100}%` });
-  return <div className={`proof-sheet mode-${mode}`} ref={surface} style={{ aspectRatio: `${text.width}/${text.height}` }}
+  return <div className={`proof-sheet mode-${mode}`} ref={surface} style={{ aspectRatio: `${text.width}/${text.height}`,width:`min(100%, ${100*text.width/text.height}cqh)` }}
     onPointerDown={(e) => { if (mode === 'area') { drag.current=point(e); surface.current.setPointerCapture(e.pointerId); } }}
     onPointerMove={(e) => { if (drag.current) setBox(rectangle(drag.current,point(e))); }} onPointerCancel={() => {drag.current=null;setBox(null);}} onPointerUp={finish}>
     <img src={image} alt={`Magazine page ${number}`} draggable={false}/>
-    <div className="proof-text-layer" aria-label={`Page ${number} text`}>
+    {mode==='text'&&<div className="proof-text-layer" aria-label={`Page ${number} text`}>
       {text.text.map((t,i) => <span key={i} style={{left:`${t.x*100}%`,top:`${t.y*100}%`,width:`${t.width*100}%`,height:`${t.height*100}%`,fontSize:`${Math.max(1,t.height*text.height/text.width*100)}cqw`,transform:`rotate(${t.angle||0}deg)`}}>{t.str}</span>)}
-    </div>
+    </div>}
     {annotations.filter((a)=>a.page===number).flatMap((a)=>a.rects.map((r,i)=><button key={`${a._id}-${i}`} aria-label={`Comment: ${a.text}`} className={`proof-mark${focused===a._id?' is-focused':''}`} style={styleRect(r)} onClick={()=>onFocus(a._id)}/>))}
     {box&&<div className="proof-drag-box" style={styleRect(box)}/>}
   </div>;
-}
+});
+const MOBILE_QUERY='(max-width:760px), (hover:none) and (pointer:coarse)';
 export default function PdfBookReader({ token, orderId, version, client = false, title = 'Magazine proof', onReviewed, focusAnnotation }) {
   const reader = useMemo(()=>proofApi(token,orderId,version,client),[token,orderId,version,client]);
   const [cache,setCache]=useState(null);
   const [opened,setOpened]=useState(false);
   const [refresh,setRefresh]=useState(0);
   const root=useRef(null); const [metadata,setMetadata]=useState(null); const [error,setError]=useState('');
-  const [page,setPage]=useState(1); const [single,setSingle]=useState(window.innerWidth<=760); const [zoom,setZoom]=useState(1);
+  const [page,setPage]=useState(1);const [mobile,setMobile]=useState(window.matchMedia(MOBILE_QUERY).matches);const [singlePreference,setSinglePreference]=useState(false);const single=mobile||singlePreference;const [zoom,setZoom]=useState(1);
+  const [expanded,setExpanded]=useState(false),[turn,setTurn]=useState(null),[navigating,setNavigating]=useState(false);
+  const navigation=useRef(0),turnTimer=useRef(null),jumpTimer=useRef(null),metadataRef=useRef(null),busy=useRef(false);
+  const [pageInput,setPageInput]=useState('1');
+  useEffect(()=>setPageInput(String(page)),[page]);
+  const rememberMetadata=(data)=>{metadataRef.current=data;setMetadata(data);};
+  const pagesAt=(number)=>[number,...(!single&&number>1&&number<metadataRef.current?.pageCount?[number+1]:[])];
   const [mode,setMode]=useState('read'); const [selection,setSelection]=useState(null); const [comment,setComment]=useState('');
-  const [saving,setSaving]=useState(false); const [sync,setSync]=useState(''); const [focused,setFocused]=useState(null); const [showComments,setShowComments]=useState(true);
-  useEffect(()=>{const media=window.matchMedia('(max-width:760px)');const change=()=>setSingle(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+  const select=useCallback(value=>{setSelection(value);setShowComments(true);},[]);
+  const focus=useCallback(id=>{setFocused(id);setShowComments(true);},[]);
+  const [saving,setSaving]=useState(false); const [sync,setSync]=useState(''); const [focused,setFocused]=useState(null); const [showComments,setShowComments]=useState(false);
+  useLayoutEffect(()=>{
+    if(expanded)return;
+    const element=root.current;
+    const fit=()=>{const rect=element.getBoundingClientRect();if(!rect.width)return;const value=`${Math.min(820,Math.max(320,window.innerHeight-Math.max(12,rect.top)-12))}px`;if(element.style.getPropertyValue('--reader-height')!==value)element.style.setProperty('--reader-height',value);};
+    const observer=new ResizeObserver(fit);observer.observe(element);window.addEventListener('resize',fit);fit();
+    return()=>{observer.disconnect();window.removeEventListener('resize',fit);};
+  },[expanded]);
+  useEffect(()=>{const media=window.matchMedia(MOBILE_QUERY);const change=()=>setMobile(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
   useEffect(()=>{
     let active=true,timer;const localCache=createProofPageCache(reader);setCache(localCache);
-    setMetadata(null);setOpened(false);setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    metadataRef.current=null;setMetadata(null);setOpened(false);setTurn(null);busy.current=false;setNavigating(false);setShowComments(false);setPage(1);setSelection(null);setComment('');setError('');setSync('');
     const load=async()=>{
       try{
-        let data=await reader.metadata();if(!active)return;setMetadata(data);
+        let data=await reader.metadata();if(!active)return;rememberMetadata(data);
         const cover=data.pages?.some(p=>p.page===1);
         if(!cover){
           const diagnostic=data.diagnostics?.find(d=>d.page===0||d.page===1);
           if(data.state==='failed'||diagnostic)throw new Error((diagnostic?.message||data.message||'Cover preparation failed')+(diagnostic?.reference?` Reference: ${diagnostic.reference}`:''));
-          data=await reader.prepare([1]);if(!active)return;setMetadata(data);
+          data=await reader.prepare([1]);if(!active)return;rememberMetadata(data);
         }
         if(data.pages?.some(p=>p.page===1)){
           await localCache.get(1);if(!active)return;
@@ -77,56 +97,100 @@ export default function PdfBookReader({ token, orderId, version, client = false,
         timer=setTimeout(load,1000);
       }catch(e){if(active)setError(e.message);}
     };
-    load();return()=>{active=false;clearTimeout(timer);localCache.dispose();};
+    load();return()=>{active=false;navigation.current++;busy.current=false;clearTimeout(timer);clearTimeout(turnTimer.current);clearTimeout(jumpTimer.current);localCache.dispose();};
   },[reader,refresh]);
   useEffect(()=>{
     if(!opened||!metadata?.pageCount||!cache)return;
-    let active=true,timer;
-    const visible=[page,...(!single&&page>1&&page<metadata.pageCount?[page+1]:[])];
-    const desired=[...new Set(visible.flatMap((number)=>proofBatch(number,metadata.pageCount)))];
+    let active=true,timer,prepared=false;
+    const visible=pagesAt(page),nextPage=Math.min(metadata.pageCount,page+(single||page===1?1:2));
+    const ahead=nextPage!==page?pagesAt(nextPage):[];
+    const desired=[...new Set([...visible,...ahead,...visible.flatMap(number=>proofBatch(number,metadata.pageCount))])];
+    cache.setVisible([...visible,...(turn?.oldPages||[])]);
     const load=async()=>{
       try{
-        cache.setVisible(visible);
-        const current=await reader.metadata();if(!active)return;
-        const known=new Set(current.pages.map(p=>p.page));
-        const data=desired.every(n=>known.has(n))?current:await reader.prepare(visible);if(!active)return;
-        const failedVisible=data.diagnostics?.find(d=>visible.includes(d.page));if(failedVisible)throw new Error(`${failedVisible.message} Reference: ${failedVisible.reference}`);
-        const ready=new Set(data.pages.map((p)=>p.page));
-        // Fetch visible pages before background pages; the cache pins the current spread.
-        for(const number of [...visible,...desired.filter((n)=>!visible.includes(n))])if(ready.has(number))cache.get(number,{priority:visible.includes(number)?100:0}).catch(()=>{});
-        if(desired.some((n)=>!ready.has(n)))timer=setTimeout(load,2000);
+        let data=metadataRef.current;
+        const ready=new Set(data.pages.map(p=>p.page)),failed=new Set((data.diagnostics||[]).map(d=>d.page));
+        const missing=desired.filter(n=>!ready.has(n)&&!failed.has(n));
+        if(missing.length){
+          if(!prepared){prepared=true;data=await reader.prepare([missing[0],missing.at(-1)].filter((n,i,a)=>a.indexOf(n)===i));}
+          else data=await reader.metadata();
+          if(!active)return;rememberMetadata(data);
+        }
+        const available=new Set(data.pages.map(p=>p.page));
+        for(const number of desired)if(available.has(number))cache.get(number,{priority:visible.includes(number)?100:0}).catch(()=>{});
+        if(desired.some(n=>!available.has(n)&&!(data.diagnostics||[]).some(d=>d.page===n)))timer=setTimeout(load,2000);
       }catch(e){if(active)setError(e.message);}
     };
     load();return()=>{active=false;clearTimeout(timer);};
-  },[reader,cache,opened,page,single,metadata?.pageCount]);
-  useEffect(()=>{if(focusAnnotation&&metadata){const a=metadata.annotations.find((a)=>a._id===focusAnnotation);if(a){setPage(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);setShowComments(true);}}},[focusAnnotation,metadata,single]);
+  },[reader,cache,opened,page,single,metadata?.pageCount,turn]);
+  useEffect(()=>{const changed=()=>{if(!document.fullscreenElement)setExpanded(false);};document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
+  useEffect(()=>{if(!expanded)return;const overflow=document.body.style.overflow;document.body.style.overflow='hidden';root.current.focus({preventScroll:true});root.current.requestFullscreen?.().catch(()=>{});return()=>{document.body.style.overflow=overflow;};},[expanded]);
+  const toggleFullscreen=()=>{
+    if(expanded){setExpanded(false);if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});}
+    else setExpanded(true);
+  };
+  const navigate=async(target)=>{
+    if(!cache||busy.current||target===page||target<1||target>metadataRef.current?.pageCount)return;
+    const id=++navigation.current,oldPages=pagesAt(page),targetPages=pagesAt(target);
+    busy.current=true;setNavigating(true);setError('');cache.setVisible([...oldPages,...targetPages]);
+    try{
+      const load=()=>Promise.all(targetPages.map(number=>cache.get(number)));
+      try{await load();}catch(e){
+        if(!e.pending)throw e;
+        let data=await reader.prepare(targetPages);if(id!==navigation.current)return;rememberMetadata(data);
+        for(let attempt=0;!targetPages.every(n=>data.pages.some(p=>p.page===n));attempt++){
+          const failure=data.diagnostics?.find(d=>targetPages.includes(d.page));if(failure)throw new Error(`${failure.message} Reference: ${failure.reference}`);
+          if(attempt>=90)throw new Error('These pages are still being prepared. Please try again shortly.');
+          await new Promise(resolve=>setTimeout(resolve,1500));if(id!==navigation.current)return;
+          data=await reader.metadata();if(id!==navigation.current)return;rememberMetadata(data);
+        }
+        await load();
+      }
+      if(id!==navigation.current)return;
+      const direction=target>page?'forward':'backward',front=cache.peek(direction==='forward'?oldPages.at(-1):oldPages[0]),back=cache.peek(direction==='forward'?targetPages[0]:targetPages.at(-1));
+      const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!reduced){setTurn({direction,front,back,oldPages,fromCover:page===1,toCover:target===1,stationary:!single&&oldPages.length===2?cache.peek(direction==='forward'?oldPages[0]:oldPages[1]):null});}
+      setPage(target);setNavigating(false);
+      if(reduced)busy.current=false;
+      else turnTimer.current=setTimeout(()=>{setTurn(null);busy.current=false;},560);
+    }catch(e){if(id===navigation.current){setError(e.message);setNavigating(false);busy.current=false;cache.setVisible(pagesAt(page));}}
+  };
+  useEffect(()=>{if(focusAnnotation&&metadata){const a=metadata.annotations.find((a)=>a._id===focusAnnotation);if(a){navigate(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);setShowComments(true);}}},[focusAnnotation,metadata,single]);
   useEffect(()=>{if(!single)setPage((p)=>p>1&&p%2===1?p-1:p);},[single]);
   const annotations=metadata?.annotations||[];
   const pending=annotations.filter((a)=>!a.submittedAt);
-  const next=()=>setPage((p)=>Math.min(metadata.pageCount,p===1||single?p+1:p+2));
-  const previous=()=>setPage((p)=>Math.max(1,single?p-1:p===2?1:p-2));
-  const save=async(e)=>{e.preventDefault();if(!selection||!comment.trim())return;setSaving(true);setSync('Saving…');setError('');try{const data=await reader.save({...selection,text:comment});setMetadata((m)=>({...m,annotations:data.annotations}));setSelection(null);setComment('');setSync('Saved');}catch(e){setError(e.message);setSync('Save failed — retry');}finally{setSaving(false);}};
-  const discard=async(id)=>{setError('');try{const data=await reader.discard(id);setMetadata((m)=>({...m,annotations:data.annotations}));setSync('Saved');}catch(e){setError(e.message);}};
-  const submit=async()=>{if(selection){setError('Save or cancel the current comment first.');return;}setSaving(true);setError('');try{await reader.submit();const data=await reader.metadata();setMetadata(data);setMode('read');setSync('Corrections submitted');onReviewed?.();}catch(e){setError(e.message);}finally{setSaving(false);}};
-  const jump=(a)=>{setPage(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);};
-  return <section ref={root} className="pdf-book" aria-label={`${title} reader`} onContextMenu={(e)=>e.preventDefault()} onKeyDown={(e)=>{if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(!metadata?.pageCount)return;if(e.key==='ArrowRight'){e.preventDefault();next();}if(e.key==='ArrowLeft'){e.preventDefault();previous();}if((e.ctrlKey||e.metaKey)&&['p','s'].includes(e.key.toLowerCase()))e.preventDefault();}} tabIndex={0}>
-    <header><strong>{title}</strong><div className="proof-tools"><button onClick={()=>setZoom((z)=>Math.max(.6,z-.2))} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>setZoom((z)=>Math.min(2,z+.2))} aria-label="Zoom in">+</button><button onClick={()=>setSingle(!single)}>{single?'Book view':'Single page'}</button><button onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else root.current.requestFullscreen?.().catch(()=>setError('Fullscreen is unavailable'));}}>Fullscreen</button><button onClick={()=>setShowComments(!showComments)}>Comments ({annotations.length})</button></div></header>
-    {metadata?.canComment&&<div className="proof-tools proof-mode">{[['read','Read'],['text','Select text'],['area','Mark image / area']].map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}<span role="status">{sync}</span></div>}
+  const next=()=>navigate(Math.min(metadata.pageCount,page===1||single?page+1:page+2));
+  const previous=()=>navigate(Math.max(1,single?page-1:page===2?1:page-2));
+  const save=async(e)=>{e.preventDefault();if(!selection||!comment.trim())return;setSaving(true);setSync('Saving…');setError('');try{const data=await reader.save({...selection,text:comment});rememberMetadata({...metadataRef.current,annotations:data.annotations});setSelection(null);setComment('');setSync('Saved');}catch(e){setError(e.message);setSync('Save failed — retry');}finally{setSaving(false);}};
+  const discard=async(id)=>{setError('');try{const data=await reader.discard(id);rememberMetadata({...metadataRef.current,annotations:data.annotations});setSync('Saved');}catch(e){setError(e.message);}};
+  const submit=async()=>{if(selection){setError('Save or cancel the current comment first.');return;}setSaving(true);setError('');try{await reader.submit();const data=await reader.metadata();rememberMetadata(data);setMode('read');setSync('Corrections submitted');onReviewed?.();}catch(e){setError(e.message);}finally{setSaving(false);}};
+  const jump=(a)=>{navigate(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);};
+  const content=<section ref={root} role={expanded?'dialog':'region'} aria-modal={expanded?true:undefined} className={`pdf-book${expanded?' is-expanded':''}${turn?' is-turning':''}`}  aria-label={`${title} reader`} onContextMenu={(e)=>e.preventDefault()} onKeyDown={(e)=>{if(expanded&&e.key==='Tab'){const items=[...root.current.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)')].filter(el=>el.getClientRects().length);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}if(e.key==='Escape'&&expanded){e.preventDefault();e.stopPropagation();setExpanded(false);return;}if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(!metadata?.pageCount)return;if(e.key==='ArrowRight'){e.preventDefault();next();}if(e.key==='ArrowLeft'){e.preventDefault();previous();}if((e.ctrlKey||e.metaKey)&&['p','s'].includes(e.key.toLowerCase()))e.preventDefault();}} tabIndex={0}>
+    <header className="proof-toolbar"><strong>{title}</strong>
+      {metadata?.canComment&&<div className="proof-modes" aria-label="Review tools">{[['read','Read'],['text','Select text'],['area','Mark image / area']].map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}</div>}
+      <div className="proof-tools">
+        {!mobile&&<button aria-label={single?'Book view':'Single page'} title={single?'Book view':'Single page'} disabled={navigating||Boolean(turn)} onClick={()=>{setTurn(null);setSinglePreference(!singlePreference);setZoom(1);}}>{single?<Columns2 size={17}/>:<Square size={17}/>}</button>}
+        <button aria-label={`Comments (${metadata?.annotations?.length||0})`} aria-expanded={showComments} title="Comments" onClick={()=>setShowComments(!showComments)}><MessageSquare size={17}/><span>{metadata?.annotations?.length||0}</span></button>
+        <button aria-label={expanded?'Exit fullscreen':'Fullscreen'} title={expanded?'Exit fullscreen':'Fullscreen'} onClick={toggleFullscreen}>{expanded?<Minimize size={17}/>:<Maximize size={17}/>}</button>
+      </div>
+    </header>
     {error&&<div className="proof-error" role="alert">{error}</div>}
     {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'&&!opened?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!opened?<div className="proof-page-message" role="status">Preparing magazine cover…{error&&<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button>}</div>:<>
       <div className={`proof-layout${showComments?'':' no-comments'}`}>
-        <div className="proof-scroll"><div className="pdf-book-spread" style={{width:`${zoom*100}%`,minWidth:'100%'}}>
-          <Page cache={cache} key={`${version}-${page}`} reader={reader} number={page} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>
-          {!single&&page>1&&page<metadata.pageCount&&<Page cache={cache} key={`${version}-${page+1}`} reader={reader} number={page+1} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>}
-        </div></div>
-        {showComments&&<aside className="proof-comments" aria-label="Magazine comments">
+        <BookStage page={page} single={single} zoom={zoom} cache={cache} turn={turn} mode={mode} onNext={next} onPrevious={previous}
+          renderPage={number=>number<=metadata.pageCount?<Page cache={cache} key={`${version}-${number}`} reader={reader} number={number} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={select} onFocus={focus} focused={focused}/>:null}/>
+        {showComments&&<aside className="proof-comments" aria-label="Magazine comments"><div className="proof-comments-heading"><strong>Corrections</strong><button aria-label="Close comments" onClick={()=>setShowComments(false)}><X size={16}/></button></div>
           {selection&&metadata.canComment&&<form onSubmit={save}><strong>Page {selection.page} correction</strong>{selection.selectedText&&<blockquote>{selection.selectedText}</blockquote>}<textarea aria-label="Correction comment" value={comment} onChange={(e)=>setComment(e.target.value)} required maxLength={4000}/><button disabled={saving}>Save comment</button><button type="button" disabled={saving} onClick={()=>{setSelection(null);setComment('');}}>Cancel</button></form>}
           {!annotations.length&&<p>{metadata.canComment?'Select text or mark an image area to add a correction.':'No submitted corrections for this version.'}</p>}
           {annotations.map((a)=><article key={a._id} className={focused===a._id?'is-focused':''}><button onClick={()=>jump(a)}>Page {a.page} · {a.authorName}</button>{a.selectedText&&<blockquote>{a.selectedText}</blockquote>}<p>{a.text}</p><small>{a.submittedAt?'Submitted':'Private review comment'} · {new Date(a.createdAt).toLocaleString()}</small>{!a.submittedAt&&metadata.canComment&&<button onClick={()=>discard(a._id)}>Discard</button>}</article>)}
           {metadata.canComment&&pending.length>0&&<button disabled={saving} onClick={submit}>Return for corrections ({pending.length})</button>}
         </aside>}
       </div>
-      <footer><button aria-label="Previous page" disabled={page===1} onClick={previous}>←</button><label>Page <input aria-label="Go to page" type="number" min="1" max={metadata.pageCount} value={page} onChange={(e)=>{const n=Number(e.target.value);if(n>=1&&n<=metadata.pageCount)setPage(single||n===1?n:n%2===0?n:n-1);}}/> of {metadata.pageCount}</label><button aria-label="Next page" disabled={page+(single||page===1?1:2)>metadata.pageCount} onClick={next}>→</button></footer>
+      <footer className="proof-footer"><div className="proof-zoom"><button onClick={()=>setZoom(z=>Math.max(.6,Math.round((z-.2)*10)/10))} aria-label="Zoom out"><Minus size={15}/></button><button className="proof-fit" aria-label="Fit pages to screen" onClick={()=>setZoom(1)}>{zoom===1?'Fit':`${Math.round(zoom*100)}%`}</button><button onClick={()=>setZoom(z=>Math.min(2,Math.round((z+.2)*10)/10))} aria-label="Zoom in"><Plus size={15}/></button></div>
+        <div className="proof-pagination"><button aria-label="Previous page" disabled={page===1||navigating||Boolean(turn)} onClick={previous}><ChevronLeft size={19}/></button><label><span className="sr-only">Page</span><input aria-label="Go to page" type="number" min="1" max={metadata.pageCount} disabled={navigating||Boolean(turn)} value={pageInput} onChange={e=>{const value=e.target.value;setPageInput(value);clearTimeout(jumpTimer.current);const n=Number(value);if(n>=1&&n<=metadata.pageCount)jumpTimer.current=setTimeout(()=>navigate(single||n===1?n:n%2===0?n:n-1),250);}}/><span> / {metadata.pageCount}</span></label><button aria-label="Next page" disabled={page+(single||page===1?1:2)>metadata.pageCount||navigating||Boolean(turn)} onClick={next}><ChevronRight size={19}/></button></div>
+        <span className="proof-sync" role="status">{navigating?'Preparing pages…':sync}</span>
+      </footer>
     </>}
   </section>;
+  return expanded?createPortal(content,document.body):content;
 }

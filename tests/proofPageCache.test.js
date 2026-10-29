@@ -22,3 +22,11 @@ test('bundles load once and navigation aborts obsolete prefetch before visible w
  const cache=createProofPageCache(reader,{decode:async()=>{},createUrl:n=>`page:${n}`,revokeUrl:()=>{}});await cache.get(1);cache.get(2,{priority:0}).catch(()=>{});cache.get(3,{priority:0}).catch(()=>{});cache.get(4,{priority:0}).catch(()=>{});
  cache.setVisible([10]);assert.equal((await cache.get(10)).image,'page:10');assert.deepEqual(aborted,[2,3]);assert.ok(!started.includes(4));cache.dispose();
 });
+test('a prefetched page promoted to visible is retained while obsolete work is cancelled',async()=>{
+ let complete,aborted=false;const cache=createProofPageCache({bundle:(n,signal)=>new Promise((resolve,reject)=>{complete=()=>resolve({blob:n,text:{text:[]}});signal.addEventListener('abort',()=>{aborted=true;reject(new DOMException('Cancelled','AbortError'));});})},{decode:async()=>{},createUrl:n=>`page:${n}`,revokeUrl:()=>{}});
+ const prefetched=cache.get(2,{priority:0});cache.setVisible([2]);assert.equal(aborted,false);const visible=cache.get(2);assert.equal(visible,prefetched);complete();await visible;assert.equal(cache.peek(2).image,'page:2');cache.dispose();
+});
+test('an aborted prefetch cannot remove its newer replacement from the cache',async()=>{
+ let calls=0;const reader={bundle:(n,signal)=>{calls++;if(calls>1)return Promise.resolve({blob:n,text:{text:[]}});return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>queueMicrotask(()=>reject(new DOMException('Cancelled','AbortError')))));}};
+ const cache=createProofPageCache(reader,{decode:async()=>{},createUrl:n=>`page:${n}`,revokeUrl:()=>{}});cache.get(2,{priority:0}).catch(()=>{});cache.setVisible([3]);const replacement=cache.get(2);await replacement;assert.equal(cache.get(2),replacement);assert.equal(calls,2);cache.dispose();
+});

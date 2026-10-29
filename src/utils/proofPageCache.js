@@ -21,7 +21,7 @@ export function createProofPageCache(reader, { limit=10, concurrency=2, decode=d
           if(entry.controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
           if(disposed)throw new Error('Reader closed');
           entry.value={image,text};entry.resolve(entry.value);prune();
-        }catch(error){if(image)revokeUrl(image);entries.delete(number);entry.reject(error);}
+        }catch(error){if(image)revokeUrl(image);if(entries.get(number)===entry)entries.delete(number);entry.reject(error);}
         finally{active--;pump();}
       })();
     }
@@ -30,16 +30,19 @@ export function createProofPageCache(reader, { limit=10, concurrency=2, decode=d
     get(number,{priority=100}={}){
       if(disposed)return Promise.reject(new Error('Reader closed'));
       let entry=entries.get(number);
+      if(entry?.controller?.signal.aborted){entries.delete(number);entry=null;}
       if(entry){entry.priority=Math.max(entry.priority,priority);entries.delete(number);entries.set(number,entry);return entry.promise;}
       entry={priority};entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject;});
       entries.set(number,entry);queue.push({number,entry});pump();return entry.promise;
     },
     setVisible(numbers){
       visible=new Set(numbers);
+      for(const number of visible){const entry=entries.get(number);if(entry)entry.priority=100;}
       for(let i=queue.length-1;i>=0;i--){const {number,entry}=queue[i];if(!visible.has(number)&&entry.priority<=0){queue.splice(i,1);entries.delete(number);entry.reject(new DOMException('Prefetch cancelled','AbortError'));}}
       for(const [number,entry]of entries)if(!entry.value&&entry.priority<=0&&!visible.has(number))entry.controller?.abort();
     },
     dispose(){disposed=true;for(const entry of entries.values())entry.controller?.abort();for(const [,entry]of entries)if(entry.value)revokeUrl(entry.value.image);for(const {entry}of queue)entry.reject(new Error('Reader closed'));queue.length=0;entries.clear();},
+    peek(number){return entries.get(number)?.value;},
     get size(){return [...entries.values()].filter((entry)=>entry.value).length;},
   };
 }
