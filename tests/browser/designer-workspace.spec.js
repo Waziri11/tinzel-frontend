@@ -26,7 +26,7 @@ test('designer order uses its own URL, history, checklist and PDF-only top actio
   await expect(page.getByText('Correct the anniversary date')).toBeVisible();
   await page.reload(); await page.getByRole('button', { name: 'English EN' }).click(); await expect(page.getByRole('heading', { name: 'TNZ-2026-0099' })).toBeVisible();
   await page.getByRole('button', { name: 'Upload new draft' }).click();
-  await expect(page.getByLabel('Magazine PDF')).toHaveAttribute('accept', 'application/pdf,.pdf');
+  await expect(page.getByLabel('Magazine PDF · up to 500 MB')).toHaveAttribute('accept', 'application/pdf,.pdf');
   await expect(page.getByRole('button', { name: 'Send to manager review' })).toBeDisabled();
 });
 
@@ -129,11 +129,67 @@ test('client can reopen a released historical magazine while a replacement is pr
   await page.addInitScript(()=>sessionStorage.setItem('tinzel_client_token','client-test'));
   const released={...order,status:'draft_manager_review',currentDraftVersion:2,draftVersions:[{versionNumber:1,managerReview:{status:'approved'}}],revisionRequests:[]};
   await page.route('**/api/client/order',route=>json(route,{order:released}));
-  await page.route('**/api/proofs/client/1',route=>json(route,{state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:false}));
+  await page.route(/\/api\/proofs\/client\/1(?:\/prepare)?$/,route=>json(route,{state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:false}));
   await page.route('**/api/proofs/client/1/pages/1*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:600,height:800,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage}));
   await page.goto('/track');await page.getByRole('button',{name:'English EN'}).click();
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await expect(page.getByLabel('Magazine version')).toHaveValue('1');
   await expect(page.getByRole('button',{name:'Select text',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Download PDF'})).toHaveCount(0);
+});
+
+test('draft upload shows real progress, resumes after reload, and waits for server confirmation', async ({page})=>{
+  await setup(page);
+  const editable={...order,status:'in_design',currentDraftVersion:0,revisionRequests:[]};let committed=false,blocked=true,session,completeRelease;
+  const chunks=new Map(),counts=new Map();
+  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:{...editable,...(committed?{status:'draft_manager_review',currentDraftVersion:1}: {})},auditLogs:[]}));
+  await page.route('**/api/designer/orders/order-1/draft-uploads**',async route=>{
+    const req=route.request(),url=new URL(req.url());
+    if(url.pathname.endsWith('/draft-uploads')){session={...req.postDataJSON(),id:'session-1',state:'open',chunkBytes:1024*1024,chunks:[]};return json(route,session);}
+    if(url.pathname.endsWith('/complete')){await new Promise(resolve=>completeRelease=resolve);committed=true;return json(route,{success:true,version:1});}
+    if(url.pathname.includes('/chunks/')){
+      const n=Number(url.pathname.split('/').at(-1));counts.set(n,(counts.get(n)||0)+1);
+      expect(req.postDataBuffer().length).toBeLessThanOrEqual(1024*1024);
+      if(n===1&&blocked)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Connection interrupted'})});
+      chunks.set(n,{n,length:req.postDataBuffer().length,sha256:req.headers()['x-chunk-sha256']});return json(route,{success:true});
+    }
+    return json(route,{...session,chunks:[...chunks.values()]});
+  });
+  const payload={name:'large-magazine.pdf',mimeType:'application/pdf',buffer:Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.alloc(5*1024*1024)])};
+  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await page.getByRole('button',{name:'Upload new draft'}).click();
+  await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
+  await expect(page.getByRole('progressbar',{name:'Magazine upload progress'})).toBeVisible();
+  await expect(page.getByText('Reconnecting',{exact:false})).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Connection interrupted');
+  expect(await page.getByRole('progressbar').getAttribute('value')).not.toBe('100');
+  expect(chunks.has(0)).toBe(true);blocked=false;
+  await page.reload();await page.getByRole('button',{name:'English EN'}).click();await page.getByRole('button',{name:'Upload new draft'}).click();
+  await expect(page.getByText(/A saved upload is available/)).toBeVisible();
+  await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
+  await expect(page.getByText('Finalizing draft',{exact:false})).toBeVisible();expect(counts.get(0)).toBe(1);
+  expect(await page.getByRole('progressbar').getAttribute('value')).not.toBe('100');
+  await expect(page.getByRole('button',{name:'Cancel',exact:true})).toBeDisabled();
+  await page.screenshot({path:'/tmp/tinzel-large-upload-progress.png',fullPage:true});
+  completeRelease();await expect(page.getByRole('dialog',{name:'Upload new draft'})).toHaveCount(0);await expect(page.getByText(/Draft uploaded and sent to manager review/)).toBeVisible();
+});
+
+test('reader waits for five opening pages and fetches later batches only on navigation',async({page})=>{
+  await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
+  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
+  let release;const prepared=new Set([1,2,3,4,5]),requested=[];
+  await page.route('**/api/proofs/staff/order-1/**',async route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.includes('/pages/')){
+      const n=Number(url.pathname.split('/').at(-1));if(!prepared.has(n))return route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({message:'Preparing page'})});requested.push(n);
+      if(n===5&&!url.searchParams.has('text'))await new Promise(resolve=>release=resolve);
+      if(url.searchParams.has('text'))return json(route,{width:600,height:800,text:[]});
+      return route.fulfill({contentType:'image/svg+xml',body:samplePage});
+    }
+    if(url.pathname.endsWith('/prepare'))for(const p of route.request().postDataJSON().pages){const start=Math.floor((p-1)/5)*5+1;for(let n=start;n<=Math.min(12,start+4);n++)prepared.add(n);}
+    return json(route,{state:'ready',pageCount:12,pages:[...prepared].map(page=>({page})),annotations:[],canComment:false});
+  });
+  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+  await expect(page.getByText('Preparing opening pages — 4 of 5')).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toHaveCount(0);expect(requested.every(n=>n<=5)).toBe(true);
+  release();await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(prepared.size).toBe(5);
+  await page.getByLabel('Go to page').fill('10');await expect(page.getByAltText('Magazine page 10')).toBeVisible();await expect(page.getByAltText('Magazine page 11')).toBeVisible();expect(prepared.has(12)).toBe(true);
 });

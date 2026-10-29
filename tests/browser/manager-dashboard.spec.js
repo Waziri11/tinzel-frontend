@@ -32,13 +32,13 @@ async function openManagerDashboard(page) {
     });
   });
   await page.route('**/api/manager/orders/order-1', (route) => json(route, { order: baseOrder, auditLogs: [{ _id: 'log-1', action: 'DRAFT_UPLOADED', actor: { name: 'Juma Designer' }, createdAt: '2026-10-15T09:00:00Z' }] }));
-  await page.route('**/api/proofs/staff/order-1/2', route => json(route, {state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:true}));
+  await page.route(/\/api\/proofs\/staff\/order-1\/2(?:\/prepare)?$/, route => json(route, {state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:true}));
   await page.route('**/api/proofs/staff/order-1/2/pages/1*', route => new URL(route.request().url()).searchParams.has('text') ? json(route,{width:600,height:800,text:[]}) : route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>'}));
   await page.goto('/');
   await page.getByRole('button', { name: 'English EN' }).click();
   await page.getByRole('button', { name: /Login/ }).click();
   const menu = page.getByRole('button', { name: 'Open workspace menu' });
-  if (await menu.isVisible()) await menu.click();
+  if (page.viewportSize().width <= 760) { await expect(menu).toBeVisible(); await menu.click(); }
   await page.getByRole('button', { name: 'Design Phase', exact: true }).click();
   await expect(page.getByText('Drafts to review')).toBeVisible();
 }

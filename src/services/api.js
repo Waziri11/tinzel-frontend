@@ -445,6 +445,7 @@ export function proofApi(token, orderId, version, client = false) {
   }).then(handleResponse);
   return {
     metadata: () => request(),
+    prepare: (pages) => request('/prepare', 'POST', { pages }),
     page: async (page) => {
       const response = await fetch(`${base}/pages/${page}`, { headers: getHeaders(token), cache: 'no-store' });
       if (response.status === 202) { const error = new Error('Page is being prepared'); error.pending = true; throw error; }

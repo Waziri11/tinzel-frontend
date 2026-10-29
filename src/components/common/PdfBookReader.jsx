@@ -1,24 +1,24 @@
+import { createProofPageCache, proofBatch } from '../../utils/proofPageCache';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { proofApi } from '../../services/api';
 import './pdfBookReader.css';
 
-function Page({ reader, number, annotations, mode, onSelect, onFocus, focused }) {
+function Page({ reader, cache, number, annotations, mode, onSelect, onFocus, focused }) {
   const [image, setImage] = useState(''); const [text, setText] = useState(null); const [error, setError] = useState('');
   const [attempt,setAttempt]=useState(0);
   const surface = useRef(null); const drag = useRef(null); const [box, setBox] = useState(null);
   useEffect(() => {
-    let active = true; let timer; let url;
+    let active = true; let timer;
     setImage(''); setText(null); setError('');
     const load = async () => {
       try {
-        const blob = await reader.page(number);
-        const positions = await reader.text(number);
+        const value = await cache.get(number);
         if (!active) return;
-        url = URL.createObjectURL(blob); setImage(url); setText(positions);
+        setImage(value.image); setText(value.text);
       } catch (e) { if (active) { if (e.pending) timer = setTimeout(load, 2000); else setError(e.message); } }
     };
-    load(); return () => { active = false; clearTimeout(timer); if (url) URL.revokeObjectURL(url); };
-  }, [reader, number, attempt]);
+    load(); return () => { active = false; clearTimeout(timer);  };
+  }, [reader, cache, number, attempt]);
   const point = (event) => { const r = surface.current.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX-r.left)/r.width)), y: Math.max(0, Math.min(1, (event.clientY-r.top)/r.height)) }; };
   const rectangle = (a, b) => ({ x: Math.min(a.x,b.x), y: Math.min(a.y,b.y), width: Math.abs(a.x-b.x), height: Math.abs(a.y-b.y) });
   const finish = (event) => {
@@ -34,7 +34,7 @@ function Page({ reader, number, annotations, mode, onSelect, onFocus, focused })
       selection.removeAllRanges();
     }
   };
-  if (error) return <div className="proof-page-message" role="alert">{error}<button onClick={async () => { try { await reader.retry(); setAttempt((n)=>n+1); } catch(e) { setError(e.message); } }}>Retry preparation</button></div>;
+  if (error) return <div className="proof-page-message" role="alert">{error}<button onClick={async () => { try { await reader.retry(); await reader.prepare([number]); setAttempt((n)=>n+1); } catch(e) { setError(e.message); } }}>Retry preparation</button></div>;
   if (!image || !text) return <div className="proof-page-message" role="status">Preparing page {number}…</div>;
   const styleRect = (r) => ({ left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.width*100}%`,height:`${r.height*100}%` });
   return <div className={`proof-sheet mode-${mode}`} ref={surface} style={{ aspectRatio: `${text.width}/${text.height}` }}
@@ -50,6 +50,9 @@ function Page({ reader, number, annotations, mode, onSelect, onFocus, focused })
 }
 export default function PdfBookReader({ token, orderId, version, client = false, title = 'Magazine proof', onReviewed, focusAnnotation }) {
   const reader = useMemo(()=>proofApi(token,orderId,version,client),[token,orderId,version,client]);
+  const [cache,setCache]=useState(null);
+  const [opening,setOpening]=useState({ready:0,total:5});
+  const [opened,setOpened]=useState(false);
   const [refresh,setRefresh]=useState(0);
   const root=useRef(null); const [metadata,setMetadata]=useState(null); const [error,setError]=useState('');
   const [page,setPage]=useState(1); const [single,setSingle]=useState(window.innerWidth<=760); const [zoom,setZoom]=useState(1);
@@ -57,10 +60,41 @@ export default function PdfBookReader({ token, orderId, version, client = false,
   const [saving,setSaving]=useState(false); const [sync,setSync]=useState(''); const [focused,setFocused]=useState(null); const [showComments,setShowComments]=useState(true);
   useEffect(()=>{const media=window.matchMedia('(max-width:760px)');const change=()=>setSingle(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
   useEffect(()=>{
-    let active=true;let timer;setMetadata(null);setPage(1);setSelection(null);setComment('');setError('');setSync('');
-    const load=async()=>{try{const data=await reader.metadata();if(!active)return;setMetadata(data);if(data.state!=='failed'&&!data.pageCount)timer=setTimeout(load,3000);}catch(e){if(active)setError(e.message);}};
-    load();return()=>{active=false;clearTimeout(timer);};
+    let active=true,timer;const localCache=createProofPageCache(reader);setCache(localCache);
+    setMetadata(null);setOpened(false);setOpening({ready:0,total:5});setPage(1);setSelection(null);setComment('');setError('');setSync('');
+    const load=async()=>{
+      try{
+        let data=await reader.metadata();if(!active)return;setMetadata(data);
+        if(data.state==='failed')return;
+        data=await reader.prepare([1]);if(!active)return;setMetadata(data);
+        if(data.failedPages?.some((n)=>n<=5))throw new Error('An opening page could not be prepared. Retry preparation.');
+        const count=Math.min(5,data.pageCount||0);
+        setOpening({ready:0,total:count||5});
+        if(!count||data.pages.filter((p)=>p.page<=count).length<count){timer=setTimeout(load,2000);return;}
+        let ready=0;
+        await Promise.all(Array.from({length:count},(_,i)=>localCache.get(i+1).then(()=>{ready++;if(active)setOpening({ready,total:count});})));
+        if(active)setOpened(true);
+      }catch(e){if(active)setError(e.message);}
+    };
+    load();return()=>{active=false;clearTimeout(timer);localCache.dispose();};
   },[reader,refresh]);
+  useEffect(()=>{
+    if(!opened||!metadata?.pageCount||!cache)return;
+    let active=true,timer;
+    const visible=[page,...(!single&&page>1&&page<metadata.pageCount?[page+1]:[])];
+    const desired=[...new Set(visible.flatMap((number)=>proofBatch(number,metadata.pageCount)))];
+    const load=async()=>{
+      try{
+        const data=await reader.prepare(visible);if(!active)return;
+        if(data.failedPages?.some((n)=>desired.includes(n)))throw new Error('Page preparation failed. Use Retry preparation on the affected page.');
+        const ready=new Set(data.pages.map((p)=>p.page));
+        // Touch visible pages last so LRU eviction favors the pages being read.
+        for(const number of [...desired.filter((n)=>!visible.includes(n)),...visible])if(ready.has(number))cache.get(number).catch(()=>{});
+        if(desired.some((n)=>!ready.has(n)))timer=setTimeout(load,2000);
+      }catch(e){if(active)setError(e.message);}
+    };
+    load();return()=>{active=false;clearTimeout(timer);};
+  },[reader,cache,opened,page,single,metadata?.pageCount]);
   useEffect(()=>{if(focusAnnotation&&metadata){const a=metadata.annotations.find((a)=>a._id===focusAnnotation);if(a){setPage(single||a.page===1?a.page:a.page%2===0?a.page:a.page-1);setFocused(a._id);setShowComments(true);}}},[focusAnnotation,metadata,single]);
   useEffect(()=>{if(!single)setPage((p)=>p>1&&p%2===1?p-1:p);},[single]);
   const annotations=metadata?.annotations||[];
@@ -75,11 +109,11 @@ export default function PdfBookReader({ token, orderId, version, client = false,
     <header><strong>{title}</strong><div className="proof-tools"><button onClick={()=>setZoom((z)=>Math.max(.6,z-.2))} aria-label="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button onClick={()=>setZoom((z)=>Math.min(2,z+.2))} aria-label="Zoom in">+</button><button onClick={()=>setSingle(!single)}>{single?'Book view':'Single page'}</button><button onClick={()=>{if(document.fullscreenElement)document.exitFullscreen();else root.current.requestFullscreen?.().catch(()=>setError('Fullscreen is unavailable'));}}>Fullscreen</button><button onClick={()=>setShowComments(!showComments)}>Comments ({annotations.length})</button></div></header>
     {metadata?.canComment&&<div className="proof-tools proof-mode">{[['read','Read'],['text','Select text'],['area','Mark image / area']].map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}<span role="status">{sync}</span></div>}
     {error&&<div className="proof-error" role="alert">{error}</div>}
-    {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!metadata.pageCount?<div className="proof-page-message">Preparing protected magazine…</div>:<>
+    {!metadata?<div className="proof-page-message">{error?'Unable to open magazine.':'Opening magazine…'}</div>:metadata.state==='failed'?<div className="proof-page-message">{metadata.message}<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button></div>:!opened?<div className="proof-page-message" role="status">Preparing opening pages — {opening.ready} of {opening.total}{error&&<button onClick={async()=>{try{await reader.retry();setRefresh((n)=>n+1);}catch(e){setError(e.message);}}}>Retry preparation</button>}</div>:<>
       <div className={`proof-layout${showComments?'':' no-comments'}`}>
         <div className="proof-scroll"><div className="pdf-book-spread" style={{width:`${zoom*100}%`,minWidth:'100%'}}>
-          <Page key={`${version}-${page}`} reader={reader} number={page} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>
-          {!single&&page>1&&page<metadata.pageCount&&<Page key={`${version}-${page+1}`} reader={reader} number={page+1} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>}
+          <Page cache={cache} key={`${version}-${page}`} reader={reader} number={page} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>
+          {!single&&page>1&&page<metadata.pageCount&&<Page cache={cache} key={`${version}-${page+1}`} reader={reader} number={page+1} annotations={annotations} mode={metadata.canComment?mode:'read'} onSelect={setSelection} onFocus={setFocused} focused={focused}/>}
         </div></div>
         {showComments&&<aside className="proof-comments" aria-label="Magazine comments">
           {selection&&metadata.canComment&&<form onSubmit={save}><strong>Page {selection.page} correction</strong>{selection.selectedText&&<blockquote>{selection.selectedText}</blockquote>}<textarea aria-label="Correction comment" value={comment} onChange={(e)=>setComment(e.target.value)} required maxLength={4000}/><button disabled={saving}>Save comment</button><button type="button" disabled={saving} onClick={()=>{setSelection(null);setComment('');}}>Cancel</button></form>}
