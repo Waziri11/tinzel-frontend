@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Shield,
   Lock,
+  RotateCcw,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePhotoUploads } from '../../hooks/usePhotoUploads';
@@ -40,7 +41,20 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const fieldPhotos = {};
   uploads.items.forEach((item) => { (fieldPhotos[item.fieldId] ||= []).push(item); });
   const draftKey = 'tinzel:answers:v2:' + slug;
+  const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const ui = (en, sw) => lang === 'sw' ? sw : en;
+
+  const clearSavedDraft = () => {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch { /* optional recovery */ }
+    setClientName('');
+    setClientWhatsApp('');
+    setClientEmail('');
+    setAnswers({});
+    setHasSavedDraft(false);
+  };
 
   useEffect(() => {
     if (!submissionResult) return;
@@ -52,7 +66,24 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     let active = true;
     setLoading(true); setError(null); setSubmissionResult(null);
     let draft = {};
-    try { draft = JSON.parse(localStorage.getItem(draftKey)) || {}; } catch { /* optional recovery */ }
+    let loadedFromDraft = false;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const savedAt = parsed?.savedAt;
+        const data = parsed?.data || parsed || {};
+        if (savedAt && (Date.now() - savedAt > DRAFT_MAX_AGE_MS)) {
+          localStorage.removeItem(draftKey);
+        } else {
+          draft = data;
+          if (draft.clientName || draft.clientWhatsApp || draft.clientEmail || (draft.answers && Object.keys(draft.answers).length > 0)) {
+            loadedFromDraft = true;
+          }
+        }
+      }
+    } catch { /* optional recovery */ }
+    setHasSavedDraft(loadedFromDraft);
     setClientName(draft.clientName || ''); setClientWhatsApp(draft.clientWhatsApp || '');
     setClientEmail(draft.clientEmail || ''); setAnswers(draft.answers || {});
     setRestoredSlug(slug);
@@ -65,7 +96,19 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   useEffect(() => {
     if (restoredSlug !== slug || submissionResult) return;
     const timer = setTimeout(() => {
-      try { localStorage.setItem(draftKey, JSON.stringify({ clientName, clientWhatsApp, clientEmail, answers })); } catch { /* optional recovery */ }
+      try {
+        const hasContent = Boolean(clientName || clientWhatsApp || clientEmail || Object.keys(answers || {}).length > 0);
+        if (hasContent) {
+          localStorage.setItem(draftKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: { clientName, clientWhatsApp, clientEmail, answers },
+          }));
+          setHasSavedDraft(true);
+        } else {
+          localStorage.removeItem(draftKey);
+          setHasSavedDraft(false);
+        }
+      } catch { /* optional recovery */ }
     }, 300);
     return () => clearTimeout(timer);
   }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, submissionResult]);
@@ -94,6 +137,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     try {
       const result = await uploads.submit({ clientName: clientName.trim(), clientWhatsApp: clientWhatsApp.trim(), clientEmail: clientEmail.trim(), answers });
       setSubmissionResult(result);
+      setHasSavedDraft(false);
       try { localStorage.removeItem(draftKey); } catch { /* optional recovery */ }
     } catch (err) { setError(err.message || t('form.errSubmit')); }
     finally { setSubmitting(false); }
@@ -268,6 +312,56 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         >
           <AlertCircle size={16} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {hasSavedDraft && (
+        <div
+          role="status"
+          style={{
+            backgroundColor: '#F8FAFC',
+            border: '1px solid #CBD5E1',
+            borderRadius: '6px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            fontSize: '13px',
+            color: '#334155',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RotateCcw size={15} style={{ color: '#64748B', flexShrink: 0 }} />
+            <span>
+              {ui(
+                'Draft restored from this browser (auto-expires in 24 hours).',
+                'Rasimu imerejeshwa kutoka kwenye kivinjari hiki (inaisha baada ya saa 24).'
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={clearSavedDraft}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: '1px solid #DC2626',
+              backgroundColor: '#FFFFFF',
+              color: '#DC2626',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Trash2 size={13} />
+            {ui('Clear saved draft', 'Futa rasimu')}
+          </button>
         </div>
       )}
 

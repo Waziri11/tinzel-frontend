@@ -212,10 +212,18 @@ export default function StaffWorkspace({ onExitToHome }) {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const currentToken = token;
     setToken('');
     setCurrentUser(null);
     localStorage.removeItem('tinzel_staff_token');
+    if (currentToken) {
+      try {
+        await api.staffAuth.logout(currentToken);
+      } catch {
+        // Safe silent fail if network error or server already invalidated token
+      }
+    }
   };
 
   // Filter allowed navigation items based on the user's role (Strict RBAC)

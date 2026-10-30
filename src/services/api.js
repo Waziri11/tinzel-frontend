@@ -128,6 +128,12 @@ export const api = {
       fetchWithTimeout(`${API_BASE}/api/staff/me`, {
         headers: getHeaders(token),
       }).then(handleResponse),
+
+    logout: (token) =>
+      fetchWithTimeout(`${API_BASE}/api/staff/logout`, {
+        method: 'POST',
+        headers: getHeaders(token),
+      }).then(handleResponse),
   },
 
   // Manager Endpoints
