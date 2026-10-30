@@ -176,10 +176,12 @@ export default function StaffWorkspace({ onExitToHome }) {
       }
     } catch (err) {
       setCurrentUser(null);
-      if ([401,403].includes(err.status)) {
+      if ([401, 403].includes(err.status)) {
         setToken('');
         localStorage.removeItem('tinzel_staff_token');
-      } else setError('Unable to reconnect to your workspace. Please retry.');
+      } else {
+        setError('Unable to reconnect to your workspace. Please check your backend connection or sign in again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -241,10 +243,111 @@ export default function StaffWorkspace({ onExitToHome }) {
   // Unauthenticated: High-End Minimalist Login Screen
   // -------------------------------------------------------------
   if (token && !currentUser) {
-    return <main style={{minHeight:'100dvh',display:'grid',placeContent:'center',gap:16,textAlign:'center',padding:24}} aria-busy={loading}>
-      <p role="status">{error || 'Reconnecting to your workspace…'}</p>
-      {error && <button type="button" disabled={loading} onClick={()=>loadProfile(token)}>Retry connection</button>}
-    </main>;
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#FAFAF9',
+          padding: '24px',
+          textAlign: 'center',
+        }}
+        aria-busy={loading}
+      >
+        <div
+          style={{
+            maxWidth: '440px',
+            width: '100%',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E7E5E4',
+            borderRadius: '10px',
+            padding: '32px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+          }}
+        >
+          <TinzelLogo variant="mark" height={40} />
+          <h2
+            style={{
+              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+              fontStyle: 'italic',
+              fontSize: '22px',
+              fontWeight: '600',
+              color: '#1C1917',
+              margin: 0,
+            }}
+          >
+            Staff Workspace
+          </h2>
+          <p role="status" style={{ fontSize: '14px', color: '#57534E', margin: 0, lineHeight: 1.5 }}>
+            {error || 'Reconnecting to your workspace…'}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '8px' }}>
+            {error && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => loadProfile(token)}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #C5A059',
+                  backgroundColor: '#C5A059',
+                  color: '#FFFFFF',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                {loading ? 'Reconnecting…' : 'Retry connection'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                width: '100%',
+                padding: '9px 16px',
+                borderRadius: '6px',
+                border: '1px solid #E7E5E4',
+                backgroundColor: '#FFFFFF',
+                color: '#57534E',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              Sign out / Sign in with another account
+            </button>
+            {onExitToHome && (
+              <button
+                type="button"
+                onClick={onExitToHome}
+                style={{
+                  width: '100%',
+                  padding: '9px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #E7E5E4',
+                  backgroundColor: '#FAFAF9',
+                  color: '#78716C',
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Return to client homepage
+              </button>
+            )}
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (!token || !currentUser) {

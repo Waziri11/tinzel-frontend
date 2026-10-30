@@ -7,17 +7,27 @@ const STORAGE_KEY = 'tinzel_language';
 
 /**
  * Holds the visitor's chosen language ('en' | 'sw' | null).
- * `null` means the visitor has not chosen yet, so the language
- * selection page is shown first on every fresh visit.
+ * Restores the preference from localStorage so refreshing preserves the language choice.
  */
 export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(null);
+  const [lang, setLangState] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
 
   const setLang = useCallback((next) => {
     setLangState(next);
     try {
-      if (next) sessionStorage.setItem(STORAGE_KEY, next);
-      else sessionStorage.removeItem(STORAGE_KEY);
+      if (next) {
+        localStorage.setItem(STORAGE_KEY, next);
+        sessionStorage.setItem(STORAGE_KEY, next);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
     } catch {
       /* storage unavailable, ignore */
     }
