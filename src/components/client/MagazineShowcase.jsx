@@ -6,10 +6,24 @@ import { api } from '../../services/api';
 import DynamicFormRenderer from './DynamicFormRenderer';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
 
+function buildResponsiveCoverImageProps(url) {
+  const raw = String(url || '/brand/magazine-cover-sample.jpg').trim();
+  if (raw.includes('/api/public/covers/')) {
+    const baseUrl = raw.split('?')[0];
+    return {
+      src: `${baseUrl}?w=480`,
+      srcSet: `${baseUrl}?w=480 480w, ${baseUrl}?w=960 960w`,
+      sizes: '(max-width: 768px) 88vw, 380px',
+    };
+  }
+  return { src: raw };
+}
+
 function MagazineCoverCard({ form, onSelect }) {
   const { t, lang } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const coverImage = form.coverImageUrl || '/brand/magazine-cover-sample.jpg';
+  const coverProps = buildResponsiveCoverImageProps(coverImage);
 
   // Format title: If it contains 'Harusi Yetu - Wedding Edition', clean to 'Wedding Magazine'
   let displayTitle = localized(form, 'title', lang) || t('showcase.defaultTitle');
@@ -55,8 +69,12 @@ function MagazineCoverCard({ form, onSelect }) {
         {/* Magazine Cover Portrait Image */}
         <div style={{ position: 'relative', width: '100%', paddingTop: '141.4%', backgroundColor: '#1C1917' }}>
           <img
-            src={coverImage}
+            {...coverProps}
             alt={displayTitle}
+            loading="lazy"
+            decoding="async"
+            width="480"
+            height="679"
             style={{
               position: 'absolute',
               top: 0,
