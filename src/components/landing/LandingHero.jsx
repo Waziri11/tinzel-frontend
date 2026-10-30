@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Row, Col } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { User } from 'lucide-react';
 import TinzelLogo from '../common/TinzelLogo';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -86,23 +85,28 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         {/* Top-Right Language Switcher and Login Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <LanguageSwitcher />
-        <Button
+        <button
+          type="button"
           onClick={onOpenLogin}
-          icon={<UserOutlined style={{ color: '#C5A059' }} />}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
             backgroundColor: '#FFFFFF',
-            borderColor: '#C5A059',
+            border: '1px solid #C5A059',
             color: '#1C1917',
             height: '38px',
             padding: '0 18px',
             fontSize: '13px',
             fontWeight: '600',
             borderRadius: '6px',
+            cursor: 'pointer',
             boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
           }}
         >
+          <User size={14} color="#C5A059" />
           {t('landing.login')}
-        </Button>
+        </button>
         </div>
       </div>
 
@@ -138,14 +142,16 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
       </div>
 
       {/* The Two Big Minimal Options */}
-      <Row gutter={[28, 28]} justify="center">
-        <Col xs={24} md={12}>
-          <OptionCard label={t('landing.newOrder')} onClick={onSelectNewOrder} />
-        </Col>
-        <Col xs={24} md={12}>
-          <OptionCard label={t('landing.followUp')} onClick={onOpenFollowUp} />
-        </Col>
-      </Row>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '28px',
+        }}
+      >
+        <OptionCard label={t('landing.newOrder')} onClick={onSelectNewOrder} />
+        <OptionCard label={t('landing.followUp')} onClick={onOpenFollowUp} />
+      </div>
     </div>
   );
 }

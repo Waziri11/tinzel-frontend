@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col } from 'antd';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import BrandLoading from '../common/BrandLoading';
-import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
+import { ArrowLeft, Search } from 'lucide-react';
 import { api } from '../../services/api';
-import DynamicFormRenderer from './DynamicFormRenderer';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
+
+const DynamicFormRenderer = lazy(() => import('./DynamicFormRenderer'));
 
 function buildResponsiveCoverImageProps(url) {
   const raw = String(url || '/brand/magazine-cover-sample.jpg').trim();
@@ -202,14 +202,16 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             }}
             title={t('showcase.backEditions')}
           >
-            <ArrowLeftOutlined style={{ fontSize: '16px' }} />
+            <ArrowLeft size={16} />
           </button>
         </div>
 
-        <DynamicFormRenderer
-          slug={selectedFormSlug}
-          onNavigateToTracking={onNavigateToTracking}
-        />
+        <Suspense fallback={<BrandLoading title="Opening form" description="Preparing your magazine questionnaire." />}>
+          <DynamicFormRenderer
+            slug={selectedFormSlug}
+            onNavigateToTracking={onNavigateToTracking}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -245,7 +247,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
           }}
           title={t('showcase.backHome')}
         >
-          <ArrowLeftOutlined style={{ fontSize: '16px' }} />
+          <ArrowLeft size={16} />
         </button>
 
         <div style={{ textAlign: 'right' }}>
@@ -286,9 +288,10 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
             {t('showcase.searchLabel')}
           </label>
           <div style={{ position: 'relative' }}>
-            <SearchOutlined
+            <Search
               aria-hidden="true"
-              style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#A8A29E', fontSize: '18px', pointerEvents: 'none' }}
+              size={18}
+              style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#A8A29E', pointerEvents: 'none' }}
             />
             <input
               id="magazine-catalogue-search"
@@ -356,13 +359,18 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
         </div>
       ) : (
         /* Magazine Cover Showcase Grid */
-        <Row gutter={[48, 48]} justify="center">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 340px))',
+            justifyContent: 'center',
+            gap: '48px',
+          }}
+        >
           {filteredForms.map((form) => (
-            <Col xs={24} sm={12} md={10} lg={8} key={form.slug}>
-              <MagazineCoverCard form={form} onSelect={(slug) => setSelectedFormSlug(slug)} />
-            </Col>
+            <MagazineCoverCard key={form.slug} form={form} onSelect={(slug) => setSelectedFormSlug(slug)} />
           ))}
-        </Row>
+        </div>
       )}
     </div>
   );
