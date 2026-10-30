@@ -32,6 +32,9 @@ const getHeaders = (token = null, isMultipart = false) => {
 const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined' && localStorage.getItem('tinzel_staff_token')) {
+      window.dispatchEvent(new CustomEvent('tinzel:staff:unauthorized', { detail: { message: data.message } }));
+    }
     const defaultMsg =
       res.status === 413
         ? 'Upload is too large for a single request. Please try fewer or smaller photos.'
@@ -46,6 +49,9 @@ const handleResponse = async (res) => {
 const handleBlob = async (res) => {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && typeof window !== 'undefined' && localStorage.getItem('tinzel_staff_token')) {
+      window.dispatchEvent(new CustomEvent('tinzel:staff:unauthorized', { detail: { message: data.message } }));
+    }
     throw new Error(data.message || `Request failed with status ${res.status}`);
   }
   return res.blob();

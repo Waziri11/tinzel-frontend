@@ -152,6 +152,17 @@ export default function StaffWorkspace({ onExitToHome }) {
   }, [token]);
 
   useEffect(() => {
+    const onUnauthorized = (event) => {
+      setToken('');
+      setCurrentUser(null);
+      localStorage.removeItem('tinzel_staff_token');
+      setError(event?.detail?.message || 'Your session has expired or is invalid. Please sign in again.');
+    };
+    window.addEventListener('tinzel:staff:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('tinzel:staff:unauthorized', onUnauthorized);
+  }, []);
+
+  useEffect(() => {
     if (token) {
       loadProfile(token);
       refreshUnreadCount(token);
