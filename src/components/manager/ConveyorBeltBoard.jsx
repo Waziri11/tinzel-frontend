@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
 import {
   AlertTriangle,
@@ -24,8 +24,9 @@ import {
 import { api } from '../../services/api';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
-import PdfBookReader from '../common/PdfBookReader';
 import './managerDashboard.css';
+
+const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
 
 const ALL_STAGES = [
   { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },

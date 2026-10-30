@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Drawer, Grid } from 'antd';
+import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
+import { ConfigProvider, Drawer, Grid } from 'antd';
 import {
   Layers,
   FileText,
@@ -19,14 +19,17 @@ import {
   Bell,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import ConveyorBeltBoard from '../manager/ConveyorBeltBoard';
-import DesignerQueue from '../designer/DesignerQueue';
-import DesignerOrderPage from '../designer/DesignerOrderPage';
-import ReturnsPage from '../designer/ReturnsPage';
-import NotificationsPage from './NotificationsPage';
-import FormBuilder from '../admin/FormBuilder';
-import StaffWorkloadManager from '../admin/StaffWorkloadManager';
+import { tinzelAntdTheme } from '../../theme/antdTheme';
+import BrandLoading from './BrandLoading';
 import TinzelLogo from './TinzelLogo';
+
+const ConveyorBeltBoard = lazy(() => import('../manager/ConveyorBeltBoard'));
+const DesignerQueue = lazy(() => import('../designer/DesignerQueue'));
+const DesignerOrderPage = lazy(() => import('../designer/DesignerOrderPage'));
+const ReturnsPage = lazy(() => import('../designer/ReturnsPage'));
+const NotificationsPage = lazy(() => import('./NotificationsPage'));
+const FormBuilder = lazy(() => import('../admin/FormBuilder'));
+const StaffWorkloadManager = lazy(() => import('../admin/StaffWorkloadManager'));
 
 // RBAC Navigation Configuration
 const NAVIGATION_ITEMS = [
@@ -761,48 +764,52 @@ export default function StaffWorkspace({ onExitToHome }) {
         </header>
 
         {/* Viewport Dynamic Page Render based on RBAC */}
-        <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
-          {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
-            (currentUser.role === 'admin' || currentUser.role === 'manager') && (
-              <ConveyorBeltBoard
-                key={effectiveActivePage}
-                token={token}
-                phase={effectiveActivePage}
-                staffUser={currentUser}
-                compact={!screens.lg}
-                onNavigateToReturns={() => navigateStaff('/staff/returns', 'returns')}
-              />
-            )}
+        <ConfigProvider theme={tinzelAntdTheme}>
+          <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
+            <Suspense fallback={<BrandLoading label="Loading workspace..." />}>
+              {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
+                (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+                  <ConveyorBeltBoard
+                    key={effectiveActivePage}
+                    token={token}
+                    phase={effectiveActivePage}
+                    staffUser={currentUser}
+                    compact={!screens.lg}
+                    onNavigateToReturns={() => navigateStaff('/staff/returns', 'returns')}
+                  />
+                )}
 
-          {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && (
-            <FormBuilder token={token} />
-          )}
+              {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && (
+                <FormBuilder token={token} />
+              )}
 
-          {effectiveActivePage === 'designer_queue' && (
-            <DesignerQueue token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
-          )}
+              {effectiveActivePage === 'designer_queue' && (
+                <DesignerQueue token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+              )}
 
-          {effectiveActivePage === 'designer_order' && routeOrderId && (
-            <DesignerOrderPage token={token} staffUser={currentUser} orderId={routeOrderId} onBack={() => currentUser.role === 'manager' ? navigateStaff('/staff/returns', 'returns') : navigateStaff('/staff/design', 'designer_queue')} />
-          )}
+              {effectiveActivePage === 'designer_order' && routeOrderId && (
+                <DesignerOrderPage token={token} staffUser={currentUser} orderId={routeOrderId} onBack={() => currentUser.role === 'manager' ? navigateStaff('/staff/returns', 'returns') : navigateStaff('/staff/design', 'designer_queue')} />
+              )}
 
-          {effectiveActivePage === 'returns' && (
-            <ReturnsPage token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
-          )}
+              {effectiveActivePage === 'returns' && (
+                <ReturnsPage token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+              )}
 
-          {effectiveActivePage === 'notifications' && (
-            <NotificationsPage
-              token={token}
-              staffUser={currentUser}
-              onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
-              onUnreadCountChange={setUnreadNotifications}
-            />
-          )}
+              {effectiveActivePage === 'notifications' && (
+                <NotificationsPage
+                  token={token}
+                  staffUser={currentUser}
+                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                  onUnreadCountChange={setUnreadNotifications}
+                />
+              )}
 
-          {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (
-            <StaffWorkloadManager token={token} />
-          )}
-        </div>
+              {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (
+                <StaffWorkloadManager token={token} />
+              )}
+            </Suspense>
+          </div>
+        </ConfigProvider>
       </main>
     </div>
   );

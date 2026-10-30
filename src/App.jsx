@@ -1,22 +1,16 @@
-import React, { useState } from 'react';
-import { ConfigProvider, Button } from 'antd';
-import {
-  BookOutlined,
-  UserOutlined,
-  HomeOutlined,
-  SearchOutlined,
-  ArrowLeftOutlined,
-} from '@ant-design/icons';
-import { tinzelAntdTheme } from './theme/antdTheme';
+import React, { Suspense, lazy, useState } from 'react';
+import { Home, Search, User } from 'lucide-react';
 import LandingHero from './components/landing/LandingHero';
-import OrderFollowUpModal from './components/landing/OrderFollowUpModal';
-import MagazineShowcase from './components/client/MagazineShowcase';
-import ClientTrackingPortal from './components/client/ClientTrackingPortal';
-import StaffWorkspace from './components/common/StaffWorkspace';
 import TinzelLogo from './components/common/TinzelLogo';
+import BrandLoading from './components/common/BrandLoading';
 import LanguageSelect from './components/landing/LanguageSelect';
 import LanguageSwitcher from './components/common/LanguageSwitcher';
 import { useLanguage } from './i18n/LanguageContext';
+
+const OrderFollowUpModal = lazy(() => import('./components/landing/OrderFollowUpModal'));
+const MagazineShowcase = lazy(() => import('./components/client/MagazineShowcase'));
+const ClientTrackingPortal = lazy(() => import('./components/client/ClientTrackingPortal'));
+const StaffWorkspace = lazy(() => import('./components/common/StaffWorkspace'));
 
 export default function App() {
   const { lang, t } = useLanguage();
@@ -33,116 +27,135 @@ export default function App() {
   // First page: visitors must pick a language (English or Swahili) before anything else.
   if (!lang) {
     return (
-      <ConfigProvider theme={tinzelAntdTheme}>
-        <div style={{ minHeight: '100vh', backgroundColor: '#FAFAF9', padding: '24px 20px' }}>
-          <LanguageSelect />
-        </div>
-      </ConfigProvider>
+      <div style={{ minHeight: '100vh', backgroundColor: '#FAFAF9', padding: '24px 20px' }}>
+        <LanguageSelect />
+      </div>
     );
   }
 
   return (
-    <ConfigProvider theme={tinzelAntdTheme}>
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: '#FAFAF9',
-        }}
-      >
-        {/* Navigation Bar when not on home or staff workspace view */}
-        {currentView !== 'home' && currentView !== 'staff' && (
-          <header
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#FAFAF9',
+      }}
+    >
+      {/* Navigation Bar when not on home or staff workspace view */}
+      {currentView !== 'home' && currentView !== 'staff' && (
+        <header
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderBottom: '1px solid #E7E5E4',
+            padding: '0 24px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+          }}
+        >
+          <div
             style={{
-              backgroundColor: '#FFFFFF',
-              borderBottom: '1px solid #E7E5E4',
-              padding: '0 24px',
-              position: 'sticky',
-              top: 0,
-              zIndex: 50,
+              maxWidth: '1280px',
+              margin: '0 auto',
+              height: '64px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
             <div
-              style={{
-                maxWidth: '1280px',
-                margin: '0 auto',
-                height: '64px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
+              onClick={() => setCurrentView('home')}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
             >
-              <div
-                onClick={() => setCurrentView('home')}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
-              >
-                <TinzelLogo variant="full" height={36} />
-              </div>
+              <TinzelLogo variant="full" height={36} />
+            </div>
 
-              {/* Right Action Buttons (hidden on editorial catalogue showcase for pure minimalism) */}
-              {currentView !== 'showcase' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <LanguageSwitcher />
-                  <Button
-                    onClick={() => setCurrentView('home')}
-                    icon={<HomeOutlined />}
+            {/* Right Action Buttons (hidden on editorial catalogue showcase for pure minimalism) */}
+            {currentView !== 'showcase' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <LanguageSwitcher />
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('home')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #E7E5E4',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Home size={14} />
+                  {t('nav.home')}
+                </button>
+
+                {currentView !== 'tracking' && (
+                  <button
+                    type="button"
+                    onClick={() => setFollowUpModalOpen(true)}
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid #B45309',
                       backgroundColor: '#FFFFFF',
-                      borderColor: '#E7E5E4',
+                      color: '#B45309',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Search size={14} style={{ color: '#B45309' }} />
+                    {t('nav.followUp')}
+                  </button>
+                )}
+
+                {currentView !== 'staff' && (
+                  <button
+                    type="button"
+                    onClick={() => { window.history.pushState({}, '', '/staff'); setCurrentView('staff'); }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid #E7E5E4',
+                      backgroundColor: '#FFFFFF',
                       color: '#1C1917',
                       fontWeight: '600',
                       fontSize: '13px',
+                      cursor: 'pointer',
                     }}
                   >
-                    {t('nav.home')}
-                  </Button>
+                    <User size={14} style={{ color: '#991B1B' }} />
+                    {t('nav.staffLogin')}
+                  </button>
+                )}
+              </div>
+            )}
+            {currentView === 'showcase' && <LanguageSwitcher />}
+          </div>
+        </header>
+      )}
 
-                  {currentView !== 'tracking' && (
-                    <Button
-                      onClick={() => setFollowUpModalOpen(true)}
-                      icon={<SearchOutlined style={{ color: '#B45309' }} />}
-                      style={{
-                        backgroundColor: '#FFFFFF',
-                        borderColor: '#B45309',
-                        color: '#B45309',
-                        fontWeight: '600',
-                        fontSize: '13px',
-                      }}
-                    >
-                      {t('nav.followUp')}
-                    </Button>
-                  )}
-
-                  {currentView !== 'staff' && (
-                    <Button
-                      onClick={() => { window.history.pushState({}, '', '/staff'); setCurrentView('staff'); }}
-                      icon={<UserOutlined style={{ color: '#991B1B' }} />}
-                      style={{
-                        backgroundColor: '#FFFFFF',
-                        borderColor: '#E7E5E4',
-                        color: '#1C1917',
-                        fontWeight: '600',
-                        fontSize: '13px',
-                      }}
-                    >
-                      {t('nav.staffLogin')}
-                    </Button>
-                  )}
-                </div>
-              )}
-              {currentView === 'showcase' && <LanguageSwitcher />}
-            </div>
-          </header>
-        )}
-
-        {/* Main Content Area */}
-        <main
-          style={{
-            flex: 1,
-            padding: currentView === 'staff' ? 0 : currentView === 'home' ? '24px 20px' : '32px 20px',
-          }}
-        >
+      {/* Main Content Area */}
+      <main
+        style={{
+          flex: 1,
+          padding: currentView === 'staff' ? 0 : currentView === 'home' ? '24px 20px' : '32px 20px',
+        }}
+      >
+        <Suspense fallback={<BrandLoading label="Loading Tinzel..." />}>
           {/* View 1: Home (Editorial Landing Hero with 2 Big Options) */}
           {currentView === 'home' && (
             <LandingHero
@@ -171,31 +184,35 @@ export default function App() {
           {currentView === 'staff' && (
             <StaffWorkspace onExitToHome={() => navigateView('home', '/')} />
           )}
-        </main>
+        </Suspense>
+      </main>
 
-        {/* Magazine Order Follow Up Modal (Asks for Magazine Order Number) */}
-        <OrderFollowUpModal
-          open={followUpModalOpen}
-          onCancel={() => setFollowUpModalOpen(false)}
-          onSuccess={handleFollowUpSuccess}
-        />
+      {/* Magazine Order Follow Up Modal (Asks for Magazine Order Number) */}
+      {followUpModalOpen && (
+        <Suspense fallback={null}>
+          <OrderFollowUpModal
+            open={followUpModalOpen}
+            onCancel={() => setFollowUpModalOpen(false)}
+            onSuccess={handleFollowUpSuccess}
+          />
+        </Suspense>
+      )}
 
-        {/* Subtle Editorial Footer (shown on inner tracking views, removed from minimalist home and staff dashboard) */}
-        {currentView !== 'home' && currentView !== 'staff' && (
-          <footer
-            style={{
-              borderTop: '1px solid #E7E5E4',
-              backgroundColor: '#FFFFFF',
-              padding: '16px 24px',
-              textAlign: 'center',
-              fontSize: '12px',
-              color: '#78716C',
-            }}
-          >
-            {t('footer.text')}
-          </footer>
-        )}
-      </div>
-    </ConfigProvider>
+      {/* Subtle Editorial Footer (shown on inner tracking views, removed from minimalist home and staff dashboard) */}
+      {currentView !== 'home' && currentView !== 'staff' && (
+        <footer
+          style={{
+            borderTop: '1px solid #E7E5E4',
+            backgroundColor: '#FFFFFF',
+            padding: '16px 24px',
+            textAlign: 'center',
+            fontSize: '12px',
+            color: '#78716C',
+          }}
+        >
+          {t('footer.text')}
+        </footer>
+      )}
+    </div>
   );
 }

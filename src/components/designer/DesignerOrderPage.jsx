@@ -1,13 +1,14 @@
 import { transferDraft, savedDraftUpload, cancelDraftUpload } from '../../services/draftUpload';
 import DraftUploadProgress from './DraftUploadProgress';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
 import BrandLoading from '../common/BrandLoading';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
-import PdfBookReader from '../common/PdfBookReader';
 import './designerWorkspace.css';
+
+const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
 
 export default function DesignerOrderPage({ token, staffUser, orderId, onBack }) {
   const [order, setOrder] = useState(null); const [logs, setLogs] = useState([]); const [loading, setLoading] = useState(true);

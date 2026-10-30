@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Lock,
@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
-import PdfBookReader from '../common/PdfBookReader';
+
+const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
 
 const STAGES = [
   { key: 'submission', labelKey: 'track.stage.submission' },
