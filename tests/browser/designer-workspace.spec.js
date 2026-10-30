@@ -64,7 +64,7 @@ async function mockReader(page, { canComment = false, failOnce = false, pageCoun
     }
     if (/annotations\//.test(url.pathname)) { annotations=[]; return json(route,{annotations}); }
     if (url.pathname.includes('/pages/')) {
-      if (url.searchParams.has('text')) return json(route,{width:600,height:800,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03}]});
+      if (url.searchParams.has('text')) return json(route,{geometryVersion:2,imageRegions:[],width:600,height:800,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03}]});
       return route.fulfill({contentType:'image/svg+xml',body:samplePage});
     }
     return json(route,{state:'ready',pageCount,pages:Array.from({length:pageCount},(_,i)=>({page:i+1,width:600,height:800})),annotations,canComment});
@@ -78,7 +78,7 @@ test('reader retains failed comments, saves selected areas, and opens historical
   await mockReader(page,{canComment:true,failOnce:true});
   await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
-  await page.getByRole('button',{name:'Mark image / area'}).click();
+  await page.getByRole('button',{name:'Mark area'}).click();
   const bounds = await page.locator('.proof-sheet').boundingBox();
   await page.mouse.move(bounds.x+bounds.width*.15,bounds.y+bounds.height*.3);await page.mouse.down();await page.mouse.move(bounds.x+bounds.width*.55,bounds.y+bounds.height*.5);await page.mouse.up();
   await page.getByLabel('Correction comment').fill('Replace this photograph');
@@ -118,6 +118,7 @@ test('text selections save normalized anchors and submit together as corrections
   await page.getByRole('button',{name:'Select text',exact:true}).click();
   const text=page.locator('.proof-text-layer span').first();const b=await text.boundingBox();
   await page.mouse.move(b.x+1,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width-1,b.y+b.height/2,{steps:12});await page.mouse.up();
+  await page.getByRole('button',{name:'Add comment',exact:true}).click();
   await page.getByLabel('Correction comment').fill('Correct this wording');
   const saved=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');
   await page.getByRole('button',{name:'Save comment',exact:true}).click();
@@ -236,7 +237,7 @@ test('mobile fits one page, swipes in either direction, and preserves annotation
  await swipe(.8,.2);await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.proof-sheet')).toHaveCount(1);await expect(page.locator('.book-turn')).toHaveCount(0);
  await page.screenshot({path:'/tmp/tinzel-book-fullscreen-mobile.png'});
  await swipe(.2,.8);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
- await page.getByRole('button',{name:'Zoom in',exact:true}).click();await page.getByRole('button',{name:'Mark image / area',exact:true}).click();
+ await page.getByRole('button',{name:'Zoom in',exact:true}).click();await page.getByRole('button',{name:'Mark area',exact:true}).click();
  const sheet=await page.locator('.proof-sheet').boundingBox();await page.mouse.move(sheet.x+sheet.width*.2,sheet.y+sheet.height*.3);await page.mouse.down();await page.mouse.move(sheet.x+sheet.width*.6,sheet.y+sheet.height*.45);await page.mouse.up();
  await expect(page.getByLabel('Correction comment')).toBeVisible();await page.getByLabel('Correction comment').fill('Mobile photo correction');
  const saved=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const data=(await saved).postDataJSON();expect(data.page).toBe(1);expect(data.rects[0].width).toBeCloseTo(.4,1);
@@ -259,7 +260,7 @@ test('touch devices stay single-page in landscape orientation',async({browser})=
 test('landscape PDF pages keep their aspect ratio and correction coordinates inside desktop spreads',async({page})=>{
  await setup(page);await page.setViewportSize({width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
  await page.route('**/api/proofs/staff/order-1/1/pages/2*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:800,height:600,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage.replace('width="600" height="800"','width="800" height="600"')}));
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark image / area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
  await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();await page.getByLabel('Correction comment').fill('Landscape layout correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const annotation=(await sent).postDataJSON();expect(annotation.page).toBe(2);expect(annotation.rects[0].width).toBeCloseTo(.3,1);expect(annotation.rects[0].height).toBeCloseTo(.2,1);
 });
 
@@ -268,7 +269,7 @@ test('saving an earlier comment preserves newer typing and its marked region',as
  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
  let release;const gate=new Promise(resolve=>release=resolve);
  await page.route('**/api/proofs/staff/order-1/1/annotations',async route=>{const body=route.request().postDataJSON();await gate;return json(route,{annotations:[{...body,_id:'saved-1',authorName:'Manager'}]});});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Mark image / area',exact:true}).click();
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Mark area',exact:true}).click();
  const b=await page.getByAltText('Magazine page 1').boundingBox();await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();
  await expect(page.locator('.proof-selection-mark')).toBeVisible();await page.getByLabel('Correction comment').fill('First correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const payload=(await sent).postDataJSON();expect(payload.clientMutationId).toMatch(/^[a-f0-9-]{36}$/i);
  await page.getByLabel('Correction comment').fill('Newer correction still being written');release();await expect(page.getByText('Saved earlier comment — your current draft is still here')).toBeVisible();await expect(page.getByLabel('Correction comment')).toHaveValue('Newer correction still being written');await expect(page.locator('.proof-selection-mark')).toBeVisible();
@@ -322,4 +323,63 @@ test('mobile pages fold at the binding and backward navigation unfolds the incom
  const current=await page.getByAltText('Magazine page 2').getAttribute('src');await page.getByRole('button',{name:'Previous page',exact:true}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  expect(await page.locator('.book-turn-front img').first().getAttribute('src')).toBe(old);expect(await page.locator('.book-stationary img').getAttribute('src')).toBe(current);
  expect(parseFloat(await page.locator('.book-turn-leaf').evaluate(el=>getComputedStyle(el).transformOrigin))).toBe(0);await expect(page.locator('.book-turn-back img')).toHaveCount(0);await expect(page.locator('.book-turn')).toHaveCount(0);
+});
+
+const detectedRegion=(id,x,y,width,height)=>({id,rect:{x,y,width,height},quad:[{x,y},{x:x+width,y},{x:x+width,y:y+height},{x,y:y+height}]});
+async function annotationWorkspace(page,{mobile=false}={}){
+ await setup(page);await page.setViewportSize(mobile?{width:390,height:844}:{width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
+ const regions=[detectedRegion('large',.1,.25,.5,.4),detectedRegion('small',.2,.3,.15,.1)];let annotations=[{_id:'heading',page:1,kind:'text',rects:[{x:.1,y:.1,width:.25,height:.03}],text:'Check heading',selectedText:'Magazine',authorName:'Manager',createdAt:'2026-10-30T10:00:00Z',reviewStatus:'private'},{_id:'distant',page:8,kind:'image',rects:[regions[0].rect],imageQuad:regions[0].quad,text:'Replace distant photograph',authorName:'Client',createdAt:'2026-10-30T10:01:00Z',submittedAt:'2026-10-30T11:00:00Z',reviewStatus:'open',correction:{roundNumber:1,roundStatus:'open',status:'open'}},{_id:'addressed',page:2,kind:'area',rects:[{x:.3,y:.4,width:.2,height:.1}],text:'Correct the date',authorName:'Manager',createdAt:'2026-10-30T10:02:00Z',submittedAt:'2026-10-30T11:00:00Z',reviewStatus:'addressed',correction:{roundNumber:1,roundStatus:'open',status:'addressed',designerResponse:'Date changed to 31 October',addressedAt:'2026-10-30T12:00:00Z'}}];
+ await page.route('**/api/proofs/staff/order-1/**',route=>{
+  const url=new URL(route.request().url());if(url.pathname.endsWith('/annotations')){annotations.push({...route.request().postDataJSON(),_id:'new-image',authorName:'Manager',createdAt:'2026-10-30T13:00:00Z',reviewStatus:'private'});return json(route,{annotations});}
+  if(url.pathname.includes('/pages/'))return url.searchParams.has('text')?json(route,{geometryVersion:2,width:600,height:800,imageRegions:regions,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03,dir:'ltr',fontFamily:'sans-serif',hasEOL:true}]}):route.fulfill({contentType:'image/svg+xml',body:samplePage});
+  return json(route,{state:'ready',pageCount:12,pages:Array.from({length:12},(_,i)=>({page:i+1,width:600,height:800,geometryVersion:2,geometryState:'ready'})),annotations,canComment:true});
+ });
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ return {regions};
+}
+
+test('selects the smallest overlapping image and links numbered comments with correction status',async({page})=>{
+ await annotationWorkspace(page);await page.getByRole('button',{name:'Select image',exact:true}).click();const b=await page.locator('.proof-sheet').boundingBox();await page.mouse.click(b.x+b.width*.25,b.y+b.height*.35);await expect(page.getByLabel('Correction comment',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Add comment',exact:true}).click();
+ await expect(page.getByText('Page 1 · Image comment',{exact:true})).toBeVisible();await page.getByLabel('Correction comment',{exact:true}).fill('Replace selected small photo');const saved=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const payload=(await saved).postDataJSON();expect(payload.kind).toBe('image');expect(payload.imageRegionId).toBe('small');expect(payload.rects[0].width).toBe(.15);
+ await expect(page.getByRole('button',{name:'Open comment 4 on page 1'})).toBeVisible();await page.getByRole('button',{name:'Open comment 2 on page 8'}).click();await expect(page.getByAltText('Magazine page 8')).toBeVisible();await expect(page.locator('[data-comment-id="distant"]')).toHaveAttribute('aria-pressed','true');
+ await page.getByLabel('Filter comments').selectOption('addressed');await expect(page.getByText('Date changed to 31 October')).toBeVisible();await expect(page.getByRole('button',{name:'Open comment 3 on page 2'})).toBeVisible();await expect(page.getByRole('button',{name:'Open comment 2 on page 8'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Comment 2: Replace distant photograph',exact:true}).click();await expect(page.getByLabel('Filter comments')).toHaveValue('all');await expect(page.getByRole('button',{name:'Open comment 2 on page 8'})).toHaveAttribute('aria-current','true');
+ await page.getByRole('button',{name:'Previous comment',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('[data-comment-id="addressed"]')).toHaveAttribute('aria-pressed','true');await page.screenshot({path:'/tmp/tinzel-linked-comments-desktop.png'});
+});
+
+test('mobile native text selection stays adjustable until Add comment opens its bottom sheet',async({page})=>{
+ await annotationWorkspace(page,{mobile:true});await page.getByRole('button',{name:'Select text',exact:true}).click();
+ const select=async end=>page.locator('.proof-text-layer span').first().evaluate((el,end)=>{const selection=window.getSelection(),r=document.createRange();r.setStart(el.firstChild,0);r.setEnd(el.firstChild,end);selection.removeAllRanges();selection.addRange(r);},end);
+ await select(3);await expect(page.getByRole('button',{name:'Add comment',exact:true})).toBeVisible();expect(await page.evaluate(()=>window.getSelection().toString())).toBe('Mag');await expect(page.getByLabel('Correction comment',{exact:true})).toHaveCount(0);
+ await select(8);await expect.poll(()=>page.evaluate(()=>window.getSelection().toString())).toBe('Magazine');await page.getByRole('button',{name:'Add comment',exact:true}).click();await expect(page.getByText('Page 1 · Text comment',{exact:true})).toBeVisible();await expect(page.locator('.proof-composer blockquote')).toHaveText('Magazine');
+ await page.getByLabel('Correction comment',{exact:true}).fill('Clarify this word');const b=await page.locator('.proof-composer').boundingBox();expect(b.x).toBeGreaterThanOrEqual(0);expect(b.x+b.width).toBeLessThanOrEqual(391);await page.screenshot({path:'/tmp/tinzel-text-comment-mobile.png'});
+ const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const data=(await sent).postDataJSON();expect(data.selectedText).toBe('Magazine');expect(data.rects[0].width).toBeLessThan(.4);await expect(page.getByRole('button',{name:'Open comment 4 on page 1'})).toBeVisible();
+});
+
+test('an unfinished composer requires a choice before replacing its selection',async({page})=>{
+ await annotationWorkspace(page);await page.getByRole('button',{name:'Mark area',exact:true}).click();let b=await page.locator('.proof-sheet').boundingBox();await page.mouse.move(b.x+b.width*.7,b.y+b.height*.7);await page.mouse.down();await page.mouse.move(b.x+b.width*.8,b.y+b.height*.8);await page.mouse.up();await page.getByLabel('Correction comment',{exact:true}).fill('Keep this draft');
+ await page.getByRole('button',{name:'Select image',exact:true}).click();b=await page.locator('.proof-sheet').boundingBox();await page.mouse.click(b.x+b.width*.25,b.y+b.height*.35);await page.getByRole('button',{name:'Add comment',exact:true}).click();await expect(page.getByText('Save or discard this comment before choosing another selection.')).toBeVisible();await expect(page.getByLabel('Correction comment',{exact:true})).toHaveValue('Keep this draft');
+ await page.getByRole('button',{name:'Discard current draft',exact:true}).click();await expect(page.getByText('Page 1 · Image comment',{exact:true})).toBeVisible();await expect(page.getByLabel('Correction comment',{exact:true})).toHaveValue('');
+});
+
+test('selection geometry failure leaves the magazine readable and retry upgrades it without another image download',async({page})=>{
+ await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));let ready=false,imageLoads=0,preparations=[];
+ await page.route('**/api/proofs/staff/order-1/**',route=>{
+  const url=new URL(route.request().url());if(url.pathname.endsWith('/prepare')){const body=route.request().postDataJSON();preparations.push(body);if(body.retry)ready=true;}
+  if(url.pathname.includes('/pages/')){if(url.searchParams.has('text'))return json(route,{geometryVersion:ready?2:0,width:600,height:800,text:[],imageRegions:ready?[detectedRegion('recovered',.1,.2,.5,.4)]:[]});imageLoads++;return route.fulfill({contentType:'image/svg+xml',body:samplePage});}
+  return json(route,{state:'ready',pageCount:1,pages:[{page:1,geometryVersion:ready?2:0,geometryState:ready?'ready':'failed',geometryError:{message:'Selection preparation failed'}}],annotations:[],canComment:true});
+ });
+ await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();const before=imageLoads;await page.getByRole('button',{name:'Select image',exact:true}).click();await expect(page.getByRole('button',{name:'Retry selection',exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Retry selection',exact:true}).click();await expect(page.locator('.proof-image-targets polygon')).toHaveCount(1);expect(imageLoads).toBe(before);expect(preparations.some(p=>p.geometryOnly&&p.retry)).toBe(true);
+});
+
+test('mobile composer remains above a reduced visual viewport while typing',async({page})=>{
+ await annotationWorkspace(page,{mobile:true});await page.getByRole('button',{name:'Mark area',exact:true}).click();const b=await page.locator('.proof-sheet').boundingBox();await page.mouse.move(b.x+b.width*.7,b.y+b.height*.7);await page.mouse.down();await page.mouse.move(b.x+b.width*.9,b.y+b.height*.8);await page.mouse.up();await page.getByLabel('Correction comment',{exact:true}).fill('Keyboard-visible correction');
+ await page.evaluate(()=>{Object.defineProperty(window.visualViewport,'height',{configurable:true,get:()=>500});Object.defineProperty(window.visualViewport,'offsetTop',{configurable:true,get:()=>0});window.visualViewport.dispatchEvent(new Event('resize'));});
+ await expect.poll(()=>page.locator('.proof-composer').evaluate(el=>el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(501);await expect(page.getByRole('button',{name:'Save comment',exact:true})).toBeVisible();
+});
+
+test('a newer comment click cancels an obsolete page jump',async({page})=>{
+ await annotationWorkspace(page);await page.getByRole('button',{name:'Comments (3)',exact:true}).click();
+ await page.route('**/api/proofs/staff/order-1/1/pages/8*',async route=>{await new Promise(resolve=>setTimeout(resolve,600));try{if(new URL(route.request().url()).searchParams.has('text'))return json(route,{geometryVersion:2,width:600,height:800,text:[],imageRegions:[]});return route.fulfill({contentType:'image/svg+xml',body:samplePage});}catch{/* The superseded request was cancelled. */}});
+ await page.getByRole('button',{name:'Open comment 2 on page 8'}).click();await page.getByRole('button',{name:'Open comment 3 on page 2'}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await expect(page.locator('[data-comment-id="addressed"]')).toHaveAttribute('aria-pressed','true');await expect(page.getByAltText('Magazine page 8')).toHaveCount(0);
 });

@@ -9,6 +9,7 @@ export function createProofPageCache(reader, {limit=10,concurrency=2,encodedLimi
     return value;
   };
   const keepEncoded=(number,blob,text)=>{
+    const previous=encoded.get(number);if(previous){encoded.delete(number);encodedBytes-=previous.bytes;}
     const bytes=(Number(blob.size)||0)+JSON.stringify(text).length*2;
     if(bytes>maxEncodedBytes||encodedLimit<1)return;
     while(encoded.size&&(encoded.size>=encodedLimit||encodedBytes+bytes>maxEncodedBytes)){
@@ -71,6 +72,7 @@ export function createProofPageCache(reader, {limit=10,concurrency=2,encodedLimi
       for(const {entry}of queue)entry.reject(new Error('Reader closed'));
       queue.length=0;entries.clear();encoded.clear();encodedBytes=0;
     },
+    updateText(number,text){const entry=entries.get(number);if(entry?.value)entry.value.text=text;const saved=encoded.get(number);if(saved)keepEncoded(number,saved.blob,text);},
     peek(number){return entries.get(number)?.value;},
     get size(){return [...entries.values()].filter(entry=>entry.value).length;},
     get encodedBytes(){return encodedBytes;},

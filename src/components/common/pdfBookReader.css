@@ -52,3 +52,29 @@
    sheet away; backward unfolds the incoming sheet over the current page. */
 .turn-single .book-stationary{left:0}
 .turn-single.turn-backward .book-paper-segment,.turn-single.turn-backward .book-turn-front::after,.turn-single.turn-backward .book-turn-back::after,.turn-single.turn-backward::before{animation-direction:reverse}
+
+/* Annotation surfaces use native selection; only decorative leaves animate. */
+.proof-sheet .proof-text-layer span{width:max-content;height:auto;overflow:visible;line-height:1;white-space:pre;unicode-bidi:isolate;user-select:text;-webkit-user-select:text}
+.proof-sheet .proof-text-layer{container-type:normal;touch-action:pan-y}
+.proof-sheet .proof-mark{pointer-events:none!important}
+.proof-image-targets,.proof-saved-image{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
+.proof-image-targets polygon{fill:transparent;stroke:#d5b36a88;stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+.proof-image-targets polygon.is-hovered,.proof-image-targets polygon:focus{stroke:#ffd171;stroke-width:2;fill:#ffd17122;outline:none}
+.mode-image{cursor:crosshair}
+.proof-saved-image polygon{fill:#ffcc0033;stroke:#e4a600;stroke-width:1;vector-effect:non-scaling-stroke}
+.proof-saved-image.is-focused polygon{fill:#ff990055;stroke:#fc8500;stroke-width:3}
+.pdf-book .proof-pin{position:absolute;z-index:5;min-width:23px;width:23px;height:23px;min-height:23px;padding:0;border-radius:50%;background:#b38a3b;color:#fff;font-size:11px;transform:translate(-15%,-40%);box-shadow:0 1px 4px #0005}
+.pdf-book .proof-pin.is-focused{background:#f2ca78;color:#211c17;outline:2px solid #fff}
+.pdf-book .proof-add-comment{position:absolute;z-index:7;background:#25211a;color:#f4d69b;box-shadow:0 3px 14px #0005;white-space:nowrap;min-height:34px}
+.proof-geometry-status{position:absolute;bottom:6px;left:6px;right:6px;z-index:4;background:#211e19ed;color:#eadcbd;padding:5px;font-size:11px}
+.proof-composer{position:absolute;z-index:12;width:300px;max-width:calc(100% - 16px);padding:14px;box-sizing:border-box;background:#f8f6f1;color:#28231d;border:1px solid #d2bc8b;border-radius:8px;box-shadow:0 8px 28px #0006;font-size:12px;max-height:calc(100% - 16px);overflow:auto}
+.proof-composer>strong{font-size:12px}.proof-composer blockquote{margin:8px 0;padding:5px 8px;border-left:2px solid #b38a3b;max-height:64px;overflow:auto;white-space:pre-wrap}
+.proof-composer textarea{display:block;box-sizing:border-box;width:100%;min-height:90px;padding:8px;margin:10px 0;border:1px solid #ccc1ae;border-radius:4px;font:inherit;resize:vertical;color:#211c17;background:#fff}
+.pdf-book .proof-composer button{color:#3e321d}.pdf-book .proof-composer button[type=submit],.pdf-book .proof-composer button:not([type]){background:#29231a;color:#fff}
+.proof-filter{font-size:11px;display:flex;align-items:center;gap:8px;margin-top:12px}.proof-filter select{flex:1;min-width:0;background:#302b23;color:#eadfca;border:1px solid #5f5545;padding:6px;border-radius:4px;font:inherit}
+.proof-comment-navigation{display:flex;justify-content:space-between;margin-top:7px}.proof-comment-group h3{font-size:11px;color:#baad95;margin:16px 0 0;display:flex;justify-content:space-between}.proof-comment-group h3 span{font-weight:400}
+.pdf-book .proof-comment-card{width:100%;display:block;text-align:left;padding:4px 0;line-height:1.5;white-space:normal}.proof-comment-title{display:block;color:#e6d8bc;font-size:11px}.proof-comment-body{display:block;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:7px}.proof-comment-status{text-transform:capitalize;font-size:10px;color:#cab58b}.status-addressed{color:#9ac0a0}.proof-comment-response{border-left:2px solid #746342;padding-left:8px;font-size:11px}.proof-comment-response strong{font-size:11px}.proof-replacement{border-top:1px solid #c9bb9e;margin-top:10px;padding-top:7px}.proof-replacement p{margin:0 0 6px}
+@media(max-width:760px),(hover:none) and (pointer:coarse){.proof-composer{left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;max-height:75%;border-radius:12px 12px 0 0;padding-bottom:max(14px,env(safe-area-inset-bottom))}.proof-modes button{padding:5px 7px}.pdf-book .proof-pin{min-width:24px;min-height:24px}.proof-composer textarea{font-size:16px}.proof-composer~*{pointer-events:none}}
+.proof-comments-controls{position:sticky;top:-12px;z-index:8;background:#201e1a;margin:-12px -16px 0;padding:12px 16px 6px;border-bottom:1px solid #ffffff12}
+.proof-comment-group article{scroll-margin-block-start:140px}
+@media(max-width:760px),(hover:none) and (pointer:coarse){.proof-composer{position:fixed;left:0;right:0;bottom:var(--proof-keyboard-offset,0px);max-height:min(75%,calc(var(--proof-visible-height,100dvh) - 24px));z-index:2300}}

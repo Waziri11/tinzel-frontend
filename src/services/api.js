@@ -446,7 +446,7 @@ export function proofApi(token, orderId, version, client = false) {
   }).then(handleResponse);
   return {
     metadata: () => request(),
-    prepare: (pages) => request('/prepare', 'POST', { pages }),
+    prepare: (pages,options={}) => request('/prepare', 'POST', { pages,...options }),
     bundle: import.meta.env.VITE_PROOF_FAST_READER === 'false' ? undefined : async (page,signal) => {
       const res=await fetch(`${base}/pages/${page}?bundle=1&view=${view}`,{headers:getHeaders(token),cache:'no-store',signal});
       if(res.status===202)throw Object.assign(new Error('Page is being prepared'),{pending:true});
