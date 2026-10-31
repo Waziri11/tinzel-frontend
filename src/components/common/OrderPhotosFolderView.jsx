@@ -81,19 +81,31 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
           >
             {/* Folder Header */}
             <div
-              onClick={() => toggleFolder(folderName)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 16px',
+                padding: '8px 16px',
                 backgroundColor: isOpen ? '#FAF5EA' : '#FAFAF9',
                 borderBottom: isOpen ? '1px solid rgba(197, 160, 89, 0.25)' : 'none',
-                cursor: 'pointer',
                 transition: 'background-color 0.15s ease',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => toggleFolder(folderName)}
+                aria-expanded={isOpen}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  textAlign: 'left',
+                }}
+              >
                 {isOpen ? (
                   <FolderOpen size={18} color="#C5A059" />
                 ) : (
@@ -115,7 +127,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                 >
                   {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
                 </span>
-              </div>
+              </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {onDownloadFolder && (

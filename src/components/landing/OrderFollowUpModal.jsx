@@ -101,6 +101,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
           <div>
             <div style={{ marginBottom: '16px' }}>
               <label
+                htmlFor="follow-up-order-number"
                 style={{
                   display: 'block',
                   fontSize: '12px',
@@ -114,6 +115,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 {t('follow.orderNumber')}
               </label>
               <Input
+                id="follow-up-order-number"
                 size="large"
                 placeholder={t('follow.orderPlaceholder')}
                 value={orderNumber}
@@ -128,6 +130,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
 
             <div style={{ marginBottom: '24px' }}>
               <label
+                htmlFor="follow-up-whatsapp"
                 style={{
                   display: 'block',
                   fontSize: '12px',
@@ -141,6 +144,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 {t('follow.whatsapp')}
               </label>
               <Input
+                id="follow-up-whatsapp"
                 size="large"
                 placeholder="e.g. +255712345678"
                 value={whatsappPhone}

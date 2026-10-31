@@ -424,10 +424,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              <label htmlFor="magazine-client-whatsapp" style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
                 {t('form.whatsapp')}
               </label>
               <input
+                id="magazine-client-whatsapp"
                 type="text"
                 required
                 placeholder="e.g. +255712345678"
@@ -441,17 +442,17 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   borderRadius: '6px',
                   color: 'var(--text-main)',
                   fontSize: '14px',
-                  outline: 'none',
                 }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+            <label htmlFor="magazine-client-email" style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
               {t('form.email')}
             </label>
             <input
+              id="magazine-client-email"
               type="email"
               placeholder={t('form.emailPh')}
               value={clientEmail}
@@ -464,7 +465,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 borderRadius: '6px',
                 color: 'var(--text-main)',
                 fontSize: '14px',
-                outline: 'none',
               }}
             />
           </div>

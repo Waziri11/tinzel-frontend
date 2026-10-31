@@ -265,10 +265,11 @@ export default function ClientTrackingPortal() {
           {!otpSent ? (
             <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label htmlFor="track-login-id" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
                   {t('track.login.trackingId')}
                 </label>
                 <input
+                  id="track-login-id"
                   type="text"
                   placeholder={t('track.login.trackingIdPh')}
                   required
@@ -282,17 +283,17 @@ export default function ClientTrackingPortal() {
                     borderRadius: '6px',
                     color: 'var(--text-main)',
                     fontSize: '14px',
-                    outline: 'none',
                     letterSpacing: '0.5px',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label htmlFor="track-login-whatsapp" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
                   {t('track.login.whatsapp')}
                 </label>
                 <input
+                  id="track-login-whatsapp"
                   type="text"
                   placeholder={t('track.login.whatsappPh')}
                   required
@@ -306,7 +307,6 @@ export default function ClientTrackingPortal() {
                     borderRadius: '6px',
                     color: 'var(--text-main)',
                     fontSize: '14px',
-                    outline: 'none',
                   }}
                 />
               </div>
@@ -335,10 +335,11 @@ export default function ClientTrackingPortal() {
           ) : (
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label htmlFor="track-login-otp" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
                   {t('track.login.enterOtp')}
                 </label>
                 <input
+                  id="track-login-otp"
                   type="text"
                   maxLength={6}
                   placeholder="123456"
@@ -355,7 +356,6 @@ export default function ClientTrackingPortal() {
                     border: '1px solid var(--border-color)',
                     borderRadius: '6px',
                     color: 'var(--text-main)',
-                    outline: 'none',
                   }}
                 />
                 {devOtp && (
