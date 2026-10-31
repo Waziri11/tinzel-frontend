@@ -18,7 +18,9 @@ export function LanguageProvider({ children }) {
     }
   });
 
-  const setLang = useCallback((next) => {
+  const setLang = useCallback((next, {persist=true} = {}) => {
+    if(next && !['en','sw'].includes(next))return;
+    if(persist && next) window.dispatchEvent(new CustomEvent('tinzel:language-choice',{detail:next}));
     setLangState(next);
     try {
       if (next) {

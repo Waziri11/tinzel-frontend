@@ -15,6 +15,8 @@ import {
   Loader2,
   CreditCard,
 } from 'lucide-react';
+import { useAccountLanguage } from '../../hooks/useAccountLanguage';
+import ClientNotifications from './ClientNotifications';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -37,6 +39,7 @@ export default function ClientTrackingPortal() {
   const [otpCode, setOtpCode] = useState('');
   const [clientToken, setClientToken] = useState(sessionStorage.getItem('tinzel_client_token') || '');
   const [order, setOrder] = useState(null);
+  useAccountLanguage('client',clientToken,order?._id,order?.clientPreferredLanguage,message=>setError(message));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -115,13 +118,13 @@ export default function ClientTrackingPortal() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setClientToken('');
     sessionStorage.removeItem('tinzel_client_token');
     setOrder(null);
     setOtpSent(false);
     setOtpCode('');
-  };
+  }, []);
 
   const handleApproveWholeMagazine = async () => {
     if (!confirm(t('track.confirm.approve'))) return;
@@ -549,6 +552,7 @@ export default function ClientTrackingPortal() {
         </div>
       )}
 
+      <ClientNotifications token={clientToken} onUnauthorized={handleLogout} />
       {/* Visual Conveyor Belt Progress Bar */}
       <div
         style={{

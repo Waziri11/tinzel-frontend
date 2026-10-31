@@ -138,7 +138,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     if (missing) { setError(t('form.errRequired', { label: L(missing, 'label') })); return; }
     setSubmitting(true); setError(null);
     try {
-      const result = await uploads.submit({ clientName: clientName.trim(), clientWhatsApp: clientWhatsApp.trim(), clientEmail: clientEmail.trim(), answers });
+      const result = await uploads.submit({ clientName: clientName.trim(), clientWhatsApp: clientWhatsApp.trim(), clientEmail: clientEmail.trim(), clientPreferredLanguage: lang || 'sw', answers });
       setSubmissionResult(result);
       setHasSavedDraft(false);
       try { localStorage.removeItem(draftKey); } catch { /* optional recovery */ }

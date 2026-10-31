@@ -18,9 +18,12 @@ import {
   Printer,
   Bell,
 } from 'lucide-react';
+import { useAccountLanguage } from '../../hooks/useAccountLanguage';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
 import { tinzelAntdTheme } from '../../theme/antdTheme';
 import BrandLoading from './BrandLoading';
+import LanguageSwitcher from './LanguageSwitcher';
 import TinzelLogo from './TinzelLogo';
 
 const ConveyorBeltBoard = lazy(() => import('../manager/ConveyorBeltBoard'));
@@ -108,6 +111,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  useAccountLanguage('staff',token,currentUser?.id || currentUser?._id,currentUser?.preferredLanguage,setError);
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -150,6 +154,8 @@ export default function StaffWorkspace({ onExitToHome }) {
       // Ignore background badge refresh errors
     }
   }, [token]);
+
+  useVisiblePolling(()=>refreshUnreadCount(token),Boolean(token && currentUser));
 
   useEffect(() => {
     const onUnauthorized = (event) => {
@@ -653,6 +659,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             )}
           </div>
 
+          <div style={{padding:'8px 20px'}}><LanguageSwitcher /></div>
           {/* Navigation Menu by RBAC */}
           <div style={{ padding: '16px 12px 10px 12px' }}>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

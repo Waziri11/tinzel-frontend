@@ -264,6 +264,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     }
   };
 
+  useEffect(()=>{
+    const id=new URLSearchParams(window.location.search).get('orderId');
+    if(id)openOrder({_id:id});
+  },[token,phase]);
+
   const closeDetail = () => {
     setSelectedOrder(null);
     setOrderDetail(null);

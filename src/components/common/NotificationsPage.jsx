@@ -1,3 +1,5 @@
+import PrinterNotificationSettings from '../admin/PrinterNotificationSettings';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
@@ -28,6 +30,7 @@ const TEMPLATE_LABELS = {
   order_submitted_staff: 'New Order Alert',
   payment_verified: 'Payment Verified',
   order_assigned: 'Designer Assigned',
+  assignment_queued: 'Designer Assignment Required',
   draft_uploaded: 'Draft Uploaded for Review',
   draft_released: 'Draft Released to Client',
   draft_returned: 'Draft Returned for Changes',
@@ -36,6 +39,7 @@ const TEMPLATE_LABELS = {
   print_document_uploaded: 'Print File Uploaded',
   print_dispatched: 'Dispatched to Printer',
   printing_in_progress: 'Printing In Progress',
+  printing_completed: 'Printing Complete — Dispatch Required',
   order_dispatched: 'Courier Dispatched',
   order_closed: 'Order Delivered & Closed',
   client_otp: 'Client Portal OTP',
@@ -294,8 +298,8 @@ export default function NotificationsPage({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [composeOpen]);
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
+  const loadNotifications = useCallback(async (silent=false) => {
+    if(!silent)setLoading(true);
     setError('');
     try {
       const apiChannel =
@@ -309,7 +313,7 @@ export default function NotificationsPage({
       };
 
       const requests = [api.notifications.getHistory(token, params)];
-      if (isManagerOrAdmin) {
+      if (isManagerOrAdmin && !silent) {
         requests.push(api.notifications.getDiagnostics(token));
         requests.push(api.notifications.getSettings(token));
       }
@@ -360,6 +364,7 @@ export default function NotificationsPage({
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+  useVisiblePolling(()=>loadNotifications(true),Boolean(token));
 
   const handleRefreshDiagnostics = async () => {
     if (!isManagerOrAdmin) return;
@@ -531,12 +536,13 @@ export default function NotificationsPage({
     }
   };
 
-  const handleResend = async (id, channel) => {
+  const handleResend = async (id, channel, uncertain=false) => {
+    if(uncertain && !window.confirm('Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?'))return;
     try {
       setResendingId(id);
       setError('');
-      await api.notifications.resend(token, id, channel);
-      setNotice(`Notification re-sent via ${channel.toUpperCase()}.`);
+      await api.notifications.resend(token, id, channel, uncertain);
+      setNotice('Retry processed. Check the recorded delivery result below.');
       await loadNotifications();
     } catch (err) {
       setError(err.message || 'Failed to resend notification.');
@@ -588,19 +594,19 @@ export default function NotificationsPage({
             item.channel === 'in_system'
               ? item
               : item.metadata?.channelsSummary?.in_system
-              ? { status: 'delivered' }
+              ? { status: 'unconfirmed' }
               : null,
           email:
             item.channel === 'email'
               ? item
               : item.metadata?.channelsSummary?.email
-              ? { status: 'sent', recipient: item.metadata?.channelsSummary?.emailAddress }
+              ? { status: 'unconfirmed', recipient: item.metadata?.channelsSummary?.emailAddress }
               : null,
           phone: ['whatsapp', 'sms'].includes(item.channel)
             ? item
             : item.metadata?.channelsSummary?.phone
             ? {
-                status: 'sent',
+                status: 'unconfirmed',
                 channel: 'sms',
                 recipient: item.metadata?.channelsSummary?.phoneNumber,
               }
@@ -642,16 +648,16 @@ export default function NotificationsPage({
         siblings: group.siblings,
         channels: {
           in_system:
-            inSys || (summaryMeta.in_system ? { status: 'delivered', channel: 'in_system' } : null),
+            inSys || (summaryMeta.in_system ? { status: 'unconfirmed', channel: 'in_system' } : null),
           email:
             emailRec ||
             (summaryMeta.email
-              ? { status: 'delivered', channel: 'email', recipient: summaryMeta.emailAddress }
+              ? { status: 'unconfirmed', channel: 'email', recipient: summaryMeta.emailAddress }
               : null),
           phone:
             phoneRec ||
             (summaryMeta.phone
-              ? { status: 'delivered', channel: 'sms', recipient: summaryMeta.phoneNumber }
+              ? { status: 'unconfirmed', channel: 'sms', recipient: summaryMeta.phoneNumber }
               : null),
         },
       };
@@ -682,6 +688,7 @@ export default function NotificationsPage({
         margin: '0 auto',
       }}
     >
+      {activeSection === 'triggers' && staffUser?.role === 'admin' && <PrinterNotificationSettings token={token} />}
       {/* Page Header */}
       <div
         style={{
@@ -1012,7 +1019,7 @@ export default function NotificationsPage({
               {channelCounts.email || 0}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Email Dispatches ({emailHealthy ? 'SMTP Live' : 'Simulated'})
+              Email Dispatches
             </span>
           </div>
         </div>
@@ -1081,12 +1088,12 @@ export default function NotificationsPage({
                 ? `NextSMS Live (${diagnostics?.sms?.balance?.display || 'Active'})`
                 : diagnostics?.mode === 'twilio_live'
                 ? 'Live Gateway'
-                : 'Active Sync'}
+                : 'Gateway not verified'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               {smsHealthy
                 ? `${diagnostics?.sms?.balance?.default_balance ?? '—'} SMS credits available`
-                : 'Email + Phone + In-System'}
+                : 'See each recorded channel outcome below'}
             </span>
           </div>
         </div>
@@ -2147,7 +2154,8 @@ export default function NotificationsPage({
               >
                 <option value="all">All statuses</option>
                 <option value="delivered">Delivered</option>
-                <option value="sent">Sent</option>
+                <option value="sent">Provider accepted</option>
+                <option value="queued">Queued</option><option value="unconfirmed">Unconfirmed</option><option value="skipped">Skipped</option><option value="simulated">Simulated</option>
                 <option value="failed">Failed</option>
               </select>
 
@@ -2253,7 +2261,7 @@ export default function NotificationsPage({
                 const orderTargetId =
                   orderObj?._id || (typeof primary.orderId === 'string' ? primary.orderId : null);
                 const hasFailedSibling = siblings.some(
-                  (s) => s.status === 'failed' || s.status === 'undelivered'
+                  (s) => s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed'
                 );
 
                 return (
@@ -2388,7 +2396,7 @@ export default function NotificationsPage({
                           }}
                         >
                           <Bell size={12} />
-                          In-System: {channels.in_system ? 'Recorded' : '—'}
+                          In-System: {channels.in_system ? (channels.in_system.status === 'delivered' ? 'Recorded' : channels.in_system.status) : '—'}
                         </span>
 
                         {/* 2. Email Channel Pill */}
@@ -2416,7 +2424,7 @@ export default function NotificationsPage({
                           <Mail size={12} />
                           Email:{' '}
                           {channels.email
-                            ? `${channels.email.status || 'sent'}${
+                            ? `${channels.email.status === 'sent' ? 'provider accepted' : channels.email.status || 'unconfirmed'}${
                                 channels.email.recipient || channels.email.to
                                   ? ` (${channels.email.recipient || channels.email.to})`
                                   : ''
@@ -2449,7 +2457,7 @@ export default function NotificationsPage({
                           <MessageSquare size={12} />
                           Phone ({(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
                           {channels.phone
-                            ? `${channels.phone.status || 'sent'}${
+                            ? `${channels.phone.status === 'sent' ? 'provider accepted' : channels.phone.status || 'unconfirmed'}${
                                 channels.phone.recipient || channels.phone.to
                                   ? ` (${channels.phone.recipient || channels.phone.to})`
                                   : ''
@@ -2458,6 +2466,7 @@ export default function NotificationsPage({
                         </span>
                       </div>
 
+                      {primary.workflowEventKey && <div style={{fontSize:12,color:'#57534E'}}>{siblings.map(item=><p key={item._id || item.id} style={{overflowWrap:'anywhere'}}>{item.channel.toUpperCase()}: {item.status === 'sent' ? 'provider accepted' : item.status} · {item.attempts || 0}/5 attempts{item.errorMessage ? ` — ${item.errorMessage}` : ''}{item.nextAttemptAt && item.retryable ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}` : ''}</p>)}</div>}
                       {/* Card Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {isUnread && (
@@ -2484,7 +2493,7 @@ export default function NotificationsPage({
                             .filter(
                               (s) =>
                                 s.channel !== 'in_system' &&
-                                (s.status === 'failed' || s.status === 'undelivered')
+                                (s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed')
                             )
                             .map((failedItem) => {
                               const fId = failedItem._id || failedItem.id;
@@ -2493,7 +2502,7 @@ export default function NotificationsPage({
                                   key={fId}
                                   type="button"
                                   disabled={resendingId === fId}
-                                  onClick={() => handleResend(fId, failedItem.channel)}
+                                  onClick={() => handleResend(fId, failedItem.channel, failedItem.status === 'unconfirmed')}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',

@@ -84,6 +84,9 @@ export const api = {
 
   // Client Tracking Endpoints
   client: {
+    setPreferences: (token, preferredLanguage) => fetchWithTimeout(`${API_BASE}/api/client/preferences`,{method:'PATCH',headers:getHeaders(token),body:JSON.stringify({preferredLanguage})}).then(handleResponse),
+    getNotifications: token => fetchWithTimeout(`${API_BASE}/api/client/notifications`,{headers:getHeaders(token)}).then(handleResponse),
+    readNotification: (token,id) => fetchWithTimeout(`${API_BASE}/api/client/notifications/${id}/read`,{method:'PATCH',headers:getHeaders(token)}).then(handleResponse),
     requestOtp: (trackingId, clientWhatsApp) =>
       fetchWithTimeout(`${API_BASE}/api/client/request-otp`, {
         method: 'POST',
@@ -123,6 +126,7 @@ export const api = {
 
   // Staff Auth Endpoints
   staffAuth: {
+    setPreferences: (token, preferredLanguage) => fetchWithTimeout(`${API_BASE}/api/staff/preferences`,{method:'PATCH',headers:getHeaders(token),body:JSON.stringify({preferredLanguage})}).then(handleResponse),
     login: (email, password) =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
         method: 'POST',
@@ -425,11 +429,11 @@ export const api = {
         method: 'POST',
         headers: getHeaders(token),
       }).then(handleResponse),
-    resend: (token, id, channel) =>
+    resend: (token, id, channel, confirmUncertain=false) =>
       fetchWithTimeout(`${API_BASE}/api/notifications/resend/${id}`, {
         method: 'POST',
         headers: getHeaders(token),
-        body: JSON.stringify({ channel }),
+        body: JSON.stringify({ channel, confirmUncertain }),
       }).then(handleResponse),
     testSend: (token, data) =>
       fetchWithTimeout(`${API_BASE}/api/notifications/test-send`, {
