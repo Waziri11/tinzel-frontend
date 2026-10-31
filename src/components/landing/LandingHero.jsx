@@ -68,14 +68,16 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
   }, []);
 
   return (
-    <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '16px 0 60px 0' }}>
+    <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '16px 16px 60px 16px' }}>
       {/* Top Editorial Bar: Logo on left, Login on right (Zero lines, Zero taglines) */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '64px',
+          marginBottom: '48px',
+          flexWrap: 'wrap',
+          gap: '16px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -83,7 +85,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
         </div>
 
         {/* Top-Right Language Switcher and Login Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <LanguageSwitcher />
         <button
           type="button"
@@ -111,11 +113,11 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
       </div>
 
       {/* Hero Narrative: Animated Headline Only (Subtitle removed for pure minimalism) */}
-      <div style={{ textAlign: 'center', maxWidth: '860px', margin: '0 auto 64px auto' }}>
+      <div style={{ textAlign: 'center', maxWidth: '860px', margin: '0 auto 48px auto' }}>
         <h1
           style={{
             fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-            fontSize: '56px',
+            fontSize: 'clamp(32px, 6vw, 56px)',
             fontWeight: '600',
             lineHeight: '1.2',
             color: '#1C1917',

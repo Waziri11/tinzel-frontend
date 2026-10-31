@@ -48,7 +48,7 @@ export default function App() {
           style={{
             backgroundColor: '#FFFFFF',
             borderBottom: '1px solid #E7E5E4',
-            padding: '0 24px',
+            padding: '0 16px',
             position: 'sticky',
             top: 0,
             zIndex: 50,
@@ -58,22 +58,27 @@ export default function App() {
             style={{
               maxWidth: '1280px',
               margin: '0 auto',
-              height: '64px',
+              minHeight: '64px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '8px 0',
             }}
           >
-            <div
+            <button
+              type="button"
               onClick={() => setCurrentView('home')}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+              aria-label="Tinzel Home"
             >
               <TinzelLogo variant="full" height={36} />
-            </div>
+            </button>
 
             {/* Right Action Buttons (hidden on editorial catalogue showcase for pure minimalism) */}
             {currentView !== 'showcase' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <LanguageSwitcher />
                 <button
                   type="button"
