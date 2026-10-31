@@ -149,6 +149,7 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
   const { t, lang } = useLanguage();
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedFormSlug, setSelectedFormSlug] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -158,11 +159,13 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
 
   const loadForms = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.public.getForms();
       setForms(data.forms || []);
     } catch (err) {
       console.error('Failed to load forms:', err);
+      setError(err.message || 'Unable to load magazine catalogue. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -319,6 +322,37 @@ export default function MagazineShowcase({ onBackToHome, onNavigateToTracking })
 
       {loading ? (
         <BrandLoading title={t('showcase.loading')} description={lang === 'sw' ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'} />
+      ) : error ? (
+        <div
+          style={{
+            textAlign: 'center',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--accent-danger)',
+            borderRadius: '8px',
+            padding: '36px 24px',
+            color: '#1C1917',
+          }}
+        >
+          <p style={{ color: 'var(--accent-danger)', fontWeight: '600', marginBottom: '16px', fontSize: '14px' }}>
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={loadForms}
+            style={{
+              border: '1px solid var(--accent-primary)',
+              borderRadius: '6px',
+              padding: '9px 20px',
+              backgroundColor: 'var(--accent-primary)',
+              color: '#FFFFFF',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            {lang === 'sw' ? 'Jaribu Tena' : 'Retry Loading'}
+          </button>
+        </div>
       ) : forms.length === 0 ? (
         <div
           style={{
