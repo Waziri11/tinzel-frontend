@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { translations } from './translations';
 
 const LanguageContext = createContext(null);
@@ -32,6 +32,12 @@ export function LanguageProvider({ children }) {
       /* storage unavailable, ignore */
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang || 'en';
+    }
+  }, [lang]);
 
   const value = useMemo(() => {
     const active = lang || 'en';
