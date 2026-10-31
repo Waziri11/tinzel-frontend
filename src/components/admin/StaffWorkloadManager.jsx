@@ -53,6 +53,18 @@ export default function StaffWorkloadManager({ token }) {
     loadData();
   }, [token]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowAddStaffModal(false);
+        setUserModal(null);
+        setShowTestNotifModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -754,16 +766,19 @@ export default function StaffWorkloadManager({ token }) {
           }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-staff-modal-title"
             style={{
               backgroundColor: 'var(--card-bg)',
               border: '1px solid var(--border-color)',
               borderRadius: '8px',
               padding: '24px',
-              width: '420px',
+              width: 'min(420px, 92vw)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Add Internal User</h3>
+              <h3 id="add-staff-modal-title" style={{ fontSize: '16px', fontWeight: '700' }}>Add Internal User</h3>
               <button onClick={() => { setShowAddStaffModal(false); setError(null); }} style={{ background: 'none', color: 'var(--text-muted)' }}>
                 <X size={18} />
               </button>

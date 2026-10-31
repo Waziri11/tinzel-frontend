@@ -285,6 +285,15 @@ export default function NotificationsPage({
   const [sending, setSending] = useState(false);
   const [resendingId, setResendingId] = useState(null);
 
+  useEffect(() => {
+    if (!composeOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setComposeOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [composeOpen]);
+
   const loadNotifications = useCallback(async () => {
     setLoading(true);
     setError('');
