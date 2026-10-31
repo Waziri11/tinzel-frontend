@@ -13,6 +13,12 @@
   --accent-gold-light: #FBF7EE;
   --accent-red: #991B1B;
   --accent-red-hover: #7F1D1D;
+  --accent-success: #15803D;
+  --accent-success-hover: #166534;
+  --accent-warning: #B45309;
+  --accent-warning-hover: #92400E;
+  --accent-danger: #B91C1C;
+  --accent-danger-hover: #991B1B;
   --card-bg: #FFFFFF;
   --input-bg: #FFFFFF;
   --font-brand: 'Cormorant Garamond', Georgia, serif;
