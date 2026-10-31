@@ -199,6 +199,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
 
             <div style={{ marginBottom: '24px' }}>
               <label
+                htmlFor="follow-up-otp"
                 style={{
                   display: 'block',
                   fontSize: '12px',
@@ -213,6 +214,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
                 {t('follow.enterCode')}
               </label>
               <Input
+                id="follow-up-otp"
                 size="large"
                 maxLength={6}
                 value={otpCode}

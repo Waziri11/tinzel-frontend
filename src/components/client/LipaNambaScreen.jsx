@@ -11,7 +11,7 @@ import {
 import { useLanguage } from '../../i18n/LanguageContext';
 
 export default function LipaNambaScreen({ order, lipaNambaInstructions, onNavigateToTracking }) {
-  const { t } = useLanguage();
+  const { t, isSwahili } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const copyTillNumber = () => {
@@ -185,7 +185,9 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               lineHeight: '1.5',
             }}
           >
-            {lipaNambaInstructions?.instructions || t('pay.defaultInstr')}
+            {isSwahili
+              ? (lipaNambaInstructions?.instructionsSw || lipaNambaInstructions?.instructions || t('pay.defaultInstr'))
+              : (lipaNambaInstructions?.instructions || t('pay.defaultInstr'))}
           </div>
         </div>
 
