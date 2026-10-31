@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Home, Search, User } from 'lucide-react';
 import LandingHero from './components/landing/LandingHero';
 import TinzelLogo from './components/common/TinzelLogo';
@@ -14,10 +14,40 @@ const StaffWorkspace = lazy(() => import('./components/common/StaffWorkspace'));
 
 export default function App() {
   const { lang, t } = useLanguage();
-  const initialView = window.location.pathname.startsWith('/staff') ? 'staff' : window.location.pathname.startsWith('/track') ? 'tracking' : 'home';
-  const [currentView, setCurrentView] = useState(initialView); // 'home' | 'showcase' | 'tracking' | 'staff'
+  const getInitialView = () => {
+    const p = window.location.pathname;
+    if (p.startsWith('/staff')) return 'staff';
+    if (p.startsWith('/track')) return 'tracking';
+    if (p.startsWith('/catalogue') || p.startsWith('/showcase')) return 'showcase';
+    return 'home';
+  };
+  const [currentView, setCurrentView] = useState(getInitialView); // 'home' | 'showcase' | 'tracking' | 'staff'
   const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
-  const navigateView = (view, path) => { window.history.pushState({}, '', path); setCurrentView(view); };
+
+  const navigateView = (view, explicitPath = null) => {
+    const path = explicitPath || (
+      view === 'staff' ? '/staff' :
+      view === 'tracking' ? '/track' :
+      view === 'showcase' ? '/catalogue' :
+      '/'
+    );
+    if (window.location.pathname !== path) {
+      window.history.pushState({ view }, '', path);
+    }
+    setCurrentView(view);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = window.location.pathname;
+      if (p.startsWith('/staff')) setCurrentView('staff');
+      else if (p.startsWith('/track')) setCurrentView('tracking');
+      else if (p.startsWith('/catalogue') || p.startsWith('/showcase')) setCurrentView('showcase');
+      else setCurrentView('home');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleFollowUpSuccess = () => {
     setFollowUpModalOpen(false);
@@ -69,7 +99,7 @@ export default function App() {
           >
             <button
               type="button"
-              onClick={() => setCurrentView('home')}
+              onClick={() => navigateView('home', '/')}
               style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
               aria-label="Tinzel Home"
             >
@@ -82,7 +112,7 @@ export default function App() {
                 <LanguageSwitcher />
                 <button
                   type="button"
-                  onClick={() => setCurrentView('home')}
+                  onClick={() => navigateView('home', '/')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -127,7 +157,7 @@ export default function App() {
                 {currentView !== 'staff' && (
                   <button
                     type="button"
-                    onClick={() => { window.history.pushState({}, '', '/staff'); setCurrentView('staff'); }}
+                    onClick={() => navigateView('staff', '/staff')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -164,17 +194,17 @@ export default function App() {
           {/* View 1: Home (Editorial Landing Hero with 2 Big Options) */}
           {currentView === 'home' && (
             <LandingHero
-              onSelectNewOrder={() => setCurrentView('showcase')}
+              onSelectNewOrder={() => navigateView('showcase', '/catalogue')}
               onOpenFollowUp={() => setFollowUpModalOpen(true)}
-              onOpenLogin={() => setCurrentView('staff')}
+              onOpenLogin={() => navigateView('staff', '/staff')}
             />
           )}
 
           {/* View 2: New Magazine Order Showcase */}
           {currentView === 'showcase' && (
             <MagazineShowcase
-              onBackToHome={() => setCurrentView('home')}
-              onNavigateToTracking={() => setCurrentView('tracking')}
+              onBackToHome={() => navigateView('home', '/')}
+              onNavigateToTracking={() => navigateView('tracking', '/track')}
             />
           )}
 
