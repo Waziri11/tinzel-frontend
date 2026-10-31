@@ -56,6 +56,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
   const [isFading, setIsFading] = useState(false);
 
   useEffect(() => {
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (prefersReducedMotion) return;
+
     const timer = setInterval(() => {
       setIsFading(true);
       setTimeout(() => {
