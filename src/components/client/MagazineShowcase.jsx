@@ -38,16 +38,13 @@ function MagazineCoverCard({ form, onSelect }) {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      {/* Interactive Magazine Cover Link - Pure clean art, no buttons or pill tags */}
-      <div
-        role="button"
-        tabIndex={0}
+      {/* Interactive Magazine Cover Link - Pure clean art */}
+      <button
+        type="button"
         onClick={() => onSelect(form.slug)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onSelect(form.slug);
-        }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        aria-label={`${displayTitle} - ${form.price?.toLocaleString()} ${form.currency}`}
         style={{
           cursor: 'pointer',
           display: 'inline-block',
@@ -63,7 +60,7 @@ function MagazineCoverCard({ form, onSelect }) {
           transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           maxWidth: '380px',
           width: '100%',
-          outline: 'none',
+          padding: 0,
         }}
       >
         {/* Magazine Cover Portrait Image */}
@@ -113,22 +110,20 @@ function MagazineCoverCard({ form, onSelect }) {
             }}
           />
         </div>
-      </div>
+      </button>
 
       {/* Ultra Minimalist Bottom Title & Price Only */}
       <div style={{ marginTop: '18px' }}>
         <h2
-          onClick={() => onSelect(form.slug)}
           style={{
             fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
             fontStyle: 'italic',
             fontSize: '32px',
             fontWeight: '600',
-            color: hovered ? '#C5A059' : '#1C1917',
+            color: hovered ? 'var(--text-gold, #8A6621)' : '#1C1917',
             marginBottom: '4px',
-            cursor: 'pointer',
-            transition: 'color 0.2s ease',
             lineHeight: '1.2',
+            transition: 'color 0.2s ease',
           }}
         >
           {displayTitle}
