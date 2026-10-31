@@ -11,6 +11,9 @@ import {
   Shield,
   Lock,
   RotateCcw,
+  ThumbsUp,
+  Heart,
+  Star,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePhotoUploads } from '../../hooks/usePhotoUploads';
@@ -670,18 +673,34 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     const low = field.type === 'linear_scale' ? (field.scaleConfig?.low ?? 1) : 1;
                     const high = field.type === 'linear_scale' ? (field.scaleConfig?.high ?? 5) : (field.ratingConfig?.levelCount ?? 5);
                     const values = Array.from({ length: Math.max(0, high - low + 1) }, (_, index) => low + index);
-                    const icon = field.ratingConfig?.iconType === 'heart' ? '♥' : field.ratingConfig?.iconType === 'thumb' ? '👍' : '★';
+                    const renderRatingIcon = (isSelected) => {
+                      const color = isSelected ? '#C5A059' : '#A8A29E';
+                      if (field.ratingConfig?.iconType === 'heart') return <Heart size={18} color={color} fill={isSelected ? '#C5A059' : 'none'} />;
+                      if (field.ratingConfig?.iconType === 'thumb') return <ThumbsUp size={18} color={color} fill={isSelected ? '#C5A059' : 'none'} />;
+                      return <Star size={18} color={color} fill={isSelected ? '#C5A059' : 'none'} />;
+                    };
                     return (
                       <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0 }}>
                         <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{L(field, 'label')} {field.required ? '*' : ''}</legend>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                           {L(field.scaleConfig, 'lowLabel') && <span style={{ fontSize: '12px', color: '#78716C' }}>{L(field.scaleConfig, 'lowLabel')}</span>}
-                          {values.map((value) => (
-                            <label key={value} style={{ display: 'grid', justifyItems: 'center', gap: '3px' }}>
-                              <span>{field.type === 'rating' ? icon : value}</span>
-                              <input type="radio" name={field.fieldId} value={value} required={field.required} checked={String(answers[field.fieldId] ?? '') === String(value)} onChange={() => handleFieldChange(field.fieldId, value)} />
-                            </label>
-                          ))}
+                          {values.map((value) => {
+                            const isSelected = String(answers[field.fieldId] ?? '') === String(value);
+                            return (
+                              <label key={value} style={{ display: 'grid', justifyItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                <span>{field.type === 'rating' ? renderRatingIcon(isSelected) : value}</span>
+                                <input
+                                  type="radio"
+                                  name={field.fieldId}
+                                  value={value}
+                                  required={field.required}
+                                  checked={isSelected}
+                                  onChange={() => handleFieldChange(field.fieldId, value)}
+                                  aria-label={`${L(field, 'label')} ${value}`}
+                                />
+                              </label>
+                            );
+                          })}
                           {L(field.scaleConfig, 'highLabel') && <span style={{ fontSize: '12px', color: '#78716C' }}>{L(field.scaleConfig, 'highLabel')}</span>}
                         </div>
                       </fieldset>

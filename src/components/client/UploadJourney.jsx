@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Check } from 'lucide-react';
 import { BrandMark } from '../common/BrandLoading';
 import { uploadSummary, formatUploadBytes, uploadIsStalled } from '../../utils/uploadProgress';
 
@@ -62,7 +62,10 @@ export default function UploadJourney({ uploads, lang, disabled, onRemove, onCon
       </div>
     </>}
     <ol className="tinzel-upload__stages" aria-label={ui('Order stages', 'Hatua za oda')}>
-      <li data-active={!saving} aria-current={!saving ? 'step' : undefined}>{summary.ready ? '✓ ' : '1. '}{ui('Upload photos', 'Pakia picha')}</li>
+      <li data-active={!saving} aria-current={!saving ? 'step' : undefined}>
+        {summary.ready ? <Check size={13} style={{ display: 'inline', verticalAlign: '-1px', marginRight: '4px' }} /> : '1. '}
+        {ui('Upload photos', 'Pakia picha')}
+      </li>
       <li data-active={saving} aria-current={saving ? 'step' : undefined}>2. {ui('Save order', 'Hifadhi oda')}</li>
       <li>3. {ui('Payment details', 'Maelekezo ya malipo')}</li>
     </ol>
@@ -74,7 +77,7 @@ export default function UploadJourney({ uploads, lang, disabled, onRemove, onCon
     {summary.attention.length > 0 && <ul className="tinzel-upload__attention">{summary.attention.map(row)}</ul>}
     <ul>{summary.active.map(row)}</ul>
     {uploads.items.some((item) => item.state === 'queued') && <p className="tinzel-upload__hint">{uploads.items.filter((item) => item.state === 'queued').length} {ui('photos waiting — two transfer at a time to keep things smooth.', 'picha zinasubiri — mbili hupakiwa kwa wakati mmoja.')}</p>}
-    {summary.done > 0 && <details className="tinzel-upload__completed"><summary>{summary.done} {ui('photos ready', 'picha ziko tayari')} ✓ · {ui('View completed photos', 'Ona picha zilizokamilika')}</summary>
+    {summary.done > 0 && <details className="tinzel-upload__completed"><summary>{summary.done} {ui('photos ready', 'picha ziko tayari')} · {ui('View completed photos', 'Ona picha zilizokamilika')}</summary>
       <ul>{uploads.items.filter((item) => item.state === 'complete').map(row)}</ul>
     </details>}
     {summary.ready && !disabled && <button type="button" className="tinzel-text-button" onClick={onContinue}>{ui('Continue with your details', 'Endelea na taarifa zako')} →</button>}
