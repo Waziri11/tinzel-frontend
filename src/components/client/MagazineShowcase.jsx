@@ -139,7 +139,7 @@ function MagazineCoverCard({ form, onSelect }) {
           style={{
             fontSize: '14px',
             fontWeight: '700',
-            color: '#C5A059',
+            color: 'var(--text-gold, #8A6621)',
             letterSpacing: '0.6px',
           }}
         >

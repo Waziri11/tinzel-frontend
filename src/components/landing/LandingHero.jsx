@@ -13,8 +13,8 @@ function OptionCard({ label, onClick }) {
   // Default: Crisp white background with delicate gold border and inner inlay.
   // Hovered: Solid rich gold fill with pure white typography.
   const baseBg = '#FFFFFF';
-  const hoverBg = '#C5A059';
-  const textColor = hovered ? '#FFFFFF' : '#C5A059';
+  const hoverBg = '#8A6621';
+  const textColor = hovered ? '#FFFFFF' : '#8A6621';
   const borderColor = '#C5A059';
 
   return (
@@ -129,7 +129,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp, onOpenLo
           <span
             style={{
               display: 'inline-block',
-              color: '#C5A059',
+              color: 'var(--text-gold, #8A6621)',
               fontStyle: 'italic',
               transition: 'opacity 0.35s ease, transform 0.35s ease',
               opacity: isFading ? 0 : 1,

@@ -81,8 +81,9 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           </div>
           <span
             style={{
-              backgroundColor: '#451a03',
-              color: '#fcd34d',
+              backgroundColor: '#FFFBEB',
+              border: '1px solid #F59E0B',
+              color: '#B45309',
               padding: '4px 10px',
               borderRadius: '4px',
               fontSize: '12px',

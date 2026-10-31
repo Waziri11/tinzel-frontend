@@ -629,7 +629,7 @@ export default function StaffWorkloadManager({ token }) {
                       </div>
                     </div>
 
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', color: '#cbd5e1', margin: '4px 0' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', color: 'var(--text-main)', margin: '4px 0' }}>
                       {n.message}
                     </pre>
 

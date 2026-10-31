@@ -495,12 +495,12 @@ export default function ClientTrackingPortal() {
                 key={stg.key}
                 style={{
                   backgroundColor: isCompleted
-                    ? '#064e3b'
+                    ? '#F0FDF4'
                     : isCurrent
-                    ? '#1e3a8a'
+                    ? '#EFF6FF'
                     : 'var(--bg-primary)',
                   border: `1px solid ${
-                    isCompleted ? '#059669' : isCurrent ? '#2563eb' : 'var(--border-color)'
+                    isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : 'var(--border-color)'
                   }`,
                   borderRadius: '6px',
                   padding: '10px 8px',
@@ -511,7 +511,7 @@ export default function ClientTrackingPortal() {
                   style={{
                     fontSize: '11px',
                     fontWeight: '700',
-                    color: isCompleted ? '#6ee7b7' : isCurrent ? '#93c5fd' : 'var(--text-muted)',
+                    color: isCompleted ? '#15803D' : isCurrent ? '#1D4ED8' : 'var(--text-muted)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
