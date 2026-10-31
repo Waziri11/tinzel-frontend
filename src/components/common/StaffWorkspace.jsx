@@ -23,6 +23,7 @@ import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
 import { tinzelAntdTheme } from '../../theme/antdTheme';
 import BrandLoading from './BrandLoading';
+import InitialPasswordSetup from './InitialPasswordSetup';
 import LanguageSwitcher from './LanguageSwitcher';
 import TinzelLogo from './TinzelLogo';
 
@@ -155,7 +156,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     }
   }, [token]);
 
-  useVisiblePolling(()=>refreshUnreadCount(token),Boolean(token && currentUser));
+  useVisiblePolling(()=>refreshUnreadCount(token),Boolean(token && currentUser && !currentUser.mustChangePassword));
 
   useEffect(() => {
     const onUnauthorized = (event) => {
@@ -171,7 +172,6 @@ export default function StaffWorkspace({ onExitToHome }) {
   useEffect(() => {
     if (token) {
       loadProfile(token);
-      refreshUnreadCount(token);
     }
   }, [token, refreshUnreadCount]);
 
@@ -180,6 +180,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     try {
       const data = await api.staffAuth.getMe(authToken);
       setCurrentUser(data.user);
+      if(!data.user.mustChangePassword)refreshUnreadCount(authToken);
 
       // Default page based on RBAC role and current URL
       const route = readRoute();
@@ -213,7 +214,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.setItem('tinzel_staff_token', data.token);
       setCurrentUser(data.user);
       setPassword('');
-      refreshUnreadCount(data.token);
+      if(!data.user.mustChangePassword)refreshUnreadCount(data.token);
 
       const route = readRoute();
       if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
@@ -257,6 +258,8 @@ export default function StaffWorkspace({ onExitToHome }) {
     : allowedMenuItems[0]?.id || 'pre_design';
 
   // -------------------------------------------------------------
+  if(token && currentUser?.mustChangePassword)return <InitialPasswordSetup token={token} user={currentUser} onLogout={handleLogout} onComplete={data=>{setCurrentUser(data.user);setToken(data.token);localStorage.setItem('tinzel_staff_token',data.token);const route=readRoute();const allowed=route.page==='designer_order'||NAVIGATION_ITEMS.some(item=>item.id===route.page&&item.roles.includes(data.user.role));if(!allowed)navigateStaff(data.user.role==='designer'?'/staff/design':'/staff/pre-design',data.user.role==='designer'?'designer_queue':'pre_design');refreshUnreadCount(data.token);}}/>;
+
   // Unauthenticated: High-End Minimalist Login Screen
   // -------------------------------------------------------------
   if (token && !currentUser) {

@@ -41,6 +41,7 @@ const handleResponse = async (res) => {
         : `Request failed with status ${res.status}`;
     const err = new Error(data.message || defaultMsg);
     err.status = res.status;
+    err.code = data.errorCode || data.code;
     throw err;
   }
   return data;
@@ -126,6 +127,7 @@ export const api = {
 
   // Staff Auth Endpoints
   staffAuth: {
+    changePassword:(token,currentPassword,newPassword)=>fetchWithTimeout(`${API_BASE}/api/staff/change-password`,{method:'POST',headers:getHeaders(token),body:JSON.stringify({currentPassword,newPassword})}).then(handleResponse),
     setPreferences: (token, preferredLanguage) => fetchWithTimeout(`${API_BASE}/api/staff/preferences`,{method:'PATCH',headers:getHeaders(token),body:JSON.stringify({preferredLanguage})}).then(handleResponse),
     login: (email, password) =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
@@ -310,6 +312,8 @@ export const api = {
 
   // Admin Endpoints
   admin: {
+    issueInitialPassword:(token,id)=>fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/initial-password`,{method:'POST',headers:getHeaders(token)}).then(handleResponse),
+    retryCredentialDelivery:(token,id,channel,confirmUncertain=false)=>fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/credential-delivery/retry`,{method:'POST',headers:getHeaders(token),body:JSON.stringify({channel,confirmUncertain})}).then(handleResponse),
     getForms: (token) =>
       fetchWithTimeout(`${API_BASE}/api/admin/forms`, {
         headers: getHeaders(token),

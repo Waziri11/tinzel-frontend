@@ -1,3 +1,5 @@
+import { useLanguage } from '../../i18n/LanguageContext';
+import StaffOnboardingStatus, { onboardingLabel } from './StaffOnboardingStatus';
 import React, { useState, useEffect } from 'react';
 import {
   Users,
@@ -17,6 +19,7 @@ import {
 import { api } from '../../services/api';
 
 export default function StaffWorkloadManager({ token }) {
+  const {lang}=useLanguage();
   const [staff, setStaff] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [simulatedNotifs, setSimulatedNotifs] = useState([]);
@@ -44,7 +47,8 @@ export default function StaffWorkloadManager({ token }) {
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [newLanguage,setNewLanguage]=useState(lang || 'sw');
+  const [creating,setCreating]=useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newRole, setNewRole] = useState('designer');
   const [newMaxWorkload, setNewMaxWorkload] = useState(5);
@@ -127,11 +131,13 @@ export default function StaffWorkloadManager({ token }) {
 
   const handleAddStaff = async (e) => {
     e.preventDefault();
+    if(creating)return;
+    setCreating(true);
     try {
       await api.admin.createStaff(token, {
         name: newName,
         email: newEmail,
-        password: newPassword,
+        preferredLanguage:newLanguage,
         role: newRole,
         phone: newPhone,
         maxActiveWorkload: Number(newMaxWorkload),
@@ -140,12 +146,12 @@ export default function StaffWorkloadManager({ token }) {
       setNewName('');
       setNewEmail('');
       setNewPhone('');
-      setNewPassword('');
-      setNotice('User account created.');
+
+      setNotice('User account created. Initial credentials are queued for SMS and email. Open the user details to check delivery.');
       await loadData();
     } catch (err) {
-      setError(err.message);
-    }
+      setError(err.code==='STAFF_CREDENTIAL_CONFIG_REQUIRED'?'Staff credential delivery is not configured. Configure the credential encryption key before creating users.':err.message);
+    } finally {setCreating(false);}
   };
 
   const openUser = async (user, mode) => {
@@ -161,7 +167,7 @@ export default function StaffWorkloadManager({ token }) {
         isActive: response.user.isActive,
         isEligibleForAssignment: response.user.isEligibleForAssignment !== false,
         maxActiveWorkload: response.user.maxActiveWorkload || 5,
-        password: '',
+        preferredLanguage: response.user.preferredLanguage || 'sw',
       });
       setUserModal(mode);
     } catch (err) {
@@ -175,7 +181,7 @@ export default function StaffWorkloadManager({ token }) {
     setError(null);
     try {
       const payload = { ...userForm, maxActiveWorkload: Number(userForm.maxActiveWorkload) };
-      if (!payload.password) delete payload.password;
+
       await api.admin.updateStaff(token, selectedUser._id, payload);
       setUserModal(null);
       setNotice('User account updated.');
@@ -338,7 +344,7 @@ export default function StaffWorkloadManager({ token }) {
                           {s.role}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 8px', color: s.isActive ? '#166534' : '#991B1B' }}>{s.isActive ? 'Active' : 'Inactive'}</td>
+                      <td style={{ padding: '12px 8px', color: s.isActive ? '#166534' : '#991B1B' }}>{s.isActive ? 'Active' : 'Inactive'}<small style={{display:'block',color:'var(--text-muted)'}}>{onboardingLabel(s)}</small></td>
                       <td style={{ padding: '12px 8px', width: '180px' }}>
                         {s.role === 'designer' ? (
                           <div>
@@ -775,6 +781,8 @@ export default function StaffWorkloadManager({ token }) {
               borderRadius: '8px',
               padding: '24px',
               width: 'min(420px, 92vw)',
+              maxHeight:'90dvh',
+              overflowY:'auto',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -793,7 +801,7 @@ export default function StaffWorkloadManager({ token }) {
                 <input
                   type="text"
                   required
-                  value={newName}
+                  aria-label="Full name" value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   style={{
                     width: '100%',
@@ -814,7 +822,7 @@ export default function StaffWorkloadManager({ token }) {
                 <input
                   type="email"
                   required
-                  value={newEmail}
+                  aria-label="Work email" value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   style={{
                     width: '100%',
@@ -830,7 +838,7 @@ export default function StaffWorkloadManager({ token }) {
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>Phone</label>
-                <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} style={{ width: '100%', padding: '8px 10px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-main)', fontSize: '13px' }} />
+                <input aria-label="Phone" required type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} style={{ width: '100%', padding: '8px 10px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-main)', fontSize: '13px' }} />
               </div>
 
               <div>
@@ -838,7 +846,7 @@ export default function StaffWorkloadManager({ token }) {
                   Role *
                 </label>
                 <select
-                  value={newRole}
+                  aria-label="Role" value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
                   style={{
                     width: '100%',
@@ -856,28 +864,10 @@ export default function StaffWorkloadManager({ token }) {
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                  Password *
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    backgroundColor: 'var(--input-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '4px',
-                    color: 'var(--text-main)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
+              <label>Notification language
+                <select aria-label="Notification language" value={newLanguage} onChange={event=>setNewLanguage(event.target.value)} style={{display:'block',width:'100%',padding:8}}><option value="en">English</option><option value="sw">Kiswahili</option></select>
+              </label>
+              <p style={{fontSize:13,color:'var(--text-muted)'}}>Tinzel generates an 8-character initial password, valid for 24 hours, and sends it by SMS and email. The user must change it before using the workspace.</p>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
@@ -888,7 +878,7 @@ export default function StaffWorkloadManager({ token }) {
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="submit" disabled={creating}
                   style={{
                     backgroundColor: 'var(--accent-primary)',
                     color: '#ffffff',
@@ -899,7 +889,7 @@ export default function StaffWorkloadManager({ token }) {
                     fontWeight: '600',
                   }}
                 >
-                  Create Account
+                  {creating ? 'Creating account…' : 'Create Account'}
                 </button>
               </div>
             </form>
@@ -914,6 +904,7 @@ export default function StaffWorkloadManager({ token }) {
               <button type="button" onClick={() => { setUserModal(null); setError(null); }} aria-label="Close"><X size={18} /></button>
             </div>
             {error && <div role="alert" style={{ padding: 10, background: '#FEF2F2', color: '#991B1B', borderRadius: 6, marginBottom: 12 }}>{error}</div>}
+            {userModal !== 'delete' && <StaffOnboardingStatus user={selectedUser} token={token} onUpdate={user=>{setSelectedUser(user);setStaff(previous=>previous.map(item=>item._id===user._id?user:item));}}/>}
             {userModal === 'view' && <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10, fontSize: 14 }}>
               {[
                 ['Name', selectedUser.name], ['Email', selectedUser.email], ['Phone', selectedUser.phone || '—'],
@@ -934,7 +925,7 @@ export default function StaffWorkloadManager({ token }) {
               <label>Email *<input type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
               <label>Phone<input type="tel" value={userForm.phone} onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
               <label>Role *<select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }}><option value="admin">Administrator</option><option value="manager">Manager</option><option value="designer">Designer</option></select></label>
-              <label>New password (leave blank to keep current)<input type="password" minLength={8} autoComplete="new-password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
+              <label>Notification language<select value={userForm.preferredLanguage} onChange={event=>setUserForm({...userForm,preferredLanguage:event.target.value})} style={{display:'block',width:'100%',padding:8}}><option value="en">English</option><option value="sw">Kiswahili</option></select></label>
               <label><input type="checkbox" checked={userForm.isActive} onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })} /> Active account</label>
               {userForm.role === 'designer' && <>
                 <label>Maximum active orders<input type="number" min="1" max="20" required value={userForm.maxActiveWorkload} onChange={(e) => setUserForm({ ...userForm, maxActiveWorkload: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
