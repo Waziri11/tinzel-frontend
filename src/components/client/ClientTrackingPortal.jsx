@@ -13,6 +13,7 @@ import {
   Sparkles,
   LogOut,
   Loader2,
+  CreditCard,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -61,8 +62,12 @@ export default function ClientTrackingPortal() {
       setOrder(data.order);
     } catch (err) {
       setError(err.message || t('track.err.sessionExpired'));
-      setClientToken('');
-      sessionStorage.removeItem('tinzel_client_token');
+      // Only clear credentials if access is rejected by the server (401/403)
+      // Preserve session and allow retry on 5xx server issues or network drops
+      if (err.status === 401 || err.status === 403) {
+        setClientToken('');
+        sessionStorage.removeItem('tinzel_client_token');
+      }
     } finally {
       setLoading(false);
     }
@@ -158,7 +163,11 @@ export default function ClientTrackingPortal() {
 
   // Determine stage progression
   const getStageIndex = (status) => {
-    switch (status) {
+    // If order is placed on hold, preserve its actual workflow stage
+    const effectiveStatus = (status === 'on_hold' && order?.previousStatusBeforeHold)
+      ? order.previousStatusBeforeHold
+      : status;
+    switch (effectiveStatus) {
       case 'awaiting_payment':
         return 0;
       case 'payment_verified':
@@ -223,22 +232,43 @@ export default function ClientTrackingPortal() {
           </div>
 
           {error && (
-            <div
-              style={{
-                backgroundColor: '#450a0a',
-                border: '1px solid var(--accent-danger)',
-                borderRadius: '6px',
-                padding: '12px 14px',
-                marginBottom: '18px',
-                fontSize: '13px',
-                color: '#fca5a5',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={16} />
-              <span>{error}</span>
+            <div style={{ marginBottom: '18px' }}>
+              <div
+                style={{
+                  backgroundColor: '#450a0a',
+                  border: '1px solid var(--accent-danger)',
+                  borderRadius: '6px',
+                  padding: '12px 14px',
+                  fontSize: '13px',
+                  color: '#fca5a5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+              {clientToken && (
+                <button
+                  type="button"
+                  onClick={() => loadOrder(clientToken)}
+                  style={{
+                    marginTop: '8px',
+                    width: '100%',
+                    padding: '8px',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: 'var(--text-main)',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Retry Loading Order
+                </button>
+              )}
             </div>
           )}
 
@@ -427,7 +457,7 @@ export default function ClientTrackingPortal() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
-              {order.trackingId}
+              {order.trackingId || order.submissionId}
             </span>
             <span
               style={{
@@ -466,6 +496,58 @@ export default function ClientTrackingPortal() {
           {t('track.signOut')}
         </button>
       </div>
+
+      {/* On-Hold Explanatory Banner */}
+      {order.status === 'on_hold' && (
+        <div
+          style={{
+            backgroundColor: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: '8px',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+          }}
+        >
+          <Clock size={20} color="#B45309" style={{ marginTop: '2px', flexShrink: 0 }} />
+          <div>
+            <div style={{ color: '#B45309', fontWeight: '700', fontSize: '14px', marginBottom: '4px' }}>
+              {t('track.status.on_hold') || 'Order Placed On Hold'}
+            </div>
+            <p style={{ color: '#78350F', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
+              {order.holdReason || 'Your magazine order is temporarily on hold pending review. Our team will notify you immediately once production resumes.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Awaiting Payment Guidance Banner */}
+      {order.status === 'awaiting_payment' && (
+        <div
+          style={{
+            backgroundColor: '#EFF6FF',
+            border: '1px solid #BFDBFE',
+            borderRadius: '8px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#1E40AF', fontWeight: '700', fontSize: '15px' }}>
+            <CreditCard size={18} />
+            <span>{t('pay.title')}</span>
+          </div>
+          <p style={{ fontSize: '13px', color: '#1E3A8A', marginBottom: '12px', lineHeight: '1.5' }}>
+            {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
+          </p>
+          {order.lipaNambaInstructions?.tillNumber && (
+            <div style={{ display: 'inline-block', backgroundColor: '#FFFFFF', border: '1px solid #93C5FD', borderRadius: '6px', padding: '8px 14px', fontSize: '13px', color: '#1E3A8A', fontWeight: '600' }}>
+              Till: {order.lipaNambaInstructions.tillNumber} ({order.lipaNambaInstructions.accountName || 'Tinzel Media Ltd'})
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Visual Conveyor Belt Progress Bar */}
       <div
