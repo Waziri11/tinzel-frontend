@@ -38,10 +38,12 @@ const DesignerOrderPage = lazy(() => import('../designer/DesignerOrderPage'));
 const ReturnsPage = lazy(() => import('../designer/ReturnsPage'));
 const NotificationsPage = lazy(() => import('./NotificationsPage'));
 const FormBuilder = lazy(() => import('../admin/FormBuilder'));
+const SystemPage = lazy(() => import('./SystemPage'));
 const StaffWorkloadManager = lazy(() => import('../admin/StaffWorkloadManager'));
 
 // RBAC Navigation Configuration
 const NAVIGATION_ITEMS = [
+  {id:'system',label:'System',path:'/staff/system',section:'Operations',icon:Layers,roles:['admin','manager']},
   {
     id: 'pre_design',
     label: 'Pre-Design',
@@ -120,6 +122,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     Notifications: 'Taarifa',
     Forms: 'Fomu',
     Users: 'Watumiaji',
+    System: 'Mfumo',
     'Kanban Phases': 'Hatua za oda',
     Editorial: 'Uhariri',
     Operations: 'Uendeshaji',
@@ -152,6 +155,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     if (pathname.startsWith('/staff/returns')) return { page: 'returns', orderId: null };
     if (pathname.startsWith('/staff/notifications')) return { page: 'notifications', orderId: null };
     if (pathname.startsWith('/staff/forms')) return { page: 'form_builder', orderId: null };
+    if (pathname.startsWith('/staff/system')) return { page: 'system', orderId: null };
     if (pathname.startsWith('/staff/users')) return { page: 'staff_roster', orderId: null };
     if (pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
     return { page: pathname === '/staff' || pathname === '/staff/' ? 'pre_design' : 'missing', orderId: null };
@@ -968,6 +972,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 />
               )}
 
+              {effectiveActivePage === 'system' && <SystemPage token={token} user={currentUser} />}
               {effectiveActivePage === 'staff_roster' && ['admin','manager'].includes(currentUser.role) && (
                 <StaffWorkloadManager token={token} role={currentUser.role} />
               )}
