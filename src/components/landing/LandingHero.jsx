@@ -1,10 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../../services/api';
 import { ArrowRight, BookOpen, Camera, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '../../i18n/LanguageContext';
+import { localized, useLanguage } from '../../i18n/LanguageContext';
 import '../../theme/customer.css';
 export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
   const { lang, t } = useLanguage();
   const sw = lang === 'sw';
+  const [covers, setCovers] = useState([]);
+  const [activeCover, setActiveCover] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    api.public.getForms().then(async (data) => {
+      const seen = new Set();
+      const editions = (data.forms || []).filter((form) => {
+        if (!form.coverImageUrl || seen.has(form.coverImageUrl)) return false;
+        seen.add(form.coverImageUrl);
+        return true;
+      });
+      const loaded = await Promise.all(editions.map((form) => new Promise((resolve) => {
+        const src = form.coverImageUrl.includes('/api/public/covers/')
+          ? `${form.coverImageUrl.split('?')[0]}?w=480` : form.coverImageUrl;
+        const image = new Image();
+        image.onload = () => resolve({ ...form, src });
+        image.onerror = () => resolve(null);
+        image.src = src;
+      })));
+      if (!cancelled) setCovers(loaded.filter(Boolean));
+    }).catch(() => {}); // Keep the bundled sample if the catalogue is unavailable.
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (covers.length < 2 || paused || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      setActiveCover((index) => (index + 1) % covers.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [covers.length, paused, reducedMotion]);
   return (
     <div className="landing-page">
       <section className="landing-hero">
@@ -41,15 +81,30 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
           </div>
         </div>
         <div className="landing-art">
-          <div className="landing-arch">
-            <img
-              src="/brand/magazine-cover-sample.jpg"
-              alt={sw ? 'Mfano wa jalada la jarida la Tinzel' : 'Sample Tinzel magazine cover'}
-              width="480"
-              height="679"
-              fetchPriority="high"
-            />
+          <div className="landing-covers">
+            {covers.length ? covers.map((cover, index) => (
+              <img
+                key={cover.src}
+                className={index === activeCover ? 'is-active' : ''}
+                src={cover.src}
+                alt={localized(cover, 'title', lang)}
+                aria-hidden={index !== activeCover}
+                width="480"
+                height="679"
+              />
+            )) : (
+              <img className="is-active" src="/brand/magazine-cover-sample.jpg"
+                alt={sw ? 'Mfano wa jalada la jarida la Tinzel' : 'Sample Tinzel magazine cover'}
+                width="480" height="679" fetchPriority="high" />
+            )}
           </div>
+          {covers.length > 1 && !reducedMotion && (
+            <button className="landing-slideshow-control" onClick={() => setPaused(!paused)}
+              aria-pressed={paused}>
+              {paused ? (sw ? 'Endelea kubadilisha majalada' : 'Resume cover slideshow')
+                : (sw ? 'Sitisha kubadilisha majalada' : 'Pause cover slideshow')}
+            </button>
+          )}
           <span>{sw ? 'Hadithi yako. Imeundwa kukumbukwa.' : 'Your story. Designed to be remembered.'}</span>
         </div>
       </section>
