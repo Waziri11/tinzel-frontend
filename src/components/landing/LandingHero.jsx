@@ -7,7 +7,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
   const { lang, t } = useLanguage();
   const sw = lang === 'sw';
   const [covers, setCovers] = useState([]);
-  const [activeCover, setActiveCover] = useState(0);
+  const [{ active: activeCover, previous: previousCover }, setCoverPosition] = useState({
+    active: 0, previous: null,
+  });
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
@@ -41,7 +43,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
   useEffect(() => {
     if (covers.length < 2 || paused || reducedMotion) return;
     const timer = window.setInterval(() => {
-      setActiveCover((index) => (index + 1) % covers.length);
+      setCoverPosition(({ active }) => ({
+        active: (active + 1) % covers.length, previous: active,
+      }));
     }, 4500);
     return () => window.clearInterval(timer);
   }, [covers.length, paused, reducedMotion]);
@@ -85,7 +89,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
             {covers.length ? covers.map((cover, index) => (
               <img
                 key={cover.src}
-                className={index === activeCover ? 'is-active' : ''}
+                className={index === activeCover ? 'is-active' : index === previousCover ? 'is-outgoing' : ''}
                 src={cover.src}
                 alt={localized(cover, 'title', lang)}
                 aria-hidden={index !== activeCover}

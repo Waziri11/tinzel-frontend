@@ -5,10 +5,14 @@
 }
 .landing-hero {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: 80px;
   align-items: center;
   padding: 72px 0 64px;
+}
+.landing-copy,
+.landing-art {
+  min-width: 0;
 }
 .landing-copy h1 {
   font: 500 clamp(54px, 5.6vw, 82px) / 1.04 var(--font-brand);
@@ -41,6 +45,8 @@
 }
 .landing-covers {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
   width: min(100%, 340px);
   aspect-ratio: 480 / 679;
@@ -68,6 +74,43 @@
   background: transparent;
   color: var(--text-muted);
   font-size: 11px;
+}
+/* Give tablets and desktops enough depth to see the magazines trade places. */
+@media (min-width: 601px) and (prefers-reduced-motion: no-preference) {
+  .landing-art {
+    overflow: clip;
+    padding: 24px 16px;
+    margin: -24px -16px;
+  }
+  .landing-covers {
+    perspective: 1200px;
+    isolation: isolate;
+  }
+  .landing-covers img {
+    visibility: hidden;
+    transition: none;
+    backface-visibility: hidden;
+  }
+  .landing-covers img.is-active {
+    visibility: visible;
+    z-index: 2;
+    animation: magazine-swap-in 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .landing-covers img.is-outgoing {
+    visibility: visible;
+    z-index: 1;
+    animation: magazine-swap-out 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes magazine-swap-in {
+  0% { opacity: 0; transform: translate3d(18%, 10px, -120px) rotateY(-18deg) rotate(5deg) scale(0.92); }
+  35% { opacity: 1; transform: translate3d(14%, -8px, 0) rotateY(-10deg) rotate(3deg); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotateY(0) rotate(0) scale(1); }
+}
+@keyframes magazine-swap-out {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotateY(0) rotate(0) scale(1); }
+  40% { opacity: 1; transform: translate3d(-18%, -10px, 40px) rotateY(12deg) rotate(-5deg); }
+  100% { opacity: 0; transform: translate3d(-10%, 12px, -160px) rotateY(20deg) rotate(-7deg) scale(0.88); }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-covers img { transition: none; transform: none; }
@@ -277,6 +320,9 @@
 @media (max-width: 1000px) {
   .landing-hero {
     gap: 40px;
+  }
+  .landing-copy h1 {
+    font-size: clamp(38px, 5.6vw, 56px);
   }
   .edition-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
