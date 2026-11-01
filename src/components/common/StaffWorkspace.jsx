@@ -30,6 +30,7 @@ import PageSkeleton from './PageSkeleton';
 import InitialPasswordSetup from './InitialPasswordSetup';
 import LanguageSwitcher from './LanguageSwitcher';
 import TinzelLogo from './TinzelLogo';
+import StaffProfile from './StaffProfile';
 
 const ConveyorBeltBoard = lazy(() => import('../manager/ConveyorBeltBoard'));
 const DesignerQueue = lazy(() => import('../designer/DesignerQueue'));
@@ -322,6 +323,14 @@ export default function StaffWorkspace({ onExitToHome }) {
 
   // Unauthenticated: High-End Minimalist Login Screen
   // -------------------------------------------------------------
+  if (token && !currentUser && !error) {
+    return (
+      <div className="ui-page">
+        <PageSkeleton variant={['pre_design', 'design_phase', 'post_design'].includes(activePage) ? 'board' : activePage === 'designer_order' ? 'detail' : 'table'} />
+      </div>
+    );
+  }
+
   if (token && !currentUser) {
     return (
       <section
@@ -685,59 +694,6 @@ export default function StaffWorkspace({ onExitToHome }) {
           <TinzelLogo variant="full" height={36} />
         </div>
 
-        {/* User Profile Card */}
-        <div
-          style={{
-            padding: '16px 20px',
-            backgroundColor: 'var(--bg-primary)',
-            borderBottom: '1px solid var(--border-color)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
-              {currentUser.name}
-            </span>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                backgroundColor:
-                  currentUser.role === 'admin'
-                    ? 'var(--text-main)'
-                    : currentUser.role === 'manager'
-                      ? 'var(--accent-primary)'
-                      : 'var(--border-color)',
-                color:
-                  currentUser.role === 'admin'
-                    ? '#C5A059'
-                    : currentUser.role === 'manager'
-                      ? '#FFFFFF'
-                      : 'var(--text-main)',
-                letterSpacing: '0.6px',
-              }}
-            >
-              {ui(
-                currentUser.role,
-                { admin: 'Msimamizi mkuu', manager: 'Msimamizi', designer: 'Msanifu' }[currentUser.role] ||
-                  currentUser.role,
-              )}
-            </span>
-          </div>
-
-          {currentUser.role === 'designer' && (
-            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-main)' }}>{currentUser.currentActiveWorkload || 0}</strong> /{' '}
-              {currentUser.maxActiveWorkload ?? 5} <InterfaceText>active</InterfaceText>
-            </div>
-          )}
-        </div>
-
-        <div style={{ padding: '8px 20px' }}>
-          <LanguageSwitcher />
-        </div>
         {/* Navigation Menu by RBAC */}
         <div style={{ padding: '16px 12px 10px 12px' }}>
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -813,62 +769,8 @@ export default function StaffWorkspace({ onExitToHome }) {
         </div>
       </div>
 
-      {/* Bottom Sidebar: Return & Sign Out */}
-      <div
-        style={{
-          padding: '16px 14px',
-          borderTop: '1px solid var(--border-color)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
-      >
-        {onExitToHome && (
-          <button
-            type="button"
-            onClick={onExitToHome}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '8px 12px',
-              backgroundColor: 'transparent',
-              border: '1px solid var(--border-color)',
-              borderRadius: '6px',
-              color: '#57534E',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={14} />
-            {ui('Client site', 'Tovuti ya wateja')}
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            width: '100%',
-            padding: '9px 12px',
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FECACA',
-            borderRadius: '6px',
-            color: '#991B1B',
-            fontSize: '12px',
-            fontWeight: '700',
-            cursor: 'pointer',
-          }}
-        >
-          <LogOut size={14} />
-          {ui('Sign out', 'Toka')}
-        </button>
+      <div style={{padding:'16px 14px',borderTop:'1px solid var(--border-color)'}}>
+        <StaffProfile user={currentUser} token={token} onLogout={handleLogout} onCloseSidebar={()=>setMenuOpen(false)} onUpdate={(data)=>{setCurrentUser(user=>({...user,...data.user}));if(data.token){setToken(data.token);localStorage.setItem('tinzel_staff_token',data.token);}}}/>
       </div>
     </aside>
   );
@@ -964,6 +866,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           </div>
 
           <div className="staff-header-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <LanguageSwitcher />
             <button
               type="button"
               aria-label={`Notifications${unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : ''}`}
@@ -985,38 +888,9 @@ export default function StaffWorkspace({ onExitToHome }) {
             >
               <Bell size={15} color="#8A6825" />
               <span>{ui('Notifications', 'Taarifa')}</span>
-              {unreadNotifications > 0 && (
-                <span
-                  style={{
-                    padding: '1px 6px',
-                    borderRadius: '999px',
-                    backgroundColor: 'var(--accent-primary)',
-                    color: '#FFFFFF',
-                    fontSize: '10px',
-                    fontWeight: 800,
-                  }}
-                >
-                  {unreadNotifications}
-                </span>
-              )}
+              <span aria-label="Unread notifications">{unreadNotifications > 0 ? unreadNotifications : null}</span>
             </button>
-            <span
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                padding: '4px 10px',
-                backgroundColor: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-              }}
-            >
-              <strong style={{ color: 'var(--text-main)' }}>{currentUser.name}</strong> ·{' '}
-              {ui(
-                currentUser.role,
-                { admin: 'Msimamizi mkuu', manager: 'Msimamizi', designer: 'Msanifu' }[currentUser.role] ||
-                  currentUser.role,
-              )}
-            </span>
+
           </div>
         </header>
 

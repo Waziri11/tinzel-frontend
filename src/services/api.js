@@ -161,6 +161,7 @@ export const api = {
 
   // Staff Auth Endpoints
   staffAuth: {
+    updateProfile: (token, profile) => fetchWithTimeout(`${API_BASE}/api/staff/profile`, {method:'PATCH', headers:getHeaders(token),body:JSON.stringify(profile)}).then(handleResponse),
     changePassword: (token, currentPassword, newPassword) =>
       fetchWithTimeout(`${API_BASE}/api/staff/change-password`, {
         method: 'POST',
