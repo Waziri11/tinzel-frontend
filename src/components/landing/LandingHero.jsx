@@ -34,9 +34,9 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
               {t('landing.newOrder')}
               <ArrowRight size={17} />
             </button>
-            <button className="landing-track" onClick={onOpenFollowUp}>
+            <button className="ui-button landing-track" onClick={onOpenFollowUp}>
               {sw ? 'Tayari una oda? Ifuatilie' : 'Already have an order? Track it'}
-              <ArrowRight size={15} />
+              <ArrowRight size={17} />
             </button>
           </div>
         </div>
