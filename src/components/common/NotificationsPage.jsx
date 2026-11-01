@@ -1,5 +1,5 @@
-import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
-import {useDialogFocus} from '../../hooks/useDialogFocus';
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
 import '../admin/administration.css';
 import PrinterNotificationSettings from '../admin/PrinterNotificationSettings';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
@@ -165,8 +165,7 @@ const DEFAULT_TRIGGER_CATALOG = [
   },
 ];
 
-const formatTemplate = (tpl) =>
-  TEMPLATE_LABELS[tpl] || String(tpl || 'Notification').replace(/_/g, ' ');
+const formatTemplate = (tpl) => TEMPLATE_LABELS[tpl] || String(tpl || 'Notification').replace(/_/g, ' ');
 
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
@@ -181,51 +180,49 @@ const formatTime = (dateStr) => {
 };
 
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => {
- const tx=useInterfaceText();
- return (<button
-    type="button"
-    role="switch" className="notification-switch"
-    aria-checked={checked}
-    aria-label={tx(label)}
-    disabled={disabled}
-    onClick={() => !disabled && onChange(!checked)}
-    style={{
-      position: 'relative',
-      width: '40px',
-      height: '22px',
-      borderRadius: '999px',
-      border: '1px solid',
-      borderColor: checked ? '#166534' : '#D6D3D1',
-      backgroundColor: checked ? '#166534' : 'var(--border-color)',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      padding: 0,
-      opacity: disabled ? 0.45 : 1,
-      transition: 'background-color 0.15s ease',
-      flexShrink: 0,
-    }}
-  >
-    <span
+  const tx = useInterfaceText();
+  return (
+    <button
+      type="button"
+      role="switch"
+      className="notification-switch"
+      aria-checked={checked}
+      aria-label={tx(label)}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
       style={{
-        position: 'absolute',
-        top: '2px',
-        left: checked ? '20px' : '2px',
-        width: '16px',
-        height: '16px',
-        borderRadius: '50%',
-        backgroundColor: '#FFFFFF',
-        transition: 'left 0.15s ease',
+        position: 'relative',
+        width: '40px',
+        height: '22px',
+        borderRadius: '999px',
+        border: '1px solid',
+        borderColor: checked ? '#166534' : '#D6D3D1',
+        backgroundColor: checked ? '#166534' : 'var(--border-color)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        padding: 0,
+        opacity: disabled ? 0.45 : 1,
+        transition: 'background-color 0.15s ease',
+        flexShrink: 0,
       }}
-    />
-  </button>);
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: '2px',
+          left: checked ? '20px' : '2px',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          backgroundColor: '#FFFFFF',
+          transition: 'left 0.15s ease',
+        }}
+      />
+    </button>
+  );
 };
 
-export default function NotificationsPage({
-  token,
-  staffUser,
-  onOpenOrder,
-  onUnreadCountChange,
-}) {
- const tx=useInterfaceText();
+export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnreadCountChange }) {
+  const tx = useInterfaceText();
 
   const isManagerOrAdmin = ['manager', 'admin'].includes(staffUser?.role);
 
@@ -261,8 +258,7 @@ export default function NotificationsPage({
   const [smsTestForm, setSmsTestForm] = useState({
     to: '',
     from: 'ORDER',
-    message:
-      'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
+    message: 'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
   });
   const [smsTesting, setSmsTesting] = useState(false);
   const [smsTestResult, setSmsTestResult] = useState(null);
@@ -294,7 +290,9 @@ export default function NotificationsPage({
   });
   const [sending, setSending] = useState(false);
   const [resendingId, setResendingId] = useState(null);
-  useDialogFocus(composeOpen,()=>{if(!sending)setComposeOpen(false);});
+  useDialogFocus(composeOpen, () => {
+    if (!sending) setComposeOpen(false);
+  });
 
   useEffect(() => {
     if (!composeOpen) return;
@@ -305,73 +303,75 @@ export default function NotificationsPage({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [composeOpen]);
 
-  const loadNotifications = useCallback(async (silent=false) => {
-    if(!silent)setLoading(true);
-    setError('');
-    try {
-      const apiChannel =
-        channelFilter === 'grouped' || channelFilter === 'all' ? '' : channelFilter;
-      const params = {
-        limit: 200,
-        ...(apiChannel ? { channel: apiChannel } : {}),
-        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
-        ...(readFilter === 'unread' ? { unreadOnly: 'true' } : {}),
-        ...(search ? { search } : {}),
-      };
+  const loadNotifications = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      setError('');
+      try {
+        const apiChannel = channelFilter === 'grouped' || channelFilter === 'all' ? '' : channelFilter;
+        const params = {
+          limit: 200,
+          ...(apiChannel ? { channel: apiChannel } : {}),
+          ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+          ...(readFilter === 'unread' ? { unreadOnly: 'true' } : {}),
+          ...(search ? { search } : {}),
+        };
 
-      const requests = [api.notifications.getHistory(token, params)];
-      if (isManagerOrAdmin && !silent) {
-        requests.push(api.notifications.getDiagnostics(token));
-        requests.push(api.notifications.getSettings(token));
-      }
-
-      const [histRes, diagRes, settingsRes] = await Promise.allSettled(requests);
-      if (histRes.status === 'fulfilled') {
-        const list = histRes.value.notifications || [];
-        setNotifications(list);
-        const nextUnread = histRes.value.unreadCount ?? list.filter((n) => !n.isRead).length;
-        setUnreadCount(nextUnread);
-        if (onUnreadCountChange) onUnreadCountChange(nextUnread);
-        if (histRes.value.channelCounts) {
-          setChannelCounts(histRes.value.channelCounts);
+        const requests = [api.notifications.getHistory(token, params)];
+        if (isManagerOrAdmin && !silent) {
+          requests.push(api.notifications.getDiagnostics(token));
+          requests.push(api.notifications.getSettings(token));
         }
-      } else {
-        throw histRes.reason;
-      }
 
-      if (diagRes && diagRes.status === 'fulfilled') {
-        const diagData = diagRes.value.diagnostics || null;
-        setDiagnostics(diagData);
-        if (diagData?.sms?.configuredSenderId) {
-          setSmsTestForm((prev) => ({
+        const [histRes, diagRes, settingsRes] = await Promise.allSettled(requests);
+        if (histRes.status === 'fulfilled') {
+          const list = histRes.value.notifications || [];
+          setNotifications(list);
+          const nextUnread = histRes.value.unreadCount ?? list.filter((n) => !n.isRead).length;
+          setUnreadCount(nextUnread);
+          if (onUnreadCountChange) onUnreadCountChange(nextUnread);
+          if (histRes.value.channelCounts) {
+            setChannelCounts(histRes.value.channelCounts);
+          }
+        } else {
+          throw histRes.reason;
+        }
+
+        if (diagRes && diagRes.status === 'fulfilled') {
+          const diagData = diagRes.value.diagnostics || null;
+          setDiagnostics(diagData);
+          if (diagData?.sms?.configuredSenderId) {
+            setSmsTestForm((prev) => ({
+              ...prev,
+              from: prev.from || diagData.sms.configuredSenderId,
+            }));
+          }
+        }
+
+        if (settingsRes && settingsRes.status === 'fulfilled' && settingsRes.value.settings) {
+          const loadedSettings = settingsRes.value.settings;
+          setSettings((prev) => ({
             ...prev,
-            from: prev.from || diagData.sms.configuredSenderId,
+            ...loadedSettings,
+            catalog: loadedSettings.catalog || DEFAULT_TRIGGER_CATALOG,
           }));
+          if (loadedSettings.smsSenderId) {
+            setSmsTestForm((prev) => ({ ...prev, from: loadedSettings.smsSenderId }));
+          }
         }
+      } catch (err) {
+        setError(err?.message || 'Unable to load notifications.');
+      } finally {
+        setLoading(false);
       }
-
-      if (settingsRes && settingsRes.status === 'fulfilled' && settingsRes.value.settings) {
-        const loadedSettings = settingsRes.value.settings;
-        setSettings((prev) => ({
-          ...prev,
-          ...loadedSettings,
-          catalog: loadedSettings.catalog || DEFAULT_TRIGGER_CATALOG,
-        }));
-        if (loadedSettings.smsSenderId) {
-          setSmsTestForm((prev) => ({ ...prev, from: loadedSettings.smsSenderId }));
-        }
-      }
-    } catch (err) {
-      setError(err?.message || 'Unable to load notifications.');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, channelFilter, statusFilter, readFilter, search, isManagerOrAdmin, onUnreadCountChange]);
+    },
+    [token, channelFilter, statusFilter, readFilter, search, isManagerOrAdmin, onUnreadCountChange],
+  );
 
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
-  useVisiblePolling(()=>loadNotifications(true),Boolean(token));
+  useVisiblePolling(() => loadNotifications(true), Boolean(token));
 
   const handleRefreshDiagnostics = async () => {
     if (!isManagerOrAdmin) return;
@@ -519,7 +519,7 @@ export default function NotificationsPage({
             return { ...item, isRead: true, readAt: new Date().toISOString() };
           }
           return item;
-        })
+        }),
       );
       setUnreadCount((prev) => {
         const next = Math.max(0, prev - 1);
@@ -543,8 +543,12 @@ export default function NotificationsPage({
     }
   };
 
-  const handleResend = async (id, channel, uncertain=false) => {
-    if(uncertain && !window.confirm('Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?'))return;
+  const handleResend = async (id, channel, uncertain = false) => {
+    if (
+      uncertain &&
+      !window.confirm(tx('Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?'))
+    )
+      return;
     try {
       setResendingId(id);
       setError('');
@@ -601,23 +605,23 @@ export default function NotificationsPage({
             item.channel === 'in_system'
               ? item
               : item.metadata?.channelsSummary?.in_system
-              ? { status: 'unconfirmed' }
-              : null,
+                ? { status: 'unconfirmed' }
+                : null,
           email:
             item.channel === 'email'
               ? item
               : item.metadata?.channelsSummary?.email
-              ? { status: 'unconfirmed', recipient: item.metadata?.channelsSummary?.emailAddress }
-              : null,
+                ? { status: 'unconfirmed', recipient: item.metadata?.channelsSummary?.emailAddress }
+                : null,
           phone: ['whatsapp', 'sms'].includes(item.channel)
             ? item
             : item.metadata?.channelsSummary?.phone
-            ? {
-                status: 'unconfirmed',
-                channel: 'sms',
-                recipient: item.metadata?.channelsSummary?.phoneNumber,
-              }
-            : null,
+              ? {
+                  status: 'unconfirmed',
+                  channel: 'sms',
+                  recipient: item.metadata?.channelsSummary?.phoneNumber,
+                }
+              : null,
         },
       }));
     }
@@ -654,8 +658,7 @@ export default function NotificationsPage({
         primary: group.primary,
         siblings: group.siblings,
         channels: {
-          in_system:
-            inSys || (summaryMeta.in_system ? { status: 'unconfirmed', channel: 'in_system' } : null),
+          in_system: inSys || (summaryMeta.in_system ? { status: 'unconfirmed', channel: 'in_system' } : null),
           email:
             emailRec ||
             (summaryMeta.email
@@ -663,9 +666,7 @@ export default function NotificationsPage({
               : null),
           phone:
             phoneRec ||
-            (summaryMeta.phone
-              ? { status: 'unconfirmed', channel: 'sms', recipient: summaryMeta.phoneNumber }
-              : null),
+            (summaryMeta.phone ? { status: 'unconfirmed', channel: 'sms', recipient: summaryMeta.phoneNumber } : null),
         },
       };
     });
@@ -686,7 +687,8 @@ export default function NotificationsPage({
   const emailHealthy = Boolean(diagnostics?.email?.connected);
 
   return (
-    <section className="communications-admin"
+    <section
+      className="communications-admin"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -721,7 +723,9 @@ export default function NotificationsPage({
               color: '#8A6825',
               marginBottom: '4px',
             }}
-          ><InterfaceText>Tinzel communications</InterfaceText></span>
+          >
+            <InterfaceText>Tinzel communications</InterfaceText>
+          </span>
           <h1
             style={{
               margin: '0 0 4px 0',
@@ -731,8 +735,15 @@ export default function NotificationsPage({
               fontWeight: 600,
               color: 'var(--text-main)',
             }}
-          ><InterfaceText>Notifications, Triggers &amp; Gateway Health</InterfaceText></h1>
-          <p style={{ margin: 0, fontSize: '13px', color: '#57534E' }}><InterfaceText>Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS (NextSMS) and Email (SMTP) health tests.</InterfaceText></p>
+          >
+            <InterfaceText>Notifications, Triggers &amp; Gateway Health</InterfaceText>
+          </h1>
+          <p style={{ margin: 0, fontSize: '13px', color: '#57534E' }}>
+            <InterfaceText>
+              Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS
+              (NextSMS) and Email (SMTP) health tests.
+            </InterfaceText>
+          </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -754,7 +765,9 @@ export default function NotificationsPage({
                 cursor: 'pointer',
               }}
             >
-              <CheckCheck size={15} color="#8A6825" /><InterfaceText>Mark All Read (</InterfaceText>{unreadCount})
+              <CheckCheck size={15} color="#8A6825" />
+              <InterfaceText>Mark All Read (</InterfaceText>
+              {unreadCount})
             </button>
           )}
 
@@ -776,7 +789,9 @@ export default function NotificationsPage({
                 cursor: 'pointer',
               }}
             >
-              <Send size={14} /><InterfaceText>Send Tri-Channel Notification</InterfaceText></button>
+              <Send size={14} />
+              <InterfaceText>Send Tri-Channel Notification</InterfaceText>
+            </button>
           )}
 
           <button
@@ -797,7 +812,9 @@ export default function NotificationsPage({
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} /><InterfaceText>Refresh</InterfaceText></button>
+            <RefreshCw size={15} className={loading ? 'spin' : ''} />
+            <InterfaceText>Refresh</InterfaceText>
+          </button>
         </div>
       </div>
 
@@ -980,7 +997,9 @@ export default function NotificationsPage({
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {unreadCount}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Unread In-System Alerts</InterfaceText></span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+              <InterfaceText>Unread In-System Alerts</InterfaceText>
+            </span>
           </div>
         </div>
 
@@ -1012,7 +1031,9 @@ export default function NotificationsPage({
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {channelCounts.email || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Email Dispatches</InterfaceText></span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+              <InterfaceText>Email Dispatches</InterfaceText>
+            </span>
           </div>
         </div>
 
@@ -1044,7 +1065,8 @@ export default function NotificationsPage({
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {(channelCounts.whatsapp || 0) + (channelCounts.sms || 0)}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText>{' '}{settings.smsSenderId || 'ORDER'})
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+              <InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText> {settings.smsSenderId || 'ORDER'})
             </span>
           </div>
         </div>
@@ -1078,8 +1100,8 @@ export default function NotificationsPage({
               {smsHealthy
                 ? `NextSMS Live (${diagnostics?.sms?.balance?.display || 'Active'})`
                 : diagnostics?.mode === 'twilio_live'
-                ? 'Live Gateway'
-                : 'Gateway not verified'}
+                  ? 'Live Gateway'
+                  : 'Gateway not verified'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               {smsHealthy
@@ -1117,8 +1139,14 @@ export default function NotificationsPage({
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Global Channel Master Controls</InterfaceText></h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Enable or mute entire delivery channels system-wide and set the default NextSMS Sender ID.</InterfaceText></p>
+                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  <InterfaceText>Global Channel Master Controls</InterfaceText>
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <InterfaceText>
+                    Enable or mute entire delivery channels system-wide and set the default NextSMS Sender ID.
+                  </InterfaceText>
+                </p>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1140,7 +1168,9 @@ export default function NotificationsPage({
                     cursor: 'pointer',
                   }}
                 >
-                  <RotateCcw size={14} /><InterfaceText>Reset Defaults</InterfaceText></button>
+                  <RotateCcw size={14} />
+                  <InterfaceText>Reset Defaults</InterfaceText>
+                </button>
 
                 <button
                   type="button"
@@ -1187,14 +1217,27 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
-                    <Bell size={15} color="#8A6825" /><InterfaceText>In-System Alerts</InterfaceText></div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Workstation inbox &amp; unread badge counters</InterfaceText></div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Bell size={15} color="#8A6825" />
+                    <InterfaceText>In-System Alerts</InterfaceText>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    <InterfaceText>Workstation inbox &amp; unread badge counters</InterfaceText>
+                  </div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.in_system !== false}
                   onChange={(val) => handleToggleGlobalChannel('in_system', val)}
-                  label={tx("Toggle In-System channel")}
+                  label={tx('Toggle In-System channel')}
                 />
               </div>
 
@@ -1212,14 +1255,27 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
-                    <Mail size={15} color="#1E40AF" /><InterfaceText>Email Notifications (SMTP)</InterfaceText></div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Transactional HTML &amp; plaintext emails</InterfaceText></div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <Mail size={15} color="#1E40AF" />
+                    <InterfaceText>Email Notifications (SMTP)</InterfaceText>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    <InterfaceText>Transactional HTML &amp; plaintext emails</InterfaceText>
+                  </div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.email !== false}
                   onChange={(val) => handleToggleGlobalChannel('email', val)}
-                  label={tx("Toggle Email channel")}
+                  label={tx('Toggle Email channel')}
                 />
               </div>
 
@@ -1237,14 +1293,27 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
-                    <MessageSquare size={15} color="#166534" /><InterfaceText>SMS Notifications (NextSMS)</InterfaceText></div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Tanzanian mobile SMS via NextSMS v2</InterfaceText></div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    <MessageSquare size={15} color="#166534" />
+                    <InterfaceText>SMS Notifications (NextSMS)</InterfaceText>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    <InterfaceText>Tanzanian mobile SMS via NextSMS v2</InterfaceText>
+                  </div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.sms !== false}
                   onChange={(val) => handleToggleGlobalChannel('sms', val)}
-                  label={tx("Toggle SMS channel")}
+                  label={tx('Toggle SMS channel')}
                 />
               </div>
 
@@ -1264,7 +1333,9 @@ export default function NotificationsPage({
                 <label
                   htmlFor="nextsms-sender-id-input"
                   style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#57534E' }}
-                ><InterfaceText>Active NextSMS Sender ID</InterfaceText></label>
+                >
+                  <InterfaceText>Active NextSMS Sender ID</InterfaceText>
+                </label>
                 <input
                   id="nextsms-sender-id-input"
                   type="text"
@@ -1276,7 +1347,7 @@ export default function NotificationsPage({
                       smsSenderId: e.target.value.toUpperCase(),
                     }))
                   }
-                  placeholder={tx("ORDER")}
+                  placeholder={tx('ORDER')}
                   style={{
                     padding: '6px 10px',
                     borderRadius: '6px',
@@ -1312,10 +1383,19 @@ export default function NotificationsPage({
                   justifyContent: 'space-between',
                 }}
               >
-                <strong style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-main)' }}>
-                  {category}{' '}<InterfaceText>Triggers</InterfaceText></strong>
+                <strong
+                  style={{
+                    fontSize: '13px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--text-main)',
+                  }}
+                >
+                  {category} <InterfaceText>Triggers</InterfaceText>
+                </strong>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  {items.length}{' '}<InterfaceText>milestone events</InterfaceText></span>
+                  {items.length} <InterfaceText>milestone events</InterfaceText>
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1338,7 +1418,9 @@ export default function NotificationsPage({
                     >
                       <div style={{ flex: '1 1 320px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <strong style={{ fontSize: '14px', color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                          <strong
+                            style={{ fontSize: '14px', color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)' }}
+                          >
                             {tx(item.label)}
                           </strong>
                           <span
@@ -1350,7 +1432,8 @@ export default function NotificationsPage({
                               fontSize: '10px',
                               fontWeight: 800,
                             }}
-                          ><InterfaceText>Recipient:</InterfaceText>{' '}{item.recipient}
+                          >
+                            <InterfaceText>Recipient:</InterfaceText> {item.recipient}
                           </span>
                           <code
                             style={{
@@ -1371,7 +1454,9 @@ export default function NotificationsPage({
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Trigger Enabled</InterfaceText></span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            <InterfaceText>Trigger Enabled</InterfaceText>
+                          </span>
                           <ToggleSwitch
                             checked={isEnabled}
                             onChange={(val) => handleToggleTriggerField(item.key, 'enabled', val)}
@@ -1405,10 +1490,10 @@ export default function NotificationsPage({
                               type="checkbox"
                               disabled={!isEnabled || settings.channels?.in_system === false}
                               checked={Boolean(cfg.in_system && settings.channels?.in_system !== false)}
-                              onChange={(e) =>
-                                handleToggleTriggerField(item.key, 'in_system', e.target.checked)
-                              }
-                            /><InterfaceText>In-System</InterfaceText></label>
+                              onChange={(e) => handleToggleTriggerField(item.key, 'in_system', e.target.checked)}
+                            />
+                            <InterfaceText>In-System</InterfaceText>
+                          </label>
 
                           <label
                             style={{
@@ -1425,10 +1510,10 @@ export default function NotificationsPage({
                               type="checkbox"
                               disabled={!isEnabled || settings.channels?.email === false}
                               checked={Boolean(cfg.email && settings.channels?.email !== false)}
-                              onChange={(e) =>
-                                handleToggleTriggerField(item.key, 'email', e.target.checked)
-                              }
-                            /><InterfaceText>Email</InterfaceText></label>
+                              onChange={(e) => handleToggleTriggerField(item.key, 'email', e.target.checked)}
+                            />
+                            <InterfaceText>Email</InterfaceText>
+                          </label>
 
                           <label
                             style={{
@@ -1445,10 +1530,10 @@ export default function NotificationsPage({
                               type="checkbox"
                               disabled={!isEnabled || settings.channels?.sms === false}
                               checked={Boolean(cfg.sms && settings.channels?.sms !== false)}
-                              onChange={(e) =>
-                                handleToggleTriggerField(item.key, 'sms', e.target.checked)
-                              }
-                            /><InterfaceText>SMS (NextSMS)</InterfaceText></label>
+                              onChange={(e) => handleToggleTriggerField(item.key, 'sms', e.target.checked)}
+                            />
+                            <InterfaceText>SMS (NextSMS)</InterfaceText>
+                          </label>
                         </div>
                       </div>
                     </div>
@@ -1479,8 +1564,15 @@ export default function NotificationsPage({
             }}
           >
             <div>
-              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Gateway Connectivity &amp; Live Health Verification</InterfaceText></h2>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Verify live NextSMS API v2 credentials, inspect SMS credit balance, check Google SMTP connectivity, and dispatch real test messages.</InterfaceText></p>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}>
+                <InterfaceText>Gateway Connectivity &amp; Live Health Verification</InterfaceText>
+              </h2>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <InterfaceText>
+                  Verify live NextSMS API v2 credentials, inspect SMS credit balance, check Google SMTP connectivity,
+                  and dispatch real test messages.
+                </InterfaceText>
+              </p>
             </div>
             <button
               type="button"
@@ -1540,8 +1632,12 @@ export default function NotificationsPage({
                     <MessageSquare size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>SMS Gateway Health (NextSMS API)</InterfaceText></h3>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Endpoint: messaging-service.co.tz (</InterfaceText>{diagnostics?.sms?.apiVersion || 'v2'})
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <InterfaceText>SMS Gateway Health (NextSMS API)</InterfaceText>
+                    </h3>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <InterfaceText>Endpoint: messaging-service.co.tz (</InterfaceText>
+                      {diagnostics?.sms?.apiVersion || 'v2'})
                     </span>
                   </div>
                 </div>
@@ -1573,13 +1669,17 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>SMS Credit Balance</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>SMS Credit Balance</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.balance?.display || '—'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Estimated Remaining SMS</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Estimated Remaining SMS</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '15px', color: '#166534' }}>
                     {diagnostics?.sms?.balance?.default_balance !== undefined
                       ? `${diagnostics.sms.balance.default_balance} SMS`
@@ -1587,13 +1687,17 @@ export default function NotificationsPage({
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Active Sender ID</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Active Sender ID</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.configuredSenderId || settings.smsSenderId || 'ORDER'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Gateway Latency</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Gateway Latency</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.latencyMs ? `${diagnostics.sms.latencyMs} ms` : '—'}
                   </strong>
@@ -1605,9 +1709,13 @@ export default function NotificationsPage({
                 onSubmit={handleRunSmsHealthTest}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
               >
-                <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+                <div
+                  className="admin-form-grid"
+                  style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}
+                >
                   <div>
-                    <label htmlFor={`control-59897`}
+                    <label
+                      htmlFor={`control-59897`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1615,8 +1723,11 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    ><InterfaceText>Test Recipient Phone (Tanzania)</InterfaceText></label>
-                    <input id={`control-59897`}
+                    >
+                      <InterfaceText>Test Recipient Phone (Tanzania)</InterfaceText>
+                    </label>
+                    <input
+                      id={`control-59897`}
                       type="text"
                       required
                       value={smsTestForm.to}
@@ -1633,7 +1744,8 @@ export default function NotificationsPage({
                     />
                   </div>
                   <div>
-                    <label htmlFor={`control-60967`}
+                    <label
+                      htmlFor={`control-60967`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1641,14 +1753,15 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    ><InterfaceText>Sender ID</InterfaceText></label>
-                    <input id={`control-60967`}
+                    >
+                      <InterfaceText>Sender ID</InterfaceText>
+                    </label>
+                    <input
+                      id={`control-60967`}
                       type="text"
                       value={smsTestForm.from}
-                      onChange={(e) =>
-                        setSmsTestForm({ ...smsTestForm, from: e.target.value.toUpperCase() })
-                      }
-                      placeholder={tx("ORDER")}
+                      onChange={(e) => setSmsTestForm({ ...smsTestForm, from: e.target.value.toUpperCase() })}
+                      placeholder={tx('ORDER')}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1663,7 +1776,8 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label htmlFor={`control-62110`}
+                  <label
+                    htmlFor={`control-62110`}
                     style={{
                       display: 'block',
                       fontSize: '11px',
@@ -1671,8 +1785,11 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  ><InterfaceText>Test SMS Message</InterfaceText></label>
-                  <textarea id={`control-62110`}
+                  >
+                    <InterfaceText>Test SMS Message</InterfaceText>
+                  </label>
+                  <textarea
+                    id={`control-62110`}
                     rows="2"
                     required
                     value={smsTestForm.message}
@@ -1725,18 +1842,29 @@ export default function NotificationsPage({
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {smsTestResult.success ? 'SMS Health Test Passed' : 'SMS Health Test Failed'}
                   </div>
-                  <div><InterfaceText>Recipient:</InterfaceText><strong>{smsTestResult.to}</strong><InterfaceText>| Sender:</InterfaceText>{' '}{' '}
-                    <strong>{smsTestResult.senderId}</strong><InterfaceText>| Latency:</InterfaceText>{' '}{' '}
-                    <strong>{smsTestResult.latencyMs}{' '}<InterfaceText>ms</InterfaceText></strong>
+                  <div>
+                    <InterfaceText>Recipient:</InterfaceText>
+                    <strong>{smsTestResult.to}</strong>
+                    <InterfaceText>| Sender:</InterfaceText> <strong>{smsTestResult.senderId}</strong>
+                    <InterfaceText>| Latency:</InterfaceText>{' '}
+                    <strong>
+                      {smsTestResult.latencyMs} <InterfaceText>ms</InterfaceText>
+                    </strong>
                   </div>
                   {smsTestResult.nextSmsStatus && (
-                    <div><InterfaceText>Gateway Status:</InterfaceText><strong>{smsTestResult.nextSmsStatus.name}</strong> (
-                      {smsTestResult.nextSmsStatus.description})
+                    <div>
+                      <InterfaceText>Gateway Status:</InterfaceText>
+                      <strong>{smsTestResult.nextSmsStatus.name}</strong> ({smsTestResult.nextSmsStatus.description})
                     </div>
                   )}
                   {smsTestResult.messageId && (
-                    <div><InterfaceText>Message ID:</InterfaceText><code>{smsTestResult.messageId}</code><InterfaceText>| Cost:</InterfaceText>{' '}{' '}
-                      <strong>{smsTestResult.price ?? 16}{' '}<InterfaceText>TZS</InterfaceText></strong>
+                    <div>
+                      <InterfaceText>Message ID:</InterfaceText>
+                      <code>{smsTestResult.messageId}</code>
+                      <InterfaceText>| Cost:</InterfaceText>{' '}
+                      <strong>
+                        {smsTestResult.price ?? 16} <InterfaceText>TZS</InterfaceText>
+                      </strong>
                     </div>
                   )}
                 </div>
@@ -1771,8 +1899,11 @@ export default function NotificationsPage({
                     <Mail size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Email Gateway Health (Google SMTP)</InterfaceText></h3>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Host:</InterfaceText>{' '}{diagnostics?.email?.host || 'smtp.gmail.com'}:
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <InterfaceText>Email Gateway Health (Google SMTP)</InterfaceText>
+                    </h3>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <InterfaceText>Host:</InterfaceText> {diagnostics?.email?.host || 'smtp.gmail.com'}:
                       {diagnostics?.email?.port || 465}
                     </span>
                   </div>
@@ -1805,25 +1936,34 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Delivery Mode</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Delivery Mode</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}>
                     {emailHealthy ? 'Live Google SMTP' : 'Local Simulation Fallback'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Encryption / Port</InterfaceText></span>
-                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}><InterfaceText>Port</InterfaceText>{' '}{diagnostics?.email?.port || 465} (
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Encryption / Port</InterfaceText>
+                  </span>
+                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}>
+                    <InterfaceText>Port</InterfaceText> {diagnostics?.email?.port || 465} (
                     {diagnostics?.email?.secure !== false ? 'SSL/TLS' : 'STARTTLS'})
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Sender Identity</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>Sender Identity</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '12px', color: 'var(--text-main)' }}>
                     {diagnostics?.email?.from || 'Tinzel <notifications@tinzel.com>'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>SMTP Handshake Latency</InterfaceText></span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                    <InterfaceText>SMTP Handshake Latency</InterfaceText>
+                  </span>
                   <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.email?.latencyMs ? `${diagnostics.email.latencyMs} ms` : '0 ms (Simulated)'}
                   </strong>
@@ -1835,9 +1975,13 @@ export default function NotificationsPage({
                 onSubmit={handleRunEmailHealthTest}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
               >
-                <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div
+                  className="admin-form-grid"
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}
+                >
                   <div>
-                    <label htmlFor={`control-70308`}
+                    <label
+                      htmlFor={`control-70308`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1845,13 +1989,16 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    ><InterfaceText>Test Recipient Email</InterfaceText></label>
-                    <input id={`control-70308`}
+                    >
+                      <InterfaceText>Test Recipient Email</InterfaceText>
+                    </label>
+                    <input
+                      id={`control-70308`}
                       type="email"
                       required
                       value={emailTestForm.to}
                       onChange={(e) => setEmailTestForm({ ...emailTestForm, to: e.target.value })}
-                      placeholder={tx("you@example.com")}
+                      placeholder={tx('you@example.com')}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1863,7 +2010,8 @@ export default function NotificationsPage({
                     />
                   </div>
                   <div>
-                    <label htmlFor={`control-71382`}
+                    <label
+                      htmlFor={`control-71382`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1871,14 +2019,15 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    ><InterfaceText>Subject Line</InterfaceText></label>
-                    <input id={`control-71382`}
+                    >
+                      <InterfaceText>Subject Line</InterfaceText>
+                    </label>
+                    <input
+                      id={`control-71382`}
                       type="text"
                       required
                       value={emailTestForm.subject}
-                      onChange={(e) =>
-                        setEmailTestForm({ ...emailTestForm, subject: e.target.value })
-                      }
+                      onChange={(e) => setEmailTestForm({ ...emailTestForm, subject: e.target.value })}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1892,7 +2041,8 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label htmlFor={`control-72468`}
+                  <label
+                    htmlFor={`control-72468`}
                     style={{
                       display: 'block',
                       fontSize: '11px',
@@ -1900,14 +2050,15 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  ><InterfaceText>Test Email Message Body</InterfaceText></label>
-                  <textarea id={`control-72468`}
+                  >
+                    <InterfaceText>Test Email Message Body</InterfaceText>
+                  </label>
+                  <textarea
+                    id={`control-72468`}
                     rows="2"
                     required
                     value={emailTestForm.message}
-                    onChange={(e) =>
-                      setEmailTestForm({ ...emailTestForm, message: e.target.value })
-                    }
+                    onChange={(e) => setEmailTestForm({ ...emailTestForm, message: e.target.value })}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
@@ -1956,12 +2107,19 @@ export default function NotificationsPage({
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {emailTestResult.success ? 'Email Health Test Completed' : 'Email Health Test Failed'}
                   </div>
-                  <div><InterfaceText>Recipient:</InterfaceText><strong>{emailTestResult.to}</strong><InterfaceText>| Mode:</InterfaceText>{' '}{' '}
-                    <strong>{emailTestResult.mode}</strong><InterfaceText>| Latency:</InterfaceText>{' '}{' '}
-                    <strong>{emailTestResult.latencyMs}{' '}<InterfaceText>ms</InterfaceText></strong>
+                  <div>
+                    <InterfaceText>Recipient:</InterfaceText>
+                    <strong>{emailTestResult.to}</strong>
+                    <InterfaceText>| Mode:</InterfaceText> <strong>{emailTestResult.mode}</strong>
+                    <InterfaceText>| Latency:</InterfaceText>{' '}
+                    <strong>
+                      {emailTestResult.latencyMs} <InterfaceText>ms</InterfaceText>
+                    </strong>
                   </div>
                   {emailTestResult.messageId && (
-                    <div><InterfaceText>Message ID:</InterfaceText><code>{emailTestResult.messageId}</code>
+                    <div>
+                      <InterfaceText>Message ID:</InterfaceText>
+                      <code>{emailTestResult.messageId}</code>
                     </div>
                   )}
                 </div>
@@ -2054,7 +2212,7 @@ export default function NotificationsPage({
               </div>
 
               <select
-                aria-label={tx("Filter by delivery status")}
+                aria-label={tx('Filter by delivery status')}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{
@@ -2068,11 +2226,30 @@ export default function NotificationsPage({
                   color: 'var(--text-main)',
                 }}
               >
-                <option value="all"><InterfaceText>All statuses</InterfaceText></option>
-                <option value="delivered"><InterfaceText>Delivered</InterfaceText></option>
-                <option value="sent"><InterfaceText>Provider accepted</InterfaceText></option>
-                <option value="queued"><InterfaceText>Queued</InterfaceText></option><option value="unconfirmed"><InterfaceText>Unconfirmed</InterfaceText></option><option value="skipped"><InterfaceText>Skipped</InterfaceText></option><option value="simulated"><InterfaceText>Simulated</InterfaceText></option>
-                <option value="failed"><InterfaceText>Failed</InterfaceText></option>
+                <option value="all">
+                  <InterfaceText>All statuses</InterfaceText>
+                </option>
+                <option value="delivered">
+                  <InterfaceText>Delivered</InterfaceText>
+                </option>
+                <option value="sent">
+                  <InterfaceText>Provider accepted</InterfaceText>
+                </option>
+                <option value="queued">
+                  <InterfaceText>Queued</InterfaceText>
+                </option>
+                <option value="unconfirmed">
+                  <InterfaceText>Unconfirmed</InterfaceText>
+                </option>
+                <option value="skipped">
+                  <InterfaceText>Skipped</InterfaceText>
+                </option>
+                <option value="simulated">
+                  <InterfaceText>Simulated</InterfaceText>
+                </option>
+                <option value="failed">
+                  <InterfaceText>Failed</InterfaceText>
+                </option>
               </select>
 
               <form
@@ -2094,8 +2271,8 @@ export default function NotificationsPage({
               >
                 <Search size={14} color="var(--text-muted)" />
                 <input
-                  aria-label={tx("Search notifications")}
-                  placeholder={tx("Search recipient, order, message...")}
+                  aria-label={tx('Search notifications')}
+                  placeholder={tx('Search recipient, order, message...')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   style={{
@@ -2140,7 +2317,9 @@ export default function NotificationsPage({
                   borderRadius: '10px',
                   color: 'var(--text-muted)',
                 }}
-              ><InterfaceText>Loading notifications…</InterfaceText></div>
+              >
+                <InterfaceText>Loading notifications…</InterfaceText>
+              </div>
             ) : displayedItems.length === 0 ? (
               <div
                 style={{
@@ -2153,25 +2332,29 @@ export default function NotificationsPage({
                 }}
               >
                 <Bell size={28} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
-                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>No notifications found</InterfaceText></div>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}><InterfaceText>Notifications sent via Email, Phone (NextSMS), and In-System will appear here automatically.</InterfaceText></div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  <InterfaceText>No notifications found</InterfaceText>
+                </div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                  <InterfaceText>
+                    Notifications sent via Email, Phone (NextSMS), and In-System will appear here automatically.
+                  </InterfaceText>
+                </div>
               </div>
             ) : (
               displayedItems.map(({ primary, siblings, channels }) => {
                 const id = primary._id || primary.id;
                 const isUnread = !primary.isRead;
-                const orderObj =
-                  primary.orderId && typeof primary.orderId === 'object' ? primary.orderId : null;
+                const orderObj = primary.orderId && typeof primary.orderId === 'object' ? primary.orderId : null;
                 const orderTracking =
                   orderObj?.trackingId ||
                   orderObj?.submissionId ||
                   primary.metadata?.trackingId ||
                   primary.metadata?.submissionId ||
                   null;
-                const orderTargetId =
-                  orderObj?._id || (typeof primary.orderId === 'string' ? primary.orderId : null);
+                const orderTargetId = orderObj?._id || (typeof primary.orderId === 'string' ? primary.orderId : null);
                 const hasFailedSibling = siblings.some(
-                  (s) => s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed'
+                  (s) => s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed',
                 );
 
                 return (
@@ -2211,7 +2394,9 @@ export default function NotificationsPage({
                               textTransform: 'uppercase',
                               letterSpacing: '0.05em',
                             }}
-                          ><InterfaceText>New</InterfaceText></span>
+                          >
+                            <InterfaceText>New</InterfaceText>
+                          </span>
                         )}
 
                         <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
@@ -2303,7 +2488,13 @@ export default function NotificationsPage({
                             color: channels.in_system ? '#6F531C' : 'var(--text-muted)',
                           }}
                         >
-                          <Bell size={12} /><InterfaceText>In-System:</InterfaceText>{' '}{channels.in_system ? (channels.in_system.status === 'delivered' ? 'Recorded' : channels.in_system.status) : '—'}
+                          <Bell size={12} />
+                          <InterfaceText>In-System:</InterfaceText>{' '}
+                          {channels.in_system
+                            ? channels.in_system.status === 'delivered'
+                              ? 'Recorded'
+                              : channels.in_system.status
+                            : '—'}
                         </span>
 
                         {/* 2. Email Channel Pill */}
@@ -2328,7 +2519,8 @@ export default function NotificationsPage({
                               : 'var(--text-muted)',
                           }}
                         >
-                          <Mail size={12} /><InterfaceText>Email:</InterfaceText>{' '}{' '}
+                          <Mail size={12} />
+                          <InterfaceText>Email:</InterfaceText>{' '}
                           {channels.email
                             ? `${channels.email.status === 'sent' ? 'provider accepted' : channels.email.status || 'unconfirmed'}${
                                 channels.email.recipient || channels.email.to
@@ -2360,7 +2552,9 @@ export default function NotificationsPage({
                               : 'var(--text-muted)',
                           }}
                         >
-                          <MessageSquare size={12} /><InterfaceText>Phone (</InterfaceText>{(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
+                          <MessageSquare size={12} />
+                          <InterfaceText>Phone (</InterfaceText>
+                          {(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
                           {channels.phone
                             ? `${channels.phone.status === 'sent' ? 'provider accepted' : channels.phone.status || 'unconfirmed'}${
                                 channels.phone.recipient || channels.phone.to
@@ -2371,7 +2565,21 @@ export default function NotificationsPage({
                         </span>
                       </div>
 
-                      {primary.workflowEventKey && <div style={{fontSize:12,color:'#57534E'}}>{siblings.map(item=><p key={item._id || item.id} style={{overflowWrap:'anywhere'}}>{item.channel.toUpperCase()}: {tx(item.status === 'sent' ? 'provider accepted' : item.status)} · {item.attempts || 0}{' '}<InterfaceText>/5 attempts</InterfaceText>{' '}{item.errorMessage ? ` — ${item.errorMessage}` : ''}{item.nextAttemptAt && item.retryable ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}` : ''}</p>)}</div>}
+                      {primary.workflowEventKey && (
+                        <div style={{ fontSize: 12, color: '#57534E' }}>
+                          {siblings.map((item) => (
+                            <p key={item._id || item.id} style={{ overflowWrap: 'anywhere' }}>
+                              {item.channel.toUpperCase()}:{' '}
+                              {tx(item.status === 'sent' ? 'provider accepted' : item.status)} · {item.attempts || 0}{' '}
+                              <InterfaceText>/5 attempts</InterfaceText>{' '}
+                              {item.errorMessage ? ` — ${item.errorMessage}` : ''}
+                              {item.nextAttemptAt && item.retryable
+                                ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}`
+                                : ''}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       {/* Card Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {isUnread && (
@@ -2388,7 +2596,9 @@ export default function NotificationsPage({
                               fontWeight: 700,
                               cursor: 'pointer',
                             }}
-                          ><InterfaceText>Mark as read</InterfaceText></button>
+                          >
+                            <InterfaceText>Mark as read</InterfaceText>
+                          </button>
                         )}
 
                         {isManagerOrAdmin &&
@@ -2396,7 +2606,7 @@ export default function NotificationsPage({
                             .filter(
                               (s) =>
                                 s.channel !== 'in_system' &&
-                                (s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed')
+                                (s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed'),
                             )
                             .map((failedItem) => {
                               const fId = failedItem._id || failedItem.id;
@@ -2405,7 +2615,9 @@ export default function NotificationsPage({
                                   key={fId}
                                   type="button"
                                   disabled={resendingId === fId}
-                                  onClick={() => handleResend(fId, failedItem.channel, failedItem.status === 'unconfirmed')}
+                                  onClick={() =>
+                                    handleResend(fId, failedItem.channel, failedItem.status === 'unconfirmed')
+                                  }
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -2420,7 +2632,8 @@ export default function NotificationsPage({
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  <RotateCw size={12} /><InterfaceText>Retry</InterfaceText>{' '}{failedItem.channel.toUpperCase()}
+                                  <RotateCw size={12} />
+                                  <InterfaceText>Retry</InterfaceText> {failedItem.channel.toUpperCase()}
                                 </button>
                               );
                             })}
@@ -2445,7 +2658,9 @@ export default function NotificationsPage({
                               fontWeight: 700,
                               cursor: 'pointer',
                             }}
-                          ><InterfaceText>Open Order</InterfaceText><ArrowRight size={13} />
+                          >
+                            <InterfaceText>Open Order</InterfaceText>
+                            <ArrowRight size={13} />
                           </button>
                         )}
                       </div>
@@ -2478,7 +2693,7 @@ export default function NotificationsPage({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={tx("Send Tri-Channel Notification")}
+            aria-label={tx('Send Tri-Channel Notification')}
             style={{
               width: 'min(520px, 100%)',
               backgroundColor: '#FFFFFF',
@@ -2496,8 +2711,14 @@ export default function NotificationsPage({
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Send Tri-Channel Notification</InterfaceText></h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Dispatches simultaneously to In-System Notifications, Email, and Phone (NextSMS / WhatsApp).</InterfaceText></p>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  <InterfaceText>Send Tri-Channel Notification</InterfaceText>
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <InterfaceText>
+                    Dispatches simultaneously to In-System Notifications, Email, and Phone (NextSMS / WhatsApp).
+                  </InterfaceText>
+                </p>
               </div>
               <button
                 type="button"
@@ -2513,12 +2734,10 @@ export default function NotificationsPage({
               </button>
             </div>
 
-            <form
-              onSubmit={handleSendTriChannel}
-              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
-            >
+            <form onSubmit={handleSendTriChannel} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label htmlFor={`control-100153`}
+                <label
+                  htmlFor={`control-100153`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2526,15 +2745,16 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                ><InterfaceText>Recipient Name</InterfaceText></label>
-                <input id={`control-100153`}
+                >
+                  <InterfaceText>Recipient Name</InterfaceText>
+                </label>
+                <input
+                  id={`control-100153`}
                   type="text"
                   required
-                  placeholder={tx("e.g. Amani Juma")}
+                  placeholder={tx('e.g. Amani Juma')}
                   value={composeForm.recipientName}
-                  onChange={(e) =>
-                    setComposeForm({ ...composeForm, recipientName: e.target.value })
-                  }
+                  onChange={(e) => setComposeForm({ ...composeForm, recipientName: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '9px 11px',
@@ -2548,7 +2768,8 @@ export default function NotificationsPage({
 
               <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label htmlFor={`control-101295`}
+                  <label
+                    htmlFor={`control-101295`}
                     style={{
                       display: 'block',
                       fontSize: '12px',
@@ -2556,10 +2777,13 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  ><InterfaceText>Email Address</InterfaceText></label>
-                  <input id={`control-101295`}
+                  >
+                    <InterfaceText>Email Address</InterfaceText>
+                  </label>
+                  <input
+                    id={`control-101295`}
                     type="email"
-                    placeholder={tx("client@example.com")}
+                    placeholder={tx('client@example.com')}
                     value={composeForm.email}
                     onChange={(e) => setComposeForm({ ...composeForm, email: e.target.value })}
                     style={{
@@ -2574,7 +2798,8 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label htmlFor={`control-102285`}
+                  <label
+                    htmlFor={`control-102285`}
                     style={{
                       display: 'block',
                       fontSize: '12px',
@@ -2582,8 +2807,11 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  ><InterfaceText>Phone Number (NextSMS / WhatsApp)</InterfaceText></label>
-                  <input id={`control-102285`}
+                  >
+                    <InterfaceText>Phone Number (NextSMS / WhatsApp)</InterfaceText>
+                  </label>
+                  <input
+                    id={`control-102285`}
                     type="text"
                     placeholder="+255762022730"
                     value={composeForm.phone}
@@ -2601,7 +2829,8 @@ export default function NotificationsPage({
               </div>
 
               <div>
-                <label htmlFor={`control-103302`}
+                <label
+                  htmlFor={`control-103302`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2609,11 +2838,14 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                ><InterfaceText>Notification Title / Subject</InterfaceText></label>
-                <input id={`control-103302`}
+                >
+                  <InterfaceText>Notification Title / Subject</InterfaceText>
+                </label>
+                <input
+                  id={`control-103302`}
                   type="text"
                   required
-                  placeholder={tx("e.g. Taarifa ya Maendeleo ya Jarida Lako")}
+                  placeholder={tx('e.g. Taarifa ya Maendeleo ya Jarida Lako')}
                   value={composeForm.title}
                   onChange={(e) => setComposeForm({ ...composeForm, title: e.target.value })}
                   style={{
@@ -2628,7 +2860,8 @@ export default function NotificationsPage({
               </div>
 
               <div>
-                <label htmlFor={`control-104305`}
+                <label
+                  htmlFor={`control-104305`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2636,11 +2869,14 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                ><InterfaceText>Message Content</InterfaceText></label>
-                <textarea id={`control-104305`}
+                >
+                  <InterfaceText>Message Content</InterfaceText>
+                </label>
+                <textarea
+                  id={`control-104305`}
                   rows="4"
                   required
-                  placeholder={tx("Write the notification message to send across Email, Phone, and In-System...")}
+                  placeholder={tx('Write the notification message to send across Email, Phone, and In-System...')}
                   value={composeForm.message}
                   onChange={(e) => setComposeForm({ ...composeForm, message: e.target.value })}
                   style={{
@@ -2675,7 +2911,9 @@ export default function NotificationsPage({
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
-                ><InterfaceText>Cancel</InterfaceText></button>
+                >
+                  <InterfaceText>Cancel</InterfaceText>
+                </button>
                 <button
                   type="submit"
                   disabled={sending}

@@ -1,3 +1,4 @@
+import { errorText } from '../i18n/errors';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 export const DEFAULT_API_TIMEOUT_MS = 25000;
 export const UPLOAD_API_TIMEOUT_MS = 60000;
@@ -9,7 +10,7 @@ export const fetchWithTimeout = async (url, options = {}, timeoutMs = DEFAULT_AP
     return await fetch(url, { ...options, signal });
   } catch (err) {
     if (err?.name === 'TimeoutError' || (err?.name === 'AbortError' && !options.signal?.aborted)) {
-      const timeoutErr = new Error('Request timed out. Please check your connection and try again.');
+      const timeoutErr = new Error(errorText('Request timed out. Please check your connection and try again.', 504));
       timeoutErr.status = 504;
       timeoutErr.retryable = true;
       throw timeoutErr;
@@ -29,17 +30,33 @@ const getHeaders = (token = null, isMultipart = false) => {
   return headers;
 };
 
+const notifyUnauthorized = (res, message) => {
+  if (res.status !== 401 || typeof window === 'undefined') return;
+  let path = '';
+  try {
+    path = new URL(res.url, window.location.origin).pathname;
+  } catch {
+    return;
+  }
+  const client = /^\/api\/(?:client(?:\/|$)|proofs\/client(?:\/|$))/.test(path);
+  const staff = /^\/api\/(?:staff|admin|manager|designer|notifications|proofs\/staff)(?:\/|$)/.test(path);
+  if (client || staff)
+    window.dispatchEvent(
+      new CustomEvent(client ? 'tinzel:client:unauthorized' : 'tinzel:staff:unauthorized', {
+        detail: { message: errorText(message || 'Your session has expired. Please sign in again.', 401) },
+      }),
+    );
+};
+
 const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined' && localStorage.getItem('tinzel_staff_token')) {
-      window.dispatchEvent(new CustomEvent('tinzel:staff:unauthorized', { detail: { message: data.message } }));
-    }
+    notifyUnauthorized(res, data.message);
     const defaultMsg =
       res.status === 413
         ? 'Upload is too large for a single request. Please try fewer or smaller photos.'
         : `Request failed with status ${res.status}`;
-    const err = new Error(data.message || defaultMsg);
+    const err = new Error(errorText(data.message || defaultMsg, res.status));
     err.status = res.status;
     err.code = data.errorCode || data.code;
     throw err;
@@ -50,10 +67,8 @@ const handleResponse = async (res) => {
 const handleBlob = async (res) => {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    if (res.status === 401 && typeof window !== 'undefined' && localStorage.getItem('tinzel_staff_token')) {
-      window.dispatchEvent(new CustomEvent('tinzel:staff:unauthorized', { detail: { message: data.message } }));
-    }
-    throw new Error(data.message || `Request failed with status ${res.status}`);
+    notifyUnauthorized(res, data.message);
+    throw new Error(errorText(data.message || `Request failed with status ${res.status}`, res.status));
   }
   return res.blob();
 };
@@ -68,26 +83,44 @@ export const api = {
       fd.append('photo', file);
       fd.append('fieldId', fieldId);
       fd.append('folderName', folderName);
-      return fetchWithTimeout(`${API_BASE}/api/public/forms/${slug}/photos`, {
-        method: 'POST',
-        body: fd,
-      }, UPLOAD_API_TIMEOUT_MS).then(handleResponse);
+      return fetchWithTimeout(
+        `${API_BASE}/api/public/forms/${slug}/photos`,
+        {
+          method: 'POST',
+          body: fd,
+        },
+        UPLOAD_API_TIMEOUT_MS,
+      ).then(handleResponse);
     },
     submitForm: (slug, payload) => {
       const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
-      return fetchWithTimeout(`${API_BASE}/api/public/forms/${slug}/submit`, {
-        method: 'POST',
-        headers: isFormData ? undefined : getHeaders(),
-        body: isFormData ? payload : JSON.stringify(payload),
-      }, UPLOAD_API_TIMEOUT_MS).then(handleResponse);
+      return fetchWithTimeout(
+        `${API_BASE}/api/public/forms/${slug}/submit`,
+        {
+          method: 'POST',
+          headers: isFormData ? undefined : getHeaders(),
+          body: isFormData ? payload : JSON.stringify(payload),
+        },
+        UPLOAD_API_TIMEOUT_MS,
+      ).then(handleResponse);
     },
   },
 
   // Client Tracking Endpoints
   client: {
-    setPreferences: (token, preferredLanguage) => fetchWithTimeout(`${API_BASE}/api/client/preferences`,{method:'PATCH',headers:getHeaders(token),body:JSON.stringify({preferredLanguage})}).then(handleResponse),
-    getNotifications: token => fetchWithTimeout(`${API_BASE}/api/client/notifications`,{headers:getHeaders(token)}).then(handleResponse),
-    readNotification: (token,id) => fetchWithTimeout(`${API_BASE}/api/client/notifications/${id}/read`,{method:'PATCH',headers:getHeaders(token)}).then(handleResponse),
+    setPreferences: (token, preferredLanguage) =>
+      fetchWithTimeout(`${API_BASE}/api/client/preferences`, {
+        method: 'PATCH',
+        headers: getHeaders(token),
+        body: JSON.stringify({ preferredLanguage }),
+      }).then(handleResponse),
+    getNotifications: (token) =>
+      fetchWithTimeout(`${API_BASE}/api/client/notifications`, { headers: getHeaders(token) }).then(handleResponse),
+    readNotification: (token, id) =>
+      fetchWithTimeout(`${API_BASE}/api/client/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: getHeaders(token),
+      }).then(handleResponse),
     requestOtp: (trackingId, clientWhatsApp) =>
       fetchWithTimeout(`${API_BASE}/api/client/request-otp`, {
         method: 'POST',
@@ -120,15 +153,26 @@ export const api = {
         headers: getHeaders(clientToken),
         body: JSON.stringify({ items, expectedVersion }),
       }).then(handleResponse),
-    viewDraft: (clientToken) => fetchWithTimeout(`${API_BASE}/api/client/draft/view`, {
-      headers: getHeaders(clientToken),
-    }).then(handleBlob),
+    viewDraft: (clientToken) =>
+      fetchWithTimeout(`${API_BASE}/api/client/draft/view`, {
+        headers: getHeaders(clientToken),
+      }).then(handleBlob),
   },
 
   // Staff Auth Endpoints
   staffAuth: {
-    changePassword:(token,currentPassword,newPassword)=>fetchWithTimeout(`${API_BASE}/api/staff/change-password`,{method:'POST',headers:getHeaders(token),body:JSON.stringify({currentPassword,newPassword})}).then(handleResponse),
-    setPreferences: (token, preferredLanguage) => fetchWithTimeout(`${API_BASE}/api/staff/preferences`,{method:'PATCH',headers:getHeaders(token),body:JSON.stringify({preferredLanguage})}).then(handleResponse),
+    changePassword: (token, currentPassword, newPassword) =>
+      fetchWithTimeout(`${API_BASE}/api/staff/change-password`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }).then(handleResponse),
+    setPreferences: (token, preferredLanguage) =>
+      fetchWithTimeout(`${API_BASE}/api/staff/preferences`, {
+        method: 'PATCH',
+        headers: getHeaders(token),
+        body: JSON.stringify({ preferredLanguage }),
+      }).then(handleResponse),
     login: (email, password) =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
         method: 'POST',
@@ -199,12 +243,14 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify(data),
       }).then(handleResponse),
-    viewDraft: (token, id, version) => fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
-      headers: getHeaders(token),
-    }).then(handleBlob),
-    downloadDraft: (token, id, version) => fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/download`, {
-      headers: getHeaders(token),
-    }).then(handleBlob),
+    viewDraft: (token, id, version) =>
+      fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
+        headers: getHeaders(token),
+      }).then(handleBlob),
+    downloadDraft: (token, id, version) =>
+      fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/download`, {
+        headers: getHeaders(token),
+      }).then(handleBlob),
 
     authorisePrint: (token, id, data) =>
       fetchWithTimeout(`${API_BASE}/api/manager/orders/${id}/authorise-print`, {
@@ -251,32 +297,47 @@ export const api = {
 
     getReturns: (token, params = {}) => {
       const searchParams = new URLSearchParams(params).toString();
-      return fetchWithTimeout(`${API_BASE}/api/designer/returns?${searchParams}`, { headers: getHeaders(token) }).then(handleResponse);
+      return fetchWithTimeout(`${API_BASE}/api/designer/returns?${searchParams}`, { headers: getHeaders(token) }).then(
+        handleResponse,
+      );
     },
 
     addressFix: (token, orderId, requestId, itemId, response) =>
       fetchWithTimeout(`${API_BASE}/api/designer/orders/${orderId}/returns/${requestId}/items/${itemId}`, {
-        method: 'PATCH', headers: getHeaders(token), body: JSON.stringify({ response }),
+        method: 'PATCH',
+        headers: getHeaders(token),
+        body: JSON.stringify({ response }),
       }).then(handleResponse),
 
-    viewDraft: (token, id, version) => fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
-      headers: getHeaders(token),
-    }).then(handleBlob),
+    viewDraft: (token, id, version) =>
+      fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/drafts/${version}/view`, {
+        headers: getHeaders(token),
+      }).then(handleBlob),
 
     downloadPhotoFolder: async (token, id, folder, { signal, onStatus } = {}) => {
-      const requestSignal = () => signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000);
+      const requestSignal = () =>
+        signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000);
       let result = await fetch(`${API_BASE}/api/designer/orders/${id}/photo-folder-download`, {
-        method: 'POST', headers: getHeaders(token), body: JSON.stringify({ folder }), signal: requestSignal(),
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ folder }),
+        signal: requestSignal(),
       }).then(handleResponse);
       const deadline = Date.now() + 5 * 60000;
       while (result.state !== 'ready') {
         onStatus?.(result.state);
         signal?.throwIfAborted();
         if (result.state === 'failed') throw new Error(result.message || 'Unable to prepare this folder');
-        if (Date.now() >= deadline) throw new Error('Your folder is still being prepared. Try downloading again shortly; completed work is saved.');
+        if (Date.now() >= deadline)
+          throw new Error(
+            'Your folder is still being prepared. Try downloading again shortly; completed work is saved.',
+          );
         await new Promise((resolve) => setTimeout(resolve, 2000));
         signal?.throwIfAborted();
-        result = await fetch(`${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`, { headers: getHeaders(token), signal: requestSignal() }).then(handleResponse);
+        result = await fetch(`${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`, {
+          headers: getHeaders(token),
+          signal: requestSignal(),
+        }).then(handleResponse);
       }
       onStatus?.('ready');
       return { url: `${API_BASE}${result.url}` };
@@ -289,18 +350,26 @@ export const api = {
       }).then(handleResponse),
 
     uploadDraft: (token, id, formData) =>
-      fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/upload-draft`, {
-        method: 'POST',
-        headers: getHeaders(token, true),
-        body: formData,
-      }, UPLOAD_API_TIMEOUT_MS).then(handleResponse),
+      fetchWithTimeout(
+        `${API_BASE}/api/designer/orders/${id}/upload-draft`,
+        {
+          method: 'POST',
+          headers: getHeaders(token, true),
+          body: formData,
+        },
+        UPLOAD_API_TIMEOUT_MS,
+      ).then(handleResponse),
 
     uploadPrintDocument: (token, id, formData) =>
-      fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/upload-print-document`, {
-        method: 'POST',
-        headers: getHeaders(token, true),
-        body: formData,
-      }, UPLOAD_API_TIMEOUT_MS).then(handleResponse),
+      fetchWithTimeout(
+        `${API_BASE}/api/designer/orders/${id}/upload-print-document`,
+        {
+          method: 'POST',
+          headers: getHeaders(token, true),
+          body: formData,
+        },
+        UPLOAD_API_TIMEOUT_MS,
+      ).then(handleResponse),
 
     flagIssue: (token, id, issue) =>
       fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/flag-issue`, {
@@ -312,8 +381,17 @@ export const api = {
 
   // Admin Endpoints
   admin: {
-    issueInitialPassword:(token,id)=>fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/initial-password`,{method:'POST',headers:getHeaders(token)}).then(handleResponse),
-    retryCredentialDelivery:(token,id,channel,confirmUncertain=false)=>fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/credential-delivery/retry`,{method:'POST',headers:getHeaders(token),body:JSON.stringify({channel,confirmUncertain})}).then(handleResponse),
+    issueInitialPassword: (token, id) =>
+      fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/initial-password`, {
+        method: 'POST',
+        headers: getHeaders(token),
+      }).then(handleResponse),
+    retryCredentialDelivery: (token, id, channel, confirmUncertain = false) =>
+      fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/credential-delivery/retry`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ channel, confirmUncertain }),
+      }).then(handleResponse),
     getForms: (token) =>
       fetchWithTimeout(`${API_BASE}/api/admin/forms`, {
         headers: getHeaders(token),
@@ -355,13 +433,17 @@ export const api = {
     uploadCover: (token, file) => {
       const formData = new FormData();
       formData.append('cover', file);
-      return fetchWithTimeout(`${API_BASE}/api/admin/forms/upload-cover`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      return fetchWithTimeout(
+        `${API_BASE}/api/admin/forms/upload-cover`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         },
-        body: formData,
-      }, UPLOAD_API_TIMEOUT_MS).then(handleResponse);
+        UPLOAD_API_TIMEOUT_MS,
+      ).then(handleResponse);
     },
 
     getStaff: (token) =>
@@ -433,7 +515,7 @@ export const api = {
         method: 'POST',
         headers: getHeaders(token),
       }).then(handleResponse),
-    resend: (token, id, channel, confirmUncertain=false) =>
+    resend: (token, id, channel, confirmUncertain = false) =>
       fetchWithTimeout(`${API_BASE}/api/notifications/resend/${id}`, {
         method: 'POST',
         headers: getHeaders(token),
@@ -477,35 +559,80 @@ export const api = {
 
 export function proofApi(token, orderId, version, client = false) {
   const base = `${API_BASE}/api/proofs/${client ? 'client' : `staff/${orderId}`}/${version}`;
-  const view=crypto.randomUUID();
-  const request = (suffix = '', method = 'GET', body) => fetchWithTimeout(base + suffix, {
-    method, headers: getHeaders(token), cache: 'no-store', ...(body ? { body: JSON.stringify(body) } : {}),
-  }).then(handleResponse);
+  const view = crypto.randomUUID();
+  const request = (suffix = '', method = 'GET', body) =>
+    fetchWithTimeout(base + suffix, {
+      method,
+      headers: getHeaders(token),
+      cache: 'no-store',
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }).then(handleResponse);
   return {
     metadata: () => request(),
-    prepare: (pages,options={}) => request('/prepare', 'POST', { pages,...options }),
-    bundle: import.meta.env.VITE_PROOF_FAST_READER === 'false' ? undefined : async (page,signal) => {
-      const res=await fetchWithTimeout(`${base}/pages/${page}?bundle=1&view=${view}`,{headers:getHeaders(token),cache:'no-store',signal});
-      if(res.status===202)throw Object.assign(new Error('Page is being prepared'),{pending:true});
-      if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error((data.message||'Page could not be opened')+(data.diagnostic?.reference?` Reference: ${data.diagnostic.reference}`:''));}
-      if(!res.headers.get('content-type')?.includes('application/vnd.tinzel.proof-page')){
-        // Older compatible servers already returned the image: consume it instead of downloading it twice.
-        const [blob,text]=await Promise.all([res.blob(),fetchWithTimeout(`${base}/pages/${page}?text=1`,{headers:getHeaders(token),cache:'no-store',signal}).then(handleResponse)]);
-        return {blob,text};
+    prepare: (pages, options = {}) => request('/prepare', 'POST', { pages, ...options }),
+    bundle:
+      import.meta.env.VITE_PROOF_FAST_READER === 'false'
+        ? undefined
+        : async (page, signal) => {
+            const res = await fetchWithTimeout(`${base}/pages/${page}?bundle=1&view=${view}`, {
+              headers: getHeaders(token),
+              cache: 'no-store',
+              signal,
+            });
+            if (res.status === 202) throw Object.assign(new Error('Page is being prepared'), { pending: true });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(
+                (data.message || 'Page could not be opened') +
+                  (data.diagnostic?.reference ? ` Reference: ${data.diagnostic.reference}` : ''),
+              );
+            }
+            if (!res.headers.get('content-type')?.includes('application/vnd.tinzel.proof-page')) {
+              // Older compatible servers already returned the image: consume it instead of downloading it twice.
+              const [blob, text] = await Promise.all([
+                res.blob(),
+                fetchWithTimeout(`${base}/pages/${page}?text=1`, {
+                  headers: getHeaders(token),
+                  cache: 'no-store',
+                  signal,
+                }).then(handleResponse),
+              ]);
+              return { blob, text };
+            }
+            const bytes = await res.arrayBuffer();
+            if (bytes.byteLength < 4) throw new Error('Incomplete magazine page');
+            const length = new DataView(bytes).getUint32(0);
+            if (length > 2 * 1024 * 1024 || 4 + length >= bytes.byteLength)
+              throw new Error('Invalid magazine page bundle');
+            return {
+              blob: new Blob([bytes.slice(4 + length)], { type: 'image/webp' }),
+              text: JSON.parse(new TextDecoder().decode(bytes.slice(4, 4 + length))),
+            };
+          },
+    page: async (page, signal) => {
+      const response = await fetchWithTimeout(`${base}/pages/${page}`, {
+        headers: getHeaders(token),
+        cache: 'no-store',
+        signal,
+      });
+      if (response.status === 202) {
+        const error = new Error('Page is being prepared');
+        error.pending = true;
+        throw error;
       }
-      const bytes=await res.arrayBuffer();if(bytes.byteLength<4)throw new Error('Incomplete magazine page');
-      const length=new DataView(bytes).getUint32(0);if(length>2*1024*1024||4+length>=bytes.byteLength)throw new Error('Invalid magazine page bundle');
-      return {blob:new Blob([bytes.slice(4+length)],{type:'image/webp'}),text:JSON.parse(new TextDecoder().decode(bytes.slice(4,4+length)))};
-    },
-    page: async (page,signal) => {
-      const response = await fetchWithTimeout(`${base}/pages/${page}`, { headers: getHeaders(token), cache: 'no-store', signal });
-      if (response.status === 202) { const error = new Error('Page is being prepared'); error.pending = true; throw error; }
       return handleBlob(response);
     },
     text: (page) => request(`/pages/${page}?text=1`),
     save: (body) => request('/annotations', 'POST', body),
     discard: (id) => request(`/annotations/${id}`, 'DELETE'),
     retry: () => request('/retry', 'POST'),
-    submit: () => client ? api.client.requestRevision(token, [], version) : api.manager.reviewDraft(token, orderId, { action: 'return_to_designer', expectedVersion: version, items: [] }),
+    submit: () =>
+      client
+        ? api.client.requestRevision(token, [], version)
+        : api.manager.reviewDraft(token, orderId, {
+            action: 'return_to_designer',
+            expectedVersion: version,
+            items: [],
+          }),
   };
 }

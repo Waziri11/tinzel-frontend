@@ -21,3 +21,5 @@ Use existing API payloads and server-authoritative permissions, approval/version
 
 ## Rollback
 Record the current Vercel production deployment before promotion. Restore that deployment for access, ordering or proof regressions. No database migration is included. Keep API rewrites and existing production environment settings.
+
+The final dependency scan added a separate backend dependency-fix commit: follow-redirects 1.16.2 and a scoped minimatch 11.0.1 override for readdir-glob. Production APIs and schemas remain unchanged; the 119 backend tests and real ZIP checks pass with those dependencies.

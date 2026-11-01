@@ -12,7 +12,8 @@ export const tinzelAntdTheme = {
     colorBorder: '#DED9CD',
     colorBorderSecondary: '#F5F5F4',
     borderRadius: 6,
-    fontFamily: '"Plus Jakarta Sans", "Cormorant Garamond", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '"Plus Jakarta Sans", "Cormorant Garamond", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   components: {
     Button: {

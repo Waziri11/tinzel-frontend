@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
-import {
-  CreditCard,
-  CheckCircle2,
-  Copy,
-  Clock,
-  ArrowRight,
-  ShieldAlert,
-  Smartphone,
-} from 'lucide-react';
+import { CreditCard, CheckCircle2, Copy, Clock, ArrowRight, ShieldAlert, Smartphone } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 export default function LipaNambaScreen({ order, lipaNambaInstructions, onNavigateToTracking }) {
   const { t, isSwahili } = useLanguage();
   const [copied, setCopied] = useState(false);
-  const [copyError,setCopyError]=useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const copyTillNumber = async () => {
-    if(!lipaNambaInstructions?.tillNumber)return;
-    try{await navigator.clipboard.writeText(lipaNambaInstructions.tillNumber);setCopied(true);setCopyError(false);setTimeout(()=>setCopied(false),2000);}catch{setCopyError(true);}
+    if (!lipaNambaInstructions?.tillNumber) return;
+    try {
+      await navigator.clipboard.writeText(lipaNambaInstructions.tillNumber);
+      setCopied(true);
+      setCopyError(false);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError(true);
+    }
   };
 
   return (
@@ -46,9 +45,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           >
             <CreditCard size={28} color="#8A6A30" />
           </div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>
-            {t('pay.title')}
-          </h1>
+          <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>{t('pay.title')}</h1>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
             {t('pay.uploaded', { title: order?.formTitle ?? '' })}
           </p>
@@ -70,12 +67,8 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           }}
         >
           <div style={{ minWidth: 0, flex: '1 1 180px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>
-              {t('pay.tempId')}
-            </span>
-            <span style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '0.5px' }}>
-              {order?.submissionId}
-            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>{t('pay.tempId')}</span>
+            <span style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '0.5px' }}>{order?.submissionId}</span>
           </div>
           <span
             style={{
@@ -128,17 +121,25 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             <h2 style={{ fontSize: '16px', fontWeight: '600' }}>{t('pay.instrTitle')}</h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '16px', marginBottom: '20px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+              gap: '16px',
+              marginBottom: '20px',
+            }}
+          >
             <div>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                 {t('pay.till')}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#8A6A30' }}>
-                  {lipaNambaInstructions?.tillNumber || (isSwahili?'Haijapatikana':'Unavailable')}
+                  {lipaNambaInstructions?.tillNumber || (isSwahili ? 'Haijapatikana' : 'Unavailable')}
                 </span>
                 <button
-                  disabled={!lipaNambaInstructions?.tillNumber} onClick={copyTillNumber}
+                  disabled={!lipaNambaInstructions?.tillNumber}
+                  onClick={copyTillNumber}
                   style={{
                     backgroundColor: 'var(--bg-secondary)',
                     border: '1px solid var(--border-color)',
@@ -184,15 +185,27 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             }}
           >
             {isSwahili
-              ? (lipaNambaInstructions?.instructionsSw || lipaNambaInstructions?.instructions || t('pay.defaultInstr'))
-              : (lipaNambaInstructions?.instructions || t('pay.defaultInstr'))}
+              ? lipaNambaInstructions?.instructionsSw || lipaNambaInstructions?.instructions || t('pay.defaultInstr')
+              : lipaNambaInstructions?.instructions || t('pay.defaultInstr')}
           </div>
         </div>
 
-        {copyError&&<p role="alert">{isSwahili?'Nakili namba iliyo juu kwa mkono.':'Copy the till number above manually.'}</p>}
-      {/* Bottom Actions */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+        {copyError && (
+          <p role="alert">{isSwahili ? 'Nakili namba iliyo juu kwa mkono.' : 'Copy the till number above manually.'}</p>
+        )}
+        {/* Bottom Actions */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}
+          >
             <Clock size={14} />
             <span>{t('pay.verify')}</span>
           </div>

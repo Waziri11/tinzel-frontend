@@ -7,6 +7,8 @@ const request = { _id: 'return-1', roundNumber: 1, draftVersionNumber: 1, source
 const order = { _id: 'order-1', trackingId: 'TNZ-2026-0099', submissionId: 'SUB-2026-0099', clientName: 'Asha Client', clientWhatsApp: '0712000000', formTitle: 'Love Story', status: 'revision_requested', currentDraftVersion: 1, assignedDesigner: designer, submittedData: { story: 'Our story' }, submittedFields: [{ fieldId: 'story', label: 'Story', order: 1 }], uploadedPhotos: [], draftVersions: [], revisionRequests: [request], updatedAt: '2026-10-18T10:00:00Z' };
 
 async function setup(page) {
+  await page.route('**/api/notifications/history?*',route=>json(route,{notifications:[],unreadCount:0}));
+  await page.route('**/api/staff/preferences',route=>json(route,{success:true}));
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'designer-test'));
   await page.route('**/api/staff/me', (route) => json(route, { user: designer }));
   await page.route((url) => url.pathname === '/api/designer/orders', (route) => json(route, { orders: [order] }));

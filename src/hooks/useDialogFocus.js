@@ -1,14 +1,56 @@
-import {useEffect,useRef} from 'react';
+import { useEffect, useRef } from 'react';
 // Custom dialogs get the same keyboard containment and focus return as Ant Design dialogs.
-export function useDialogFocus(open,onClose){
- const close=useRef(onClose);close.current=onClose;
- useEffect(()=>{
-  if(!open)return;
-  const previous=document.activeElement;let dialog;
-  const focusable=()=>[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]')].filter(el=>el.getClientRects().length);
-  const frame=requestAnimationFrame(()=>{dialog=[...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1);if(dialog){dialog.tabIndex=-1;(focusable()[0]||dialog).focus();}});
-  const key=event=>{if(!dialog)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close.current?.();}if(event.key==='Tab'){const items=focusable(),first=items[0],last=items.at(-1);if(!items.length){event.preventDefault();dialog.focus();}else if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};
-  document.addEventListener('keydown',key,true);const overflow=document.body.style.overflow;document.body.style.overflow='hidden';
-  return()=>{cancelAnimationFrame(frame);document.removeEventListener('keydown',key,true);document.body.style.overflow=overflow;if(previous?.isConnected)previous.focus({preventScroll:true});};
- },[Boolean(open)]);
+export function useDialogFocus(open, onClose) {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement;
+    let dialog;
+    const focusable = () =>
+      [
+        ...dialog.querySelectorAll(
+          'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
+        ),
+      ].filter((el) => el.getClientRects().length);
+    const frame = requestAnimationFrame(() => {
+      dialog = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1);
+      if (dialog) {
+        dialog.tabIndex = -1;
+        (focusable()[0] || dialog).focus();
+      }
+    });
+    const key = (event) => {
+      if (!dialog) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        close.current?.();
+      }
+      if (event.key === 'Tab') {
+        const items = focusable(),
+          first = items[0],
+          last = items.at(-1);
+        if (!items.length) {
+          event.preventDefault();
+          dialog.focus();
+        } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', key, true);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', key, true);
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [Boolean(open)]);
 }

@@ -1,4 +1,4 @@
-import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../services/api';
@@ -22,7 +22,7 @@ const COMPLETED_STATUSES = new Set([
 const PAGE_SIZE = 10;
 
 export default function DesignerQueue({ token, onOpenOrder }) {
- const tx=useInterfaceText();
+  const tx = useInterfaceText();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,21 +86,34 @@ export default function DesignerQueue({ token, onOpenOrder }) {
   }, [filteredOrders, currentPage]);
 
   if (loading) {
-    return <BrandLoading title={tx("Loading assigned orders")} description={tx("Getting your design queue ready.")} />;
+    return <BrandLoading title={tx('Loading assigned orders')} description={tx('Getting your design queue ready.')} />;
   }
 
   return (
     <section className="designer-page">
       <div className="designer-page-title">
         <div>
-          <h1><InterfaceText>Design orders</InterfaceText></h1>
-          <p><InterfaceText>Open an order to work with its files, drafts and revision history.</InterfaceText></p>
+          <h1>
+            <InterfaceText>Design orders</InterfaceText>
+          </h1>
+          <p>
+            <InterfaceText>Open an order to work with its files, drafts and revision history.</InterfaceText>
+          </p>
         </div>
         <button type="button" className="secondary-button" onClick={load}>
-          <RefreshCw size={16} /><InterfaceText>Refresh</InterfaceText></button>
+          <RefreshCw size={16} />
+          <InterfaceText>Refresh</InterfaceText>
+        </button>
       </div>
 
-      {error && <div className="designer-alert is-error" role="alert">{error} <button className="secondary-button" onClick={load}><InterfaceText>Retry</InterfaceText></button></div>}
+      {error && (
+        <div className="designer-alert is-error" role="alert">
+          {error}{' '}
+          <button className="secondary-button" onClick={load}>
+            <InterfaceText>Retry</InterfaceText>
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div
@@ -117,25 +130,29 @@ export default function DesignerQueue({ token, onOpenOrder }) {
             type="button"
             className={activeTab === 'active' ? 'active' : ''}
             onClick={() => setActiveTab('active')}
-          ><InterfaceText>Active (</InterfaceText>{orders.filter((o) => ACTIVE_STATUSES.has(o.status)).length})
+          >
+            <InterfaceText>Active (</InterfaceText>
+            {orders.filter((o) => ACTIVE_STATUSES.has(o.status)).length})
           </button>
           <button
             type="button"
             className={activeTab === 'review' ? 'active' : ''}
             onClick={() => setActiveTab('review')}
-          ><InterfaceText>In Review (</InterfaceText>{orders.filter((o) => REVIEW_STATUSES.has(o.status)).length})
+          >
+            <InterfaceText>In Review (</InterfaceText>
+            {orders.filter((o) => REVIEW_STATUSES.has(o.status)).length})
           </button>
           <button
             type="button"
             className={activeTab === 'completed' ? 'active' : ''}
             onClick={() => setActiveTab('completed')}
-          ><InterfaceText>Completed (</InterfaceText>{orders.filter((o) => COMPLETED_STATUSES.has(o.status)).length})
+          >
+            <InterfaceText>Completed (</InterfaceText>
+            {orders.filter((o) => COMPLETED_STATUSES.has(o.status)).length})
           </button>
-          <button
-            type="button"
-            className={activeTab === 'all' ? 'active' : ''}
-            onClick={() => setActiveTab('all')}
-          ><InterfaceText>All (</InterfaceText>{orders.length})
+          <button type="button" className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>
+            <InterfaceText>All (</InterfaceText>
+            {orders.length})
           </button>
         </div>
 
@@ -153,10 +170,10 @@ export default function DesignerQueue({ token, onOpenOrder }) {
           />
           <input
             type="search"
-            aria-label={tx("Search orders")}
+            aria-label={tx('Search orders')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={tx("Search order ID or client...")}
+            placeholder={tx('Search order ID or client...')}
             style={{
               width: '100%',
               padding: '8px 12px 8px 36px',
@@ -174,32 +191,46 @@ export default function DesignerQueue({ token, onOpenOrder }) {
         <table>
           <thead>
             <tr>
-              <th><InterfaceText>Order</InterfaceText></th>
-              <th><InterfaceText>Client</InterfaceText></th>
-              <th><InterfaceText>Edition</InterfaceText></th>
-              <th><InterfaceText>Status</InterfaceText></th>
-              <th><InterfaceText>Updated</InterfaceText></th>
+              <th>
+                <InterfaceText>Order</InterfaceText>
+              </th>
+              <th>
+                <InterfaceText>Client</InterfaceText>
+              </th>
+              <th>
+                <InterfaceText>Edition</InterfaceText>
+              </th>
+              <th>
+                <InterfaceText>Status</InterfaceText>
+              </th>
+              <th>
+                <InterfaceText>Updated</InterfaceText>
+              </th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {paginatedOrders.map((order) => (
               <tr key={order._id}>
-                <td data-label="Order">
+                <td data-label={tx('Order')}>
                   <strong>{order.trackingId || order.submissionId}</strong>
                 </td>
-                <td data-label="Client">{order.clientName}</td>
-                <td data-label="Edition">{order.formTitle}</td>
-                <td data-label="Status">
-                  <span className="designer-status" data-status={order.status}>{tx(order.status.replaceAll('_', ' '))}</span>
+                <td data-label={tx('Client')}>{order.clientName}</td>
+                <td data-label={tx('Edition')}>{order.formTitle}</td>
+                <td data-label={tx('Status')}>
+                  <span className="designer-status" data-status={order.status}>
+                    {tx(order.status.replaceAll('_', ' '))}
+                  </span>
                 </td>
-                <td data-label="Updated">{new Date(order.updatedAt).toLocaleDateString()}</td>
+                <td data-label={tx('Updated')}>{new Date(order.updatedAt).toLocaleDateString()}</td>
                 <td>
                   <button
                     type="button"
                     aria-label={`Open ${order.trackingId || order.submissionId}`}
                     onClick={() => onOpenOrder(order._id)}
-                  ><InterfaceText>Open</InterfaceText><ArrowRight size={15} />
+                  >
+                    <InterfaceText>Open</InterfaceText>
+                    <ArrowRight size={15} />
                   </button>
                 </td>
               </tr>
@@ -219,7 +250,9 @@ export default function DesignerQueue({ token, onOpenOrder }) {
                   className="secondary-button"
                   onClick={() => setSearchQuery('')}
                   style={{ fontSize: '12px', padding: '6px 12px' }}
-                ><InterfaceText>Clear search</InterfaceText></button>
+                >
+                  <InterfaceText>Clear search</InterfaceText>
+                </button>
               </div>
             )}
           </div>
@@ -238,8 +271,10 @@ export default function DesignerQueue({ token, onOpenOrder }) {
               color: '#78716C',
             }}
           >
-            <span><InterfaceText>Showing</InterfaceText>{' '}{(currentPage - 1) * PAGE_SIZE + 1}–
-              {Math.min(currentPage * PAGE_SIZE, filteredOrders.length)}{' '}<InterfaceText>of</InterfaceText>{' '}{filteredOrders.length}
+            <span>
+              <InterfaceText>Showing</InterfaceText> {(currentPage - 1) * PAGE_SIZE + 1}–
+              {Math.min(currentPage * PAGE_SIZE, filteredOrders.length)} <InterfaceText>of</InterfaceText>{' '}
+              {filteredOrders.length}
             </span>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
@@ -249,8 +284,11 @@ export default function DesignerQueue({ token, onOpenOrder }) {
                 className="secondary-button"
                 style={{ padding: '6px 10px', opacity: currentPage === 1 ? 0.5 : 1 }}
               >
-                <ChevronLeft size={14} /><InterfaceText>Prev</InterfaceText></button>
-              <span><InterfaceText>Page</InterfaceText>{' '}{currentPage}{' '}<InterfaceText>of</InterfaceText>{' '}{totalPages}
+                <ChevronLeft size={14} />
+                <InterfaceText>Prev</InterfaceText>
+              </button>
+              <span>
+                <InterfaceText>Page</InterfaceText> {currentPage} <InterfaceText>of</InterfaceText> {totalPages}
               </span>
               <button
                 type="button"
@@ -258,7 +296,9 @@ export default function DesignerQueue({ token, onOpenOrder }) {
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 className="secondary-button"
                 style={{ padding: '6px 10px', opacity: currentPage >= totalPages ? 0.5 : 1 }}
-              ><InterfaceText>Next</InterfaceText><ChevronRight size={14} />
+              >
+                <InterfaceText>Next</InterfaceText>
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>

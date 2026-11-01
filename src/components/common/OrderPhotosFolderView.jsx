@@ -1,7 +1,15 @@
-import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useState } from 'react';
 import MediaThumbnail from './MediaThumbnail';
-import { Folder, FolderOpen, Download, ExternalLink, Image as ImageIcon, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Folder,
+  FolderOpen,
+  Download,
+  ExternalLink,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 
 /**
  * OrderPhotosFolderView
@@ -9,7 +17,7 @@ import { Folder, FolderOpen, Download, ExternalLink, Image as ImageIcon, Chevron
  * Used by both Production Managers and Editorial Designers.
  */
 export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadFolder, downloadingFolder }) {
- const tx=useInterfaceText();
+  const tx = useInterfaceText();
 
   // Group photos by folderName
   const grouped = {};
@@ -54,7 +62,9 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
         }}
       >
         <ImageIcon size={24} color="#A8A29E" style={{ margin: '0 auto 8px auto' }} />
-        <p style={{ margin: 0 }}><InterfaceText>No photos have been uploaded for this magazine order.</InterfaceText></p>
+        <p style={{ margin: 0 }}>
+          <InterfaceText>No photos have been uploaded for this magazine order.</InterfaceText>
+        </p>
       </div>
     );
   }
@@ -62,7 +72,18 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}><InterfaceText>Client Photo Folders (</InterfaceText>{uploadedPhotos.length}{' '}<InterfaceText>Total Assets across</InterfaceText>{' '}{folderNames.length} {folderNames.length === 1 ? 'Folder' : 'Folders'})
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.8px',
+            color: '#78716C',
+          }}
+        >
+          <InterfaceText>Client Photo Folders (</InterfaceText>
+          {uploadedPhotos.length} <InterfaceText>Total Assets across</InterfaceText> {folderNames.length}{' '}
+          {folderNames.length === 1 ? 'Folder' : 'Folders'})
         </span>
       </div>
 
@@ -108,14 +129,8 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                   textAlign: 'left',
                 }}
               >
-                {isOpen ? (
-                  <FolderOpen size={18} color="#C5A059" />
-                ) : (
-                  <Folder size={18} color="#C5A059" />
-                )}
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>
-                  {folderName}
-                </span>
+                {isOpen ? <FolderOpen size={18} color="#C5A059" /> : <Folder size={18} color="#C5A059" />}
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>{folderName}</span>
                 <span
                   style={{
                     fontSize: '11px',
@@ -224,7 +239,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                             href={photo.url}
                             target="_blank"
                             rel="noreferrer"
-                            title={tx("Open full size in new tab")}
+                            title={tx('Open full size in new tab')}
                             style={{
                               color: '#78716C',
                               display: 'inline-flex',
@@ -239,7 +254,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                             download={photo.originalName || `photo-${photo.index}.jpg`}
                             target="_blank"
                             rel="noreferrer"
-                            title={tx("Download asset")}
+                            title={tx('Download asset')}
                             style={{
                               color: '#C5A059',
                               display: 'inline-flex',

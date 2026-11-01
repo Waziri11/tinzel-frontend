@@ -1,10 +1,8 @@
 import { test, expect, chooseEnglish } from './fixtures.js';
 
 async function openForm(page) {
-  await page.goto('/');
-  await chooseEnglish(page);
-  await page.getByText('New Magazine Order', { exact: true }).click();
-  await page.getByText('Upload Performance Test', { exact: true }).click();
+  await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));
+  await page.goto('/catalogue/upload-performance-test?step=photos');
   await expect(page.locator('#upload-first')).toBeAttached();
 }
 const photo = (name, size = 1200000) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.alloc(size, 42) });
@@ -20,8 +18,10 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   });
   page.on('request', (r) => { if (r.url().endsWith('/submit')) { submitBytes = r.postDataBuffer()?.length; expect(r.headers()['content-type']).toContain('application/json'); } });
   await openForm(page);
-  await page.locator('input[type="text"]').first().fill('Browser Upload Test');
+  await page.getByRole('button',{name:'1 Your details'}).click();
+  await page.locator('#magazine-client-name').fill('Browser Upload Test');
   await page.getByPlaceholder('e.g. +255712345678').fill('+255700000001');
+  await page.getByRole('button',{name:'3 Photographs'}).click();
   await page.locator('#upload-first').setInputFiles([photo('first.jpg', 5 * 1024 * 1024 + 10), photo('second.jpg')]);
   await page.locator('#upload-second').setInputFiles([photo('third.jpg'), photo('fourth.jpg')]);
   await expect(page.getByText('Photos ready: 4/4')).toBeVisible({ timeout: 30000 });
@@ -30,11 +30,12 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:uploads:v2:upload-performance-test'))?.items.filter((i) => i.photo).length)).toBe(4);
   await page.reload();
   await chooseEnglish(page);
-  await page.getByText('New Magazine Order', { exact: true }).click();
-  await page.getByText('Upload Performance Test', { exact: true }).click();
+
   await expect(page.getByText('Photos ready: 4/4')).toBeVisible();
-  await expect(page.locator('input[type="text"]').first()).toHaveValue('Browser Upload Test');
+  await page.getByRole('button',{name:'1 Your details'}).click();
+  await expect(page.locator('#magazine-client-name')).toHaveValue('Browser Upload Test');
   expect(chunkRequests).toBe(previousRequests);
+  await page.getByRole('button',{name:'4 Review'}).click();
   await page.getByRole('button', { name: /Continue.*Pay/i }).click();
   await expect(page.getByText('Do not pay this test order.')).toBeVisible();
   expect(submitBytes).toBeLessThan(5000);

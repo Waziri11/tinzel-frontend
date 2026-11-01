@@ -1,21 +1,180 @@
-import React, {Suspense,lazy,useState,useEffect} from 'react';
-import {ArrowLeft,ArrowRight,BookOpen,Search} from 'lucide-react';
-import {api} from '../../services/api';
-import {useLanguage,localized} from '../../i18n/LanguageContext';
-import {navigate,editionSlug} from '../../navigation/location';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, Search } from 'lucide-react';
+import { api } from '../../services/api';
+import { useLanguage, localized } from '../../i18n/LanguageContext';
+import { navigate, editionSlug } from '../../navigation/location';
 import BrandLoading from '../common/BrandLoading';
-import {Button,EmptyState,Feedback} from '../common/UI';
+import { Button, EmptyState, Feedback } from '../common/UI';
 import '../../theme/customer.css';
-const DynamicFormRenderer=lazy(()=>import('./DynamicFormRenderer'));
-function Cover({form,lang}){const [failed,setFailed]=useState(false);const title=localized(form,'title',lang);const url=form.coverImageUrl;return <div className="edition-cover">{url&&!failed?<img src={url.includes('/api/public/covers/')?`${url.split('?')[0]}?w=480`:url} alt={title} loading="lazy" width="480" height="679" onError={()=>setFailed(true)}/>:<div className="edition-cover-fallback"><BookOpen size={40}/><span>{title}</span><small>{lang==='sw'?'Jalada linakuja':'Cover preview unavailable'}</small></div>}</div>;}
-export default function MagazineShowcase({onNavigateToTracking}){
- const {lang,t}=useLanguage();const sw=lang==='sw';const [forms,setForms]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[query,setQuery]=useState(''),[slug,setSlug]=useState(editionSlug);
- useEffect(()=>{const update=()=>setSlug(editionSlug());window.addEventListener('popstate',update);return()=>window.removeEventListener('popstate',update);},[]);
- const load=async()=>{setLoading(true);setError('');try{const data=await api.public.getForms();setForms(data.forms||[]);}catch(err){setError(err.message);}finally{setLoading(false);}};
- useEffect(()=>{if(!slug)load();},[slug]);
- if(slug)return <div className="ui-page order-page"><button className="text-back" onClick={()=>navigate('/catalogue')}><ArrowLeft size={16}/>{t('showcase.backEditions')}</button><Suspense fallback={<BrandLoading title={t('form.loading')}/>}><DynamicFormRenderer key={slug} slug={slug} onNavigateToTracking={onNavigateToTracking}/></Suspense></div>;
- const filtered=forms.filter(form=>[form.title,form.titleSw,form.description,form.descriptionSw,form.magazineType,form.magazineTypeSw,form.slug].some(value=>String(value||'').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
- return <section className="ui-page catalogue-page"><div className="ui-page-heading"><div><span className="ui-eyebrow">{sw?'Hadithi yako inaanzia hapa':'Your story starts here'}</span><h1 className="ui-title">{sw?'Chagua toleo lako':'An edition for your occasion.'}</h1><p className="ui-description">{sw?'Chagua jarida linalofaa tukio lako, kisha ulifanye lako kwa maneno na picha.':'Choose a magazine for your occasion, then make it yours with words and photographs.'}</p></div>{forms.length>0&&<label className="catalogue-search"><Search size={18}/><input id="magazine-catalogue-search" aria-label={t('showcase.searchLabel')} type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('showcase.searchPlaceholder')}/></label>}</div>
- {loading?<BrandLoading title={t('showcase.loading')} description={sw?'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.':'Finding the right edition for your story.'}/>:error?<><Feedback kind="error" title={sw?'Matoleo hayajafunguka':'The catalogue could not load'}>{sw?'Angalia mtandao wako kisha ujaribu tena.':'Check your connection and try again.'}</Feedback><Button onClick={load}>{sw?'Jaribu tena':'Retry Loading'}</Button></>:!forms.length?<EmptyState title={sw?'Matoleo mapya yanakuja':'New editions are on their way'} description={t('showcase.none')}/>:!filtered.length?<EmptyState title={sw?'Hakuna matoleo yaliyopatikana':'No editions found'} description={t('showcase.noMatch',{query})}><Button onClick={()=>setQuery('')}>{t('showcase.clear')}</Button></EmptyState>:<><p className="catalogue-count" role="status">{t(filtered.length===1?'showcase.available.one':'showcase.available.many',{count:filtered.length})}</p><div className="edition-grid">{filtered.map(form=><article className="edition-card" key={form.slug}><button className="edition-select" onClick={()=>navigate(`/catalogue/${encodeURIComponent(form.slug)}?step=details`)} aria-label={`${localized(form,'title',lang)} — ${form.price?.toLocaleString()} ${form.currency}`}><Cover form={form} lang={lang}/><div className="edition-info"><span className="ui-eyebrow">{localized(form,'magazineType',lang)||'Tinzel'}</span><h2>{localized(form,'title',lang)}</h2><p>{localized(form,'description',lang)}</p><div><strong>{form.price?.toLocaleString()} {form.currency}</strong><span>{sw?'Chagua toleo':'Choose edition'}<ArrowRight size={15}/></span></div></div></button></article>)}</div></>}
- </section>;
+const DynamicFormRenderer = lazy(() => import('./DynamicFormRenderer'));
+function Cover({ form, lang }) {
+  const [failed, setFailed] = useState(false);
+  const title = localized(form, 'title', lang);
+  const url = form.coverImageUrl;
+  return (
+    <div className="edition-cover">
+      {url && !failed ? (
+        <img
+          src={url.includes('/api/public/covers/') ? `${url.split('?')[0]}?w=480` : url}
+          alt={title}
+          loading="lazy"
+          width="480"
+          height="679"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="edition-cover-fallback">
+          <BookOpen size={40} />
+          <span>{title}</span>
+          <small>{lang === 'sw' ? 'Jalada linakuja' : 'Cover preview unavailable'}</small>
+        </div>
+      )}
+    </div>
+  );
+}
+export default function MagazineShowcase({ onNavigateToTracking }) {
+  const { lang, t } = useLanguage();
+  const sw = lang === 'sw';
+  const [forms, setForms] = useState([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(''),
+    [query, setQuery] = useState(''),
+    [slug, setSlug] = useState(editionSlug);
+  useEffect(() => {
+    const update = () => setSlug(editionSlug());
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, []);
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.public.getForms();
+      setForms(data.forms || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (!slug) load();
+  }, [slug]);
+  if (slug)
+    return (
+      <div className="ui-page order-page">
+        <button className="text-back" onClick={() => navigate('/catalogue')}>
+          <ArrowLeft size={16} />
+          {t('showcase.backEditions')}
+        </button>
+        <Suspense fallback={<BrandLoading title={t('form.loading')} />}>
+          <DynamicFormRenderer key={slug} slug={slug} onNavigateToTracking={onNavigateToTracking} />
+        </Suspense>
+      </div>
+    );
+  const filtered = forms.filter((form) =>
+    [
+      form.title,
+      form.titleSw,
+      form.description,
+      form.descriptionSw,
+      form.magazineType,
+      form.magazineTypeSw,
+      form.slug,
+    ].some((value) =>
+      String(value || '')
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
+    ),
+  );
+  return (
+    <section className="ui-page catalogue-page">
+      <div className="ui-page-heading">
+        <div>
+          <span className="ui-eyebrow">{sw ? 'Hadithi yako inaanzia hapa' : 'Your story starts here'}</span>
+          <h1 className="ui-title">{sw ? 'Chagua toleo lako' : 'An edition for your occasion.'}</h1>
+          <p className="ui-description">
+            {sw
+              ? 'Chagua jarida linalofaa tukio lako, kisha ulifanye lako kwa maneno na picha.'
+              : 'Choose a magazine for your occasion, then make it yours with words and photographs.'}
+          </p>
+        </div>
+        {forms.length > 0 && (
+          <label className="catalogue-search">
+            <Search size={18} />
+            <input
+              id="magazine-catalogue-search"
+              aria-label={t('showcase.searchLabel')}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('showcase.searchPlaceholder')}
+            />
+          </label>
+        )}
+      </div>
+      {loading ? (
+        <BrandLoading
+          title={t('showcase.loading')}
+          description={
+            sw ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'
+          }
+        />
+      ) : error ? (
+        <>
+          <Feedback kind="error" title={sw ? 'Matoleo hayajafunguka' : 'The catalogue could not load'}>
+            {sw ? 'Angalia mtandao wako kisha ujaribu tena.' : 'Check your connection and try again.'}
+          </Feedback>
+          <Button onClick={load}>{sw ? 'Jaribu tena' : 'Retry Loading'}</Button>
+        </>
+      ) : !forms.length ? (
+        <EmptyState
+          title={sw ? 'Matoleo mapya yanakuja' : 'New editions are on their way'}
+          description={t('showcase.none')}
+        />
+      ) : !filtered.length ? (
+        <EmptyState
+          title={sw ? 'Hakuna matoleo yaliyopatikana' : 'No editions found'}
+          description={t('showcase.noMatch', { query })}
+        >
+          <Button onClick={() => setQuery('')}>{t('showcase.clear')}</Button>
+        </EmptyState>
+      ) : (
+        <>
+          <p className="catalogue-count" role="status">
+            {t(filtered.length === 1 ? 'showcase.available.one' : 'showcase.available.many', {
+              count: filtered.length,
+            })}
+          </p>
+          <div className="edition-grid">
+            {filtered.map((form) => (
+              <article className="edition-card" key={form.slug}>
+                <button
+                  className="edition-select"
+                  onClick={() => navigate(`/catalogue/${encodeURIComponent(form.slug)}?step=details`)}
+                  aria-label={`${localized(form, 'title', lang)} — ${form.price?.toLocaleString()} ${form.currency}`}
+                >
+                  <Cover form={form} lang={lang} />
+                  <div className="edition-info">
+                    <span className="ui-eyebrow">{localized(form, 'magazineType', lang) || 'Tinzel'}</span>
+                    <h2>{localized(form, 'title', lang)}</h2>
+                    <p>{localized(form, 'description', lang)}</p>
+                    <div>
+                      <strong>
+                        {form.price?.toLocaleString()} {form.currency}
+                      </strong>
+                      <span>
+                        {sw ? 'Chagua toleo' : 'Choose edition'}
+                        <ArrowRight size={15} />
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }

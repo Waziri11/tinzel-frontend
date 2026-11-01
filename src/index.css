@@ -1,29 +1,29 @@
-@import url("./theme/foundations.css");
+@import url('./theme/foundations.css');
 /* Zero External Textures or CDN Dependencies: Pure solid colors and local assets only */
 :root {
-  --bg-primary: #FAF8F4;
-  --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F5F5F4;
+  --bg-primary: #faf8f4;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f4;
   --text-main: #282720;
-  --text-muted: #67645B;
-  --text-gold: #78571E;
-  --border-color: #DED9CD;
-  --border-gold: #C5A059;
-  --accent-primary: #78571E;
+  --text-muted: #67645b;
+  --text-gold: #78571e;
+  --border-color: #ded9cd;
+  --border-gold: #c5a059;
+  --accent-primary: #78571e;
   --accent-primary-hover: #634719;
-  --accent-gold: #C5A059;
+  --accent-gold: #c5a059;
   --accent-gold-hover: #634719;
-  --accent-gold-light: #F2EBDD;
-  --accent-red: #991B1B;
-  --accent-red-hover: #7F1D1D;
+  --accent-gold-light: #f2ebdd;
+  --accent-red: #991b1b;
+  --accent-red-hover: #7f1d1d;
   --accent-success: #246044;
   --accent-success-hover: #166534;
-  --accent-warning: #83541C;
-  --accent-warning-hover: #92400E;
-  --accent-danger: #A53632;
-  --accent-danger-hover: #991B1B;
-  --card-bg: #FFFFFF;
-  --input-bg: #FFFFFF;
+  --accent-warning: #83541c;
+  --accent-warning-hover: #92400e;
+  --accent-danger: #a53632;
+  --accent-danger-hover: #991b1b;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
   --font-brand: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-family: var(--font-body);
@@ -36,7 +36,8 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   max-width: 100vw;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -62,7 +63,9 @@ button {
   font-family: inherit;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
 }
 
@@ -107,4 +110,3 @@ input, textarea, select {
     scroll-behavior: auto !important;
   }
 }
-
