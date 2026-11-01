@@ -1,3 +1,4 @@
+import InterfaceText from '../../i18n/InterfaceText';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -69,9 +70,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               color: '#8A6825',
               marginBottom: '4px',
             }}
-          >
-            Quality Control & Revisions
-          </span>
+          ><InterfaceText>Quality Control &amp; Revisions</InterfaceText></span>
           <h1
             style={{
               fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
@@ -79,9 +78,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               fontSize: '26px',
               fontWeight: 600,
             }}
-          >
-            Returned Magazines & Changes
-          </h1>
+          ><InterfaceText>Returned Magazines &amp; Changes</InterfaceText></h1>
           <p>
             {isManagerOrAdmin
               ? 'All magazines returned from Manager draft reviews or Client proof reviews for required changes.'
@@ -94,35 +91,29 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               type="button"
               className={filter === 'active' ? 'active' : ''}
               onClick={() => setFilter('active')}
-            >
-              Active ({summary.active || 0})
+            ><InterfaceText>Active (</InterfaceText>{summary.active || 0})
             </button>
             <button
               type="button"
               className={filter === 'open' ? 'active' : ''}
               onClick={() => setFilter('open')}
-            >
-              With Designer ({summary.open || 0})
+            ><InterfaceText>With Designer (</InterfaceText>{summary.open || 0})
             </button>
             <button
               type="button"
               className={filter === 'submitted_for_review' ? 'active' : ''}
               onClick={() => setFilter('submitted_for_review')}
-            >
-              Resubmitted ({summary.submitted_for_review || 0})
+            ><InterfaceText>Resubmitted (</InterfaceText>{summary.submitted_for_review || 0})
             </button>
             <button
               type="button"
               className={filter === 'resolved' ? 'active' : ''}
               onClick={() => setFilter('resolved')}
-            >
-              Resolved ({summary.resolved || 0})
+            ><InterfaceText>Resolved (</InterfaceText>{summary.resolved || 0})
             </button>
           </div>
           <button type="button" className="secondary-button" onClick={loadReturns} disabled={loading}>
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
-            Refresh
-          </button>
+            <RefreshCw size={15} className={loading ? 'spin' : ''} /><InterfaceText>Refresh</InterfaceText></button>
         </div>
       </div>
 
@@ -162,9 +153,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
               {summary.open || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Open Returns (Needs Fixes)
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Open Returns (Needs Fixes)</InterfaceText></span>
           </div>
         </div>
 
@@ -196,9 +185,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
               {summary.submitted_for_review || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Resubmitted for Manager Review
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Resubmitted for Manager Review</InterfaceText></span>
           </div>
         </div>
 
@@ -230,9 +217,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
               {summary.manager || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Returned by Manager
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Returned by Manager</InterfaceText></span>
           </div>
         </div>
 
@@ -264,9 +249,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
               {summary.client || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Returned by Client
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Returned by Client</InterfaceText></span>
           </div>
         </div>
       </div>
@@ -337,9 +320,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
         </form>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#78716C' }}>
-            Source:
-          </span>
+          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#78716C' }}><InterfaceText>Source:</InterfaceText></span>
           {['all', 'manager', 'client'].map((src) => (
             <button
               key={src}
@@ -372,13 +353,13 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           <table>
             <thead>
               <tr>
-                <th>Order & Magazine</th>
-                <th>Client</th>
-                <th>Designer</th>
-                <th>Return Source</th>
-                <th>Round & Draft</th>
-                <th>Requested Changes</th>
-                <th>Progress</th>
+                <th><InterfaceText>Order &amp; Magazine</InterfaceText></th>
+                <th><InterfaceText>Client</InterfaceText></th>
+                <th><InterfaceText>Designer</InterfaceText></th>
+                <th><InterfaceText>Return Source</InterfaceText></th>
+                <th><InterfaceText>Round &amp; Draft</InterfaceText></th>
+                <th><InterfaceText>Requested Changes</InterfaceText></th>
+                <th><InterfaceText>Progress</InterfaceText></th>
                 <th></th>
               </tr>
             </thead>
@@ -406,7 +387,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                           {row.assignedDesigner.name}
                         </span>
                       ) : (
-                        <span style={{ color: '#A8A29E' }}>Unassigned</span>
+                        <span style={{ color: '#A8A29E' }}><InterfaceText>Unassigned</InterfaceText></span>
                       )}
                     </td>
                     <td>
@@ -426,9 +407,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                       </span>
                     </td>
                     <td>
-                      <strong style={{ display: 'block' }}>Round {row.roundNumber}</strong>
-                      <span style={{ fontSize: '11px', color: '#78716C' }}>
-                        Draft V{row.draftVersionNumber || row.currentDraftVersion || 1}
+                      <strong style={{ display: 'block' }}><InterfaceText>Round</InterfaceText>{row.roundNumber}</strong>
+                      <span style={{ fontSize: '11px', color: '#78716C' }}><InterfaceText>Draft V</InterfaceText>{row.draftVersionNumber || row.currentDraftVersion || 1}
                       </span>
                     </td>
                     <td style={{ maxWidth: '320px' }}>
@@ -441,7 +421,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                         ))}
                         {items.length > 3 && (
                           <li style={{ color: '#78716C', listStyle: 'none' }}>
-                            +{items.length - 3} more item{items.length - 3 === 1 ? '' : 's'}
+                            +{items.length - 3}<InterfaceText>more item</InterfaceText>{items.length - 3 === 1 ? '' : 's'}
                           </li>
                         )}
                       </ul>
@@ -449,9 +429,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                     <td>
                       {row.status === 'resolved' ? (
                         <span className="return-progress done">
-                          <CheckCircle2 size={14} />
-                          Resolved
-                        </span>
+                          <CheckCircle2 size={14} /><InterfaceText>Resolved</InterfaceText></span>
                       ) : row.status === 'submitted_for_review' ? (
                         <span
                           style={{
@@ -463,19 +441,16 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                             fontSize: '12px',
                           }}
                         >
-                          <FileCheck2 size={14} />
-                          Resubmitted (V{row.submittedVersionNumber || row.currentDraftVersion})
+                          <FileCheck2 size={14} /><InterfaceText>Resubmitted (V</InterfaceText>{row.submittedVersionNumber || row.currentDraftVersion})
                         </span>
                       ) : (
                         <span className="return-progress">
                           <Clock3 size={14} />
-                          {done}/{items.length} addressed
-                        </span>
+                          {done}/{items.length}<InterfaceText>addressed</InterfaceText></span>
                       )}
                     </td>
                     <td>
-                      <button type="button" onClick={() => onOpenOrder(row.orderId)}>
-                        Open <ArrowRight size={15} />
+                      <button type="button" onClick={() => onOpenOrder(row.orderId)}><InterfaceText>Open</InterfaceText><ArrowRight size={15} />
                       </button>
                     </td>
                   </tr>
@@ -484,9 +459,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
             </tbody>
           </table>
           {!rows.length && (
-            <div className="designer-empty">
-              No returned magazines match the selected filters.
-            </div>
+            <div className="designer-empty"><InterfaceText>No returned magazines match the selected filters.</InterfaceText></div>
           )}
         </div>
       )}
