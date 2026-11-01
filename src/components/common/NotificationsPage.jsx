@@ -1,3 +1,6 @@
+import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
+import {useDialogFocus} from '../../hooks/useDialogFocus';
+import '../admin/administration.css';
 import PrinterNotificationSettings from '../admin/PrinterNotificationSettings';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -177,12 +180,13 @@ const formatTime = (dateStr) => {
   }
 };
 
-const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
-  <button
+const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => {
+ const tx=useInterfaceText();
+ return (<button
     type="button"
-    role="switch"
+    role="switch" className="notification-switch"
     aria-checked={checked}
-    aria-label={label}
+    aria-label={tx(label)}
     disabled={disabled}
     onClick={() => !disabled && onChange(!checked)}
     style={{
@@ -192,7 +196,7 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       borderRadius: '999px',
       border: '1px solid',
       borderColor: checked ? '#166534' : '#D6D3D1',
-      backgroundColor: checked ? '#166534' : '#E7E5E4',
+      backgroundColor: checked ? '#166534' : 'var(--border-color)',
       cursor: disabled ? 'not-allowed' : 'pointer',
       padding: 0,
       opacity: disabled ? 0.45 : 1,
@@ -212,8 +216,8 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
         transition: 'left 0.15s ease',
       }}
     />
-  </button>
-);
+  </button>);
+};
 
 export default function NotificationsPage({
   token,
@@ -221,6 +225,8 @@ export default function NotificationsPage({
   onOpenOrder,
   onUnreadCountChange,
 }) {
+ const tx=useInterfaceText();
+
   const isManagerOrAdmin = ['manager', 'admin'].includes(staffUser?.role);
 
   // Top-level QAMS Section Tabs: 'history' | 'triggers' | 'health'
@@ -253,7 +259,7 @@ export default function NotificationsPage({
 
   // Health Test State (SMS & Email)
   const [smsTestForm, setSmsTestForm] = useState({
-    to: '+255762022730',
+    to: '',
     from: 'ORDER',
     message:
       'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
@@ -262,10 +268,10 @@ export default function NotificationsPage({
   const [smsTestResult, setSmsTestResult] = useState(null);
 
   const [emailTestForm, setEmailTestForm] = useState({
-    to: staffUser?.email || 'admin@tinzel.co.tz',
+    to: staffUser?.email || '',
     subject: 'Tinzel Email Health Check - SMTP Verification',
     message:
-      'This is a diagnostic test email from the Tinzel QAMS Notification Center confirming email delivery configuration.',
+      'This is a diagnostic test email from the Tinzel Notification Center confirming email delivery configuration.',
   });
   const [emailTesting, setEmailTesting] = useState(false);
   const [emailTestResult, setEmailTestResult] = useState(null);
@@ -288,6 +294,7 @@ export default function NotificationsPage({
   });
   const [sending, setSending] = useState(false);
   const [resendingId, setResendingId] = useState(null);
+  useDialogFocus(composeOpen,()=>{if(!sending)setComposeOpen(false);});
 
   useEffect(() => {
     if (!composeOpen) return;
@@ -679,7 +686,7 @@ export default function NotificationsPage({
   const emailHealthy = Boolean(diagnostics?.email?.connected);
 
   return (
-    <section
+    <section className="communications-admin"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -698,7 +705,7 @@ export default function NotificationsPage({
           gap: '16px',
           padding: '18px 20px',
           backgroundColor: '#FFFFFF',
-          border: '1px solid #E7E5E4',
+          border: '1px solid var(--border-color)',
           borderRadius: '12px',
           flexWrap: 'wrap',
         }}
@@ -714,9 +721,7 @@ export default function NotificationsPage({
               color: '#8A6825',
               marginBottom: '4px',
             }}
-          >
-            QAMS Tri-Channel Notification Center
-          </span>
+          ><InterfaceText>Tinzel communications</InterfaceText></span>
           <h1
             style={{
               margin: '0 0 4px 0',
@@ -724,14 +729,10 @@ export default function NotificationsPage({
               fontStyle: 'italic',
               fontSize: '26px',
               fontWeight: 600,
-              color: '#1C1917',
+              color: 'var(--text-main)',
             }}
-          >
-            Notifications, Triggers & Gateway Health
-          </h1>
-          <p style={{ margin: 0, fontSize: '13px', color: '#57534E' }}>
-            Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS (NextSMS) and Email (SMTP) health tests.
-          </p>
+          ><InterfaceText>Notifications, Triggers &amp; Gateway Health</InterfaceText></h1>
+          <p style={{ margin: 0, fontSize: '13px', color: '#57534E' }}><InterfaceText>Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS (NextSMS) and Email (SMTP) health tests.</InterfaceText></p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -747,14 +748,13 @@ export default function NotificationsPage({
                 borderRadius: '8px',
                 border: '1px solid #D6D3D1',
                 backgroundColor: '#FFFFFF',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
-              <CheckCheck size={15} color="#8A6825" />
-              Mark All Read ({unreadCount})
+              <CheckCheck size={15} color="#8A6825" /><InterfaceText>Mark All Read (</InterfaceText>{unreadCount})
             </button>
           )}
 
@@ -769,16 +769,14 @@ export default function NotificationsPage({
                 padding: '9px 14px',
                 borderRadius: '8px',
                 border: 'none',
-                backgroundColor: '#1C1917',
+                backgroundColor: 'var(--text-main)',
                 color: '#FFFFFF',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
-              <Send size={14} />
-              Send Tri-Channel Notification
-            </button>
+              <Send size={14} /><InterfaceText>Send Tri-Channel Notification</InterfaceText></button>
           )}
 
           <button
@@ -799,9 +797,7 @@ export default function NotificationsPage({
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
-            Refresh
-          </button>
+            <RefreshCw size={15} className={loading ? 'spin' : ''} /><InterfaceText>Refresh</InterfaceText></button>
         </div>
       </div>
 
@@ -813,7 +809,7 @@ export default function NotificationsPage({
             alignItems: 'center',
             gap: '8px',
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '8px 12px',
             flexWrap: 'wrap',
@@ -854,23 +850,23 @@ export default function NotificationsPage({
                   gap: '8px',
                   padding: '9px 14px',
                   borderRadius: '8px',
-                  border: active ? '1px solid #1C1917' : '1px solid transparent',
-                  backgroundColor: active ? '#1C1917' : '#FAFAF9',
+                  border: active ? '1px solid var(--text-main)' : '1px solid transparent',
+                  backgroundColor: active ? 'var(--text-main)' : 'var(--bg-primary)',
                   color: active ? '#FFFFFF' : '#44403C',
                   fontSize: '13px',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
               >
-                <IconComp size={15} color={active ? '#C5A059' : '#78716C'} />
-                <span>{sec.label}</span>
+                <IconComp size={15} color={active ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                <span>{tx(sec.label)}</span>
                 {sec.badge && (
                   <span
                     style={{
                       padding: '2px 7px',
                       borderRadius: '999px',
-                      backgroundColor: active ? '#C5A059' : '#E7E5E4',
-                      color: active ? '#FFFFFF' : '#1C1917',
+                      backgroundColor: active ? 'var(--accent-primary)' : 'var(--border-color)',
+                      color: active ? '#FFFFFF' : 'var(--text-main)',
                       fontSize: '10px',
                       fontWeight: 800,
                     }}
@@ -952,14 +948,14 @@ export default function NotificationsPage({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: '12px',
         }}
       >
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '14px 16px',
             display: 'flex',
@@ -981,19 +977,17 @@ export default function NotificationsPage({
             <Bell size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
+            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {unreadCount}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Unread In-System Alerts
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Unread In-System Alerts</InterfaceText></span>
           </div>
         </div>
 
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '14px 16px',
             display: 'flex',
@@ -1015,19 +1009,17 @@ export default function NotificationsPage({
             <Mail size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
+            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {channelCounts.email || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Email Dispatches
-            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>Email Dispatches</InterfaceText></span>
           </div>
         </div>
 
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '14px 16px',
             display: 'flex',
@@ -1049,11 +1041,10 @@ export default function NotificationsPage({
             <Phone size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
+            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
               {(channelCounts.whatsapp || 0) + (channelCounts.sms || 0)}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              SMS / Phone Dispatches (Sender: {settings.smsSenderId || 'ORDER'})
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}><InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText>{' '}{settings.smsSenderId || 'ORDER'})
             </span>
           </div>
         </div>
@@ -1061,7 +1052,7 @@ export default function NotificationsPage({
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '14px 16px',
             display: 'flex',
@@ -1083,7 +1074,7 @@ export default function NotificationsPage({
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '14px', lineHeight: 1.2, color: '#1C1917' }}>
+            <strong style={{ display: 'block', fontSize: '14px', lineHeight: 1.2, color: 'var(--text-main)' }}>
               {smsHealthy
                 ? `NextSMS Live (${diagnostics?.sms?.balance?.display || 'Active'})`
                 : diagnostics?.mode === 'twilio_live'
@@ -1108,7 +1099,7 @@ export default function NotificationsPage({
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '20px',
               display: 'flex',
@@ -1126,12 +1117,8 @@ export default function NotificationsPage({
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#1C1917' }}>
-                  Global Channel Master Controls
-                </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#78716C' }}>
-                  Enable or mute entire delivery channels system-wide and set the default NextSMS Sender ID.
-                </p>
+                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Global Channel Master Controls</InterfaceText></h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Enable or mute entire delivery channels system-wide and set the default NextSMS Sender ID.</InterfaceText></p>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1153,9 +1140,7 @@ export default function NotificationsPage({
                     cursor: 'pointer',
                   }}
                 >
-                  <RotateCcw size={14} />
-                  Reset Defaults
-                </button>
+                  <RotateCcw size={14} /><InterfaceText>Reset Defaults</InterfaceText></button>
 
                 <button
                   type="button"
@@ -1168,7 +1153,7 @@ export default function NotificationsPage({
                     padding: '9px 16px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: '#1C1917',
+                    backgroundColor: 'var(--text-main)',
                     color: '#FFFFFF',
                     fontSize: '12px',
                     fontWeight: 700,
@@ -1184,17 +1169,17 @@ export default function NotificationsPage({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
                 gap: '12px',
               }}
             >
               {/* In-System Master Toggle */}
               <div
                 style={{
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
                   padding: '14px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1202,28 +1187,24 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: '#1C1917' }}>
-                    <Bell size={15} color="#8A6825" />
-                    In-System Alerts
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#78716C', marginTop: '3px' }}>
-                    Workstation inbox & unread badge counters
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                    <Bell size={15} color="#8A6825" /><InterfaceText>In-System Alerts</InterfaceText></div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Workstation inbox &amp; unread badge counters</InterfaceText></div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.in_system !== false}
                   onChange={(val) => handleToggleGlobalChannel('in_system', val)}
-                  label="Toggle In-System channel"
+                  label={tx("Toggle In-System channel")}
                 />
               </div>
 
               {/* Email Master Toggle */}
               <div
                 style={{
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
                   padding: '14px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1231,28 +1212,24 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: '#1C1917' }}>
-                    <Mail size={15} color="#1E40AF" />
-                    Email Notifications (SMTP)
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#78716C', marginTop: '3px' }}>
-                    Transactional HTML & plaintext emails
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                    <Mail size={15} color="#1E40AF" /><InterfaceText>Email Notifications (SMTP)</InterfaceText></div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Transactional HTML &amp; plaintext emails</InterfaceText></div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.email !== false}
                   onChange={(val) => handleToggleGlobalChannel('email', val)}
-                  label="Toggle Email channel"
+                  label={tx("Toggle Email channel")}
                 />
               </div>
 
               {/* SMS Master Toggle */}
               <div
                 style={{
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
                   padding: '14px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1260,28 +1237,24 @@ export default function NotificationsPage({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: '#1C1917' }}>
-                    <MessageSquare size={15} color="#166534" />
-                    SMS Notifications (NextSMS)
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#78716C', marginTop: '3px' }}>
-                    Tanzanian mobile SMS via NextSMS v2
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--text-main)' }}>
+                    <MessageSquare size={15} color="#166534" /><InterfaceText>SMS Notifications (NextSMS)</InterfaceText></div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}><InterfaceText>Tanzanian mobile SMS via NextSMS v2</InterfaceText></div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.sms !== false}
                   onChange={(val) => handleToggleGlobalChannel('sms', val)}
-                  label="Toggle SMS channel"
+                  label={tx("Toggle SMS channel")}
                 />
               </div>
 
               {/* Default NextSMS Sender ID */}
               <div
                 style={{
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
                   padding: '12px 14px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
@@ -1291,9 +1264,7 @@ export default function NotificationsPage({
                 <label
                   htmlFor="nextsms-sender-id-input"
                   style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#57534E' }}
-                >
-                  Active NextSMS Sender ID
-                </label>
+                ><InterfaceText>Active NextSMS Sender ID</InterfaceText></label>
                 <input
                   id="nextsms-sender-id-input"
                   type="text"
@@ -1305,7 +1276,7 @@ export default function NotificationsPage({
                       smsSenderId: e.target.value.toUpperCase(),
                     }))
                   }
-                  placeholder="ORDER"
+                  placeholder={tx("ORDER")}
                   style={{
                     padding: '6px 10px',
                     borderRadius: '6px',
@@ -1313,7 +1284,7 @@ export default function NotificationsPage({
                     backgroundColor: '#FFFFFF',
                     fontSize: '13px',
                     fontWeight: 700,
-                    color: '#1C1917',
+                    color: 'var(--text-main)',
                   }}
                 />
               </div>
@@ -1326,7 +1297,7 @@ export default function NotificationsPage({
               key={category}
               style={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 borderRadius: '12px',
                 overflow: 'hidden',
               }}
@@ -1334,19 +1305,17 @@ export default function NotificationsPage({
               <div
                 style={{
                   padding: '12px 18px',
-                  backgroundColor: '#FAFAF9',
-                  borderBottom: '1px solid #E7E5E4',
+                  backgroundColor: 'var(--bg-primary)',
+                  borderBottom: '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
-                <strong style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1C1917' }}>
-                  {category} Triggers
-                </strong>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#78716C' }}>
-                  {items.length} milestone events
-                </span>
+                <strong style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-main)' }}>
+                  {category}{' '}<InterfaceText>Triggers</InterfaceText></strong>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                  {items.length}{' '}<InterfaceText>milestone events</InterfaceText></span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1364,13 +1333,13 @@ export default function NotificationsPage({
                         justifyContent: 'space-between',
                         gap: '16px',
                         flexWrap: 'wrap',
-                        backgroundColor: isEnabled ? '#FFFFFF' : '#FAFAF9',
+                        backgroundColor: isEnabled ? '#FFFFFF' : 'var(--bg-primary)',
                       }}
                     >
                       <div style={{ flex: '1 1 320px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <strong style={{ fontSize: '14px', color: isEnabled ? '#1C1917' : '#78716C' }}>
-                            {item.label}
+                          <strong style={{ fontSize: '14px', color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                            {tx(item.label)}
                           </strong>
                           <span
                             style={{
@@ -1381,8 +1350,7 @@ export default function NotificationsPage({
                               fontSize: '10px',
                               fontWeight: 800,
                             }}
-                          >
-                            Recipient: {item.recipient}
+                          ><InterfaceText>Recipient:</InterfaceText>{' '}{item.recipient}
                           </span>
                           <code
                             style={{
@@ -1396,16 +1364,14 @@ export default function NotificationsPage({
                             {item.key}
                           </code>
                         </div>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#78716C' }}>
-                          {item.description}
+                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {tx(item.description)}
                         </p>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#1C1917' }}>
-                            Trigger Enabled
-                          </span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Trigger Enabled</InterfaceText></span>
                           <ToggleSwitch
                             checked={isEnabled}
                             onChange={(val) => handleToggleTriggerField(item.key, 'enabled', val)}
@@ -1420,8 +1386,8 @@ export default function NotificationsPage({
                             gap: '14px',
                             padding: '6px 12px',
                             borderRadius: '8px',
-                            backgroundColor: '#FAFAF9',
-                            border: '1px solid #E7E5E4',
+                            backgroundColor: 'var(--bg-primary)',
+                            border: '1px solid var(--border-color)',
                           }}
                         >
                           <label
@@ -1431,7 +1397,7 @@ export default function NotificationsPage({
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? '#1C1917' : '#A8A29E',
+                              color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
@@ -1442,9 +1408,7 @@ export default function NotificationsPage({
                               onChange={(e) =>
                                 handleToggleTriggerField(item.key, 'in_system', e.target.checked)
                               }
-                            />
-                            In-System
-                          </label>
+                            /><InterfaceText>In-System</InterfaceText></label>
 
                           <label
                             style={{
@@ -1453,7 +1417,7 @@ export default function NotificationsPage({
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? '#1E40AF' : '#A8A29E',
+                              color: isEnabled ? '#1E40AF' : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
@@ -1464,9 +1428,7 @@ export default function NotificationsPage({
                               onChange={(e) =>
                                 handleToggleTriggerField(item.key, 'email', e.target.checked)
                               }
-                            />
-                            Email
-                          </label>
+                            /><InterfaceText>Email</InterfaceText></label>
 
                           <label
                             style={{
@@ -1475,7 +1437,7 @@ export default function NotificationsPage({
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? '#166534' : '#A8A29E',
+                              color: isEnabled ? '#166534' : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
@@ -1486,9 +1448,7 @@ export default function NotificationsPage({
                               onChange={(e) =>
                                 handleToggleTriggerField(item.key, 'sms', e.target.checked)
                               }
-                            />
-                            SMS (NextSMS)
-                          </label>
+                            /><InterfaceText>SMS (NextSMS)</InterfaceText></label>
                         </div>
                       </div>
                     </div>
@@ -1508,7 +1468,7 @@ export default function NotificationsPage({
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '16px 20px',
               display: 'flex',
@@ -1519,12 +1479,8 @@ export default function NotificationsPage({
             }}
           >
             <div>
-              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#1C1917' }}>
-                Gateway Connectivity & Live Health Verification
-              </h2>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#78716C' }}>
-                Verify live NextSMS API v2 credentials, inspect SMS credit balance, check Google SMTP connectivity, and dispatch real test messages.
-              </p>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Gateway Connectivity &amp; Live Health Verification</InterfaceText></h2>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Verify live NextSMS API v2 credentials, inspect SMS credit balance, check Google SMTP connectivity, and dispatch real test messages.</InterfaceText></p>
             </div>
             <button
               type="button"
@@ -1536,8 +1492,8 @@ export default function NotificationsPage({
                 gap: '6px',
                 padding: '9px 14px',
                 borderRadius: '8px',
-                border: '1px solid #1C1917',
-                backgroundColor: '#1C1917',
+                border: '1px solid var(--text-main)',
+                backgroundColor: 'var(--text-main)',
                 color: '#FFFFFF',
                 fontSize: '12px',
                 fontWeight: 700,
@@ -1552,7 +1508,7 @@ export default function NotificationsPage({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
               gap: '16px',
             }}
           >
@@ -1560,7 +1516,7 @@ export default function NotificationsPage({
             <div
               style={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'flex',
@@ -1584,11 +1540,8 @@ export default function NotificationsPage({
                     <MessageSquare size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1C1917' }}>
-                      SMS Gateway Health (NextSMS API)
-                    </h3>
-                    <span style={{ fontSize: '12px', color: '#78716C' }}>
-                      Endpoint: messaging-service.co.tz ({diagnostics?.sms?.apiVersion || 'v2'})
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>SMS Gateway Health (NextSMS API)</InterfaceText></h3>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Endpoint: messaging-service.co.tz (</InterfaceText>{diagnostics?.sms?.apiVersion || 'v2'})
                     </span>
                   </div>
                 </div>
@@ -1613,24 +1566,20 @@ export default function NotificationsPage({
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '10px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #E7E5E4',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '12px',
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    SMS Credit Balance
-                  </span>
-                  <strong style={{ fontSize: '15px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>SMS Credit Balance</InterfaceText></span>
+                  <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.balance?.display || '—'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Estimated Remaining SMS
-                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Estimated Remaining SMS</InterfaceText></span>
                   <strong style={{ fontSize: '15px', color: '#166534' }}>
                     {diagnostics?.sms?.balance?.default_balance !== undefined
                       ? `${diagnostics.sms.balance.default_balance} SMS`
@@ -1638,18 +1587,14 @@ export default function NotificationsPage({
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Active Sender ID
-                  </span>
-                  <strong style={{ fontSize: '13px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Active Sender ID</InterfaceText></span>
+                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.configuredSenderId || settings.smsSenderId || 'ORDER'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Gateway Latency
-                  </span>
-                  <strong style={{ fontSize: '13px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Gateway Latency</InterfaceText></span>
+                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.sms?.latencyMs ? `${diagnostics.sms.latencyMs} ms` : '—'}
                   </strong>
                 </div>
@@ -1660,9 +1605,9 @@ export default function NotificationsPage({
                 onSubmit={handleRunSmsHealthTest}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
+                <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
                   <div>
-                    <label
+                    <label htmlFor={`control-59897`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1670,10 +1615,8 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    >
-                      Test Recipient Phone (Tanzania)
-                    </label>
-                    <input
+                    ><InterfaceText>Test Recipient Phone (Tanzania)</InterfaceText></label>
+                    <input id={`control-59897`}
                       type="text"
                       required
                       value={smsTestForm.to}
@@ -1690,7 +1633,7 @@ export default function NotificationsPage({
                     />
                   </div>
                   <div>
-                    <label
+                    <label htmlFor={`control-60967`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1698,16 +1641,14 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    >
-                      Sender ID
-                    </label>
-                    <input
+                    ><InterfaceText>Sender ID</InterfaceText></label>
+                    <input id={`control-60967`}
                       type="text"
                       value={smsTestForm.from}
                       onChange={(e) =>
                         setSmsTestForm({ ...smsTestForm, from: e.target.value.toUpperCase() })
                       }
-                      placeholder="ORDER"
+                      placeholder={tx("ORDER")}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1722,7 +1663,7 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label
+                  <label htmlFor={`control-62110`}
                     style={{
                       display: 'block',
                       fontSize: '11px',
@@ -1730,10 +1671,8 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  >
-                    Test SMS Message
-                  </label>
-                  <textarea
+                  ><InterfaceText>Test SMS Message</InterfaceText></label>
+                  <textarea id={`control-62110`}
                     rows="2"
                     required
                     value={smsTestForm.message}
@@ -1786,21 +1725,18 @@ export default function NotificationsPage({
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {smsTestResult.success ? 'SMS Health Test Passed' : 'SMS Health Test Failed'}
                   </div>
-                  <div>
-                    Recipient: <strong>{smsTestResult.to}</strong> | Sender:{' '}
-                    <strong>{smsTestResult.senderId}</strong> | Latency:{' '}
-                    <strong>{smsTestResult.latencyMs} ms</strong>
+                  <div><InterfaceText>Recipient:</InterfaceText><strong>{smsTestResult.to}</strong><InterfaceText>| Sender:</InterfaceText>{' '}{' '}
+                    <strong>{smsTestResult.senderId}</strong><InterfaceText>| Latency:</InterfaceText>{' '}{' '}
+                    <strong>{smsTestResult.latencyMs}{' '}<InterfaceText>ms</InterfaceText></strong>
                   </div>
                   {smsTestResult.nextSmsStatus && (
-                    <div>
-                      Gateway Status: <strong>{smsTestResult.nextSmsStatus.name}</strong> (
+                    <div><InterfaceText>Gateway Status:</InterfaceText><strong>{smsTestResult.nextSmsStatus.name}</strong> (
                       {smsTestResult.nextSmsStatus.description})
                     </div>
                   )}
                   {smsTestResult.messageId && (
-                    <div>
-                      Message ID: <code>{smsTestResult.messageId}</code> | Cost:{' '}
-                      <strong>{smsTestResult.price ?? 16} TZS</strong>
+                    <div><InterfaceText>Message ID:</InterfaceText><code>{smsTestResult.messageId}</code><InterfaceText>| Cost:</InterfaceText>{' '}{' '}
+                      <strong>{smsTestResult.price ?? 16}{' '}<InterfaceText>TZS</InterfaceText></strong>
                     </div>
                   )}
                 </div>
@@ -1811,7 +1747,7 @@ export default function NotificationsPage({
             <div
               style={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'flex',
@@ -1835,11 +1771,8 @@ export default function NotificationsPage({
                     <Mail size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1C1917' }}>
-                      Email Gateway Health (Google SMTP)
-                    </h3>
-                    <span style={{ fontSize: '12px', color: '#78716C' }}>
-                      Host: {diagnostics?.email?.host || 'smtp.gmail.com'}:
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Email Gateway Health (Google SMTP)</InterfaceText></h3>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Host:</InterfaceText>{' '}{diagnostics?.email?.host || 'smtp.gmail.com'}:
                       {diagnostics?.email?.port || 465}
                     </span>
                   </div>
@@ -1865,42 +1798,33 @@ export default function NotificationsPage({
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '10px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #E7E5E4',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '12px',
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Delivery Mode
-                  </span>
-                  <strong style={{ fontSize: '14px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Delivery Mode</InterfaceText></span>
+                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}>
                     {emailHealthy ? 'Live Google SMTP' : 'Local Simulation Fallback'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Encryption / Port
-                  </span>
-                  <strong style={{ fontSize: '14px', color: '#1C1917' }}>
-                    Port {diagnostics?.email?.port || 465} (
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Encryption / Port</InterfaceText></span>
+                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}><InterfaceText>Port</InterfaceText>{' '}{diagnostics?.email?.port || 465} (
                     {diagnostics?.email?.secure !== false ? 'SSL/TLS' : 'STARTTLS'})
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    Sender Identity
-                  </span>
-                  <strong style={{ fontSize: '12px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>Sender Identity</InterfaceText></span>
+                  <strong style={{ fontSize: '12px', color: 'var(--text-main)' }}>
                     {diagnostics?.email?.from || 'Tinzel <notifications@tinzel.com>'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#78716C', display: 'block' }}>
-                    SMTP Handshake Latency
-                  </span>
-                  <strong style={{ fontSize: '13px', color: '#1C1917' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}><InterfaceText>SMTP Handshake Latency</InterfaceText></span>
+                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
                     {diagnostics?.email?.latencyMs ? `${diagnostics.email.latencyMs} ms` : '0 ms (Simulated)'}
                   </strong>
                 </div>
@@ -1911,9 +1835,9 @@ export default function NotificationsPage({
                 onSubmit={handleRunEmailHealthTest}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label
+                    <label htmlFor={`control-70308`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1921,15 +1845,13 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    >
-                      Test Recipient Email
-                    </label>
-                    <input
+                    ><InterfaceText>Test Recipient Email</InterfaceText></label>
+                    <input id={`control-70308`}
                       type="email"
                       required
                       value={emailTestForm.to}
                       onChange={(e) => setEmailTestForm({ ...emailTestForm, to: e.target.value })}
-                      placeholder="you@example.com"
+                      placeholder={tx("you@example.com")}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -1941,7 +1863,7 @@ export default function NotificationsPage({
                     />
                   </div>
                   <div>
-                    <label
+                    <label htmlFor={`control-71382`}
                       style={{
                         display: 'block',
                         fontSize: '11px',
@@ -1949,10 +1871,8 @@ export default function NotificationsPage({
                         color: '#44403C',
                         marginBottom: '4px',
                       }}
-                    >
-                      Subject Line
-                    </label>
-                    <input
+                    ><InterfaceText>Subject Line</InterfaceText></label>
+                    <input id={`control-71382`}
                       type="text"
                       required
                       value={emailTestForm.subject}
@@ -1972,7 +1892,7 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label
+                  <label htmlFor={`control-72468`}
                     style={{
                       display: 'block',
                       fontSize: '11px',
@@ -1980,10 +1900,8 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  >
-                    Test Email Message Body
-                  </label>
-                  <textarea
+                  ><InterfaceText>Test Email Message Body</InterfaceText></label>
+                  <textarea id={`control-72468`}
                     rows="2"
                     required
                     value={emailTestForm.message}
@@ -2038,14 +1956,12 @@ export default function NotificationsPage({
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {emailTestResult.success ? 'Email Health Test Completed' : 'Email Health Test Failed'}
                   </div>
-                  <div>
-                    Recipient: <strong>{emailTestResult.to}</strong> | Mode:{' '}
-                    <strong>{emailTestResult.mode}</strong> | Latency:{' '}
-                    <strong>{emailTestResult.latencyMs} ms</strong>
+                  <div><InterfaceText>Recipient:</InterfaceText><strong>{emailTestResult.to}</strong><InterfaceText>| Mode:</InterfaceText>{' '}{' '}
+                    <strong>{emailTestResult.mode}</strong><InterfaceText>| Latency:</InterfaceText>{' '}{' '}
+                    <strong>{emailTestResult.latencyMs}{' '}<InterfaceText>ms</InterfaceText></strong>
                   </div>
                   {emailTestResult.messageId && (
-                    <div>
-                      Message ID: <code>{emailTestResult.messageId}</code>
+                    <div><InterfaceText>Message ID:</InterfaceText><code>{emailTestResult.messageId}</code>
                     </div>
                   )}
                 </div>
@@ -2064,7 +1980,7 @@ export default function NotificationsPage({
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '10px',
               padding: '12px 14px',
               display: 'flex',
@@ -2090,14 +2006,14 @@ export default function NotificationsPage({
                     padding: '7px 12px',
                     borderRadius: '6px',
                     border: '1px solid #D6D3D1',
-                    backgroundColor: channelFilter === tab.id ? '#1C1917' : '#FFFFFF',
+                    backgroundColor: channelFilter === tab.id ? 'var(--text-main)' : '#FFFFFF',
                     color: channelFilter === tab.id ? '#FFFFFF' : '#44403C',
                     fontSize: '12px',
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
-                  {tab.label}
+                  {tx(tab.label)}
                 </button>
               ))}
             </div>
@@ -2109,7 +2025,7 @@ export default function NotificationsPage({
                   backgroundColor: '#F5F5F4',
                   padding: '3px',
                   borderRadius: '7px',
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                 }}
               >
                 {[
@@ -2126,19 +2042,19 @@ export default function NotificationsPage({
                       padding: '5px 10px',
                       borderRadius: '5px',
                       backgroundColor: readFilter === rf.id ? '#FFFFFF' : 'transparent',
-                      color: '#1C1917',
+                      color: 'var(--text-main)',
                       fontSize: '12px',
                       fontWeight: readFilter === rf.id ? 700 : 500,
                       cursor: 'pointer',
                     }}
                   >
-                    {rf.label}
+                    {tx(rf.label)}
                   </button>
                 ))}
               </div>
 
               <select
-                aria-label="Filter by delivery status"
+                aria-label={tx("Filter by delivery status")}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{
@@ -2149,14 +2065,14 @@ export default function NotificationsPage({
                   backgroundColor: '#FFFFFF',
                   fontSize: '12px',
                   fontWeight: 600,
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                 }}
               >
-                <option value="all">All statuses</option>
-                <option value="delivered">Delivered</option>
-                <option value="sent">Provider accepted</option>
-                <option value="queued">Queued</option><option value="unconfirmed">Unconfirmed</option><option value="skipped">Skipped</option><option value="simulated">Simulated</option>
-                <option value="failed">Failed</option>
+                <option value="all"><InterfaceText>All statuses</InterfaceText></option>
+                <option value="delivered"><InterfaceText>Delivered</InterfaceText></option>
+                <option value="sent"><InterfaceText>Provider accepted</InterfaceText></option>
+                <option value="queued"><InterfaceText>Queued</InterfaceText></option><option value="unconfirmed"><InterfaceText>Unconfirmed</InterfaceText></option><option value="skipped"><InterfaceText>Skipped</InterfaceText></option><option value="simulated"><InterfaceText>Simulated</InterfaceText></option>
+                <option value="failed"><InterfaceText>Failed</InterfaceText></option>
               </select>
 
               <form
@@ -2172,14 +2088,14 @@ export default function NotificationsPage({
                   height: '36px',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   minWidth: '220px',
                 }}
               >
-                <Search size={14} color="#78716C" />
+                <Search size={14} color="var(--text-muted)" />
                 <input
-                  aria-label="Search notifications"
-                  placeholder="Search recipient, order, message..."
+                  aria-label={tx("Search notifications")}
+                  placeholder={tx("Search recipient, order, message...")}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   style={{
@@ -2188,7 +2104,7 @@ export default function NotificationsPage({
                     backgroundColor: 'transparent',
                     fontSize: '12px',
                     width: '100%',
-                    color: '#1C1917',
+                    color: 'var(--text-main)',
                   }}
                 />
                 {searchInput && (
@@ -2201,7 +2117,7 @@ export default function NotificationsPage({
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      color: '#78716C',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                     }}
                   >
@@ -2220,31 +2136,25 @@ export default function NotificationsPage({
                   padding: '48px 24px',
                   textAlign: 'center',
                   backgroundColor: '#FFFFFF',
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
-                  color: '#78716C',
+                  color: 'var(--text-muted)',
                 }}
-              >
-                Loading notifications…
-              </div>
+              ><InterfaceText>Loading notifications…</InterfaceText></div>
             ) : displayedItems.length === 0 ? (
               <div
                 style={{
                   padding: '48px 24px',
                   textAlign: 'center',
                   backgroundColor: '#FFFFFF',
-                  border: '1px solid #E7E5E4',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '10px',
-                  color: '#78716C',
+                  color: 'var(--text-muted)',
                 }}
               >
-                <Bell size={28} color="#A8A29E" style={{ marginBottom: '8px' }} />
-                <div style={{ fontSize: '15px', fontWeight: 700, color: '#1C1917' }}>
-                  No notifications found
-                </div>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                  Notifications sent via Email, Phone (NextSMS), and In-System will appear here automatically.
-                </div>
+                <Bell size={28} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>No notifications found</InterfaceText></div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}><InterfaceText>Notifications sent via Email, Phone (NextSMS), and In-System will appear here automatically.</InterfaceText></div>
               </div>
             ) : (
               displayedItems.map(({ primary, siblings, channels }) => {
@@ -2269,8 +2179,8 @@ export default function NotificationsPage({
                     key={id}
                     style={{
                       backgroundColor: isUnread ? '#FFFDF9' : '#FFFFFF',
-                      border: hasFailedSibling ? '1px solid #FCA5A5' : '1px solid #E7E5E4',
-                      borderLeft: isUnread ? '4px solid #C5A059' : '1px solid #E7E5E4',
+                      border: hasFailedSibling ? '1px solid #FCA5A5' : '1px solid var(--border-color)',
+                      borderLeft: isUnread ? '4px solid var(--accent-primary)' : '1px solid var(--border-color)',
                       borderRadius: '10px',
                       padding: '16px 18px',
                       display: 'flex',
@@ -2294,19 +2204,17 @@ export default function NotificationsPage({
                             style={{
                               padding: '2px 7px',
                               borderRadius: '4px',
-                              backgroundColor: '#C5A059',
+                              backgroundColor: 'var(--accent-primary)',
                               color: '#FFFFFF',
                               fontSize: '10px',
                               fontWeight: 800,
                               textTransform: 'uppercase',
                               letterSpacing: '0.05em',
                             }}
-                          >
-                            New
-                          </span>
+                          ><InterfaceText>New</InterfaceText></span>
                         )}
 
-                        <strong style={{ fontSize: '15px', color: '#1C1917' }}>
+                        <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
                           {primary.title || primary.subject || formatTemplate(primary.template)}
                         </strong>
 
@@ -2342,7 +2250,7 @@ export default function NotificationsPage({
                       <span
                         style={{
                           fontSize: '12px',
-                          color: '#78716C',
+                          color: 'var(--text-muted)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '5px',
@@ -2360,7 +2268,7 @@ export default function NotificationsPage({
                         color: '#292524',
                         lineHeight: 1.55,
                         whiteSpace: 'pre-wrap',
-                        backgroundColor: '#FAFAF9',
+                        backgroundColor: 'var(--bg-primary)',
                         border: '1px solid #F5F5F4',
                         borderRadius: '8px',
                         padding: '10px 12px',
@@ -2392,11 +2300,10 @@ export default function NotificationsPage({
                             fontSize: '11px',
                             fontWeight: 700,
                             backgroundColor: channels.in_system ? '#F4EAD5' : '#F5F5F4',
-                            color: channels.in_system ? '#6F531C' : '#A8A29E',
+                            color: channels.in_system ? '#6F531C' : 'var(--text-muted)',
                           }}
                         >
-                          <Bell size={12} />
-                          In-System: {channels.in_system ? (channels.in_system.status === 'delivered' ? 'Recorded' : channels.in_system.status) : '—'}
+                          <Bell size={12} /><InterfaceText>In-System:</InterfaceText>{' '}{channels.in_system ? (channels.in_system.status === 'delivered' ? 'Recorded' : channels.in_system.status) : '—'}
                         </span>
 
                         {/* 2. Email Channel Pill */}
@@ -2418,11 +2325,10 @@ export default function NotificationsPage({
                               ? channels.email.status === 'failed'
                                 ? '#991B1B'
                                 : '#1E40AF'
-                              : '#A8A29E',
+                              : 'var(--text-muted)',
                           }}
                         >
-                          <Mail size={12} />
-                          Email:{' '}
+                          <Mail size={12} /><InterfaceText>Email:</InterfaceText>{' '}{' '}
                           {channels.email
                             ? `${channels.email.status === 'sent' ? 'provider accepted' : channels.email.status || 'unconfirmed'}${
                                 channels.email.recipient || channels.email.to
@@ -2451,11 +2357,10 @@ export default function NotificationsPage({
                               ? channels.phone.status === 'failed'
                                 ? '#991B1B'
                                 : '#166534'
-                              : '#A8A29E',
+                              : 'var(--text-muted)',
                           }}
                         >
-                          <MessageSquare size={12} />
-                          Phone ({(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
+                          <MessageSquare size={12} /><InterfaceText>Phone (</InterfaceText>{(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
                           {channels.phone
                             ? `${channels.phone.status === 'sent' ? 'provider accepted' : channels.phone.status || 'unconfirmed'}${
                                 channels.phone.recipient || channels.phone.to
@@ -2466,7 +2371,7 @@ export default function NotificationsPage({
                         </span>
                       </div>
 
-                      {primary.workflowEventKey && <div style={{fontSize:12,color:'#57534E'}}>{siblings.map(item=><p key={item._id || item.id} style={{overflowWrap:'anywhere'}}>{item.channel.toUpperCase()}: {item.status === 'sent' ? 'provider accepted' : item.status} · {item.attempts || 0}/5 attempts{item.errorMessage ? ` — ${item.errorMessage}` : ''}{item.nextAttemptAt && item.retryable ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}` : ''}</p>)}</div>}
+                      {primary.workflowEventKey && <div style={{fontSize:12,color:'#57534E'}}>{siblings.map(item=><p key={item._id || item.id} style={{overflowWrap:'anywhere'}}>{item.channel.toUpperCase()}: {tx(item.status === 'sent' ? 'provider accepted' : item.status)} · {item.attempts || 0}{' '}<InterfaceText>/5 attempts</InterfaceText>{' '}{item.errorMessage ? ` — ${item.errorMessage}` : ''}{item.nextAttemptAt && item.retryable ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}` : ''}</p>)}</div>}
                       {/* Card Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {isUnread && (
@@ -2478,14 +2383,12 @@ export default function NotificationsPage({
                               borderRadius: '6px',
                               border: '1px solid #D6D3D1',
                               backgroundColor: '#FFFFFF',
-                              color: '#1C1917',
+                              color: 'var(--text-main)',
                               fontSize: '11px',
                               fontWeight: 700,
                               cursor: 'pointer',
                             }}
-                          >
-                            Mark as read
-                          </button>
+                          ><InterfaceText>Mark as read</InterfaceText></button>
                         )}
 
                         {isManagerOrAdmin &&
@@ -2517,8 +2420,7 @@ export default function NotificationsPage({
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  <RotateCw size={12} />
-                                  Retry {failedItem.channel.toUpperCase()}
+                                  <RotateCw size={12} /><InterfaceText>Retry</InterfaceText>{' '}{failedItem.channel.toUpperCase()}
                                 </button>
                               );
                             })}
@@ -2536,15 +2438,14 @@ export default function NotificationsPage({
                               gap: '5px',
                               padding: '5px 11px',
                               borderRadius: '6px',
-                              border: '1px solid #1C1917',
-                              backgroundColor: '#1C1917',
+                              border: '1px solid var(--text-main)',
+                              backgroundColor: 'var(--text-main)',
                               color: '#FFFFFF',
                               fontSize: '11px',
                               fontWeight: 700,
                               cursor: 'pointer',
                             }}
-                          >
-                            Open Order <ArrowRight size={13} />
+                          ><InterfaceText>Open Order</InterfaceText><ArrowRight size={13} />
                           </button>
                         )}
                       </div>
@@ -2577,11 +2478,11 @@ export default function NotificationsPage({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Send Tri-Channel Notification"
+            aria-label={tx("Send Tri-Channel Notification")}
             style={{
               width: 'min(520px, 100%)',
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '24px',
             }}
@@ -2595,12 +2496,8 @@ export default function NotificationsPage({
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#1C1917' }}>
-                  Send Tri-Channel Notification
-                </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#78716C' }}>
-                  Dispatches simultaneously to In-System Notifications, Email, and Phone (NextSMS / WhatsApp).
-                </p>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}><InterfaceText>Send Tri-Channel Notification</InterfaceText></h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Dispatches simultaneously to In-System Notifications, Email, and Phone (NextSMS / WhatsApp).</InterfaceText></p>
               </div>
               <button
                 type="button"
@@ -2608,7 +2505,7 @@ export default function NotificationsPage({
                 style={{
                   border: 'none',
                   background: 'transparent',
-                  color: '#78716C',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
                 }}
               >
@@ -2621,7 +2518,7 @@ export default function NotificationsPage({
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
             >
               <div>
-                <label
+                <label htmlFor={`control-100153`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2629,13 +2526,11 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                >
-                  Recipient Name
-                </label>
-                <input
+                ><InterfaceText>Recipient Name</InterfaceText></label>
+                <input id={`control-100153`}
                   type="text"
                   required
-                  placeholder="e.g. Amani Juma"
+                  placeholder={tx("e.g. Amani Juma")}
                   value={composeForm.recipientName}
                   onChange={(e) =>
                     setComposeForm({ ...composeForm, recipientName: e.target.value })
@@ -2651,9 +2546,9 @@ export default function NotificationsPage({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label
+                  <label htmlFor={`control-101295`}
                     style={{
                       display: 'block',
                       fontSize: '12px',
@@ -2661,12 +2556,10 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  >
-                    Email Address
-                  </label>
-                  <input
+                  ><InterfaceText>Email Address</InterfaceText></label>
+                  <input id={`control-101295`}
                     type="email"
-                    placeholder="client@example.com"
+                    placeholder={tx("client@example.com")}
                     value={composeForm.email}
                     onChange={(e) => setComposeForm({ ...composeForm, email: e.target.value })}
                     style={{
@@ -2681,7 +2574,7 @@ export default function NotificationsPage({
                 </div>
 
                 <div>
-                  <label
+                  <label htmlFor={`control-102285`}
                     style={{
                       display: 'block',
                       fontSize: '12px',
@@ -2689,10 +2582,8 @@ export default function NotificationsPage({
                       color: '#44403C',
                       marginBottom: '4px',
                     }}
-                  >
-                    Phone Number (NextSMS / WhatsApp)
-                  </label>
-                  <input
+                  ><InterfaceText>Phone Number (NextSMS / WhatsApp)</InterfaceText></label>
+                  <input id={`control-102285`}
                     type="text"
                     placeholder="+255762022730"
                     value={composeForm.phone}
@@ -2710,7 +2601,7 @@ export default function NotificationsPage({
               </div>
 
               <div>
-                <label
+                <label htmlFor={`control-103302`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2718,13 +2609,11 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                >
-                  Notification Title / Subject
-                </label>
-                <input
+                ><InterfaceText>Notification Title / Subject</InterfaceText></label>
+                <input id={`control-103302`}
                   type="text"
                   required
-                  placeholder="e.g. Taarifa ya Maendeleo ya Jarida Lako"
+                  placeholder={tx("e.g. Taarifa ya Maendeleo ya Jarida Lako")}
                   value={composeForm.title}
                   onChange={(e) => setComposeForm({ ...composeForm, title: e.target.value })}
                   style={{
@@ -2739,7 +2628,7 @@ export default function NotificationsPage({
               </div>
 
               <div>
-                <label
+                <label htmlFor={`control-104305`}
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -2747,13 +2636,11 @@ export default function NotificationsPage({
                     color: '#44403C',
                     marginBottom: '4px',
                   }}
-                >
-                  Message Content
-                </label>
-                <textarea
+                ><InterfaceText>Message Content</InterfaceText></label>
+                <textarea id={`control-104305`}
                   rows="4"
                   required
-                  placeholder="Write the notification message to send across Email, Phone, and In-System..."
+                  placeholder={tx("Write the notification message to send across Email, Phone, and In-System...")}
                   value={composeForm.message}
                   onChange={(e) => setComposeForm({ ...composeForm, message: e.target.value })}
                   style={{
@@ -2788,9 +2675,7 @@ export default function NotificationsPage({
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
-                >
-                  Cancel
-                </button>
+                ><InterfaceText>Cancel</InterfaceText></button>
                 <button
                   type="submit"
                   disabled={sending}
@@ -2798,7 +2683,7 @@ export default function NotificationsPage({
                     padding: '9px 16px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: '#1C1917',
+                    backgroundColor: 'var(--text-main)',
                     color: '#FFFFFF',
                     fontSize: '13px',
                     fontWeight: 700,

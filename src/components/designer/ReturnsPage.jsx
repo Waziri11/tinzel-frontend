@@ -1,4 +1,4 @@
-import InterfaceText from '../../i18n/InterfaceText';
+import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -16,6 +16,8 @@ import BrandLoading from '../common/BrandLoading';
 import './designerWorkspace.css';
 
 export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
+ const tx=useInterfaceText();
+
   const [filter, setFilter] = useState('active');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [searchInput, setSearchInput] = useState('');
@@ -86,7 +88,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div className="segmented" role="tablist" aria-label="Filter returns by status">
+          <div className="segmented" role="tablist" aria-label={tx("Filter returns by status")}>
             <button
               type="button"
               className={filter === 'active' ? 'active' : ''}
@@ -286,8 +288,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
         >
           <Search size={15} color="#78716C" />
           <input
-            aria-label="Search returned magazines"
-            placeholder="Search by Tracking ID, client, magazine title, designer, or requested fix..."
+            aria-label={tx("Search returned magazines")}
+            placeholder={tx("Search by Tracking ID, client, magazine title, designer, or requested fix...")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             style={{
@@ -347,7 +349,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
       {error && <div className="designer-alert is-error">{error}</div>}
 
       {loading ? (
-        <BrandLoading compact title="Loading returned magazines" />
+        <BrandLoading compact title={tx("Loading returned magazines")} />
       ) : (
         <div className="designer-table-card">
           <table>
@@ -407,8 +409,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                       </span>
                     </td>
                     <td>
-                      <strong style={{ display: 'block' }}><InterfaceText>Round</InterfaceText>{row.roundNumber}</strong>
-                      <span style={{ fontSize: '11px', color: '#78716C' }}><InterfaceText>Draft V</InterfaceText>{row.draftVersionNumber || row.currentDraftVersion || 1}
+                      <strong style={{ display: 'block' }}><InterfaceText>Round</InterfaceText>{' '}{row.roundNumber}</strong>
+                      <span style={{ fontSize: '11px', color: '#78716C' }}><InterfaceText>Draft V</InterfaceText>{' '}{row.draftVersionNumber || row.currentDraftVersion || 1}
                       </span>
                     </td>
                     <td style={{ maxWidth: '320px' }}>
@@ -421,7 +423,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                         ))}
                         {items.length > 3 && (
                           <li style={{ color: '#78716C', listStyle: 'none' }}>
-                            +{items.length - 3}<InterfaceText>more item</InterfaceText>{items.length - 3 === 1 ? '' : 's'}
+                            +{items.length - 3}{' '}<InterfaceText>more item</InterfaceText>{' '}{items.length - 3 === 1 ? '' : 's'}
                           </li>
                         )}
                       </ul>
@@ -441,12 +443,12 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                             fontSize: '12px',
                           }}
                         >
-                          <FileCheck2 size={14} /><InterfaceText>Resubmitted (V</InterfaceText>{row.submittedVersionNumber || row.currentDraftVersion})
+                          <FileCheck2 size={14} /><InterfaceText>Resubmitted (V</InterfaceText>{' '}{row.submittedVersionNumber || row.currentDraftVersion})
                         </span>
                       ) : (
                         <span className="return-progress">
                           <Clock3 size={14} />
-                          {done}/{items.length}<InterfaceText>addressed</InterfaceText></span>
+                          {done}/{items.length}{' '}<InterfaceText>addressed</InterfaceText></span>
                       )}
                     </td>
                     <td>

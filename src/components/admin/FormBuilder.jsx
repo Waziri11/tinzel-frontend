@@ -1,4 +1,4 @@
-import InterfaceText from '../../i18n/InterfaceText';
+import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
 import EditionPreview from './EditionPreview';
 import {useLanguage} from '../../i18n/LanguageContext';
 import './administration.css';
@@ -45,9 +45,11 @@ const FIELD_TYPES = [
 ];
 
 export default function FormBuilder({ token }) {
+ const tx=useInterfaceText();
+
   const {lang}=useLanguage();
   const [preview,setPreview]=useState(false);
-  const baseline=useRef(null);
+  const [baseline,setBaseline]=useState(null);
   const resetBaseline=useRef(false);
   // Navigation View: 'list' (Editions catalogue) | 'editor' (Form builder details)
   const [viewMode, setViewMode] = useState('list');
@@ -92,9 +94,9 @@ export default function FormBuilder({ token }) {
   const [isArchived, setIsArchived] = useState(false);
 
   const draftSnapshot=JSON.stringify({title,slug,description,titleSw,descriptionSw,magazineType,magazineTypeSw,price,currency,coverImageUrl,tillNumber,accountName,instructions,sections,fields});
-  const dirty=viewMode==='editor'&&baseline.current!==null&&baseline.current!==draftSnapshot;
-  useEffect(()=>{if(resetBaseline.current){baseline.current=draftSnapshot;resetBaseline.current=false;}},[draftSnapshot,viewMode]);
-  useEffect(()=>{if(!dirty)return;const guard=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[dirty]);
+  const dirty=viewMode==='editor'&&baseline!==null&&baseline!==draftSnapshot;
+  useEffect(()=>{if(resetBaseline.current){setBaseline(draftSnapshot);resetBaseline.current=false;}},[draftSnapshot,viewMode]);
+  useEffect(()=>{if(!dirty)return;const guard=event=>{event.preventDefault();event.returnValue='';};const leave=event=>{if(!window.confirm(lang==='sw'?'Uondoke bila kuhifadhi mabadiliko?':'Leave without saving your changes?'))event.preventDefault();};window.addEventListener('beforeunload',guard);window.addEventListener('tinzel:before-navigate',leave);return()=>{window.removeEventListener('beforeunload',guard);window.removeEventListener('tinzel:before-navigate',leave);};},[dirty,lang]);
   useEffect(() => {
     loadForms();
   }, [token]);
@@ -121,7 +123,7 @@ export default function FormBuilder({ token }) {
     setMagazineTypeSw(form.magazineTypeSw || '');
     setEditLang('en');
     setMagazineType(form.magazineType || 'Wedding & Love Magazine');
-    setPrice(form.price || 75000);
+    setPrice(form.price ?? 75000);
     setCurrency(form.currency || 'TZS');
     setCoverImageUrl(form.coverImageUrl || '');
     setTillNumber(form.lipaNambaInstructions?.tillNumber || '55667788');
@@ -370,7 +372,7 @@ export default function FormBuilder({ token }) {
         setSuccessMsg(`Edition "${res.form.title}" saved successfully!`);
         await loadForms();
       }
-      baseline.current=draftSnapshot;
+      setBaseline(draftSnapshot);
     } catch (err) {
       setError(err.message || 'Failed to save form');
     } finally {
@@ -449,6 +451,7 @@ export default function FormBuilder({ token }) {
   if (viewMode === 'list') {
     return (
       <div className="edition-admin edition-list" style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}>
+      {error&&<button className="ui-button" onClick={loadForms}>{tx('Try again')}</button>}
         {/* Top Header */}
         <div
           style={{
@@ -514,7 +517,7 @@ export default function FormBuilder({ token }) {
                 autoFocus
                 value={googleFormUrl}
                 onChange={(e) => setGoogleFormUrl(e.target.value)}
-                placeholder="https://forms.gle/..."
+                placeholder={tx("https://forms.gle/...")}
                 style={{ flex: 1, padding: '10px 12px', border: '1px solid #D6D3D1', borderRadius: '6px', fontSize: '13px' }}
               />
               <button type="submit" disabled={importing} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: 0, borderRadius: '6px', padding: '10px 18px', backgroundColor: 'var(--text-main)', color: '#FFFFFF', fontWeight: '700', cursor: importing ? 'not-allowed' : 'pointer' }}>
@@ -750,7 +753,7 @@ export default function FormBuilder({ token }) {
                     >
                       <div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                          {form.sections?.length || 1}<InterfaceText>Sections •</InterfaceText>{form.fields?.length || 0}<InterfaceText>Questions</InterfaceText></div>
+                          {form.sections?.length || 1}{' '}<InterfaceText>Sections •</InterfaceText>{' '}{form.fields?.length || 0}{' '}<InterfaceText>Questions</InterfaceText></div>
                         <div style={{ marginTop: '3px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isActive ? '#166534' : '#B45309' }}>
                           {form.isActive ? 'Published' : 'Draft'}
                         </div>
@@ -768,7 +771,7 @@ export default function FormBuilder({ token }) {
                           onClick={(event) => handleDeleteForm(form, event)}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #FCA5A5', borderRadius: '5px', backgroundColor: '#FEF2F2', color: '#B91C1C', fontSize: '11px', fontWeight: '700', cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer' }}
                         >
-                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}<InterfaceText>Delete</InterfaceText></button>
+                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}{' '}<InterfaceText>Delete</InterfaceText></button>
                       </div>
                     </div>
                   </div>
@@ -857,7 +860,7 @@ export default function FormBuilder({ token }) {
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
-            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}<InterfaceText>Save</InterfaceText>{isActive ? 'Changes' : 'Draft'}
+            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}{' '}<InterfaceText>Save</InterfaceText>{' '}{isActive ? 'Changes' : 'Draft'}
           </button>
           {!isActive && !isArchived && selectedFormId !== 'new' && (
             <button
@@ -870,7 +873,7 @@ export default function FormBuilder({ token }) {
                 cursor: publishing ? 'not-allowed' : 'pointer',
               }}
             >
-              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}<InterfaceText>Publish Edition</InterfaceText></button>
+              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}{' '}<InterfaceText>Publish Edition</InterfaceText></button>
           )}
         </div>
       </div>
@@ -918,7 +921,7 @@ export default function FormBuilder({ token }) {
       {importWarnings.length > 0 && (
         <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: '6px', padding: '14px 16px', marginBottom: '24px', color: '#92400E', fontSize: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: '700', marginBottom: '7px' }}>
-            <AlertCircle size={16} /><InterfaceText>Review</InterfaceText>{importWarnings.length}<InterfaceText>import</InterfaceText>{importWarnings.length === 1 ? 'warning' : 'warnings'}<InterfaceText>before publishing</InterfaceText></div>
+            <AlertCircle size={16} /><InterfaceText>Review</InterfaceText>{' '}{importWarnings.length}{' '}<InterfaceText>import</InterfaceText>{' '}{importWarnings.length === 1 ? 'warning' : 'warnings'}{' '}<InterfaceText>before publishing</InterfaceText></div>
           <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
             {importWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
           </ul>
@@ -951,7 +954,7 @@ export default function FormBuilder({ token }) {
                 : 'Editing the English version. Switch to Kiswahili to write the translated version of every question.'}
             </div>
           </div>
-          <div role="tablist" aria-label="Content language" style={{ display: 'inline-flex', border: '1px solid var(--accent-primary)', borderRadius: '6px', overflow: 'hidden' }}>
+          <div role="tablist" aria-label={tx("Content language")} style={{ display: 'inline-flex', border: '1px solid var(--accent-primary)', borderRadius: '6px', overflow: 'hidden' }}>
             {[['en', 'English'], ['sw', 'Kiswahili']].map(([code, label]) => (
               <button
                 key={code}
@@ -969,7 +972,7 @@ export default function FormBuilder({ token }) {
                   cursor: 'pointer',
                 }}
               >
-                {label}
+                {tx(label)}
               </button>
             ))}
           </div>
@@ -1072,10 +1075,10 @@ export default function FormBuilder({ token }) {
 
           <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+              <label htmlFor={`control-44917`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                 {isSw ? 'Magazine Edition Title (Kiswahili)' : 'Magazine Edition Title *'}
               </label>
-              <input
+              <input id={`control-44917`}
                 type="text"
                 required={!isSw}
                 placeholder={isSw ? title || 'e.g. Jarida la Kumbukumbu ya Mahafali' : 'e.g. Graduation Keepsake Magazine'}
@@ -1096,11 +1099,11 @@ export default function FormBuilder({ token }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>URL Slug (Generated automatically)</InterfaceText></label>
-              <input
+              <label htmlFor={`control-46001`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>URL Slug (Generated automatically)</InterfaceText></label>
+              <input id={`control-46001`}
                 type="text"
                 readOnly
-                placeholder="Generated from the edition title"
+                placeholder={tx("Generated from the edition title")}
                 value={slug}
                 style={{
                   width: '100%',
@@ -1123,10 +1126,10 @@ export default function FormBuilder({ token }) {
 
           <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+              <label htmlFor={`control-47337`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                 {isSw ? 'Magazine Type (Kiswahili)' : 'Magazine Type'}
               </label>
-              <input
+              <input id={`control-47337`}
                 type="text"
                 placeholder={isSw ? magazineType : 'e.g. Wedding Magazine'}
                 value={isSw ? magazineTypeSw : magazineType}
@@ -1145,8 +1148,8 @@ export default function FormBuilder({ token }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Price *</InterfaceText></label>
-              <input
+              <label htmlFor={`control-48301`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Price *</InterfaceText></label>
+              <input id={`control-48301`}
                 type="number"
                 required
                 placeholder="75000"
@@ -1166,8 +1169,8 @@ export default function FormBuilder({ token }) {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Currency</InterfaceText></label>
-              <select
+              <label htmlFor={`control-49121`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Currency</InterfaceText></label>
+              <select id={`control-49121`}
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 style={{
@@ -1189,10 +1192,10 @@ export default function FormBuilder({ token }) {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+            <label htmlFor={`control-50136`} style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
               {isSw ? 'Form Description & Welcome Note (Kiswahili)' : 'Form Description & Welcome Note'}
             </label>
-            <textarea
+            <textarea id={`control-50136`}
               rows={2}
               placeholder={isSw ? description : 'e.g. Personalized luxury publication celebrating your milestones with custom layouts.'}
               value={isSw ? descriptionSw : description}
@@ -1266,7 +1269,7 @@ export default function FormBuilder({ token }) {
                     }}
                   >
                     <div style={{ flex: 1, marginRight: '16px' }}>
-                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--accent-primary)', letterSpacing: '0.8px' }}><InterfaceText>Section</InterfaceText>{secIdx + 1}<InterfaceText>of</InterfaceText>{sections.length}
+                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--accent-primary)', letterSpacing: '0.8px' }}><InterfaceText>Section</InterfaceText>{' '}{secIdx + 1}{' '}<InterfaceText>of</InterfaceText>{' '}{sections.length}
                       </div>
                       <input
                         type="text"
@@ -1313,7 +1316,7 @@ export default function FormBuilder({ token }) {
                           cursor: 'pointer',
                           padding: '4px',
                         }}
-                        title="Delete Section"
+                        title={tx("Delete Section")}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1351,10 +1354,10 @@ export default function FormBuilder({ token }) {
                           >
                             <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
                               <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>
+                                <label htmlFor={`control-58099-${field.fieldId}`} style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>
                                   {isSw ? 'Question Label / Spread Title (Kiswahili)' : 'Question Label / Spread Title *'}
                                 </label>
-                                <input
+                                <input id={`control-58099-${field.fieldId}`}
                                   type="text"
                                   required={!isSw}
                                   placeholder={isSw ? field.label : 'e.g. Ceremony Photos, Couple Vows, Reception Highlights'}
@@ -1375,8 +1378,8 @@ export default function FormBuilder({ token }) {
                               </div>
 
                               <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}><InterfaceText>Response Type</InterfaceText></label>
-                                <select
+                                <label htmlFor={`control-59573-${field.fieldId}`} style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}><InterfaceText>Response Type</InterfaceText></label>
+                                <select id={`control-59573-${field.fieldId}`}
                                   value={field.type}
                                   onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
                                   style={{
@@ -1457,8 +1460,8 @@ export default function FormBuilder({ token }) {
 
                             {field.type === 'linear_scale' && (
                               <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                                <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label="Scale minimum" />
-                                <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label="Scale maximum" />
+                                <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label={tx("Scale minimum")} />
+                                <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label={tx("Scale maximum")} />
                                 <input value={field.scaleConfig?.[lk('lowLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('lowLabel')]: e.target.value })} placeholder={isSw ? `Low label (Kiswahili)${field.scaleConfig?.lowLabel ? `: ${field.scaleConfig.lowLabel}` : ''}` : 'Low label'} />
                                 <input value={field.scaleConfig?.[lk('highLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('highLabel')]: e.target.value })} placeholder={isSw ? `High label (Kiswahili)${field.scaleConfig?.highLabel ? `: ${field.scaleConfig.highLabel}` : ''}` : 'High label'} />
                               </div>
@@ -1466,8 +1469,8 @@ export default function FormBuilder({ token }) {
 
                             {field.type === 'rating' && (
                               <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-                                <label style={{ fontSize: '11px', fontWeight: '700' }}><InterfaceText>Levels</InterfaceText><input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
-                                <select value={field.ratingConfig?.iconType || 'star'} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, iconType: e.target.value })}>
+                                <label htmlFor={`control-66719-${field.fieldId}`} style={{ fontSize: '11px', fontWeight: '700' }}><InterfaceText>Levels</InterfaceText><input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
+                                <select id={`control-66719-${field.fieldId}`} value={field.ratingConfig?.iconType || 'star'} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, iconType: e.target.value })}>
                                   <option value="star"><InterfaceText>Stars</InterfaceText></option><option value="heart"><InterfaceText>Hearts</InterfaceText></option><option value="thumb"><InterfaceText>Thumbs</InterfaceText></option>
                                 </select>
                               </div>

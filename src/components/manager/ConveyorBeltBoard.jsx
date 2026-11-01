@@ -1,4 +1,4 @@
-import InterfaceText from '../../i18n/InterfaceText';
+import InterfaceText,{useInterfaceText} from '../../i18n/InterfaceText';
 import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
 import {
@@ -164,6 +164,8 @@ const emptyForm = {
 };
 
 export default function ConveyorBeltBoard({ token, phase = null, onNavigateToReturns = null }) {
+ const tx=useInterfaceText();
+
   const phaseConfig = phase ? PHASE_CONFIGS[phase] : null;
   const activeStages = useMemo(() => (phaseConfig ? phaseConfig.stages : ALL_STAGES), [phaseConfig]);
   const stageForStatus = useCallback(
@@ -320,7 +322,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       if (action === 'resume') response = await api.manager.hold(token, selectedOrder._id, { action: 'resume', reason: 'Manager resolved the recorded hold.' });
       await finishAction(response?.message || 'Order updated successfully.');
     } catch (requestError) {
-      setUncertain(!requestError.status || requestError.status>=500);
+      setUncertain(!requestError.status || requestError.status===409 || requestError.status>=500);
       setNotice({ type: 'error', text: requestError.message || 'The order could not be updated.' });
     } finally {
       setSubmitting(false);
@@ -374,7 +376,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         }}
       >
         <Icon size={15} />
-        {label}
+        {tx(label)}
       </button>
     );
   };
@@ -385,8 +387,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         <div className="manager-phase-banner">
           <div>
             <span className="manager-phase-eyebrow"><InterfaceText>Kanban Phase</InterfaceText></span>
-            <h1 className="manager-phase-title">{phaseConfig.title}</h1>
-            <p className="manager-phase-description">{phaseConfig.description}</p>
+            <h1 className="manager-phase-title">{tx(phaseConfig.title)}</h1>
+            <p className="manager-phase-description">{tx(phaseConfig.description)}</p>
           </div>
           {phase === 'design_phase' && onNavigateToReturns && (
             <button type="button" className="manager-secondary-action" onClick={onNavigateToReturns}>
@@ -395,7 +397,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </div>
       )}
 
-      {notice && <div className={`manager-notice is-${notice.type}`} role="status">{notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}<span>{notice.text}</span><button type="button" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
+      {notice && <div className={`manager-notice is-${notice.type}`} role="status">{notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}<span>{notice.text}</span><button type="button" aria-label={tx("Dismiss message")} onClick={() => setNotice(null)}>×</button></div>}
       {error && <div className="manager-notice is-error" role="alert"><AlertTriangle size={18} /><span>{error}</span><button type="button" onClick={loadOrders}><InterfaceText>Try again</InterfaceText></button></div>}
 
       <div className={`manager-summary-grid${phaseConfig ? ' is-four-col' : ''}`}>
@@ -413,34 +415,34 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             }}
           >
             <span className="manager-summary-card__icon"><Icon size={20} /></span>
-            <span><strong>{value}</strong><small>{label}</small></span>
+            <span><strong>{value}</strong><small>{tx(label)}</small></span>
           </button>
         ))}
       </div>
 
       <div className="manager-control-bar">
-        <div className="manager-view-switch" aria-label="Dashboard view">
+        <div className="manager-view-switch" aria-label={tx("Dashboard view")}>
           <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}><LayoutDashboard size={16} /><InterfaceText>Kanban Board</InterfaceText></button>
           <button type="button" className={view === 'attention' ? 'is-active' : ''} onClick={() => setView('attention')}><ListChecks size={16} /><InterfaceText>Priority Queue (</InterfaceText>{attentionOrders.length})</button>
         </div>
         <form className="manager-search" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
           <Search size={16} />
-          <input aria-label="Search orders" placeholder="Search by Tracking ID, Submission ID, or Client" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
-          {searchInput && <button type="button" aria-label="Clear search" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
+          <input aria-label={tx("Search orders")} placeholder={tx("Search by Tracking ID, Submission ID, or Client")} value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          {searchInput && <button type="button" aria-label={tx("Clear search")} onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>×</button>}
         </form>
         <label className="manager-filter"><span className="visually-hidden"><InterfaceText>Stage</InterfaceText></span>
-          <select aria-label="Filter by stage" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); if (event.target.value !== 'all') setMobileStage(stageForStatus(event.target.value)); setPage(1); }}>
+          <select aria-label={tx("Filter by stage")} value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); if (event.target.value !== 'all') setMobileStage(stageForStatus(event.target.value)); setPage(1); }}>
             <option value="all"><InterfaceText>All stages in phase</InterfaceText></option>
             {allowedFilterStatuses.map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
           </select>
         </label>
         <label className="manager-filter"><span className="visually-hidden"><InterfaceText>Order scope</InterfaceText></span>
-          <select aria-label="Filter order scope" value={scope} onChange={(event) => { setScope(event.target.value); setPage(1); }}>
+          <select aria-label={tx("Filter order scope")} value={scope} onChange={(event) => { setScope(event.target.value); setPage(1); }}>
             <option value="active"><InterfaceText>Active</InterfaceText></option>
             <option value="all"><InterfaceText>All orders</InterfaceText></option>
           </select>
         </label>
-        <button type="button" className="manager-icon-action" aria-label="Refresh orders" title="Refresh" onClick={loadOrders} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} /></button>
+        <button type="button" className="manager-icon-action" aria-label={tx("Refresh orders")} title={tx("Refresh")} onClick={loadOrders} disabled={loading}><RefreshCw size={17} className={loading ? 'spin' : ''} /></button>
       </div>
 
       {loading && orders.length === 0 ? <div className="manager-loading"><RefreshCw className="spin" /><span><InterfaceText>Loading production orders…</InterfaceText></span></div> : null}
@@ -473,17 +475,17 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
       {!loading && view === 'board' && (
         <>
-          <label className="manager-mobile-stage-picker"><InterfaceText>Stage</InterfaceText><select aria-label="Board stage" value={selectedMobileStage} onChange={(event) => setMobileStage(event.target.value)}>
+          <label className="manager-mobile-stage-picker"><InterfaceText>Stage</InterfaceText><select aria-label={tx("Board stage")} value={selectedMobileStage} onChange={(event) => setMobileStage(event.target.value)}>
               {activeStages.map((stage) => {
                 const count = stage.statuses.reduce((sum, status) => sum + (statusCounts[status] || 0), 0);
-                return <option key={stage.id} value={stage.id}>{stage.title} ({count})</option>;
+                return <option key={stage.id} value={stage.id}>{tx(stage.title)} ({count})</option>;
               })}
             </select>
           </label>
           <div
             className="manager-board"
             style={{ gridTemplateColumns: `repeat(${activeStages.length}, minmax(265px, 1fr))` }}
-            aria-label="Production conveyor"
+            aria-label={tx("Production conveyor")}
           >
             {activeStages.map((stage) => {
               const stageOrders = orders.filter((order) => stage.statuses.includes(order.status));
@@ -491,7 +493,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
               return (
                 <section key={stage.id} className={`manager-board-column${selectedMobileStage === stage.id ? ' is-mobile-active' : ''}`}>
                   <header>
-                    <h2>{stage.title}</h2>
+                    <h2>{tx(stage.title)}</h2>
                     <span>{count}</span>
                   </header>
                   <div className="manager-board-column__body">
@@ -520,7 +522,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                             {order.formTitle || order.formId?.title || 'Tinzel Magazine'}
                           </span>
                           <div className="manager-stage-row__meta">
-                            <span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span>
+                            <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status))}</span>
                             {order.assignedDesigner?.name && (
                               <span className="manager-stage-row__designer">{order.assignedDesigner.name}</span>
                             )}
@@ -537,8 +539,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       )}
 
       <div className="manager-pagination">
-        <span>{orders.length}<InterfaceText>of</InterfaceText>{total}</span>
-        <div><button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} /></button><span>{page} / {pageCount}</span><button type="button" aria-label="Next page" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight size={17} /></button></div>
+        <span>{orders.length}{' '}<InterfaceText>of</InterfaceText>{' '}{total}</span>
+        <div><button type="button" aria-label={tx("Previous page")} disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft size={17} /></button><span>{page} / {pageCount}</span><button type="button" aria-label={tx("Next page")} disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight size={17} /></button></div>
       </div>
 
       <Drawer
@@ -557,44 +559,50 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 }
 
 function OrderDetail({ activeTab,onTabChange,token, order, auditLogs, beginAction, nextActionButton, onReviewed }) {
+ const tx=useInterfaceText();
+
   const currentDraft = order.draftVersions?.find((draft) => draft.versionNumber === order.currentDraftVersion);
   const [selectedVersion,setSelectedVersion] = useState(null);
   const items = [
-    { key: 'overview', label: 'Overview', children: <div className="manager-detail-grid"><Detail label="Status" value={labelStatus(order.status)} /><Detail label="Client" value={order.clientName} /><Detail label="WhatsApp" value={order.clientWhatsApp} /><Detail label="Email" value={order.clientEmail || 'Not provided'} /><Detail label="Magazine" value={order.formTitle || order.formId?.title} /><Detail label="Designer" value={order.assignedDesigner?.name || 'Not assigned'} /><Detail label="Created" value={displayDate(order.createdAt)} /><Detail label="Last updated" value={displayDate(order.updatedAt)} />{order.holdReason && <Detail wide label="Hold reason" value={order.holdReason} />}</div> },
+    { key: 'overview', label: 'Overview', children: <div className="manager-detail-grid"><Detail label={tx("Status")} value={tx(labelStatus(order.status))} /><Detail label={tx("Client")} value={order.clientName} /><Detail label={tx("WhatsApp")} value={order.clientWhatsApp} /><Detail label={tx("Email")} value={order.clientEmail || 'Not provided'} /><Detail label={tx("Magazine")} value={order.formTitle || order.formId?.title} /><Detail label={tx("Designer")} value={order.assignedDesigner?.name || 'Not assigned'} /><Detail label={tx("Created")} value={displayDate(order.createdAt)} /><Detail label={tx("Last updated")} value={displayDate(order.updatedAt)} />{order.holdReason && <Detail wide label={tx("Hold reason")} value={order.holdReason} />}</div> },
     { key: 'answers', label: 'Client answers', children: <OrderAnswersView submittedData={order.submittedData} submittedFields={order.submittedFields} formFields={order.formId?.fields} /> },
     { key: 'photos', label: `Photos (${order.uploadedPhotos?.length || 0})`, children: <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} submittedData={order.submittedData} /> },
-    { key: 'drafts', label: `Drafts (${order.draftVersions?.length || 0})`, children: <div>{currentDraft && <PdfBookReader token={token} orderId={order._id} version={selectedVersion||currentDraft.versionNumber} title={`Draft version ${selectedVersion||currentDraft.versionNumber}`} onReviewed={onReviewed}/>}<div className="manager-version-list">{(order.draftVersions || []).slice().reverse().map((draft) => <article key={draft._id || draft.versionNumber} className={draft.versionNumber === order.currentDraftVersion ? 'is-current' : ''}><div><button onClick={()=>setSelectedVersion(draft.versionNumber)}><InterfaceText>Open version</InterfaceText>{draft.versionNumber}</button><span>{displayDate(draft.uploadedAt)}</span></div><p>{draft.designerNotes || 'No designer notes.'}</p><div className="manager-version-actions"><span><InterfaceText>Manager:</InterfaceText>{draft.managerReview?.status || 'pending'}</span><span><InterfaceText>Client:</InterfaceText>{draft.clientReview?.status || 'pending'}</span></div></article>)}</div></div> },
-    { key: 'production', label: 'Print & delivery', children: <div className="manager-detail-grid"><Detail label="Print file" value={order.printDocument?.url ? <a href={order.printDocument.url} target="_blank" rel="noreferrer"><InterfaceText>Open print-ready document</InterfaceText></a> : 'Not uploaded'} /><Detail label="Quantity" value={order.printDocument?.specs?.quantity || 'Not set'} /><Detail label="Paper" value={order.printDocument?.specs?.paperType || 'Not set'} /><Detail label="Finish" value={order.printDocument?.specs?.coverFinish || 'Not set'} /><Detail label="Printer" value={order.printingDetails?.printerPhone || 'Not dispatched'} /><Detail label="Courier" value={order.dispatchDetails?.carrier || 'Not dispatched'} /><Detail wide label="Delivery address" value={order.dispatchDetails?.deliveryAddress || 'Not recorded'} /></div> },
+    { key: 'drafts', label: `Drafts (${order.draftVersions?.length || 0})`, children: <div>{currentDraft && <PdfBookReader token={token} orderId={order._id} version={selectedVersion||currentDraft.versionNumber} title={`Draft version ${selectedVersion||currentDraft.versionNumber}`} onReviewed={onReviewed}/>}<div className="manager-version-list">{(order.draftVersions || []).slice().reverse().map((draft) => <article key={draft._id || draft.versionNumber} className={draft.versionNumber === order.currentDraftVersion ? 'is-current' : ''}><div><button onClick={()=>setSelectedVersion(draft.versionNumber)}><InterfaceText>Open version</InterfaceText>{' '}{draft.versionNumber}</button><span>{displayDate(draft.uploadedAt)}</span></div><p>{draft.designerNotes || 'No designer notes.'}</p><div className="manager-version-actions"><span><InterfaceText>Manager:</InterfaceText>{' '}{draft.managerReview?.status || 'pending'}</span><span><InterfaceText>Client:</InterfaceText>{' '}{draft.clientReview?.status || 'pending'}</span></div></article>)}</div></div> },
+    { key: 'production', label: 'Print & delivery', children: <div className="manager-detail-grid"><Detail label={tx("Print file")} value={order.printDocument?.url ? <a href={order.printDocument.url} target="_blank" rel="noreferrer"><InterfaceText>Open print-ready document</InterfaceText></a> : 'Not uploaded'} /><Detail label={tx("Quantity")} value={order.printDocument?.specs?.quantity || 'Not set'} /><Detail label={tx("Paper")} value={order.printDocument?.specs?.paperType || 'Not set'} /><Detail label={tx("Finish")} value={order.printDocument?.specs?.coverFinish || 'Not set'} /><Detail label={tx("Printer")} value={order.printingDetails?.printerPhone || 'Not dispatched'} /><Detail label={tx("Courier")} value={order.dispatchDetails?.carrier || 'Not dispatched'} /><Detail wide label={tx("Delivery address")} value={order.dispatchDetails?.deliveryAddress || 'Not recorded'} /></div> },
     { key: 'activity', label: `Activity (${auditLogs.length})`, children: <ol className="manager-timeline">{auditLogs.map((log) => <li key={log._id}><span>{displayDate(log.createdAt)}</span><strong>{String(log.action).replace(/_/g, ' ')}</strong><small>{log.actor?.name || log.actor?.type || 'System'}</small></li>)}</ol> },
   ];
-  return <div className="manager-order-detail"><div className="manager-order-detail__hero"><div><span className={`manager-status is-${order.status}`}>{labelStatus(order.status)}</span><h2>{order.clientName}</h2><p>{order.formTitle || order.formId?.title}</p></div><div className="manager-order-detail__actions">{nextActionButton(order)}{order.status !== 'closed' && order.status !== 'on_hold' && <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}><PauseCircle size={16} /><InterfaceText>Place on hold</InterfaceText></button>}</div></div>{order.status === 'draft_manager_review' && currentDraft && <div className="manager-review-callout"><FileCheck2 size={22}/><div><strong><InterfaceText>Review the entire magazine before deciding.</InterfaceText></strong><p><InterfaceText>Version</InterfaceText>{currentDraft.versionNumber}<InterfaceText>is hidden from the client until you release it. Open the Drafts tab to inspect it.</InterfaceText></p></div></div>}<Tabs activeKey={items.some(item=>item.key===activeTab)?activeTab:'overview'} onChange={onTabChange} items={items} /> </div>;
+  return <div className="manager-order-detail"><div className="manager-order-detail__hero"><div><span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status))}</span><h2>{order.clientName}</h2><p>{order.formTitle || order.formId?.title}</p></div><div className="manager-order-detail__actions">{nextActionButton(order)}{order.status !== 'closed' && order.status !== 'on_hold' && <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}><PauseCircle size={16} /><InterfaceText>Place on hold</InterfaceText></button>}</div></div>{order.status === 'draft_manager_review' && currentDraft && <div className="manager-review-callout"><FileCheck2 size={22}/><div><strong><InterfaceText>Review the entire magazine before deciding.</InterfaceText></strong><p><InterfaceText>Version</InterfaceText>{' '}{currentDraft.versionNumber}{' '}<InterfaceText>is hidden from the client until you release it. Open the Drafts tab to inspect it.</InterfaceText></p></div></div>}<Tabs activeKey={items.some(item=>item.key===activeTab)?activeTab:'overview'} onChange={onTabChange} items={items.map(item=>({...item,label:tx(item.label)}))} /> </div>;
 }
 
 function Detail({ label, value, wide = false }) {
-  return <div className={wide ? 'manager-detail is-wide' : 'manager-detail'}><dt>{label}</dt><dd>{value || 'Not recorded'}</dd></div>;
+ const tx=useInterfaceText();
+
+  return <div className={wide ? 'manager-detail is-wide' : 'manager-detail'}><dt>{tx(label)}</dt><dd>{value || 'Not recorded'}</dd></div>;
 }
 
 function ActionModal({ notice,uncertain,onCheckSaved,action, order, form, setForm, designers, settings, submitting, onCancel, onSubmit }) {
+ const tx=useInterfaceText();
+
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const updateDraftItem = (index, key, value) => setForm((current) => ({ ...current, draftItems: current.draftItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
   const titles = { payment: 'Verify Lipa Namba payment', draft: `Review complete draft V${order?.currentDraftVersion || ''}`, print: 'Authorize printing', printer: 'Record printer progress', dispatch: 'Authorize courier dispatch', delivery: 'Confirm delivery and close', reassign: 'Assign designer', hold: 'Place order on hold', resume: 'Resume this order' };
   const destructive = ['payment', 'print', 'dispatch', 'delivery'].includes(action);
-  return <Modal title={titles[action] || 'Manager action'} open={Boolean(action)} onCancel={onCancel} footer={null} destroyOnHidden className="manager-action-modal">
+  return <Modal title={tx(titles[action] || 'Manager action')} open={Boolean(action)} onCancel={onCancel} footer={null} destroyOnHidden className="manager-action-modal">
     {notice?.type==='error'&&<div className="manager-notice is-error" role="alert">{notice.text}</div>}
     {uncertain?<div className="manager-review-callout"><p><InterfaceText>The result is unconfirmed. Check the saved order before repeating this action.</InterfaceText></p><button className="manager-secondary-action" onClick={onCheckSaved}><InterfaceText>Check saved order</InterfaceText></button></div>:null}
     {action && <form onSubmit={onSubmit} className="manager-action-form">
       <p className="manager-action-context"><strong>{orderId(order)}</strong> · {order?.clientName}</p>
-      {action === 'payment' && <><p><InterfaceText>Verification issues the client’s official tracking ID and starts designer assignment. Compare the amount with the expected price before confirming.</InterfaceText></p><label><InterfaceText>Payment reference</InterfaceText><input required value={form.paymentRef} onChange={update('paymentRef')} placeholder="Recorded Lipa Namba reference" /></label><label><InterfaceText>Amount paid (TZS)</InterfaceText><input required type="number" min="1" value={form.amountPaid} onChange={update('amountPaid')} /></label></>}
-      {action === 'draft' && <><p><InterfaceText>The complete magazine remains private until you approve it. Returns become a checklist for the designer.</InterfaceText></p><fieldset><legend><InterfaceText>Decision</InterfaceText></legend><label className="manager-radio"><input type="radio" name="draftAction" value="release_to_client" checked={form.draftAction === 'release_to_client'} onChange={update('draftAction')} /><InterfaceText>Approve and release to client</InterfaceText></label><label className="manager-radio"><input type="radio" name="draftAction" value="return_to_designer" checked={form.draftAction === 'return_to_designer'} onChange={update('draftAction')} /><InterfaceText>Return to designer</InterfaceText></label></fieldset>{form.draftAction === 'return_to_designer' ? <div><label><InterfaceText>Required fixes</InterfaceText></label>{form.draftItems.map((item,index)=><div key={index} className="manager-fix-editor"><input aria-label={`Page reference ${index+1}`} placeholder="Page (optional)" value={item.pageReference} onChange={(e)=>updateDraftItem(index,'pageReference',e.target.value)}/><input required aria-label={`Fix ${index+1}`} placeholder="Describe one required fix" value={item.text} onChange={(e)=>updateDraftItem(index,'text',e.target.value)}/>{form.draftItems.length>1&&<button type="button" onClick={()=>setForm((current)=>({...current,draftItems:current.draftItems.filter((_,i)=>i!==index)}))}><InterfaceText>Remove</InterfaceText></button>}</div>)}<button type="button" className="manager-secondary-action" onClick={()=>setForm((current)=>({...current,draftItems:[...current.draftItems,{text:'',pageReference:''}]}))}><InterfaceText>Add another fix</InterfaceText></button></div> : <label><InterfaceText>Review notes</InterfaceText><textarea rows="4" value={form.draftFeedback} onChange={update('draftFeedback')} placeholder="Optional internal review note" /></label>}</>}
+      {action === 'payment' && <><p><InterfaceText>Verification issues the client’s official tracking ID and starts designer assignment. Compare the amount with the expected price before confirming.</InterfaceText></p><label><InterfaceText>Payment reference</InterfaceText><input required value={form.paymentRef} onChange={update('paymentRef')} placeholder={tx("Recorded Lipa Namba reference")} /></label><label><InterfaceText>Amount paid (TZS)</InterfaceText><input required type="number" min="1" value={form.amountPaid} onChange={update('amountPaid')} /></label></>}
+      {action === 'draft' && <><p><InterfaceText>The complete magazine remains private until you approve it. Returns become a checklist for the designer.</InterfaceText></p><fieldset><legend><InterfaceText>Decision</InterfaceText></legend><label className="manager-radio"><input type="radio" name="draftAction" value="release_to_client" checked={form.draftAction === 'release_to_client'} onChange={update('draftAction')} /><InterfaceText>Approve and release to client</InterfaceText></label><label className="manager-radio"><input type="radio" name="draftAction" value="return_to_designer" checked={form.draftAction === 'return_to_designer'} onChange={update('draftAction')} /><InterfaceText>Return to designer</InterfaceText></label></fieldset>{form.draftAction === 'return_to_designer' ? <div><label><InterfaceText>Required fixes</InterfaceText></label>{form.draftItems.map((item,index)=><div key={index} className="manager-fix-editor"><input aria-label={`Page reference ${index+1}`} placeholder={tx("Page (optional)")} value={item.pageReference} onChange={(e)=>updateDraftItem(index,'pageReference',e.target.value)}/><input required aria-label={`Fix ${index+1}`} placeholder={tx("Describe one required fix")} value={item.text} onChange={(e)=>updateDraftItem(index,'text',e.target.value)}/>{form.draftItems.length>1&&<button type="button" onClick={()=>setForm((current)=>({...current,draftItems:current.draftItems.filter((_,i)=>i!==index)}))}><InterfaceText>Remove</InterfaceText></button>}</div>)}<button type="button" className="manager-secondary-action" onClick={()=>setForm((current)=>({...current,draftItems:[...current.draftItems,{text:'',pageReference:''}]}))}><InterfaceText>Add another fix</InterfaceText></button></div> : <label><InterfaceText>Review notes</InterfaceText><textarea rows="4" value={form.draftFeedback} onChange={update('draftFeedback')} placeholder={tx("Optional internal review note")} /></label>}</>}
       {action === 'print' && <><p><InterfaceText>This sends the client-approved, print-ready document and its specifications to the configured printer.</InterfaceText></p><div className={settings.printer?.configured ? 'manager-config-status is-ready' : 'manager-config-status is-blocked'}>{settings.printer?.configured ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}<span>{settings.printer?.configured ? `Verified printer: ${settings.printer.phone}` : 'No verified printer is configured. Ask an administrator to configure it first.'}</span></div></>}
-      {action === 'printer' && <><label><InterfaceText>Progress state</InterfaceText><select value={form.printerStage} onChange={update('printerStage')}><option value="in_progress"><InterfaceText>Printer acknowledged — in progress</InterfaceText></option><option value="completed"><InterfaceText>Printing complete — manager verified</InterfaceText></option></select></label><label><InterfaceText>Printer reply or verification note</InterfaceText><textarea required rows="4" value={form.printerNotes} onChange={update('printerNotes')} placeholder="Record what the printer confirmed and how you verified it" /></label></>}
+      {action === 'printer' && <><label><InterfaceText>Progress state</InterfaceText><select value={form.printerStage} onChange={update('printerStage')}><option value="in_progress"><InterfaceText>Printer acknowledged — in progress</InterfaceText></option><option value="completed"><InterfaceText>Printing complete — manager verified</InterfaceText></option></select></label><label><InterfaceText>Printer reply or verification note</InterfaceText><textarea required rows="4" value={form.printerNotes} onChange={update('printerNotes')} placeholder={tx("Record what the printer confirmed and how you verified it")} /></label></>}
       {action === 'dispatch' && <><p><InterfaceText>Use the genuine courier details; Tinzel will share this reference with the client.</InterfaceText></p><label><InterfaceText>Carrier or delivery service</InterfaceText><input required value={form.carrier} onChange={update('carrier')} /></label><label><InterfaceText>Waybill or tracking reference</InterfaceText><input required value={form.trackingReference} onChange={update('trackingReference')} /></label><label><InterfaceText>Confirmed delivery address</InterfaceText><textarea required rows="3" value={form.deliveryAddress} onChange={update('deliveryAddress')} /></label><label><InterfaceText>Dispatch notes</InterfaceText><textarea rows="3" value={form.dispatchNotes} onChange={update('dispatchNotes')} /></label></>}
       {action === 'delivery' && <><p><InterfaceText>Close the order only after receiving delivery evidence from the client or courier.</InterfaceText></p><label><InterfaceText>Recipient name</InterfaceText><input required value={form.recipientName} onChange={update('recipientName')} /></label><label><InterfaceText>Confirmation method</InterfaceText><select required value={form.confirmationMethod} onChange={update('confirmationMethod')}><option value=""><InterfaceText>Choose method</InterfaceText></option><option value="client_whatsapp"><InterfaceText>Client WhatsApp confirmation</InterfaceText></option><option value="courier_proof"><InterfaceText>Courier proof of delivery</InterfaceText></option><option value="phone_call"><InterfaceText>Phone call</InterfaceText></option><option value="in_person"><InterfaceText>Confirmed in person</InterfaceText></option></select></label><label><InterfaceText>Delivery confirmation details</InterfaceText><textarea required rows="4" value={form.recipientFeedback} onChange={update('recipientFeedback')} /></label></>}
-      {action === 'reassign' && <><label><InterfaceText>Active designer</InterfaceText><select required value={form.designerId} onChange={update('designerId')}><option value=""><InterfaceText>Choose designer</InterfaceText></option>{designers.map((designer) => <option key={designer._id} value={designer._id}>{designer.name} — {designer.currentActiveWorkload}/{designer.maxActiveWorkload}<InterfaceText>active</InterfaceText></option>)}</select></label><label><InterfaceText>Reason for assignment</InterfaceText><textarea required rows="3" value={form.reassignReason} onChange={update('reassignReason')} /></label></>}
-      {action === 'hold' && <label><InterfaceText>Reason for hold</InterfaceText><textarea required rows="4" value={form.holdReason} onChange={update('holdReason')} placeholder="Explain the blocker and what is needed to resume" /></label>}
+      {action === 'reassign' && <><label><InterfaceText>Active designer</InterfaceText><select required value={form.designerId} onChange={update('designerId')}><option value=""><InterfaceText>Choose designer</InterfaceText></option>{designers.map((designer) => <option key={designer._id} value={designer._id}>{designer.name} — {designer.currentActiveWorkload}/{designer.maxActiveWorkload}{' '}<InterfaceText>active</InterfaceText></option>)}</select></label><label><InterfaceText>Reason for assignment</InterfaceText><textarea required rows="3" value={form.reassignReason} onChange={update('reassignReason')} /></label></>}
+      {action === 'hold' && <label><InterfaceText>Reason for hold</InterfaceText><textarea required rows="4" value={form.holdReason} onChange={update('holdReason')} placeholder={tx("Explain the blocker and what is needed to resume")} /></label>}
       {action === 'resume' && <p><InterfaceText>Resume this order at the stage it occupied before the hold?</InterfaceText></p>}
       {destructive && <div className="manager-impact-note"><AlertTriangle size={18} /><span><InterfaceText>This action changes the official workflow record and may notify an external party.</InterfaceText></span></div>}
-      <div className="manager-action-footer"><button type="button" className="manager-secondary-action" onClick={onCancel}><InterfaceText>Cancel</InterfaceText></button><button type="submit" className="manager-primary-action" disabled={submitting || uncertain || (action === 'print' && !settings.printer?.configured)}>{submitting ? 'Saving…' : action === 'draft' && form.draftAction === 'return_to_designer' ? 'Return with instructions' : titles[action]}</button></div>
+      <div className="manager-action-footer"><button type="button" className="manager-secondary-action" onClick={onCancel}><InterfaceText>Cancel</InterfaceText></button><button type="submit" className="manager-primary-action" disabled={submitting || uncertain || (action === 'print' && !settings.printer?.configured)}>{tx(submitting ? 'Saving…' : action === 'draft' && form.draftAction === 'return_to_designer' ? 'Return with instructions' : titles[action])}</button></div>
     </form>}
   </Modal>;
 }

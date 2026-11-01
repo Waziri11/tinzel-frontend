@@ -18,7 +18,7 @@ export default function InitialPasswordSetup({token,user,onComplete,onLogout}) {
     finally{setBusy(false);}
   };
   const input={display:'block',width:'100%',padding:'10px 12px',border:'1px solid var(--border-color)',borderRadius:6,marginTop:5,fontSize:16};
-  return <main style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:20,background:'var(--bg-primary)'}}>
+  return <section style={{minHeight:'100dvh',display:'grid',placeItems:'center',padding:20,background:'var(--bg-primary)'}}>
     <section style={{width:'100%',maxWidth:440,padding:24,border:'1px solid var(--border-color)',borderRadius:10,background:'var(--bg-secondary)'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}><TinzelLogo variant="full" height={32}/><LanguageSwitcher/></div>
       <h1 style={{fontSize:24,margin:'20px 0 8px'}}>{text('Set your own password','Weka nenosiri lako')}</h1>
@@ -34,5 +34,5 @@ export default function InitialPasswordSetup({token,user,onComplete,onLogout}) {
         <button type="button" disabled={busy} onClick={onLogout} style={{padding:8,background:'transparent',color:'var(--text-muted)'}}>{text('Sign out','Ondoka')}</button>
       </form>
     </section>
-  </main>;
+  </section>;
 }

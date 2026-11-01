@@ -18,6 +18,7 @@ import {
   Printer,
   Bell,
 } from 'lucide-react';
+import {navigate as navigateLocation} from '../../navigation/location';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { EmptyState, Button } from './UI';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
@@ -144,7 +145,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [activePage, setActivePage] = useState(initialRoute.page);
   const [routeOrderId, setRouteOrderId] = useState(initialRoute.orderId);
   const navigateStaff = (path, page, orderId = null) => {
-    window.history.pushState({}, '', path); setActivePage(page); setRouteOrderId(orderId); setMenuOpen(false);
+    if(!navigateLocation(path))return;setActivePage(page); setRouteOrderId(orderId); setMenuOpen(false);
   };
   useEffect(() => { const pop = () => { const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);
 
@@ -268,14 +269,14 @@ export default function StaffWorkspace({ onExitToHome }) {
   // -------------------------------------------------------------
   if (token && !currentUser) {
     return (
-      <main
+      <section
         style={{
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
           padding: '24px',
           textAlign: 'center',
         }}
@@ -286,7 +287,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             maxWidth: '440px',
             width: '100%',
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '32px 24px',
             display: 'flex',
@@ -302,7 +303,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               fontStyle: 'italic',
               fontSize: '22px',
               fontWeight: '600',
-              color: '#1C1917',
+              color: 'var(--text-main)',
               margin: 0,
             }}
           >
@@ -321,8 +322,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   width: '100%',
                   padding: '10px 16px',
                   borderRadius: '6px',
-                  border: '1px solid #C5A059',
-                  backgroundColor: '#C5A059',
+                  border: '1px solid var(--accent-primary)',
+                  backgroundColor: 'var(--accent-primary)',
                   color: '#FFFFFF',
                   fontWeight: '600',
                   fontSize: '13px',
@@ -339,7 +340,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 width: '100%',
                 padding: '9px 16px',
                 borderRadius: '6px',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 backgroundColor: '#FFFFFF',
                 color: '#57534E',
                 fontWeight: '600',
@@ -357,9 +358,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                   width: '100%',
                   padding: '9px 16px',
                   borderRadius: '6px',
-                  border: '1px solid #E7E5E4',
-                  backgroundColor: '#FAFAF9',
-                  color: '#78716C',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-muted)',
                   fontWeight: '600',
                   fontSize: '13px',
                   cursor: 'pointer',
@@ -370,7 +371,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             )}
           </div>
         </div>
-      </main>
+      </section>
     );
   }
 
@@ -379,7 +380,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       <div
         style={{
           minHeight: '100vh',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -400,7 +401,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   gap: '8px',
                   backgroundColor: 'transparent',
                   border: 'none',
-                  color: '#78716C',
+                  color: 'var(--text-muted)',
                   fontSize: '13px',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -416,7 +417,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '36px 32px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
@@ -432,13 +433,13 @@ export default function StaffWorkspace({ onExitToHome }) {
                   fontStyle: 'italic',
                   fontSize: '28px',
                   fontWeight: '600',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   marginBottom: '6px',
                 }}
               >
                 {ui('Staff Workstation Sign In','Ingia kwenye ofisi')}
               </h1>
-              <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
                 {ui('Secure access for Production Managers, Editorial Designers, and Administrators.','Kwa wasimamizi, wasanifu na watendaji wa Tinzel.')}
               </p>
             </div>
@@ -493,10 +494,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    backgroundColor: '#FAFAF9',
+                    backgroundColor: 'var(--bg-primary)',
                     border: '1px solid #D6D3D1',
                     borderRadius: '6px',
-                    color: '#1C1917',
+                    color: 'var(--text-main)',
                     fontSize: '14px',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -528,10 +529,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                     style={{
                       width: '100%',
                       padding: '10px 42px 10px 14px',
-                      backgroundColor: '#FAFAF9',
+                      backgroundColor: 'var(--bg-primary)',
                       border: '1px solid #D6D3D1',
                       borderRadius: '6px',
-                      color: '#1C1917',
+                      color: 'var(--text-main)',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -547,7 +548,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                       transform: 'translateY(-50%)',
                       backgroundColor: 'transparent',
                       border: 'none',
-                      color: '#78716C',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: 0,
                     }}
@@ -561,7 +562,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 type="submit"
                 disabled={loading}
                 style={{
-                  backgroundColor: '#C5A059',
+                  backgroundColor: 'var(--accent-primary)',
                   color: '#FFFFFF',
                   padding: '11px 16px',
                   borderRadius: '6px',
@@ -599,7 +600,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           minWidth: '232px',
           height: '100vh',
           backgroundColor: '#FFFFFF',
-          borderRight: '1px solid #E7E5E4',
+          borderRight: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -625,12 +626,12 @@ export default function StaffWorkspace({ onExitToHome }) {
           <div
             style={{
               padding: '16px 20px',
-              backgroundColor: '#FAFAF9',
-              borderBottom: '1px solid #E7E5E4',
+              backgroundColor: 'var(--bg-primary)',
+              borderBottom: '1px solid var(--border-color)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1C1917', lineHeight: '1.2' }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
                 {currentUser.name}
               </span>
               <span
@@ -642,16 +643,16 @@ export default function StaffWorkspace({ onExitToHome }) {
                   borderRadius: '4px',
                   backgroundColor:
                     currentUser.role === 'admin'
-                      ? '#1C1917'
+                      ? 'var(--text-main)'
                       : currentUser.role === 'manager'
-                      ? '#C5A059'
-                      : '#E7E5E4',
+                      ? 'var(--accent-primary)'
+                      : 'var(--border-color)',
                   color:
                     currentUser.role === 'admin'
-                      ? '#C5A059'
+                      ? 'var(--accent-primary)'
                       : currentUser.role === 'manager'
                       ? '#FFFFFF'
-                      : '#1C1917',
+                      : 'var(--text-main)',
                   letterSpacing: '0.6px',
                 }}
               >
@@ -660,8 +661,8 @@ export default function StaffWorkspace({ onExitToHome }) {
             </div>
 
             {currentUser.role === 'designer' && (
-              <div style={{ marginTop: '8px', fontSize: '11px', color: '#A8A29E' }}>
-                <strong style={{ color: '#1C1917' }}>{currentUser.currentActiveWorkload || 0}</strong> / {currentUser.maxActiveWorkload || 5} active
+              <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                <strong style={{ color: 'var(--text-main)' }}>{currentUser.currentActiveWorkload || 0}</strong> / {currentUser.maxActiveWorkload || 5} active
               </div>
             )}
           </div>
@@ -688,7 +689,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                           fontWeight: '800',
                           letterSpacing: '0.08em',
                           textTransform: 'uppercase',
-                          color: '#A8A29E',
+                          color: 'var(--text-muted)',
                         }}
                       >
                         {label(item.section)}
@@ -707,15 +708,15 @@ export default function StaffWorkspace({ onExitToHome }) {
                         borderRadius: '8px',
                         border: 'none',
                         backgroundColor: isActive ? '#FAF5EA' : 'transparent',
-                        borderLeft: isActive ? '3px solid #C5A059' : '3px solid transparent',
-                        color: isActive ? '#1C1917' : '#57534E',
+                        borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                        color: isActive ? 'var(--text-main)' : '#57534E',
                         cursor: 'pointer',
                         textAlign: 'left',
                         transition: 'all 0.15s ease',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
+                        <IconComponent size={18} color={isActive ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                         <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{label(item.label)}</div>
                       </div>
                       {item.id === 'notifications' && unreadNotifications > 0 && (
@@ -724,7 +725,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                             minWidth: '20px',
                             padding: '2px 6px',
                             borderRadius: '999px',
-                            backgroundColor: '#C5A059',
+                            backgroundColor: 'var(--accent-primary)',
                             color: '#FFFFFF',
                             fontSize: '10px',
                             fontWeight: '800',
@@ -743,7 +744,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         </div>
 
         {/* Bottom Sidebar: Return & Sign Out */}
-        <div style={{ padding: '16px 14px', borderTop: '1px solid #E7E5E4', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ padding: '16px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {onExitToHome && (
             <button
               type="button"
@@ -755,7 +756,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 width: '100%',
                 padding: '8px 12px',
                 backgroundColor: 'transparent',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 borderRadius: '6px',
                 color: '#57534E',
                 fontSize: '12px',
@@ -794,9 +795,9 @@ export default function StaffWorkspace({ onExitToHome }) {
       </aside>
   );
   return (
-    <div className="staff-workspace" style={{ display: 'flex', height: '100dvh', width: '100%', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
+    <div className="staff-workspace" style={{ display: 'flex', height: '100dvh', width: '100%', overflow: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
       {screens.lg ? navigation : (
-        <Drawer title="Your workspace" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)}
+        <Drawer title={ui("Your workspace","Ofisi yako")} placement="left" open={menuOpen} onClose={() => setMenuOpen(false)}
           afterOpenChange={(open) => { if (!open) menuButton.current?.focus({ preventScroll: true }); }}
           size="min(90vw, 340px)" styles={{ body: { padding: 0 } }}>
           {navigation}
@@ -805,14 +806,14 @@ export default function StaffWorkspace({ onExitToHome }) {
       {/* ============================================================ */}
       {/* 2. Main Content Viewport                                     */}
       {/* ============================================================ */}
-      <main className="staff-main"
+      <section className="staff-main"
         style={{
           flex: 1,
           height: '100vh',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
         }}
       >
         {/* Viewport Top Header */}
@@ -820,7 +821,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           style={{
             height: '64px',
             backgroundColor: '#FFFFFF',
-            borderBottom: '1px solid #E7E5E4',
+            borderBottom: '1px solid var(--border-color)',
             padding: '0 32px',
             display: 'flex',
             alignItems: 'center',
@@ -830,7 +831,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             zIndex: 30,
           }}
         >
-          {!screens.lg && <button ref={menuButton} type="button" className="staff-menu-toggle" aria-label="Open workspace menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>}
+          {!screens.lg && <button ref={menuButton} type="button" className="staff-menu-toggle" aria-label={ui("Open workspace menu","Fungua menyu ya ofisi")} aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>}
           <div>
             <h2
               style={{
@@ -838,7 +839,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 fontStyle: 'italic',
                 fontSize: '24px',
                 fontWeight: '600',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 margin: 0,
                 lineHeight: '1.2',
               }}
@@ -859,9 +860,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                 gap: '6px',
                 padding: '6px 10px',
                 borderRadius: '6px',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 backgroundColor: effectiveActivePage === 'notifications' ? '#FAF5EA' : '#FFFFFF',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -874,7 +875,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   style={{
                     padding: '1px 6px',
                     borderRadius: '999px',
-                    backgroundColor: '#C5A059',
+                    backgroundColor: 'var(--accent-primary)',
                     color: '#FFFFFF',
                     fontSize: '10px',
                     fontWeight: 800,
@@ -887,14 +888,14 @@ export default function StaffWorkspace({ onExitToHome }) {
             <span
               style={{
                 fontSize: '12px',
-                color: '#78716C',
+                color: 'var(--text-muted)',
                 padding: '4px 10px',
-                backgroundColor: '#FAFAF9',
-                border: '1px solid #E7E5E4',
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '6px',
               }}
             >
-              <strong style={{ color: '#1C1917' }}>{currentUser.name}</strong> · {currentUser.role}
+              <strong style={{ color: 'var(--text-main)' }}>{currentUser.name}</strong> · {currentUser.role}
             </span>
           </div>
         </header>
@@ -947,7 +948,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             </Suspense>
           </div>
         </ConfigProvider>
-      </main>
+      </section>
     </div>
   );
 }

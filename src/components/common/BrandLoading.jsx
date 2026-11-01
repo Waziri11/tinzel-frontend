@@ -1,3 +1,4 @@
+import {useInterfaceText} from '../../i18n/InterfaceText';
 import React from 'react';
 import { Check } from 'lucide-react';
 import './mediaExperience.css';
@@ -10,11 +11,12 @@ export function BrandMark({ complete = false, animate = true }) {
 }
 
 export default function BrandLoading({ title, description, complete = false, animate = true, children, compact = false }) {
-  return <section className={`tinzel-loading ${compact ? 'tinzel-loading--compact' : ''}`} aria-label={title}>
+  const tx=useInterfaceText();
+  return <section className={`tinzel-loading ${compact ? 'tinzel-loading--compact' : ''}`} aria-label={tx(title)}>
     <BrandMark complete={complete} animate={animate} />
     <div className="tinzel-loading__copy">
-      <p className="tinzel-loading__title" role="status" aria-live="polite" aria-atomic="true">{title}</p>
-      {description && <p className="tinzel-loading__description">{description}</p>}
+      <p className="tinzel-loading__title" role="status" aria-live="polite" aria-atomic="true">{tx(title)}</p>
+      {description && <p className="tinzel-loading__description">{tx(description)}</p>}
       {children}
     </div>
   </section>;

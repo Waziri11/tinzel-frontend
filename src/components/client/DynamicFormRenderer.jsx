@@ -200,18 +200,18 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     return (
       <div
         style={{
-          backgroundColor: '#450a0a',
+          backgroundColor: '#FDF0EE',
           border: '1px solid var(--accent-danger)',
           borderRadius: '8px',
           padding: '24px',
-          color: '#fca5a5',
+          color: 'var(--accent-danger)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <AlertCircle size={20} />
           <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{t('form.notFound')}</h3>
         </div>
-        <p style={{ fontSize: '14px' }}>{error || t('form.notFoundSlug', { slug })}</p>
+        <p style={{ fontSize: '14px' }}>{error || t('form.notFoundSlug', { slug })}</p><Button onClick={()=>window.location.reload()}>{ui('Try again','Jaribu tena')}</Button>
       </div>
     );
   }
@@ -228,7 +228,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       <nav className="order-steps" aria-label={ui('Order steps','Hatua za oda')}>{steps.map((id,i)=><button type="button" key={id} disabled={submitting} aria-current={step===id?'step':undefined} onClick={()=>goStep(id)}><span>{i+1}</span>{[ui('Your details','Taarifa zako'),ui('Your story','Hadithi yako'),ui('Photographs','Picha'),ui('Review','Hakiki')][i]}</button>)}</nav>
       {error && (
         <div role="alert" tabIndex={-1}
-          role="alert"
           style={{
             backgroundColor: '#FEF2F2',
             border: '1px solid #DC2626',
@@ -300,7 +299,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       {/* Main Form Fields */}
       <form noValidate onSubmit={handleSubmit}>
         {uploads.notice && <p role="status">{uploads.notice}</p>}
-        <div id="photo-progress" hidden={step!=='photos'}><UploadJourney uploads={uploads} lang={lang} disabled={submitting}
+        <div id="photo-progress" hidden={step!=='photos'&&!submitting}><UploadJourney uploads={uploads} lang={lang} disabled={submitting}
           onRemove={async (id) => { try { await uploads.remove(id); } catch (err) { setError(err.message); } }}
           onContinue={() => {goStep('details');setTimeout(()=>document.getElementById('magazine-client-name')?.focus(),0);}} /></div>
         <fieldset disabled={submitting} aria-label={ui('Magazine order details', 'Taarifa za oda ya jarida')} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
@@ -402,6 +401,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           </div>
         </div>
 
+        {step==='story'&&!(form.fields||[]).some(field=>!['photo_group','photo_upload'].includes(field.type))&&<p className="ui-card ui-description">{ui('There are no written questions for this edition. Continue to photographs.','Toleo hili halina maswali ya kuandika. Endelea kwenye picha.')}</p>}
+        {step==='photos'&&!(form.fields||[]).some(field=>['photo_group','photo_upload'].includes(field.type))&&<p className="ui-card ui-description">{ui('This edition does not request photographs. Continue to review your order.','Toleo hili halihitaji picha. Endelea kuhakiki oda yako.')}</p>}
         {/* Dynamic Google Forms-Style Sections */}
         {formSections.map((section, secIdx) => {
           // Filter fields belonging to this section (or unassigned fields if only one section)
@@ -646,14 +647,14 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                       <fieldset key={field.fieldId} style={{ border: 0, padding: 0, margin: 0, overflowX: 'auto' }}>
                         <legend style={{ fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}>{L(field, 'label')} {field.required ? '*' : ''}</legend>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                          <thead><tr><th style={{ textAlign: 'left', padding: '8px' }}></th>{(field.options || []).map((column, colIdx) => <th key={column} style={{ padding: '8px' }}>{LL(field, 'options')[colIdx]}</th>)}</tr></thead>
+                          <thead><tr><th scope="col" style={{ textAlign: 'left', padding: '8px' }}>{ui('Question','Swali')}</th>{(field.options || []).map((column, colIdx) => <th scope="col" key={column} style={{ padding: '8px' }}>{LL(field, 'options')[colIdx]}</th>)}</tr></thead>
                           <tbody>{(field.rows || []).map((row, rowIdx) => <tr key={row}>
-                            <th style={{ textAlign: 'left', padding: '8px' }}>{LL(field, 'rows')[rowIdx]}</th>
+                            <th scope="row" style={{ textAlign: 'left', padding: '8px' }}>{LL(field, 'rows')[rowIdx]}</th>
                             {(field.options || []).map((column) => {
                               const rowValue = gridValue[row];
                               const checked = field.type === 'grid_checkbox' ? (rowValue || []).includes(column) : rowValue === column;
                               return <td key={column} style={{ textAlign: 'center', padding: '8px' }}><input
-                                type={field.type === 'grid_checkbox' ? 'checkbox' : 'radio'} name={`${field.fieldId}-${row}`} checked={checked}
+                                aria-label={`${L(field,'label')}: ${LL(field,'rows')[rowIdx]} — ${LL(field,'options')[(field.options||[]).indexOf(column)]}`} type={field.type === 'grid_checkbox' ? 'checkbox' : 'radio'} name={`${field.fieldId}-${row}`} checked={checked}
                                 required={field.required && field.type === 'grid_radio'}
                                 onChange={(e) => {
                                   let nextRow = column;
