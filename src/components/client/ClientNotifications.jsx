@@ -12,7 +12,7 @@ export default function ClientNotifications({token,onUnauthorized}) {
   useEffect(()=>{let active=true; if(active)load();return()=>{active=false;};},[load]);
   useVisiblePolling(load,Boolean(token));
   const read=async id=>{try{await api.client.readNotification(token,id);await load();}catch{setError(sw?'Imeshindikana kuhifadhi. Jaribu tena.':'Unable to save. Please retry.');}};
-  return <details style={{margin:'20px 0',border:'1px solid var(--border-color)',borderRadius:8,padding:14}}>
+  return <details className="client-inbox" style={{margin:'20px 0',border:'1px solid var(--border-color)',borderRadius:8,padding:14}}>
     <summary style={{cursor:'pointer',fontWeight:600}}>{sw?'Taarifa':'Notifications'}{unread>0?` (${unread})`:''}</summary>
     {error&&<p role="alert">{error} <button onClick={load}>{sw?'Jaribu tena':'Retry'}</button></p>}
     {!items.length&&!error&&<p>{sw?'Hakuna taarifa mpya.':'No notifications yet.'}</p>}

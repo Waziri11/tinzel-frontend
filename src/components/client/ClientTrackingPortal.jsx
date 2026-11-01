@@ -1,4 +1,4 @@
-import React, { lazy, useState, useEffect, useCallback } from 'react';
+import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   Lock,
@@ -32,11 +32,14 @@ const STAGES = [
 ];
 
 export default function ClientTrackingPortal() {
-  const { t } = useLanguage();
+  const { t,lang } = useLanguage();
+  const ui=(en,sw)=>lang==='sw'?sw:en;
+  const otpInput=useRef(null);
   const [trackingId, setTrackingId] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  useEffect(()=>{if(otpSent)otpInput.current?.focus();},[otpSent]);
   const [clientToken, setClientToken] = useState(sessionStorage.getItem('tinzel_client_token') || '');
   const [order, setOrder] = useState(null);
   useAccountLanguage('client',clientToken,order?._id,order?.clientPreferredLanguage,message=>setError(message));
@@ -202,7 +205,7 @@ export default function ClientTrackingPortal() {
   // Login Gate View
   if (!clientToken || !order) {
     return (
-      <div style={{ maxWidth: '480px', margin: '40px auto' }}>
+      <div className="tracking-access">
         <div
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -216,7 +219,7 @@ export default function ClientTrackingPortal() {
               style={{
                 width: '48px',
                 height: '48px',
-                backgroundColor: '#1e3a8a',
+                backgroundColor: 'var(--accent-gold-light)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
@@ -224,9 +227,9 @@ export default function ClientTrackingPortal() {
                 margin: '0 auto 12px auto',
               }}
             >
-              <KeyRound size={24} color="#93c5fd" />
+              <KeyRound size={24} color="var(--accent-primary)" />
             </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>
+            <h1 className="ui-title">
               {t('track.login.title')}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
@@ -235,7 +238,7 @@ export default function ClientTrackingPortal() {
           </div>
 
           {error && (
-            <div style={{ marginBottom: '18px' }}>
+            <div role="alert" style={{ marginBottom: '18px' }}>
               <div
                 style={{
                   backgroundColor: '#450a0a',
@@ -327,7 +330,7 @@ export default function ClientTrackingPortal() {
                 </label>
                 <input
                   id="track-login-whatsapp"
-                  type="text"
+                  type="tel" autoComplete="tel"
                   placeholder={t('track.login.whatsappPh')}
                   required
                   value={clientWhatsApp}
@@ -372,13 +375,13 @@ export default function ClientTrackingPortal() {
                   {t('track.login.enterOtp')}
                 </label>
                 <input
-                  id="track-login-otp"
-                  type="text"
+                  id="track-login-otp" ref={otpInput}
+                  type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}"
                   maxLength={6}
                   placeholder="123456"
                   required
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g,'').slice(0,6))}
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -392,7 +395,7 @@ export default function ClientTrackingPortal() {
                   }}
                 />
                 {devOtp && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#60a5fa' }}>
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--info)' }}>
                     {t('track.login.devOtp')} <strong>{devOtp}</strong>
                   </div>
                 )}
@@ -420,7 +423,7 @@ export default function ClientTrackingPortal() {
 
               <button
                 type="button"
-                onClick={() => setOtpSent(false)}
+                onClick={() => {setOtpSent(false);setOtpCode('');setError(null);setSuccessMsg(null);}}
                 style={{
                   backgroundColor: 'transparent',
                   color: 'var(--text-muted)',
@@ -431,6 +434,7 @@ export default function ClientTrackingPortal() {
               >
                 {t('track.login.change')}
               </button>
+              <button type="button" className="ui-button" disabled={loading} onClick={handleRequestOtp}>{ui('Resend verification code','Tuma msimbo tena')}</button>
             </form>
           )}
         </div>
@@ -443,7 +447,7 @@ export default function ClientTrackingPortal() {
   const releasedDraft = (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) || (order.draftVersions || []).at(-1);
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div className="tracking-order">
       {/* Top Banner / Order Summary */}
       <div
         style={{
@@ -464,8 +468,8 @@ export default function ClientTrackingPortal() {
             </span>
             <span
               style={{
-                backgroundColor: '#1e3a8a',
-                color: '#93c5fd',
+                backgroundColor: 'var(--accent-gold-light)',
+                color: 'var(--accent-primary)',
                 fontSize: '11px',
                 fontWeight: '600',
                 padding: '2px 8px',
@@ -653,9 +657,9 @@ export default function ClientTrackingPortal() {
 
       {(order.revisionRequests || []).length > 0 && (
         <section style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 20, marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 12 }}>Your requested fixes</h2>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>{ui('Your requested fixes','Marekebisho uliyoomba')}</h2>
           {(order.revisionRequests || []).slice().reverse().map((request) => <div key={request._id} style={{ borderTop: '1px solid var(--border-color)', padding: '12px 0' }}>
-            <strong style={{ fontSize: 13 }}>Round {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}</strong>
+            <strong style={{ fontSize: 13 }}>{ui('Round','Awamu')} {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}</strong>
             <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>{request.items.map((item) => <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>{item.pageReference ? `Page ${item.pageReference}: ` : ''}{item.text}</li>)}</ul>
           </div>)}
         </section>
