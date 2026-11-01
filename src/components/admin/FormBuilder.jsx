@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import InterfaceText from '../../i18n/InterfaceText';
+import EditionPreview from './EditionPreview';
+import {useLanguage} from '../../i18n/LanguageContext';
+import './administration.css';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Trash2,
@@ -41,6 +45,10 @@ const FIELD_TYPES = [
 ];
 
 export default function FormBuilder({ token }) {
+  const {lang}=useLanguage();
+  const [preview,setPreview]=useState(false);
+  const baseline=useRef(null);
+  const resetBaseline=useRef(false);
   // Navigation View: 'list' (Editions catalogue) | 'editor' (Form builder details)
   const [viewMode, setViewMode] = useState('list');
   const [forms, setForms] = useState([]);
@@ -83,6 +91,10 @@ export default function FormBuilder({ token }) {
   const [isActive, setIsActive] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
 
+  const draftSnapshot=JSON.stringify({title,slug,description,titleSw,descriptionSw,magazineType,magazineTypeSw,price,currency,coverImageUrl,tillNumber,accountName,instructions,sections,fields});
+  const dirty=viewMode==='editor'&&baseline.current!==null&&baseline.current!==draftSnapshot;
+  useEffect(()=>{if(resetBaseline.current){baseline.current=draftSnapshot;resetBaseline.current=false;}},[draftSnapshot,viewMode]);
+  useEffect(()=>{if(!dirty)return;const guard=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[dirty]);
   useEffect(() => {
     loadForms();
   }, [token]);
@@ -130,7 +142,7 @@ export default function FormBuilder({ token }) {
     setIsArchived(Boolean(form.isArchived));
     setError(null);
     setSuccessMsg(null);
-    setViewMode('editor');
+    resetBaseline.current=true;setViewMode('editor');
   };
 
   // Fresh, totally blank form (does NOT take from any existing form)
@@ -159,7 +171,7 @@ export default function FormBuilder({ token }) {
     setIsArchived(false);
     setError(null);
     setSuccessMsg(null);
-    setViewMode('editor');
+    resetBaseline.current=true;setViewMode('editor');
   };
 
   const handleTitleChange = (val) => {
@@ -358,6 +370,7 @@ export default function FormBuilder({ token }) {
         setSuccessMsg(`Edition "${res.form.title}" saved successfully!`);
         await loadForms();
       }
+      baseline.current=draftSnapshot;
     } catch (err) {
       setError(err.message || 'Failed to save form');
     } finally {
@@ -435,7 +448,7 @@ export default function FormBuilder({ token }) {
   // -------------------------------------------------------------
   if (viewMode === 'list') {
     return (
-      <div style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}>
+      <div className="edition-admin edition-list" style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}>
         {/* Top Header */}
         <div
           style={{
@@ -443,7 +456,7 @@ export default function FormBuilder({ token }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '32px',
-            borderBottom: '1px solid #E7E5E4',
+            borderBottom: '1px solid var(--border-color)',
             paddingBottom: '20px',
           }}
         >
@@ -454,56 +467,46 @@ export default function FormBuilder({ token }) {
                 fontWeight: '700',
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
-                color: '#C5A059',
+                color: 'var(--accent-primary)',
               }}
-            >
-              Google Forms-Style Studio
-            </span>
+            ><InterfaceText>Edition studio</InterfaceText></span>
             <h1
               style={{
                 fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
                 fontStyle: 'italic',
                 fontSize: '32px',
                 fontWeight: '600',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 margin: '2px 0 4px 0',
                 lineHeight: '1.2',
               }}
-            >
-              Magazine Form Builder
-            </h1>
-            <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
-              Design custom order forms with sections and questions. Every edition dynamically appears on the "New Magazine Order" page.
-            </p>
+            ><InterfaceText>Magazine editions</InterfaceText></h1>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}><InterfaceText>Design custom order forms with sections and questions. Published editions appear in the catalogue.</InterfaceText></p>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button
               type="button"
               onClick={() => { setShowGoogleImport((value) => !value); setError(null); }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', color: '#1C1917', border: '1px solid #C5A059', borderRadius: '6px', padding: '10px 16px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', color: 'var(--text-main)', border: '1px solid var(--accent-primary)', borderRadius: '6px', padding: '10px 16px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
             >
-              <Link2 size={16} color="#C5A059" /> Import Google Form
-            </button>
+              <Link2 size={16} color="var(--accent-primary)" /><InterfaceText>Import Google Form</InterfaceText></button>
             <button
               type="button"
               onClick={startFreshNewForm}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#C5A059', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--accent-primary)', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)' }}
             >
-              <Plus size={16} /> New Magazine Edition
-            </button>
+              <Plus size={16} /><InterfaceText>New Magazine Edition</InterfaceText></button>
           </div>
         </div>
 
         {showGoogleImport && (
-          <form onSubmit={handleGoogleImport} style={{ backgroundColor: '#FFFFFF', border: '1px solid #C5A059', borderRadius: '8px', padding: '20px', marginBottom: '24px', boxShadow: '0 6px 18px rgba(197, 160, 89, 0.12)' }}>
+          <form onSubmit={handleGoogleImport} style={{ backgroundColor: '#FFFFFF', border: '1px solid var(--accent-primary)', borderRadius: '8px', padding: '20px', marginBottom: '24px', boxShadow: '0 6px 18px rgba(197, 160, 89, 0.12)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Link2 size={18} color="#C5A059" />
-              <h2 style={{ margin: 0, fontSize: '16px', color: '#1C1917' }}>Import a public Google Form</h2>
+              <Link2 size={18} color="var(--accent-primary)" />
+              <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-main)' }}><InterfaceText>Import a public Google Form</InterfaceText></h2>
             </div>
-            <p style={{ margin: '0 0 14px', color: '#78716C', fontSize: '12px' }}>
-              Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be published and allow anyone with the link to respond. Tinzel creates a private draft for review.
-            </p>
+            <p style={{ margin: '0 0 14px', color: 'var(--text-muted)', fontSize: '12px' }}><InterfaceText>Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be published and allow anyone with the link to respond. Tinzel creates a private draft for review.</InterfaceText></p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="url"
@@ -514,7 +517,7 @@ export default function FormBuilder({ token }) {
                 placeholder="https://forms.gle/..."
                 style={{ flex: 1, padding: '10px 12px', border: '1px solid #D6D3D1', borderRadius: '6px', fontSize: '13px' }}
               />
-              <button type="submit" disabled={importing} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: 0, borderRadius: '6px', padding: '10px 18px', backgroundColor: '#1C1917', color: '#FFFFFF', fontWeight: '700', cursor: importing ? 'not-allowed' : 'pointer' }}>
+              <button type="submit" disabled={importing} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: 0, borderRadius: '6px', padding: '10px 18px', backgroundColor: 'var(--text-main)', color: '#FFFFFF', fontWeight: '700', cursor: importing ? 'not-allowed' : 'pointer' }}>
                 {importing ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
                 {importing ? 'Importing…' : 'Import as Draft'}
               </button>
@@ -550,9 +553,9 @@ export default function FormBuilder({ token }) {
         )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#78716C' }}>
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <Loader2 size={24} className="spin" style={{ margin: '0 auto 12px auto' }} />
-            <p style={{ fontSize: '14px' }}>Loading magazine editions...</p>
+            <p style={{ fontSize: '14px' }}><InterfaceText>Loading magazine editions...</InterfaceText></p>
           </div>
         ) : forms.length === 0 ? (
           <div
@@ -560,22 +563,18 @@ export default function FormBuilder({ token }) {
               textAlign: 'center',
               padding: '60px 24px',
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '8px',
             }}
           >
-            <FileText size={36} color="#C5A059" style={{ margin: '0 auto 12px auto' }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-              No Magazine Editions Created Yet
-            </h3>
-            <p style={{ fontSize: '13px', color: '#78716C', maxWidth: '440px', margin: '0 auto 20px auto' }}>
-              Create your first luxury publication template. You will be able to upload a cover, configure sections, and add photo spread folders.
-            </p>
+            <FileText size={36} color="var(--accent-primary)" style={{ margin: '0 auto 12px auto' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>No Magazine Editions Created Yet</InterfaceText></h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px auto' }}><InterfaceText>Create your first luxury publication template. You will be able to upload a cover, configure sections, and add photo spread folders.</InterfaceText></p>
             <button
               type="button"
               onClick={startFreshNewForm}
               style={{
-                backgroundColor: '#C5A059',
+                backgroundColor: 'var(--accent-primary)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -584,26 +583,21 @@ export default function FormBuilder({ token }) {
                 fontWeight: '700',
                 cursor: 'pointer',
               }}
-            >
-              + Create First Magazine Edition
-            </button>
+            ><InterfaceText>+ Create First Magazine Edition</InterfaceText></button>
           </div>
         ) : (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}>
-                Active Magazine Editions ({forms.length})
+              <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--text-muted)' }}><InterfaceText>Active Magazine Editions (</InterfaceText>{forms.length})
               </span>
-              <span style={{ fontSize: '12px', color: '#A8A29E' }}>
-                Edit an edition or delete it from the active catalogue
-              </span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Edit an edition or delete it from the active catalogue</InterfaceText></span>
             </div>
 
             {/* Visual Editions Cards Grid */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                 gap: '24px',
               }}
             >
@@ -613,7 +607,7 @@ export default function FormBuilder({ token }) {
                   onClick={() => selectFormForEdit(form)}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    border: '1px solid #E7E5E4',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '10px',
                     overflow: 'hidden',
                     cursor: 'default',
@@ -623,12 +617,12 @@ export default function FormBuilder({ token }) {
                     flexDirection: 'column',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#C5A059';
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)';
                     e.currentTarget.style.transform = 'translateY(-3px)';
                     e.currentTarget.style.boxShadow = '0 10px 24px rgba(197, 160, 89, 0.18)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E7E5E4';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
                   }}
@@ -639,7 +633,7 @@ export default function FormBuilder({ token }) {
                       position: 'relative',
                       width: '100%',
                       paddingTop: '65%',
-                      backgroundColor: '#1C1917',
+                      backgroundColor: 'var(--text-main)',
                       overflow: 'hidden',
                     }}
                   >
@@ -666,12 +660,10 @@ export default function FormBuilder({ token }) {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#A8A29E',
+                          color: 'var(--text-muted)',
                           fontSize: '12px',
                         }}
-                      >
-                        No Cover Uploaded
-                      </div>
+                      ><InterfaceText>No Cover Uploaded</InterfaceText></div>
                     )}
 
                     <div
@@ -679,8 +671,8 @@ export default function FormBuilder({ token }) {
                         position: 'absolute',
                         top: '12px',
                         right: '12px',
-                        backgroundColor: '#1C1917',
-                        color: '#C5A059',
+                        backgroundColor: 'var(--text-main)',
+                        color: 'var(--accent-primary)',
                         padding: '4px 10px',
                         borderRadius: '4px',
                         fontSize: '11px',
@@ -704,18 +696,16 @@ export default function FormBuilder({ token }) {
                             padding: '2px 6px',
                             borderRadius: '4px',
                             backgroundColor: '#FAF5EA',
-                            color: '#C5A059',
+                            color: 'var(--accent-primary)',
                           }}
                         >
                           {form.magazineType || 'Keepsake Edition'}
                         </span>
-                        <span style={{ fontSize: '11px', color: '#A8A29E' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           /{form.slug}
                         </span>
                         {form.importSource?.provider === 'google_forms' && (
-                          <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', color: '#2563EB', backgroundColor: '#EFF6FF', borderRadius: '4px', padding: '2px 5px' }}>
-                            Google Import
-                          </span>
+                          <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', color: '#2563EB', backgroundColor: '#EFF6FF', borderRadius: '4px', padding: '2px 5px' }}><InterfaceText>Google Import</InterfaceText></span>
                         )}
                       </div>
 
@@ -725,7 +715,7 @@ export default function FormBuilder({ token }) {
                           fontStyle: 'italic',
                           fontSize: '22px',
                           fontWeight: '600',
-                          color: '#1C1917',
+                          color: 'var(--text-main)',
                           margin: '0 0 6px 0',
                           lineHeight: '1.2',
                         }}
@@ -736,7 +726,7 @@ export default function FormBuilder({ token }) {
                       <p
                         style={{
                           fontSize: '12px',
-                          color: '#78716C',
+                          color: 'var(--text-muted)',
                           margin: '0 0 14px 0',
                           lineHeight: '1.5',
                           overflow: 'hidden',
@@ -759,9 +749,8 @@ export default function FormBuilder({ token }) {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
-                          {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
-                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                          {form.sections?.length || 1}<InterfaceText>Sections •</InterfaceText>{form.fields?.length || 0}<InterfaceText>Questions</InterfaceText></div>
                         <div style={{ marginTop: '3px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isActive ? '#166534' : '#B45309' }}>
                           {form.isActive ? 'Published' : 'Draft'}
                         </div>
@@ -770,18 +759,16 @@ export default function FormBuilder({ token }) {
                         <button
                           type="button"
                           onClick={(event) => { event.stopPropagation(); selectFormForEdit(form); }}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #C5A059', borderRadius: '5px', backgroundColor: '#FFFFFF', color: '#8A6825', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid var(--accent-primary)', borderRadius: '5px', backgroundColor: '#FFFFFF', color: '#8A6825', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
                         >
-                          <FileText size={13} /> Edit
-                        </button>
+                          <FileText size={13} /><InterfaceText>Edit</InterfaceText></button>
                         <button
                           type="button"
                           disabled={deletingFormId === form._id}
                           onClick={(event) => handleDeleteForm(form, event)}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #FCA5A5', borderRadius: '5px', backgroundColor: '#FEF2F2', color: '#B91C1C', fontSize: '11px', fontWeight: '700', cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer' }}
                         >
-                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Delete
-                        </button>
+                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}<InterfaceText>Delete</InterfaceText></button>
                       </div>
                     </div>
                   </div>
@@ -798,7 +785,8 @@ export default function FormBuilder({ token }) {
   // VIEW 2: FORM BUILDER EDITOR (Detail Mode)
   // -------------------------------------------------------------
   return (
-    <div style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div className="edition-admin edition-editor" style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}>
+      <EditionPreview open={preview} onClose={()=>setPreview(false)} form={{title,titleSw,description,descriptionSw,price,currency,sections,fields}}/>
       {/* Editor Sub-Header: Back Button & Actions */}
       <div
         style={{
@@ -807,12 +795,13 @@ export default function FormBuilder({ token }) {
           justifyContent: 'space-between',
           marginBottom: '28px',
           paddingBottom: '16px',
-          borderBottom: '1px solid #E7E5E4',
+          borderBottom: '1px solid var(--border-color)',
         }}
       >
         <button
           type="button"
           onClick={() => {
+            if(dirty&&!window.confirm(lang==='sw'?'Uondoke bila kuhifadhi mabadiliko?':'Leave without saving your changes?'))return;
             setViewMode('list');
             loadForms();
           }}
@@ -821,19 +810,17 @@ export default function FormBuilder({ token }) {
             alignItems: 'center',
             gap: '8px',
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '6px',
             padding: '8px 14px',
-            color: '#1C1917',
+            color: 'var(--text-main)',
             fontSize: '13px',
             fontWeight: '600',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
         >
-          <ArrowLeft size={16} />
-          Back to Magazine Editions
-        </button>
+          <ArrowLeft size={16} /><InterfaceText>Back to Magazine Editions</InterfaceText></button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span
@@ -844,12 +831,13 @@ export default function FormBuilder({ token }) {
               padding: '4px 8px',
               borderRadius: '4px',
               backgroundColor: selectedFormId === 'new' ? '#FEF3C7' : '#FAF5EA',
-              color: selectedFormId === 'new' ? '#B45309' : '#C5A059',
+              color: selectedFormId === 'new' ? '#B45309' : 'var(--accent-primary)',
             }}
           >
             {selectedFormId === 'new' ? 'New Blank Canvas' : isArchived ? 'Archived' : isActive ? 'Published' : 'Draft'}
           </span>
 
+          <button type="button" className="ui-button" onClick={()=>setPreview(true)}><Eye size={16}/>{lang==='sw'?'Hakiki':'Preview'}</button>
           <button
             type="button"
             onClick={handleSaveForm}
@@ -858,7 +846,7 @@ export default function FormBuilder({ token }) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: '#C5A059',
+              backgroundColor: 'var(--accent-primary)',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '6px',
@@ -869,8 +857,7 @@ export default function FormBuilder({ token }) {
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
-            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
-            Save {isActive ? 'Changes' : 'Draft'}
+            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}<InterfaceText>Save</InterfaceText>{isActive ? 'Changes' : 'Draft'}
           </button>
           {!isActive && !isArchived && selectedFormId !== 'new' && (
             <button
@@ -878,14 +865,12 @@ export default function FormBuilder({ token }) {
               onClick={handlePublishForm}
               disabled={saving || uploadingCover || publishing}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#1C1917', color: '#FFFFFF',
+                display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--text-main)', color: '#FFFFFF',
                 border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: '700',
                 cursor: publishing ? 'not-allowed' : 'pointer',
               }}
             >
-              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-              Publish Edition
-            </button>
+              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}<InterfaceText>Publish Edition</InterfaceText></button>
           )}
         </div>
       </div>
@@ -933,8 +918,7 @@ export default function FormBuilder({ token }) {
       {importWarnings.length > 0 && (
         <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: '6px', padding: '14px 16px', marginBottom: '24px', color: '#92400E', fontSize: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: '700', marginBottom: '7px' }}>
-            <AlertCircle size={16} /> Review {importWarnings.length} import {importWarnings.length === 1 ? 'warning' : 'warnings'} before publishing
-          </div>
+            <AlertCircle size={16} /><InterfaceText>Review</InterfaceText>{importWarnings.length}<InterfaceText>import</InterfaceText>{importWarnings.length === 1 ? 'warning' : 'warnings'}<InterfaceText>before publishing</InterfaceText></div>
           <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
             {importWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
           </ul>
@@ -949,7 +933,7 @@ export default function FormBuilder({ token }) {
             top: 0,
             zIndex: 20,
             backgroundColor: '#FFFFFF',
-            border: '1px solid #C5A059',
+            border: '1px solid var(--accent-primary)',
             borderRadius: '8px',
             padding: '12px 16px',
             display: 'flex',
@@ -960,14 +944,14 @@ export default function FormBuilder({ token }) {
           }}
         >
           <div>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>Content Language</div>
-            <div style={{ fontSize: '12px', color: '#78716C' }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}><InterfaceText>Content Language</InterfaceText></div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               {isSw
                 ? 'Editing the Kiswahili version. Empty Kiswahili fields fall back to the English text for clients.'
                 : 'Editing the English version. Switch to Kiswahili to write the translated version of every question.'}
             </div>
           </div>
-          <div role="tablist" aria-label="Content language" style={{ display: 'inline-flex', border: '1px solid #C5A059', borderRadius: '6px', overflow: 'hidden' }}>
+          <div role="tablist" aria-label="Content language" style={{ display: 'inline-flex', border: '1px solid var(--accent-primary)', borderRadius: '6px', overflow: 'hidden' }}>
             {[['en', 'English'], ['sw', 'Kiswahili']].map(([code, label]) => (
               <button
                 key={code}
@@ -978,8 +962,8 @@ export default function FormBuilder({ token }) {
                 style={{
                   padding: '8px 20px',
                   border: 'none',
-                  backgroundColor: editLang === code ? '#C5A059' : '#FFFFFF',
-                  color: editLang === code ? '#FFFFFF' : '#1C1917',
+                  backgroundColor: editLang === code ? 'var(--accent-primary)' : '#FFFFFF',
+                  color: editLang === code ? '#FFFFFF' : 'var(--text-main)',
                   fontSize: '13px',
                   fontWeight: '700',
                   cursor: 'pointer',
@@ -995,7 +979,7 @@ export default function FormBuilder({ token }) {
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: `2px solid ${coverImageUrl ? '#C5A059' : '#DC2626'}`,
+            border: `2px solid ${coverImageUrl ? 'var(--accent-primary)' : '#DC2626'}`,
             borderRadius: '8px',
             padding: '24px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
@@ -1004,14 +988,11 @@ export default function FormBuilder({ token }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ImageIcon size={18} color="#C5A059" />
-                <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
-                  Magazine Cover Artwork <span style={{ color: '#DC2626' }}>* (REQUIRED)</span>
+                <ImageIcon size={18} color="var(--accent-primary)" />
+                <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}><InterfaceText>Magazine Cover Artwork</InterfaceText><span style={{ color: '#DC2626' }}><InterfaceText>* (REQUIRED)</InterfaceText></span>
                 </h2>
               </div>
-              <p style={{ fontSize: '12px', color: '#78716C', marginTop: '4px', margin: 0 }}>
-                Every edition is required to have a cover. Clients click this image directly on the catalogue to open this form.
-              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', margin: 0 }}><InterfaceText>Every edition is required to have a cover. Clients click this image directly on the catalogue to open this form.</InterfaceText></p>
             </div>
 
             <label
@@ -1021,9 +1002,9 @@ export default function FormBuilder({ token }) {
                 gap: '6px',
                 padding: '8px 16px',
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #C5A059',
+                border: '1px solid var(--accent-primary)',
                 borderRadius: '6px',
-                color: '#C5A059',
+                color: 'var(--accent-primary)',
                 fontSize: '12px',
                 fontWeight: '700',
                 cursor: 'pointer',
@@ -1046,7 +1027,7 @@ export default function FormBuilder({ token }) {
               style={{
                 width: '120px',
                 height: '160px',
-                backgroundColor: '#1C1917',
+                backgroundColor: 'var(--text-main)',
                 borderRadius: '6px',
                 overflow: 'hidden',
                 flexShrink: 0,
@@ -1063,13 +1044,11 @@ export default function FormBuilder({ token }) {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: '11px', color: '#EF4444', textAlign: 'center', padding: '8px' }}>
-                  Cover required
-                </span>
+                <span style={{ fontSize: '11px', color: '#EF4444', textAlign: 'center', padding: '8px' }}><InterfaceText>Cover required</InterfaceText></span>
               )}
             </div>
 
-            <div style={{ flex: 1, fontSize: '13px', color: '#78716C' }}>
+            <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-muted)' }}>
               {uploadingCover
                 ? 'Uploading your cover photo...'
                 : coverImageUrl
@@ -1083,19 +1062,17 @@ export default function FormBuilder({ token }) {
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '8px',
             padding: '24px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
           }}
         >
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', marginBottom: '16px' }}>
-            Edition Specifications
-          </h2>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px' }}><InterfaceText>Edition Specifications</InterfaceText></h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                 {isSw ? 'Magazine Edition Title (Kiswahili)' : 'Magazine Edition Title *'}
               </label>
               <input
@@ -1107,21 +1084,19 @@ export default function FormBuilder({ token }) {
                 style={{
                   width: '100%',
                   padding: '10px 12px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                URL Slug (Generated automatically)
-              </label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>URL Slug (Generated automatically)</InterfaceText></label>
               <input
                 type="text"
                 readOnly
@@ -1130,15 +1105,15 @@ export default function FormBuilder({ token }) {
                 style={{
                   width: '100%',
                   padding: '10px 12px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '13px',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   boxSizing: 'border-box',
                 }}
               />
-              <span style={{ fontSize: '11px', color: '#A8A29E', marginTop: '6px', display: 'block' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
                 {selectedFormId === 'new'
                   ? 'Created from the title when saved. A number is added if the name is already used.'
                   : 'This address stays the same when the title changes.'}
@@ -1146,9 +1121,9 @@ export default function FormBuilder({ token }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                 {isSw ? 'Magazine Type (Kiswahili)' : 'Magazine Type'}
               </label>
               <input
@@ -1159,20 +1134,18 @@ export default function FormBuilder({ token }) {
                 style={{
                   width: '100%',
                   padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '13px',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Price *
-              </label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Price *</InterfaceText></label>
               <input
                 type="number"
                 required
@@ -1182,43 +1155,41 @@ export default function FormBuilder({ token }) {
                 style={{
                   width: '100%',
                   padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '13px',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Currency
-              </label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}><InterfaceText>Currency</InterfaceText></label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
+                  backgroundColor: 'var(--bg-primary)',
                   border: '1px solid #D6D3D1',
                   borderRadius: '6px',
                   fontSize: '13px',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   boxSizing: 'border-box',
                 }}
               >
-                <option value="TZS">TZS</option>
-                <option value="USD">USD</option>
-                <option value="KES">KES</option>
+                <option value="TZS"><InterfaceText>TZS</InterfaceText></option>
+                <option value="USD"><InterfaceText>USD</InterfaceText></option>
+                <option value="KES"><InterfaceText>KES</InterfaceText></option>
               </select>
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
               {isSw ? 'Form Description & Welcome Note (Kiswahili)' : 'Form Description & Welcome Note'}
             </label>
             <textarea
@@ -1229,11 +1200,11 @@ export default function FormBuilder({ token }) {
               style={{
                 width: '100%',
                 padding: '9px 12px',
-                backgroundColor: '#FAFAF9',
+                backgroundColor: 'var(--bg-primary)',
                 border: '1px solid #D6D3D1',
                 borderRadius: '6px',
                 fontSize: '13px',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 boxSizing: 'border-box',
               }}
             />
@@ -1244,12 +1215,8 @@ export default function FormBuilder({ token }) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
-                Sections & Question Prompts
-              </h2>
-              <span style={{ fontSize: '12px', color: '#78716C' }}>
-                Organize client submissions into sequential spreads and photo folders.
-              </span>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}><InterfaceText>Sections &amp; Question Prompts</InterfaceText></h2>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}><InterfaceText>Organize client submissions into sequential spreads and photo folders.</InterfaceText></span>
             </div>
 
             <button
@@ -1261,17 +1228,15 @@ export default function FormBuilder({ token }) {
                 gap: '6px',
                 padding: '8px 14px',
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #C5A059',
+                border: '1px solid var(--accent-primary)',
                 borderRadius: '6px',
-                color: '#C5A059',
+                color: 'var(--accent-primary)',
                 fontSize: '12px',
                 fontWeight: '700',
                 cursor: 'pointer',
               }}
             >
-              <FolderPlus size={14} />
-              + Add Section
-            </button>
+              <FolderPlus size={14} /><InterfaceText>+ Add Section</InterfaceText></button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1283,7 +1248,7 @@ export default function FormBuilder({ token }) {
                   key={sec.sectionId}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    border: '1px solid #E7E5E4',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '8px',
                     padding: '20px',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
@@ -1301,8 +1266,7 @@ export default function FormBuilder({ token }) {
                     }}
                   >
                     <div style={{ flex: 1, marginRight: '16px' }}>
-                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '0.8px' }}>
-                        Section {secIdx + 1} of {sections.length}
+                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--accent-primary)', letterSpacing: '0.8px' }}><InterfaceText>Section</InterfaceText>{secIdx + 1}<InterfaceText>of</InterfaceText>{sections.length}
                       </div>
                       <input
                         type="text"
@@ -1312,14 +1276,14 @@ export default function FormBuilder({ token }) {
                         style={{
                           fontSize: '16px',
                           fontWeight: '700',
-                          color: '#1C1917',
+                          color: 'var(--text-main)',
                           border: 'none',
                           borderBottom: '1px solid transparent',
                           outline: 'none',
                           width: '100%',
                           padding: '4px 0',
                         }}
-                        onFocus={(e) => (e.target.style.borderBottom = '1px solid #C5A059')}
+                        onFocus={(e) => (e.target.style.borderBottom = '1px solid var(--accent-primary)')}
                         onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
                       />
                       <input
@@ -1329,7 +1293,7 @@ export default function FormBuilder({ token }) {
                         placeholder={isSw ? `Kiswahili: ${sec.description || 'Section instructions (optional)'}` : 'Section instructions or description (optional)'}
                         style={{
                           fontSize: '12px',
-                          color: '#78716C',
+                          color: 'var(--text-muted)',
                           border: 'none',
                           outline: 'none',
                           width: '100%',
@@ -1363,15 +1327,13 @@ export default function FormBuilder({ token }) {
                         style={{
                           textAlign: 'center',
                           padding: '20px',
-                          backgroundColor: '#FAFAF9',
+                          backgroundColor: 'var(--bg-primary)',
                           border: '1px dashed #D6D3D1',
                           borderRadius: '6px',
-                          color: '#78716C',
+                          color: 'var(--text-muted)',
                           fontSize: '13px',
                         }}
-                      >
-                        No questions in this section yet. Add a text question or a photo group spread below.
-                      </div>
+                      ><InterfaceText>No questions in this section yet. Add a text question or a photo group spread below.</InterfaceText></div>
                     ) : (
                       sectionFields.map((field) => {
                         const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);
@@ -1381,15 +1343,15 @@ export default function FormBuilder({ token }) {
                           <div
                             key={field.fieldId}
                             style={{
-                              backgroundColor: isPhotoGroup ? '#FAF5EA' : '#FAFAF9',
-                              border: `1px solid ${isPhotoGroup ? 'rgba(197, 160, 89, 0.4)' : '#E7E5E4'}`,
+                              backgroundColor: isPhotoGroup ? '#FAF5EA' : 'var(--bg-primary)',
+                              border: `1px solid ${isPhotoGroup ? 'rgba(197, 160, 89, 0.4)' : 'var(--border-color)'}`,
                               borderRadius: '6px',
                               padding: '16px',
                             }}
                           >
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                            <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
                               <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>
                                   {isSw ? 'Question Label / Spread Title (Kiswahili)' : 'Question Label / Spread Title *'}
                                 </label>
                                 <input
@@ -1406,16 +1368,14 @@ export default function FormBuilder({ token }) {
                                     borderRadius: '4px',
                                     fontSize: '13px',
                                     fontWeight: '600',
-                                    color: '#1C1917',
+                                    color: 'var(--text-main)',
                                     boxSizing: 'border-box',
                                   }}
                                 />
                               </div>
 
                               <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                                  Response Type
-                                </label>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}><InterfaceText>Response Type</InterfaceText></label>
                                 <select
                                   value={field.type}
                                   onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
@@ -1427,7 +1387,7 @@ export default function FormBuilder({ token }) {
                                     borderRadius: '4px',
                                     fontSize: '13px',
                                     fontWeight: '600',
-                                    color: '#1C1917',
+                                    color: 'var(--text-main)',
                                     boxSizing: 'border-box',
                                   }}
                                 >
@@ -1451,19 +1411,19 @@ export default function FormBuilder({ token }) {
                                   width: '100%',
                                   padding: '7px 10px',
                                   backgroundColor: '#FFFFFF',
-                                  border: '1px solid #E7E5E4',
+                                  border: '1px solid var(--border-color)',
                                   borderRadius: '4px',
                                   fontSize: '12px',
-                                  color: '#78716C',
+                                  color: 'var(--text-muted)',
                                   boxSizing: 'border-box',
                                 }}
                               />
                             </div>
 
                             {['dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox'].includes(field.type) && (
-                              <div style={{ display: 'grid', gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '12px' }}>
+                              <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '12px' }}>
                                 {field.type.startsWith('grid_') && (
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)' }}>
                                     {isSw ? 'Rows in Kiswahili (same order as English, one per line)' : 'Rows (one per line)'}
                                     <textarea
                                       rows={4}
@@ -1478,7 +1438,7 @@ export default function FormBuilder({ token }) {
                                     />
                                   </label>
                                 )}
-                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
+                                <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)' }}>
                                   {field.type.startsWith('grid_') ? 'Columns' : 'Options'}{isSw ? ' in Kiswahili (same order as English, one per line)' : ' (one per line)'}
                                   <textarea
                                     rows={4}
@@ -1496,7 +1456,7 @@ export default function FormBuilder({ token }) {
                             )}
 
                             {field.type === 'linear_scale' && (
-                              <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                              <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                                 <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label="Scale minimum" />
                                 <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label="Scale maximum" />
                                 <input value={field.scaleConfig?.[lk('lowLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('lowLabel')]: e.target.value })} placeholder={isSw ? `Low label (Kiswahili)${field.scaleConfig?.lowLabel ? `: ${field.scaleConfig.lowLabel}` : ''}` : 'Low label'} />
@@ -1506,9 +1466,9 @@ export default function FormBuilder({ token }) {
 
                             {field.type === 'rating' && (
                               <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-                                <label style={{ fontSize: '11px', fontWeight: '700' }}>Levels <input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
+                                <label style={{ fontSize: '11px', fontWeight: '700' }}><InterfaceText>Levels</InterfaceText><input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
                                 <select value={field.ratingConfig?.iconType || 'star'} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, iconType: e.target.value })}>
-                                  <option value="star">Stars</option><option value="heart">Hearts</option><option value="thumb">Thumbs</option>
+                                  <option value="star"><InterfaceText>Stars</InterfaceText></option><option value="heart"><InterfaceText>Hearts</InterfaceText></option><option value="thumb"><InterfaceText>Thumbs</InterfaceText></option>
                                 </select>
                               </div>
                             )}
@@ -1527,23 +1487,19 @@ export default function FormBuilder({ token }) {
                                   marginBottom: '12px',
                                 }}
                               >
-                                <Folder size={16} color="#C5A059" />
-                                <span style={{ fontSize: '12px', color: '#1C1917', fontWeight: '600' }}>
-                                  Photo Group: Clients can upload multiple photos here. They will appear as a dedicated folder named <strong>"{field.label || 'Photo Spread'}"</strong> on the Manager Conveyor and Designer Workstation.
-                                </span>
+                                <Folder size={16} color="var(--accent-primary)" />
+                                <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: '600' }}><InterfaceText>Photo Group: Clients can upload multiple photos here. They will appear as a dedicated folder named</InterfaceText><strong>"{field.label || 'Photo Spread'}"</strong><InterfaceText>on the Manager Conveyor and Designer Workstation.</InterfaceText></span>
                               </div>
                             )}
 
                             {/* Footer Controls: Required toggle, Duplicate, Delete */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #E7E5E4' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#1C1917', cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-main)', cursor: 'pointer' }}>
                                 <input
                                   type="checkbox"
                                   checked={field.required}
                                   onChange={(e) => handleFieldChange(globalIdx, 'required', e.target.checked)}
-                                />
-                                Required Field
-                              </label>
+                                /><InterfaceText>Required Field</InterfaceText></label>
 
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <button
@@ -1555,14 +1511,12 @@ export default function FormBuilder({ token }) {
                                     gap: '4px',
                                     backgroundColor: 'transparent',
                                     border: 'none',
-                                    color: '#78716C',
+                                    color: 'var(--text-muted)',
                                     fontSize: '12px',
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  <Copy size={13} />
-                                  Duplicate
-                                </button>
+                                  <Copy size={13} /><InterfaceText>Duplicate</InterfaceText></button>
 
                                 <button
                                   type="button"
@@ -1578,9 +1532,7 @@ export default function FormBuilder({ token }) {
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  <Trash2 size={13} />
-                                  Delete
-                                </button>
+                                  <Trash2 size={13} /><InterfaceText>Delete</InterfaceText></button>
                               </div>
                             </div>
                           </div>
@@ -1599,18 +1551,16 @@ export default function FormBuilder({ token }) {
                         alignItems: 'center',
                         gap: '6px',
                         padding: '7px 12px',
-                        backgroundColor: '#FAFAF9',
+                        backgroundColor: 'var(--bg-primary)',
                         border: '1px solid #D6D3D1',
                         borderRadius: '4px',
-                        color: '#1C1917',
+                        color: 'var(--text-main)',
                         fontSize: '12px',
                         fontWeight: '600',
                         cursor: 'pointer',
                       }}
                     >
-                      <Plus size={13} />
-                      + Add Question
-                    </button>
+                      <Plus size={13} /><InterfaceText>+ Add Question</InterfaceText></button>
 
                     <button
                       type="button"
@@ -1621,17 +1571,15 @@ export default function FormBuilder({ token }) {
                         gap: '6px',
                         padding: '7px 12px',
                         backgroundColor: '#FAF5EA',
-                        border: '1px solid #C5A059',
+                        border: '1px solid var(--accent-primary)',
                         borderRadius: '4px',
-                        color: '#1C1917',
+                        color: 'var(--text-main)',
                         fontSize: '12px',
                         fontWeight: '700',
                         cursor: 'pointer',
                       }}
                     >
-                      <FolderPlus size={13} color="#C5A059" />
-                      + Add Photo Group Spread
-                    </button>
+                      <FolderPlus size={13} color="var(--accent-primary)" /><InterfaceText>+ Add Photo Group Spread</InterfaceText></button>
                   </div>
                 </div>
               );
