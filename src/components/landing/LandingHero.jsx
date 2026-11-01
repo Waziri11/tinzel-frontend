@@ -9,7 +9,6 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
     <div className="landing-page">
       <section className="landing-hero">
         <div className="landing-copy">
-          <span className="ui-eyebrow">{sw ? 'Kumbukumbu, kwa namna yako' : 'Memories, made personal'}</span>
           <h1>
             {sw ? (
               <>
