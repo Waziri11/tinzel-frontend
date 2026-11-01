@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 
 const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
-const designer = { _id: 'designer-1', name: 'Juma Designer', role: 'designer', isActive: true };
+const designer = { _id: 'designer-1', name: 'Juma Designer', role: 'designer', preferredLanguage: 'en', isActive: true };
 const fix = { _id: 'fix-1', text: 'Correct the anniversary date', pageReference: '4', status: 'open', designerResponse: '' };
 const request = { _id: 'return-1', roundNumber: 1, draftVersionNumber: 1, source: 'client', status: 'open', requestedAt: '2026-10-18T10:00:00Z', items: [fix] };
 const order = { _id: 'order-1', trackingId: 'TNZ-2026-0099', submissionId: 'SUB-2026-0099', clientName: 'Asha Client', clientWhatsApp: '0712000000', formTitle: 'Love Story', status: 'revision_requested', currentDraftVersion: 1, assignedDesigner: designer, submittedData: { story: 'Our story' }, submittedFields: [{ fieldId: 'story', label: 'Story', order: 1 }], uploadedPhotos: [], draftVersions: [], revisionRequests: [request], updatedAt: '2026-10-18T10:00:00Z' };
@@ -16,7 +16,7 @@ async function setup(page) {
 }
 
 test('designer order uses its own URL, history, checklist and PDF-only top action', async ({ page }) => {
-  await setup(page); await page.goto('/staff/design'); await page.getByRole('button', { name: 'English EN' }).click();
+  await setup(page); await page.goto('/staff/design'); await chooseEnglish(page);
   await expect(page.getByRole('heading', { name: 'Design orders', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Open TNZ-2026-0099' }).click();
   await expect(page).toHaveURL(/\/staff\/design\/orders\/order-1$/);
@@ -24,14 +24,14 @@ test('designer order uses its own URL, history, checklist and PDF-only top actio
   await expect(page.getByRole('heading', { name: 'Submission history' })).toBeVisible();
   await page.getByRole('tab', { name: 'Corrections', exact: true }).click();
   await expect(page.getByText('Correct the anniversary date')).toBeVisible();
-  await page.reload(); await page.getByRole('button', { name: 'English EN' }).click(); await expect(page.getByRole('heading', { name: 'TNZ-2026-0099' })).toBeVisible();
+  await page.reload(); await chooseEnglish(page); await expect(page.getByRole('heading', { name: 'TNZ-2026-0099' })).toBeVisible();
   await page.getByRole('button', { name: 'Upload new draft' }).click();
   await expect(page.getByLabel('Magazine PDF · up to 500 MB')).toHaveAttribute('accept', 'application/pdf,.pdf');
   await expect(page.getByRole('button', { name: 'Send to manager review' })).toBeDisabled();
 });
 
 test('returns page is a separate responsive work list', async ({ page }) => {
-  await setup(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/staff/returns'); await page.getByRole('button', { name: 'English EN' }).click();
+  await setup(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/staff/returns'); await chooseEnglish(page);
   await expect(page.getByRole('heading', { name: 'Returned Magazines & Changes' })).toBeVisible();
   await expect(page.getByText('1/1 addressed')).toHaveCount(0);
   await page.getByRole('button', { name: /Open/ }).last().click();
@@ -44,7 +44,7 @@ test('protected reader uses book view on desktop, single page on mobile, and no 
   const proof = { ...order, status: 'draft_manager_review', revisionRequests: [], draftVersions: [{ _id: 'draft-1', versionNumber: 1, uploadedAt: '2026-10-18T10:00:00Z', managerReview: { status: 'pending' }, clientReview: { status: 'pending' } }] };
   await page.route('**/api/designer/orders/order-1', (route) => json(route, { order: proof, auditLogs: [] }));
   await mockReader(page);
-  await page.goto('/staff/design/orders/order-1'); await page.getByRole('button', { name: 'English EN' }).click();
+  await page.goto('/staff/design/orders/order-1'); await chooseEnglish(page);
   await expect(page.getByRole('button', { name: 'Single page', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -76,7 +76,7 @@ test('reader retains failed comments, saves selected areas, and opens historical
   const proof = {...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[1,2].map(versionNumber=>({_id:`draft-${versionNumber}`,versionNumber,managerReview:{status:'pending'},clientReview:{status:'pending'}})),currentDraftVersion:2};
   await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
   await mockReader(page,{canComment:true,failOnce:true});
-  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await page.getByRole('button',{name:'Mark area'}).click();
   const bounds = await page.locator('.proof-sheet').boundingBox();
@@ -88,7 +88,7 @@ test('reader retains failed comments, saves selected areas, and opens historical
   await page.getByRole('button',{name:'Save comment',exact:true}).click();
   await expect(page.getByText('Saved',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Return for corrections (1)'})).toBeVisible();
-  await page.reload();await page.getByRole('button',{name:'English EN'}).click();
+  await page.reload();await chooseEnglish(page);
   await page.getByRole('button',{name:'Comments (1)',exact:true}).click();
   await expect(page.getByText('Replace this photograph',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Zoom in'}).click();
@@ -113,7 +113,7 @@ test('text selections save normalized anchors and submit together as corrections
   await mockReader(page,{canComment:true});
   let submitted;
   await page.route('**/api/manager/orders/order-1/review-draft',route=>{submitted=route.request().postDataJSON();return json(route,{success:true});});
-  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await page.getByRole('button',{name:'Select text',exact:true}).click();
   const text=page.locator('.proof-text-layer span').first();const b=await text.boundingBox();
@@ -133,7 +133,7 @@ test('client can reopen a released historical magazine while a replacement is pr
   await page.route('**/api/client/order',route=>json(route,{order:released}));
   await page.route(/\/api\/proofs\/client\/1(?:\/prepare)?$/,route=>json(route,{state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:false}));
   await page.route('**/api/proofs/client/1/pages/1*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:600,height:800,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage}));
-  await page.goto('/track');await page.getByRole('button',{name:'English EN'}).click();
+  await page.goto('/track');await chooseEnglish(page);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await expect(page.getByLabel('Magazine version')).toHaveValue('1');
   await expect(page.getByRole('button',{name:'Select text',exact:true})).toHaveCount(0);
@@ -158,14 +158,14 @@ test('draft upload shows real progress, resumes after reload, and waits for serv
     return json(route,{...session,chunks:[...chunks.values()]});
   });
   const payload={name:'large-magazine.pdf',mimeType:'application/pdf',buffer:Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.alloc(5*1024*1024)])};
-  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await page.getByRole('button',{name:'Upload new draft'}).click();
+  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await page.getByRole('button',{name:'Upload new draft'}).click();
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
   await expect(page.getByRole('progressbar',{name:'Magazine upload progress'})).toBeVisible();
   await expect(page.getByText('Reconnecting',{exact:false})).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('Connection interrupted');
   expect(await page.getByRole('progressbar').getAttribute('value')).not.toBe('100');
   expect(chunks.has(0)).toBe(true);blocked=false;
-  await page.reload();await page.getByRole('button',{name:'English EN'}).click();await page.getByRole('button',{name:'Upload new draft'}).click();
+  await page.reload();await chooseEnglish(page);await page.getByRole('button',{name:'Upload new draft'}).click();
   await expect(page.getByText(/A saved upload is available/)).toBeVisible();
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
   await expect(page.getByText('Finalizing draft',{exact:false})).toBeVisible();expect(counts.get(0)).toBe(1);
@@ -190,7 +190,7 @@ test('reader shows the cover without waiting for later opening pages and prepare
     if(url.pathname.endsWith('/prepare'))for(const p of route.request().postDataJSON().pages){const start=Math.floor((p-1)/5)*5+1;for(let n=start;n<=Math.min(12,start+4);n++)prepared.add(n);}
     return json(route,{state:'ready',pageCount:12,pages:[...prepared].map(page=>({page})),annotations:[],canComment:false});
   });
-  await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(requested.every(n=>n<=5)).toBe(true);expect(prepared.size).toBe(5);
   await page.getByLabel('Go to page').fill('10');await expect(page.getByAltText('Magazine page 10')).toBeVisible();await expect(page.getByAltText('Magazine page 11')).toBeVisible();expect(prepared.has(12)).toBe(true);
 });
@@ -211,7 +211,7 @@ test('fullscreen book fits both pages, turns a two-sided leaf, and cached naviga
  const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
  let metadataRequests=0;page.on('request',request=>{if(/\/proofs\/staff\/order-1\/1(?:\/prepare)?$/.test(new URL(request.url()).pathname))metadataRequests++;});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  await expect(page.getByRole('complementary',{name:'Magazine comments'})).toHaveCount(0);
  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
  const initial=metadataRequests;await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn-leaf')).toBeVisible();await expect(page.locator('.book-turn-front')).toHaveCount(16);await expect(page.locator('.book-turn-back')).toHaveCount(16);
@@ -228,7 +228,7 @@ test('mobile fits one page, swipes in either direction, and preserves annotation
  await setup(page);await page.setViewportSize({width:390,height:844});
  const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true,pageCount:12});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
  await expect(page.getByRole('button',{name:'Book view',exact:true})).toHaveCount(0);
  const bounds=await page.getByAltText('Magazine page 1').boundingBox();expect(bounds.width).toBeGreaterThan(340);expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThan(800);
@@ -248,19 +248,19 @@ test('reduced motion skips page rotation and a slow next spread keeps the curren
  const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page);
  let release,blocked=true;const gate=new Promise(resolve=>release=resolve);
  await page.route('**/api/proofs/staff/order-1/1/pages/2*',async route=>{if(blocked)await gate;return new URL(route.request().url()).searchParams.has('text')?json(route,{width:600,height:800,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage});});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByText('Preparing pages…',{exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();blocked=false;release();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByText('Preparing pages…',{exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();blocked=false;release();
  await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);
 });
 
 test('touch devices stay single-page in landscape orientation',async({browser})=>{
  const context=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true});const page=await context.newPage();
- try{await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await expect(page.getByRole('button',{name:'Single page',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.proof-sheet')).toHaveCount(1);}finally{await context.close();}
+ try{await setup(page);const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await expect(page.getByRole('button',{name:'Single page',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.proof-sheet')).toHaveCount(1);}finally{await context.close();}
 });
 
 test('landscape PDF pages keep their aspect ratio and correction coordinates inside desktop spreads',async({page})=>{
  await setup(page);await page.setViewportSize({width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
  await page.route('**/api/proofs/staff/order-1/1/pages/2*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:800,height:600,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage.replace('width="600" height="800"','width="800" height="600"')}));
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('.book-turn')).toHaveCount(0);await page.getByRole('button',{name:'Mark area',exact:true}).click();const image=page.getByAltText('Magazine page 2'),b=await image.boundingBox();expect(b.width/b.height).toBeCloseTo(800/600,1);
  await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();await page.getByLabel('Correction comment').fill('Landscape layout correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const annotation=(await sent).postDataJSON();expect(annotation.page).toBe(2);expect(annotation.rects[0].width).toBeCloseTo(.3,1);expect(annotation.rects[0].height).toBeCloseTo(.2,1);
 });
 
@@ -269,7 +269,7 @@ test('saving an earlier comment preserves newer typing and its marked region',as
  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{canComment:true});
  let release;const gate=new Promise(resolve=>release=resolve);
  await page.route('**/api/proofs/staff/order-1/1/annotations',async route=>{const body=route.request().postDataJSON();await gate;return json(route,{annotations:[{...body,_id:'saved-1',authorName:'Manager'}]});});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Mark area',exact:true}).click();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Mark area',exact:true}).click();
  const b=await page.getByAltText('Magazine page 1').boundingBox();await page.mouse.move(b.x+b.width*.2,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.4);await page.mouse.up();
  await expect(page.locator('.proof-selection-mark')).toBeVisible();await page.getByLabel('Correction comment').fill('First correction');const sent=page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');await page.getByRole('button',{name:'Save comment',exact:true}).click();const payload=(await sent).postDataJSON();expect(payload.clientMutationId).toMatch(/^[a-f0-9-]{36}$/i);
  await page.getByLabel('Correction comment').fill('Newer correction still being written');release();await expect(page.getByText('Saved earlier comment — your current draft is still here')).toBeVisible();await expect(page.getByLabel('Correction comment')).toHaveValue('Newer correction still being written');await expect(page.locator('.proof-selection-mark')).toBeVisible();
@@ -278,14 +278,14 @@ test('saving an earlier comment preserves newer typing and its marked region',as
 test('temporary profile failure preserves sign-in and retries without showing protected content',async({page})=>{
  await setup(page);let unavailable=true;
  await page.route('**/api/staff/me',route=>unavailable?route.fulfill({status:503,contentType:'application/json',body:'{}'}):json(route,{user:designer}));
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByRole('button',{name:'Retry connection'})).toBeVisible();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('button',{name:'Retry connection'})).toBeVisible();
  await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBe('designer-test');
  unavailable=false;await page.getByRole('button',{name:'Retry connection'}).click();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toBeVisible();
 });
 
 test('invalid staff session is cleared and requires sign-in',async({page})=>{
  await setup(page);await page.route('**/api/staff/me',route=>route.fulfill({status:401,contentType:'application/json',body:'{}'}));
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByRole('heading',{name:'Staff Workstation Sign In'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('heading',{name:'Staff Workstation Sign In'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
 });
 
 test('cover transfer overlaps metadata and a compatible image response is downloaded only once',async({page})=>{
@@ -294,14 +294,14 @@ test('cover transfer overlaps metadata and a compatible image response is downlo
  await page.route('**/api/proofs/staff/order-1/1',async route=>{await metadataGate;return json(route,{state:'ready',pageCount:3,pages:[1,2,3].map(page=>({page,width:600,height:800})),annotations:[],canComment:false});});
  page.on('request',r=>{const url=new URL(r.url());if(url.pathname.endsWith('/pages/1')&&!url.searchParams.has('text')){imageRequests++;if(!url.searchParams.has('bundle'))rawImageRequests++;}});
  const coverRequested=page.waitForRequest(r=>new URL(r.url()).pathname.endsWith('/pages/1'));
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);
  try{await coverRequested;expect(imageRequests).toBeGreaterThan(0);}finally{release();}
  await expect(page.getByAltText('Magazine page 1')).toBeVisible();expect(rawImageRequests).toBe(0);
 });
 
 test('paper bends through connected hinges during the turn and settles flat',async({page})=>{
  await setup(page);await page.setViewportSize({width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn')).toHaveCount(0);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();await page.getByRole('button',{name:'Next page',exact:true}).click();await expect(page.locator('.book-turn')).toHaveCount(0);
  // Hold the decorative leaf long enough to capture and inspect its half-turn geometry.
  await page.evaluate(()=>{const schedule=window.setTimeout;window.setTimeout=(fn,ms,...args)=>schedule(fn,ms===660?4000:ms,...args);});
  await page.addStyleTag({content:'.book-turn-leaf,.book-paper-segment,.book-turn::before,.book-turn-front::after,.book-turn-back::after{animation-play-state:paused!important;animation-delay:-.32s!important}'});
@@ -312,7 +312,7 @@ test('paper bends through connected hinges during the turn and settles flat',asy
 
 test('mobile pages fold at the binding and backward navigation unfolds the incoming page',async({page})=>{
  await setup(page);await page.setViewportSize({width:390,height:844});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));await mockReader(page,{pageCount:12});
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
  await page.evaluate(()=>{const schedule=window.setTimeout;window.setTimeout=(fn,ms,...args)=>schedule(fn,ms===660?2500:ms,...args);});
  await page.addStyleTag({content:'.book-turn-leaf,.book-paper-segment,.book-turn::before,.book-turn-front::after,.book-turn-back::after{animation-play-state:paused!important;animation-delay:-.12s!important}'});
  const old=await page.getByAltText('Magazine page 1').getAttribute('src');
@@ -334,7 +334,7 @@ async function annotationWorkspace(page,{mobile=false}={}){
   if(url.pathname.includes('/pages/'))return url.searchParams.has('text')?json(route,{geometryVersion:2,width:600,height:800,imageRegions:regions,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03,dir:'ltr',fontFamily:'sans-serif',hasEOL:true}]}):route.fulfill({contentType:'image/svg+xml',body:samplePage});
   return json(route,{state:'ready',pageCount:12,pages:Array.from({length:12},(_,i)=>({page:i+1,width:600,height:800,geometryVersion:2,geometryState:'ready'})),annotations,canComment:true});
  });
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  return {regions};
 }
 
@@ -369,7 +369,7 @@ test('selection geometry failure leaves the magazine readable and retry upgrades
   if(url.pathname.includes('/pages/')){if(url.searchParams.has('text'))return json(route,{geometryVersion:ready?2:0,width:600,height:800,text:[],imageRegions:ready?[detectedRegion('recovered',.1,.2,.5,.4)]:[]});imageLoads++;return route.fulfill({contentType:'image/svg+xml',body:samplePage});}
   return json(route,{state:'ready',pageCount:1,pages:[{page:1,geometryVersion:ready?2:0,geometryState:ready?'ready':'failed',geometryError:{message:'Selection preparation failed'}}],annotations:[],canComment:true});
  });
- await page.goto('/staff/design/orders/order-1');await page.getByRole('button',{name:'English EN'}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();const before=imageLoads;await page.getByRole('button',{name:'Select image',exact:true}).click();await expect(page.getByRole('button',{name:'Retry selection',exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Retry selection',exact:true}).click();await expect(page.locator('.proof-image-targets polygon')).toHaveCount(1);expect(imageLoads).toBe(before);expect(preparations.some(p=>p.geometryOnly&&p.retry)).toBe(true);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();const before=imageLoads;await page.getByRole('button',{name:'Select image',exact:true}).click();await expect(page.getByRole('button',{name:'Retry selection',exact:true})).toBeVisible();await expect(page.getByAltText('Magazine page 1')).toBeVisible();await page.getByRole('button',{name:'Retry selection',exact:true}).click();await expect(page.locator('.proof-image-targets polygon')).toHaveCount(1);expect(imageLoads).toBe(before);expect(preparations.some(p=>p.geometryOnly&&p.retry)).toBe(true);
 });
 
 test('mobile composer remains above a reduced visual viewport while typing',async({page})=>{

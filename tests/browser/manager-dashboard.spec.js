@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 
 const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
-const manager = { _id: 'manager-1', name: 'Neema Manager', email: 'manager@tinzel.test', role: 'manager', isActive: true };
+const manager = { _id: 'manager-1', name: 'Neema Manager', email: 'manager@tinzel.test', role: 'manager', preferredLanguage: 'en', isActive: true };
 const baseOrder = {
   _id: 'order-1', trackingId: 'TNZ-2026-0042', submissionId: 'SUB-2026-0042', clientName: 'Asha Mushi',
   clientWhatsApp: '+255700000001', clientEmail: 'asha@example.test', formTitle: 'Anniversary Magazine',
@@ -35,7 +35,7 @@ async function openManagerDashboard(page) {
   await page.route(/\/api\/proofs\/staff\/order-1\/2(?:\/prepare)?$/, route => json(route, {state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:true}));
   await page.route('**/api/proofs/staff/order-1/2/pages/1*', route => new URL(route.request().url()).searchParams.has('text') ? json(route,{width:600,height:800,text:[]}) : route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>'}));
   await page.goto('/');
-  await page.getByRole('button', { name: 'English EN' }).click();
+  await chooseEnglish(page);
   await page.getByRole('button', { name: /Login/ }).click();
   const menu = page.getByRole('button', { name: 'Open workspace menu' });
   if (page.viewportSize().width <= 760) { await expect(menu).toBeVisible(); await menu.click(); }
@@ -141,7 +141,7 @@ test('admin workspace keeps navigation and user management concise', async ({ pa
   const admin = { _id: 'admin-1', name: 'Amina Admin', email: 'admin@tinzel.test', role: 'admin', isActive: true };
   const staff = [
     admin,
-    { _id: 'designer-1', name: 'Juma Designer', email: 'juma@tinzel.test', phone: '+255700000002', role: 'designer', isActive: true, currentActiveWorkload: 2, maxActiveWorkload: 5, isEligibleForAssignment: true },
+    { _id: 'designer-1', name: 'Juma Designer', email: 'juma@tinzel.test', phone: '+255700000002', role: 'designer', preferredLanguage: 'en', isActive: true, currentActiveWorkload: 2, maxActiveWorkload: 5, isEligibleForAssignment: true },
   ];
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'admin-dashboard-test'));
   await page.route('**/api/staff/me', (route) => json(route, { user: admin }));
@@ -152,7 +152,7 @@ test('admin workspace keeps navigation and user management concise', async ({ pa
   await page.route('**/api/admin/audit-logs', (route) => json(route, { logs: [] }));
   await page.route('**/api/admin/config', (route) => json(route, { simulatedNotifications: [] }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'English EN' }).click();
+  await chooseEnglish(page);
   await page.getByRole('button', { name: /Login/ }).click();
   await page.getByRole('button', { name: 'Users', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible();

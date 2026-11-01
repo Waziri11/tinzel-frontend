@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 const json=(route,data)=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
 const user={id:'designer-setup',name:'Juma Designer',email:'juma@example.test',role:'designer',preferredLanguage:'en',mustChangePassword:true,temporaryPasswordExpiresAt:new Date(Date.now()+86400000).toISOString()};
 for(const mobile of [false,true])test(`first login forces password setup and survives refresh on ${mobile?'mobile':'desktop'}`,async({page})=>{
@@ -16,7 +16,7 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
   if(!ready)businessWhileSetup.push(path);
   if(path==='/api/designer/orders')return json(route,{orders:[]});
   if(path==='/api/notifications/history')return json(route,{notifications:[],unreadCount:0});
-  return json(route,{});
+  throw new Error(`Unexpected API ${route.request().method()} ${path}`);
  });
  await page.goto('/staff/users');
  await page.getByPlaceholder('name@example.com').fill(user.email);await page.getByPlaceholder('••••••••').fill('Abc!2345');
@@ -51,7 +51,7 @@ test('admin creates staff without entering a password and can inspect or reissue
   if(path==='/api/admin/audit-logs')return json(route,{logs:[]});
   if(path==='/api/notifications/history')return json(route,{notifications:[],unreadCount:0});
   if(path==='/api/notifications/diagnostics')return json(route,{diagnostics:{}});
-  return json(route,{});
+  throw new Error(`Unexpected API ${route.request().method()} ${path}`);
  });
  await page.goto('/staff/users');await page.getByRole('button',{name:'Add User',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Add Internal User'});
  await expect(dialog.locator('input[type=password]')).toHaveCount(0);

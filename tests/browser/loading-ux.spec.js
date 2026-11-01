@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 import fs from 'node:fs';
 
 const photo = (name, size = 150000) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.alloc(size, 42) });
@@ -16,7 +16,7 @@ test('branded catalogue loading respects reduced motion', async ({ page }) => {
   const gate = new Promise((resolve) => { release = resolve; });
   await page.route('**/api/public/forms', async (route) => { await gate; await route.continue(); });
   try {
-    await page.goto('/'); await page.getByRole('button', { name: 'English EN' }).click();
+    await page.goto('/'); await chooseEnglish(page);
     await page.getByText('New Magazine Order', { exact: true }).click();
     await expect(page.getByText('Finding the right edition for your story.')).toBeVisible();
     await expect(page.locator('.tinzel-loading .tinzel-mark img')).toHaveCSS('animation-name', 'none');
@@ -124,7 +124,7 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   });
   await page.route('**/api/designer/orders/ux-order/media-jobs/ux-job', (route) => json(route, { state: jobReady ? 'ready' : 'running', jobId: 'ux-job', url: '/ux-download.zip' }));
   await page.route('**/ux-download.zip', (route) => route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename="ux-test.zip"' }, body: 'Synthetic UI download' }));
-  await page.goto('/'); await page.getByRole('button', { name: 'English EN' }).click();
+  await page.goto('/'); await chooseEnglish(page);
   await page.getByRole('button', { name: /Login/ }).click();
   await page.getByRole('button', { name: 'Open TNZ-UX-TEST' }).click();
   await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).scrollIntoViewIfNeeded();

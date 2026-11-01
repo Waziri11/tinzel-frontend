@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 
 async function openForm(page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'English EN' }).click();
+  await chooseEnglish(page);
   await page.getByText('New Magazine Order', { exact: true }).click();
   await page.getByText('Upload Performance Test', { exact: true }).click();
   await expect(page.locator('#upload-first')).toBeAttached();
@@ -29,7 +29,7 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   const previousRequests = chunkRequests;
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:uploads:v2:upload-performance-test'))?.items.filter((i) => i.photo).length)).toBe(4);
   await page.reload();
-  await page.getByRole('button', { name: 'English EN' }).click();
+  await chooseEnglish(page);
   await page.getByText('New Magazine Order', { exact: true }).click();
   await page.getByText('Upload Performance Test', { exact: true }).click();
   await expect(page.getByText('Photos ready: 4/4')).toBeVisible();
