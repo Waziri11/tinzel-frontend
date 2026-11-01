@@ -3,7 +3,9 @@ import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import './administration.css';
 import { useLanguage } from '../../i18n/LanguageContext';
-import StaffOnboardingStatus, { onboardingLabel } from './StaffOnboardingStatus';
+import StaffOnboardingStatus, {
+  onboardingLabel,
+} from './StaffOnboardingStatus';
 import React, { useState, useEffect } from 'react';
 import {
   Users,
@@ -22,12 +24,19 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 
-export default function StaffWorkloadManager({ token, role = 'admin', initialTab = 'staff', systemOnly = false }) {
+export default function StaffWorkloadManager({
+  token,
+  role = 'admin',
+  initialTab = 'staff',
+  systemOnly = false,
+}) {
   const tx = useInterfaceText();
   const managerOnly = role === 'manager';
   const staffApi = api.staffManagement(role);
 
   const { lang } = useLanguage();
+  const ui = (en, sw) => (lang === 'sw' ? sw : en);
+  const [checking, setChecking] = useState(false);
   const [staff, setStaff] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [simulatedNotifs, setSimulatedNotifs] = useState([]);
@@ -47,7 +56,11 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
   const [notifChannelFilter, setNotifChannelFilter] = useState('all');
   const [notifStatusFilter, setNotifStatusFilter] = useState('all');
   const [showTestNotifModal, setShowTestNotifModal] = useState(false);
-  const [testNotifData, setTestNotifData] = useState({ to: '', channel: 'whatsapp', message: '' });
+  const [testNotifData, setTestNotifData] = useState({
+    to: '',
+    channel: 'whatsapp',
+    message: '',
+  });
   const [testNotifSending, setTestNotifSending] = useState(false);
   const [resendingId, setResendingId] = useState(null);
 
@@ -61,13 +74,16 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
   const [newRole, setNewRole] = useState('designer');
   const [newMaxWorkload, setNewMaxWorkload] = useState(5);
 
-  useDialogFocus(Boolean(showAddStaffModal || userModal || showTestNotifModal), () => {
-    if (!saving && !creating && !testNotifSending) {
-      setShowAddStaffModal(false);
-      setUserModal(null);
-      setShowTestNotifModal(false);
-    }
-  });
+  useDialogFocus(
+    Boolean(showAddStaffModal || userModal || showTestNotifModal),
+    () => {
+      if (!saving && !creating && !testNotifSending) {
+        setShowAddStaffModal(false);
+        setUserModal(null);
+        setShowTestNotifModal(false);
+      }
+    },
+  );
   useEffect(() => {
     loadData();
   }, [token]);
@@ -88,17 +104,22 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
     setLoading(true);
     setError(null);
     try {
-      const staffRes = await staffApi.getStaff(token);
+      const staffRes = systemOnly
+        ? { staff: [] }
+        : await staffApi.getStaff(token);
       setStaff(staffRes.staff || []);
       if (managerOnly) return;
       const [logsRes, notifsRes, diagRes] = await Promise.allSettled([
         api.admin.getAuditLogs(token),
         api.notifications.getHistory(token, { limit: 100 }),
-        api.notifications.getDiagnostics(token),
+        Promise.resolve({ diagnostics: null }),
       ]);
-      if (logsRes.status === 'fulfilled') setAuditLogs(logsRes.value.logs || []);
-      if (notifsRes.status === 'fulfilled') setSimulatedNotifs(notifsRes.value.notifications || []);
-      if (diagRes.status === 'fulfilled') setTwilioDiagnostics(diagRes.value.diagnostics || null);
+      if (logsRes.status === 'fulfilled')
+        setAuditLogs(logsRes.value.logs || []);
+      if (notifsRes.status === 'fulfilled')
+        setSimulatedNotifs(notifsRes.value.notifications || []);
+      if (diagRes.status === 'fulfilled' && diagRes.value.diagnostics)
+        setTwilioDiagnostics(diagRes.value.diagnostics);
     } catch (err) {
       setError(err.message || 'Failed to fetch admin data');
     } finally {
@@ -110,7 +131,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
     try {
       setResendingId(id);
       await api.notifications.resend(token, id, channel);
-      setNotice(`Notification re-sent successfully via ${channel.toUpperCase()}`);
+      setNotice(
+        `Notification re-sent successfully via ${channel.toUpperCase()}`,
+      );
       await loadData();
     } catch (err) {
       setError(err.message || 'Failed to resend notification');
@@ -189,7 +212,8 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
         phone: response.user.phone || '',
         role: response.user.role,
         isActive: response.user.isActive,
-        isEligibleForAssignment: response.user.isEligibleForAssignment !== false,
+        isEligibleForAssignment:
+          response.user.isEligibleForAssignment !== false,
         maxActiveWorkload: response.user.maxActiveWorkload ?? 5,
         preferredLanguage: response.user.preferredLanguage || 'sw',
       });
@@ -204,7 +228,10 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
     setSaving(true);
     setError(null);
     try {
-      const payload = { ...userForm, maxActiveWorkload: Number(userForm.maxActiveWorkload) };
+      const payload = {
+        ...userForm,
+        maxActiveWorkload: Number(userForm.maxActiveWorkload),
+      };
 
       await staffApi.updateStaff(token, selectedUser._id, payload);
       setUserModal(null);
@@ -223,7 +250,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
     try {
       await staffApi.deleteStaff(token, selectedUser._id);
       setUserModal(null);
-      setNotice('User account deleted. Its order and audit history was preserved.');
+      setNotice(
+        'User account deleted. Its order and audit history was preserved.',
+      );
       await loadData();
     } catch (err) {
       setError(err.message);
@@ -239,7 +268,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
       {notice && (
         <div
           role="status"
-          style={{ padding: '10px 14px', background: '#ECFDF5', color: '#166534', borderRadius: 6, marginBottom: 14 }}
+          style={{
+            padding: '10px 14px',
+            background: '#ECFDF5',
+            color: '#166534',
+            borderRadius: 6,
+            marginBottom: 14,
+          }}
         >
           {notice}
         </div>
@@ -247,71 +282,103 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
       {error && !userModal && (
         <div
           role="alert"
-          style={{ padding: '10px 14px', background: '#FEF2F2', color: '#991B1B', borderRadius: 6, marginBottom: 14 }}
+          style={{
+            padding: '10px 14px',
+            background: '#FEF2F2',
+            color: '#991B1B',
+            borderRadius: 6,
+            marginBottom: 14,
+          }}
         >
           {error}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {!systemOnly && <button
-          onClick={() => setActiveTab('staff')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            backgroundColor: activeTab === 'staff' ? 'var(--accent-primary)' : 'var(--card-bg)',
-            color: activeTab === 'staff' ? '#ffffff' : 'var(--text-main)',
-            border: '1px solid var(--border-color)',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <Users size={14} />
-          <InterfaceText>Users</InterfaceText>
-          <span aria-label={`${staff.length} users`}>{staff.length}</span>
-        </button>}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+        }}
+      >
+        {!systemOnly && (
+          <button
+            onClick={() => setActiveTab('staff')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              backgroundColor:
+                activeTab === 'staff'
+                  ? 'var(--accent-primary)'
+                  : 'var(--card-bg)',
+              color: activeTab === 'staff' ? '#ffffff' : 'var(--text-main)',
+              border: '1px solid var(--border-color)',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Users size={14} />
+            <InterfaceText>Users</InterfaceText>
+            <span aria-label={`${staff.length} users`}>{staff.length}</span>
+          </button>
+        )}
 
-        {!managerOnly && <button
-          onClick={() => setActiveTab('notifs')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            backgroundColor: activeTab === 'notifs' ? 'var(--accent-primary)' : 'var(--card-bg)',
-            color: activeTab === 'notifs' ? '#ffffff' : 'var(--text-main)',
-            border: '1px solid var(--border-color)',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <Send size={14} />
-          <InterfaceText>Messages</InterfaceText>
-          <span aria-label={`${simulatedNotifs.length} messages`}>{simulatedNotifs.length}</span>
-        </button>}
+        {!managerOnly && systemOnly && (
+          <button
+            onClick={() => setActiveTab('notifs')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              backgroundColor:
+                activeTab === 'notifs'
+                  ? 'var(--accent-primary)'
+                  : 'var(--card-bg)',
+              color: activeTab === 'notifs' ? '#ffffff' : 'var(--text-main)',
+              border: '1px solid var(--border-color)',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Send size={14} />
+            <InterfaceText>Messages</InterfaceText>
+            <span aria-label={`${simulatedNotifs.length} messages`}>
+              {simulatedNotifs.length}
+            </span>
+          </button>
+        )}
 
-        {!managerOnly && <button
-          onClick={() => setActiveTab('logs')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            backgroundColor: activeTab === 'logs' ? 'var(--accent-primary)' : 'var(--card-bg)',
-            color: activeTab === 'logs' ? '#ffffff' : 'var(--text-main)',
-            border: '1px solid var(--border-color)',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <Activity size={14} />
-          <InterfaceText>Audit</InterfaceText>
-          <span aria-label={`${auditLogs.length} audit entries`}>{auditLogs.length}</span>
-        </button>}
+        {!managerOnly && systemOnly && (
+          <button
+            onClick={() => setActiveTab('logs')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              backgroundColor:
+                activeTab === 'logs'
+                  ? 'var(--accent-primary)'
+                  : 'var(--card-bg)',
+              color: activeTab === 'logs' ? '#ffffff' : 'var(--text-main)',
+              border: '1px solid var(--border-color)',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Activity size={14} />
+            <InterfaceText>Audit</InterfaceText>
+            <span aria-label={`${auditLogs.length} audit entries`}>
+              {auditLogs.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Staff View */}
@@ -324,7 +391,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             padding: '20px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '14px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              marginBottom: '14px',
+            }}
+          >
             <button
               onClick={() => setShowAddStaffModal(true)}
               style={{
@@ -345,38 +419,70 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              marginBottom: 14,
+              flexWrap: 'wrap',
+            }}
+          >
             <input
               type="search"
               aria-label={tx('Search users')}
               placeholder={tx('Search users')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ minWidth: 220, flex: 1, padding: '8px 10px', border: '1px solid #D6D3D1', borderRadius: 6 }}
+              style={{
+                minWidth: 220,
+                flex: 1,
+                padding: '8px 10px',
+                border: '1px solid #D6D3D1',
+                borderRadius: 6,
+              }}
             />
             <select
               aria-label={tx('Filter users by role')}
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid #D6D3D1', borderRadius: 6 }}
+              style={{
+                padding: '8px 10px',
+                border: '1px solid #D6D3D1',
+                borderRadius: 6,
+              }}
             >
               <option value="all">
                 <InterfaceText>All roles</InterfaceText>
               </option>
-              {!managerOnly && <option value="admin">
-                <InterfaceText>Administrators</InterfaceText>
-              </option>}
-              {!managerOnly && <option value="manager">
-                <InterfaceText>Managers</InterfaceText>
-              </option>}
+              {!managerOnly && (
+                <option value="admin">
+                  <InterfaceText>Administrators</InterfaceText>
+                </option>
+              )}
+              {!managerOnly && (
+                <option value="manager">
+                  <InterfaceText>Managers</InterfaceText>
+                </option>
+              )}
               <option value="designer">
                 <InterfaceText>Designers</InterfaceText>
               </option>
             </select>
           </div>
 
-          <div tabIndex={0} role="region" aria-label={tx('Users')} style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label={tx('Users')}
+            style={{ overflowX: 'auto' }}
+          >
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '13px',
+              }}
+            >
               <thead>
                 <tr
                   style={{
@@ -420,15 +526,37 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   )
                   .map((s) => {
                     const percent = s.maxActiveWorkload
-                      ? Math.min(100, (s.currentActiveWorkload / s.maxActiveWorkload) * 100)
+                      ? Math.min(
+                          100,
+                          (s.currentActiveWorkload / s.maxActiveWorkload) * 100,
+                        )
                       : 0;
                     return (
-                      <tr key={s._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <tr
+                        key={s._id}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                        }}
+                      >
                         <td style={{ padding: '12px 8px', minWidth: 200 }}>
                           <strong style={{ display: 'block' }}>{s.name}</strong>
-                          <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12 }}>{s.email}</span>
+                          <span
+                            style={{
+                              display: 'block',
+                              color: 'var(--text-muted)',
+                              fontSize: 12,
+                            }}
+                          >
+                            {s.email}
+                          </span>
                           {s.phone && (
-                            <span style={{ display: 'block', color: 'var(--text-muted)', fontSize: 11 }}>
+                            <span
+                              style={{
+                                display: 'block',
+                                color: 'var(--text-muted)',
+                                fontSize: 11,
+                              }}
+                            >
                               {s.phone}
                             </span>
                           )}
@@ -442,16 +570,37 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                               fontWeight: '600',
                               textTransform: 'uppercase',
                               backgroundColor:
-                                s.role === 'admin' ? '#581c87' : s.role === 'manager' ? '#1e3a8a' : '#14532d',
-                              color: s.role === 'admin' ? '#d8b4fe' : s.role === 'manager' ? '#93c5fd' : '#86efac',
+                                s.role === 'admin'
+                                  ? '#581c87'
+                                  : s.role === 'manager'
+                                    ? '#1e3a8a'
+                                    : '#14532d',
+                              color:
+                                s.role === 'admin'
+                                  ? '#d8b4fe'
+                                  : s.role === 'manager'
+                                    ? '#93c5fd'
+                                    : '#86efac',
                             }}
                           >
                             {s.role}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 8px', color: s.isActive ? '#166534' : '#991B1B' }}>
+                        <td
+                          style={{
+                            padding: '12px 8px',
+                            color: s.isActive ? '#166534' : '#991B1B',
+                          }}
+                        >
                           {s.isActive ? 'Active' : 'Inactive'}
-                          <small style={{ display: 'block', color: 'var(--text-muted)' }}>{onboardingLabel(s)}</small>
+                          <small
+                            style={{
+                              display: 'block',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            {onboardingLabel(s)}
+                          </small>
                         </td>
                         <td style={{ padding: '12px 8px', width: '180px' }}>
                           {s.role === 'designer' ? (
@@ -465,11 +614,21 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                                 }}
                               >
                                 <span>
-                                  {s.currentActiveWorkload || 0} <InterfaceText>active</InterfaceText>
+                                  {s.currentActiveWorkload || 0}{' '}
+                                  <InterfaceText>active</InterfaceText>
                                 </span>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <label
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}
+                                >
                                   <span className="visually-hidden">
-                                    <InterfaceText>Maximum active orders for</InterfaceText> {s.name}
+                                    <InterfaceText>
+                                      Maximum active orders for
+                                    </InterfaceText>{' '}
+                                    {s.name}
                                   </span>
                                   /{' '}
                                   <input
@@ -479,7 +638,11 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                                     max={20}
                                     defaultValue={s.maxActiveWorkload ?? 5}
                                     onBlur={(e) =>
-                                      handleUpdateStaff(s._id, { maxActiveWorkload: Number(e.target.value) })
+                                      handleUpdateStaff(s._id, {
+                                        maxActiveWorkload: Number(
+                                          e.target.value,
+                                        ),
+                                      })
                                     }
                                     style={{
                                       width: 42,
@@ -504,13 +667,20 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                                   style={{
                                     width: `${percent}%`,
                                     height: '100%',
-                                    backgroundColor: percent >= 100 ? '#ef4444' : percent >= 60 ? '#f59e0b' : '#10b981',
+                                    backgroundColor:
+                                      percent >= 100
+                                        ? '#ef4444'
+                                        : percent >= 60
+                                          ? '#f59e0b'
+                                          : '#10b981',
                                   }}
                                 />
                               </div>
                             </div>
                           ) : (
-                            <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              —
+                            </span>
                           )}
                         </td>
                         <td style={{ padding: '12px 8px' }}>
@@ -528,16 +698,24 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                                 type="checkbox"
                                 checked={s.isEligibleForAssignment !== false}
                                 onChange={(e) =>
-                                  handleUpdateStaff(s._id, { isEligibleForAssignment: e.target.checked })
+                                  handleUpdateStaff(s._id, {
+                                    isEligibleForAssignment: e.target.checked,
+                                  })
                                 }
                               />
-                              {s.isEligibleForAssignment !== false ? 'Eligible' : 'Paused'}
+                              {s.isEligibleForAssignment !== false
+                                ? 'Eligible'
+                                : 'Paused'}
                             </label>
                           ) : (
-                            <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              —
+                            </span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}>
+                        <td
+                          style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}
+                        >
                           <button
                             type="button"
                             title={tx('View user')}
@@ -556,15 +734,17 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                           >
                             <Pencil size={15} />
                           </button>
-                          {!managerOnly && <button
-                            type="button"
-                            title={tx('Delete user')}
-                            aria-label={`Delete ${s.name}`}
-                            onClick={() => openUser(s, 'delete')}
-                            style={{ padding: 6, color: '#991B1B' }}
-                          >
-                            <Trash2 size={15} />
-                          </button>}
+                          {!managerOnly && (
+                            <button
+                              type="button"
+                              title={tx('Delete user')}
+                              aria-label={`Delete ${s.name}`}
+                              onClick={() => openUser(s, 'delete')}
+                              style={{ padding: 6, color: '#991B1B' }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -585,6 +765,132 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             padding: '20px',
           }}
         >
+          <button
+            type="button"
+            className="ui-button"
+            disabled={checking}
+            onClick={async () => {
+              setChecking(true);
+              try {
+                const r = await api.notifications.getDiagnostics(token);
+                setTwilioDiagnostics({
+                  ...r.diagnostics,
+                  checkedAt: new Date().toISOString(),
+                });
+              } catch (e) {
+                setError(e.message);
+              } finally {
+                setChecking(false);
+              }
+            }}
+          >
+            {checking
+              ? ui('Checking…', 'Inakagua…')
+              : ui('Check connections', 'Kagua miunganisho')}
+          </button>
+          {twilioDiagnostics && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit,minmax(min(100%,240px),1fr))',
+                gap: 16,
+                margin: '16px 0',
+              }}
+            >
+              {[
+                [
+                  'NextSMS',
+                  twilioDiagnostics.sms,
+                  twilioDiagnostics.sms?.authenticated,
+                  [
+                    ['API', twilioDiagnostics.sms?.apiVersion],
+                    [
+                      ui('Sender', 'Mtumaji'),
+                      twilioDiagnostics.sms?.configuredSenderId,
+                    ],
+                    [
+                      ui('Latency', 'Muda wa majibu'),
+                      `${twilioDiagnostics.sms?.latencyMs ?? 0} ms`,
+                    ],
+                  ],
+                ],
+                [
+                  ui('SMTP email', 'Barua pepe ya SMTP'),
+                  twilioDiagnostics.email,
+                  twilioDiagnostics.email?.connected,
+                  [
+                    [ui('Host', 'Seva'), twilioDiagnostics.email?.host],
+                    [ui('Port', 'Mlango'), twilioDiagnostics.email?.port],
+                    ['TLS', String(twilioDiagnostics.email?.secure ?? false)],
+                    [ui('Sender', 'Mtumaji'), twilioDiagnostics.email?.from],
+                    [
+                      ui('Latency', 'Muda wa majibu'),
+                      `${twilioDiagnostics.email?.latencyMs ?? 0} ms`,
+                    ],
+                  ],
+                ],
+                [
+                  'Twilio / WhatsApp',
+                  twilioDiagnostics.twilio,
+                  twilioDiagnostics.twilio?.success,
+                  [
+                    [
+                      ui('Account', 'Akaunti'),
+                      twilioDiagnostics.twilio?.accountName,
+                    ],
+                    [ui('Status', 'Hali'), twilioDiagnostics.twilio?.status],
+                    [
+                      ui('Phone', 'Simu'),
+                      twilioDiagnostics.twilio?.phoneNumber,
+                    ],
+                    ['WhatsApp', twilioDiagnostics.twilio?.whatsappNumber],
+                  ],
+                ],
+              ].map(([name, report, connected, rows]) => (
+                <section
+                  key={name}
+                  style={{
+                    padding: 16,
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 8,
+                    minWidth: 0,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  <h3>{name}</h3>
+                  <p>
+                    {!report?.configured
+                      ? ui('Not configured', 'Haijasanidiwa')
+                      : connected
+                        ? ui('Connected', 'Imeunganishwa')
+                        : ui('Connection failed', 'Muunganisho umeshindikana')}
+                  </p>
+                  <dl>
+                    {rows
+                      .filter(
+                        ([, value]) => value !== undefined && value !== null,
+                      )
+                      .map(([label, value]) => (
+                        <div key={label}>
+                          <dt
+                            style={{ color: 'var(--text-muted)', fontSize: 12 }}
+                          >
+                            {label}
+                          </dt>
+                          <dd style={{ margin: '2px 0 10px' }}>{value}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                  {report?.message && <p>{report.message}</p>}
+                </section>
+              ))}
+              <small>
+                {ui('Checked', 'Imekaguliwa')}:{' '}
+                {new Date(twilioDiagnostics.checkedAt).toLocaleString()}
+              </small>
+            </div>
+          )}
           {/* Header & Diagnostics */}
           <div
             style={{
@@ -596,46 +902,22 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
               <h2 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>
-                <InterfaceText>Communications &amp; Twilio</InterfaceText>
+                <span>{ui('Notification history', 'Historia ya taarifa')}</span>
               </h2>
-              {twilioDiagnostics?.mode === 'twilio_live' ? (
-                <span
-                  style={{
-                    backgroundColor: '#064e3b',
-                    color: '#6ee7b7',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <CheckCircle2 size={13} />
-                  <InterfaceText>Twilio Live Connected (</InterfaceText>
-                  {twilioDiagnostics.accountName || 'Active'})
-                </span>
-              ) : (
-                <span
-                  style={{
-                    backgroundColor: '#1e3a8a',
-                    color: '#93c5fd',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Clock size={13} />
-                  <InterfaceText>Simulation / Sandbox Mode</InterfaceText>
-                </span>
-              )}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {twilioDiagnostics
+                  ? ui('Connection check completed', 'Ukaguzi umekamilika')
+                  : ui('Connections not checked', 'Miunganisho haijakaguliwa')}
+              </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -683,9 +965,23 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
           </div>
 
           {/* Filter Bar */}
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '16px',
+              marginBottom: '16px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  fontWeight: '600',
+                }}
+              >
                 <InterfaceText>Channel:</InterfaceText>
               </span>
               {['all', 'whatsapp', 'sms', 'email'].map((ch) => (
@@ -694,8 +990,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   type="button"
                   onClick={() => setNotifChannelFilter(ch)}
                   style={{
-                    backgroundColor: notifChannelFilter === ch ? '#2563eb' : 'var(--bg-primary)',
-                    color: notifChannelFilter === ch ? '#ffffff' : 'var(--text-muted)',
+                    backgroundColor:
+                      notifChannelFilter === ch
+                        ? '#2563eb'
+                        : 'var(--bg-primary)',
+                    color:
+                      notifChannelFilter === ch
+                        ? '#ffffff'
+                        : 'var(--text-muted)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     padding: '3px 8px',
@@ -711,7 +1013,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  fontWeight: '600',
+                }}
+              >
                 <InterfaceText>Status:</InterfaceText>
               </span>
               {['all', 'delivered', 'sent', 'received', 'failed'].map((st) => (
@@ -720,8 +1028,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   type="button"
                   onClick={() => setNotifStatusFilter(st)}
                   style={{
-                    backgroundColor: notifStatusFilter === st ? '#374151' : 'var(--bg-primary)',
-                    color: notifStatusFilter === st ? '#ffffff' : 'var(--text-muted)',
+                    backgroundColor:
+                      notifStatusFilter === st
+                        ? '#374151'
+                        : 'var(--bg-primary)',
+                    color:
+                      notifStatusFilter === st
+                        ? '#ffffff'
+                        : 'var(--text-muted)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '4px',
                     padding: '3px 8px',
@@ -738,27 +1052,47 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
           </div>
 
           {/* Messages List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+          >
             {(() => {
               const filtered = simulatedNotifs.filter((n) => {
-                if (notifChannelFilter !== 'all' && (n.channel || '').toLowerCase() !== notifChannelFilter)
+                if (
+                  notifChannelFilter !== 'all' &&
+                  (n.channel || '').toLowerCase() !== notifChannelFilter
+                )
                   return false;
-                if (notifStatusFilter !== 'all' && (n.status || '').toLowerCase() !== notifStatusFilter) return false;
+                if (
+                  notifStatusFilter !== 'all' &&
+                  (n.status || '').toLowerCase() !== notifStatusFilter
+                )
+                  return false;
                 return true;
               });
 
               if (filtered.length === 0) {
                 return (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '16px 0', textAlign: 'center' }}>
-                    <InterfaceText>No messages matching current filters.</InterfaceText>
+                  <div
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: '13px',
+                      padding: '16px 0',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <InterfaceText>
+                      No messages matching current filters.
+                    </InterfaceText>
                   </div>
                 );
               }
 
               return filtered.map((n) => {
-                const isFailed = n.status === 'failed' || n.status === 'undelivered';
+                const isFailed =
+                  n.status === 'failed' || n.status === 'undelivered';
                 const isDelivered = n.status === 'delivered';
-                const isReceived = n.status === 'received' || n.direction === 'inbound';
+                const isReceived =
+                  n.status === 'received' || n.direction === 'inbound';
                 const recipient = n.recipient || n.to || '—';
                 const channel = n.channel || 'whatsapp';
                 const dateString = n.createdAt || n.timestamp;
@@ -768,7 +1102,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                     key={n._id || n.id}
                     style={{
                       backgroundColor: 'var(--bg-primary)',
-                      border: isFailed ? '1px solid #7f1d1d' : '1px solid var(--border-color)',
+                      border: isFailed
+                        ? '1px solid #7f1d1d'
+                        : '1px solid var(--border-color)',
                       borderRadius: '6px',
                       padding: '14px',
                     }}
@@ -783,13 +1119,29 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                         gap: '8px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         {/* Channel Badge */}
                         <span
                           style={{
                             backgroundColor:
-                              channel === 'whatsapp' ? '#064e3b' : channel === 'sms' ? '#1e3a8a' : '#581c87',
-                            color: channel === 'whatsapp' ? '#6ee7b7' : channel === 'sms' ? '#93c5fd' : '#d8b4fe',
+                              channel === 'whatsapp'
+                                ? '#064e3b'
+                                : channel === 'sms'
+                                  ? '#1e3a8a'
+                                  : '#581c87',
+                            color:
+                              channel === 'whatsapp'
+                                ? '#6ee7b7'
+                                : channel === 'sms'
+                                  ? '#93c5fd'
+                                  : '#d8b4fe',
                             fontSize: '11px',
                             fontWeight: '700',
                             padding: '2px 7px',
@@ -810,7 +1162,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                                 : isReceived
                                   ? '#374151'
                                   : '#1e3a8a',
-                            color: isDelivered ? '#6ee7b7' : isFailed ? '#fca5a5' : isReceived ? '#e5e7eb' : '#93c5fd',
+                            color: isDelivered
+                              ? '#6ee7b7'
+                              : isFailed
+                                ? '#fca5a5'
+                                : isReceived
+                                  ? '#e5e7eb'
+                                  : '#93c5fd',
                             fontSize: '11px',
                             fontWeight: '700',
                             padding: '2px 7px',
@@ -846,22 +1204,43 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                               borderRadius: '4px',
                             }}
                           >
-                            <InterfaceText>Fallback from</InterfaceText> {n.fallbackFromChannel}
+                            <InterfaceText>Fallback from</InterfaceText>{' '}
+                            {n.fallbackFromChannel}
                           </span>
                         )}
 
                         <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                          {n.direction === 'inbound' ? `From: ${recipient}` : `To: ${recipient}`}
+                          {n.direction === 'inbound'
+                            ? `From: ${recipient}`
+                            : `To: ${recipient}`}
                         </span>
 
                         {n.template && (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>• {n.template}</span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            • {n.template}
+                          </span>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                        }}
+                      >
                         {dateString && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
                             {new Date(dateString).toLocaleTimeString()}
                           </span>
                         )}
@@ -881,13 +1260,22 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                     </pre>
 
                     {n.mediaUrl && (
-                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#60a5fa' }}>
+                      <div
+                        style={{
+                          marginTop: '6px',
+                          fontSize: '12px',
+                          color: '#60a5fa',
+                        }}
+                      >
                         <InterfaceText>Media:</InterfaceText>
                         <a
                           href={n.mediaUrl}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: 'inherit', textDecoration: 'underline' }}
+                          style={{
+                            color: 'inherit',
+                            textDecoration: 'underline',
+                          }}
                         >
                           {n.mediaUrl}
                         </a>
@@ -912,18 +1300,25 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                       <div>
                         {n.twilioSid && (
                           <span>
-                            <InterfaceText>SID:</InterfaceText> {n.twilioSid} •{' '}
+                            <InterfaceText>SID:</InterfaceText> {n.twilioSid}{' '}
+                            •{' '}
                           </span>
                         )}
                         <span>
-                          <InterfaceText>Mode:</InterfaceText> {n.mode || 'simulated'}
+                          <InterfaceText>Mode:</InterfaceText>{' '}
+                          {n.mode || 'simulated'}
                         </span>
                         {n.errorCode && (
                           <span style={{ color: '#f87171' }}>
-                            <InterfaceText>• Error Code:</InterfaceText> {n.errorCode}
+                            <InterfaceText>• Error Code:</InterfaceText>{' '}
+                            {n.errorCode}
                           </span>
                         )}
-                        {n.errorMessage && <div style={{ color: '#f87171', marginTop: '2px' }}>{n.errorMessage}</div>}
+                        {n.errorMessage && (
+                          <div style={{ color: '#f87171', marginTop: '2px' }}>
+                            {n.errorMessage}
+                          </div>
+                        )}
                       </div>
 
                       {/* Resend Action if failed */}
@@ -932,7 +1327,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                           <button
                             type="button"
                             disabled={resendingId === (n._id || n.id)}
-                            onClick={() => handleResendNotif(n._id || n.id, 'sms')}
+                            onClick={() =>
+                              handleResendNotif(n._id || n.id, 'sms')
+                            }
                             style={{
                               backgroundColor: '#1e3a8a',
                               color: '#ffffff',
@@ -948,7 +1345,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                           <button
                             type="button"
                             disabled={resendingId === (n._id || n.id)}
-                            onClick={() => handleResendNotif(n._id || n.id, 'whatsapp')}
+                            onClick={() =>
+                              handleResendNotif(n._id || n.id, 'whatsapp')
+                            }
                             style={{
                               backgroundColor: '#064e3b',
                               color: '#ffffff',
@@ -982,7 +1381,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             padding: '20px',
           }}
         >
-          <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>
+          <h2
+            style={{
+              fontSize: '16px',
+              fontWeight: '700',
+              marginBottom: '16px',
+            }}
+          >
             <InterfaceText>Audit log</InterfaceText>
           </h2>
 
@@ -1003,13 +1408,19 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               >
                 <div>
                   <strong style={{ color: '#60a5fa' }}>[{log.action}]</strong>
-                  <InterfaceText>by</InterfaceText> <strong>{log.actor?.name || log.actor?.type}</strong>
+                  <InterfaceText>by</InterfaceText>{' '}
+                  <strong>{log.actor?.name || log.actor?.type}</strong>
                   {log.details && (
-                    <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>{JSON.stringify(log.details)}</span>
+                    <span
+                      style={{ color: 'var(--text-muted)', marginLeft: '8px' }}
+                    >
+                      {JSON.stringify(log.details)}
+                    </span>
                   )}
                 </div>
                 <span style={{ color: 'var(--text-muted)' }}>
-                  {new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString()}
+                  {new Date(log.createdAt).toLocaleDateString()}{' '}
+                  {new Date(log.createdAt).toLocaleTimeString()}
                 </span>
               </div>
             ))}
@@ -1044,8 +1455,17 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               overflowY: 'auto',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 id="add-staff-modal-title" style={{ fontSize: '16px', fontWeight: '700' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+              }}
+            >
+              <h3
+                id="add-staff-modal-title"
+                style={{ fontSize: '16px', fontWeight: '700' }}
+              >
                 <InterfaceText>Add Internal User</InterfaceText>
               </h3>
               <button
@@ -1064,14 +1484,30 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             {error && (
               <div
                 role="alert"
-                style={{ padding: 10, background: '#FEF2F2', color: '#991B1B', borderRadius: 6, marginBottom: 12 }}
+                style={{
+                  padding: 10,
+                  background: '#FEF2F2',
+                  color: '#991B1B',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                }}
               >
                 {error}
               </div>
             )}
-            <form onSubmit={handleAddStaff} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form
+              onSubmit={handleAddStaff}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
+                >
                   <InterfaceText>Full Name *</InterfaceText>
                 </label>
                 <input
@@ -1093,7 +1529,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
+                >
                   <InterfaceText>Email Address *</InterfaceText>
                 </label>
                 <input
@@ -1115,7 +1558,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
+                >
                   <InterfaceText>Phone</InterfaceText>
                 </label>
                 <input
@@ -1137,7 +1587,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
+                >
                   <InterfaceText>Role *</InterfaceText>
                 </label>
                 <select
@@ -1157,12 +1614,16 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <option value="designer">
                     <InterfaceText>Designer</InterfaceText>
                   </option>
-                  {!managerOnly && <option value="manager">
-                    <InterfaceText>Manager</InterfaceText>
-                  </option>}
-                  {!managerOnly && <option value="admin">
-                    <InterfaceText>Administrator</InterfaceText>
-                  </option>}
+                  {!managerOnly && (
+                    <option value="manager">
+                      <InterfaceText>Manager</InterfaceText>
+                    </option>
+                  )}
+                  {!managerOnly && (
+                    <option value="admin">
+                      <InterfaceText>Administrator</InterfaceText>
+                    </option>
+                  )}
                 </select>
               </div>
 
@@ -1184,16 +1645,28 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               </label>
               <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                 <InterfaceText>
-                  Tinzel generates an 8-character initial password, valid for 24 hours, and sends it by SMS and email.
-                  The user must change it before using the workspace.
+                  Tinzel generates an 8-character initial password, valid for 24
+                  hours, and sends it by SMS and email. The user must change it
+                  before using the workspace.
                 </InterfaceText>
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  marginTop: '10px',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowAddStaffModal(false)}
-                  style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', padding: '6px 12px' }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-muted)',
+                    padding: '6px 12px',
+                  }}
                 >
                   <InterfaceText>Cancel</InterfaceText>
                 </button>
@@ -1244,9 +1717,20 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               overflowY: 'auto',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
               <h3 style={{ margin: 0 }}>
-                {userModal === 'view' ? 'User Details' : userModal === 'edit' ? 'Edit User' : 'Delete User'}
+                {userModal === 'view'
+                  ? 'User Details'
+                  : userModal === 'edit'
+                    ? 'Edit User'
+                    : 'Delete User'}
               </h3>
               <button
                 type="button"
@@ -1262,7 +1746,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             {error && (
               <div
                 role="alert"
-                style={{ padding: 10, background: '#FEF2F2', color: '#991B1B', borderRadius: 6, marginBottom: 12 }}
+                style={{
+                  padding: 10,
+                  background: '#FEF2F2',
+                  color: '#991B1B',
+                  borderRadius: 6,
+                  marginBottom: 12,
+                }}
               >
                 {error}
               </div>
@@ -1274,7 +1764,11 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                 role={role}
                 onUpdate={(user) => {
                   setSelectedUser(user);
-                  setStaff((previous) => previous.map((item) => (item._id === user._id ? user : item)));
+                  setStaff((previous) =>
+                    previous.map((item) =>
+                      item._id === user._id ? user : item,
+                    ),
+                  );
                 }}
               />
             )}
@@ -1295,12 +1789,23 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   ['Status', selectedUser.isActive ? 'Active' : 'Inactive'],
                   ...(selectedUser.role === 'designer'
                     ? [
-                        ['Active orders', selectedUser.currentActiveWorkload || 0],
+                        [
+                          'Active orders',
+                          selectedUser.currentActiveWorkload || 0,
+                        ],
                         ['Capacity', selectedUser.maxActiveWorkload],
-                        ['Auto assignment', selectedUser.isEligibleForAssignment ? 'Eligible' : 'Paused'],
+                        [
+                          'Auto assignment',
+                          selectedUser.isEligibleForAssignment
+                            ? 'Eligible'
+                            : 'Paused',
+                        ],
                       ]
                     : []),
-                  ['Created', new Date(selectedUser.createdAt).toLocaleString()],
+                  [
+                    'Created',
+                    new Date(selectedUser.createdAt).toLocaleString(),
+                  ],
                 ].map(([key, value]) => (
                   <React.Fragment key={key}>
                     <strong>{key}</strong>
@@ -1315,10 +1820,17 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <InterfaceText>Delete</InterfaceText>
                   <strong>{selectedUser.name}</strong> ({selectedUser.email}{' '}
                   <InterfaceText>
-                    )? Their access ends immediately. Existing order and audit history remains available.
+                    )? Their access ends immediately. Existing order and audit
+                    history remains available.
                   </InterfaceText>
                 </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                  }}
+                >
                   <button type="button" onClick={() => setUserModal(null)}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
@@ -1326,7 +1838,13 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                     type="button"
                     disabled={saving}
                     onClick={deleteUser}
-                    style={{ background: '#991B1B', color: '#FFFFFF', border: 0, borderRadius: 6, padding: '8px 12px' }}
+                    style={{
+                      background: '#991B1B',
+                      color: '#FFFFFF',
+                      border: 0,
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                    }}
                   >
                     {saving ? 'Deleting…' : 'Delete User'}
                   </button>
@@ -1340,7 +1858,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <input
                     required
                     value={userForm.name}
-                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, name: e.target.value })
+                    }
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   />
                 </label>
@@ -1350,7 +1870,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                     type="email"
                     required
                     value={userForm.email}
-                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, email: e.target.value })
+                    }
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   />
                 </label>
@@ -1359,7 +1881,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <input
                     type="tel"
                     value={userForm.phone}
-                    onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, phone: e.target.value })
+                    }
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   />
                 </label>
@@ -1367,15 +1891,21 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <InterfaceText>Role *</InterfaceText>
                   <select
                     value={userForm.role}
-                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, role: e.target.value })
+                    }
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   >
-                    {!managerOnly && <option value="admin">
-                      <InterfaceText>Administrator</InterfaceText>
-                    </option>}
-                    {!managerOnly && <option value="manager">
-                      <InterfaceText>Manager</InterfaceText>
-                    </option>}
+                    {!managerOnly && (
+                      <option value="admin">
+                        <InterfaceText>Administrator</InterfaceText>
+                      </option>
+                    )}
+                    {!managerOnly && (
+                      <option value="manager">
+                        <InterfaceText>Manager</InterfaceText>
+                      </option>
+                    )}
                     <option value="designer">
                       <InterfaceText>Designer</InterfaceText>
                     </option>
@@ -1385,7 +1915,12 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <InterfaceText>Notification language</InterfaceText>
                   <select
                     value={userForm.preferredLanguage}
-                    onChange={(event) => setUserForm({ ...userForm, preferredLanguage: event.target.value })}
+                    onChange={(event) =>
+                      setUserForm({
+                        ...userForm,
+                        preferredLanguage: event.target.value,
+                      })
+                    }
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   >
                     <option value="en">
@@ -1400,7 +1935,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   <input
                     type="checkbox"
                     checked={userForm.isActive}
-                    onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })}
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, isActive: e.target.checked })
+                    }
                   />
                   <InterfaceText>Active account</InterfaceText>
                 </label>
@@ -1414,7 +1951,12 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                         max="20"
                         required
                         value={userForm.maxActiveWorkload}
-                        onChange={(e) => setUserForm({ ...userForm, maxActiveWorkload: e.target.value })}
+                        onChange={(e) =>
+                          setUserForm({
+                            ...userForm,
+                            maxActiveWorkload: e.target.value,
+                          })
+                        }
                         style={{ display: 'block', width: '100%', padding: 8 }}
                       />
                     </label>
@@ -1422,13 +1964,26 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                       <input
                         type="checkbox"
                         checked={userForm.isEligibleForAssignment}
-                        onChange={(e) => setUserForm({ ...userForm, isEligibleForAssignment: e.target.checked })}
+                        onChange={(e) =>
+                          setUserForm({
+                            ...userForm,
+                            isEligibleForAssignment: e.target.checked,
+                          })
+                        }
                       />
-                      <InterfaceText>Eligible for automatic assignment</InterfaceText>
+                      <InterfaceText>
+                        Eligible for automatic assignment
+                      </InterfaceText>
                     </label>
                   </>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                  }}
+                >
                   <button type="button" onClick={() => setUserModal(null)}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
@@ -1480,7 +2035,12 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
             }}
           >
             <div
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
             >
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700' }}>
                 <InterfaceText>Send Test Notification</InterfaceText>
@@ -1489,17 +2049,29 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                 type="button"
                 onClick={() => setShowTestNotifModal(false)}
                 aria-label={tx('Close')}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSendTestNotif} style={{ display: 'grid', gap: '14px' }}>
+            <form
+              onSubmit={handleSendTestNotif}
+              style={{ display: 'grid', gap: '14px' }}
+            >
               <div>
                 <label
                   htmlFor={`control-47723`}
-                  style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
                 >
                   <InterfaceText>Recipient Phone Number *</InterfaceText>
                 </label>
@@ -1509,7 +2081,9 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   required
                   placeholder={tx('+255712345678 or 0712345678')}
                   value={testNotifData.to}
-                  onChange={(e) => setTestNotifData({ ...testNotifData, to: e.target.value })}
+                  onChange={(e) =>
+                    setTestNotifData({ ...testNotifData, to: e.target.value })
+                  }
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -1524,14 +2098,24 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               <div>
                 <label
                   htmlFor={`control-48395`}
-                  style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
                 >
                   <InterfaceText>Channel *</InterfaceText>
                 </label>
                 <select
                   id={`control-48395`}
                   value={testNotifData.channel}
-                  onChange={(e) => setTestNotifData({ ...testNotifData, channel: e.target.value })}
+                  onChange={(e) =>
+                    setTestNotifData({
+                      ...testNotifData,
+                      channel: e.target.value,
+                    })
+                  }
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -1553,7 +2137,12 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
               <div>
                 <label
                   htmlFor={`control-49157`}
-                  style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    marginBottom: '4px',
+                  }}
                 >
                   <InterfaceText>Message Content *</InterfaceText>
                 </label>
@@ -1561,9 +2150,16 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                   id={`control-49157`}
                   required
                   rows={3}
-                  placeholder={tx('Habari! Hili ni jaribio la ujumbe kutoka Tinzel platform.')}
+                  placeholder={tx(
+                    'Habari! Hili ni jaribio la ujumbe kutoka Tinzel platform.',
+                  )}
                   value={testNotifData.message}
-                  onChange={(e) => setTestNotifData({ ...testNotifData, message: e.target.value })}
+                  onChange={(e) =>
+                    setTestNotifData({
+                      ...testNotifData,
+                      message: e.target.value,
+                    })
+                  }
                   style={{
                     width: '100%',
                     padding: '8px',
@@ -1576,7 +2172,14 @@ export default function StaffWorkloadManager({ token, role = 'admin', initialTab
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '8px',
+                  marginTop: '6px',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowTestNotifModal(false)}

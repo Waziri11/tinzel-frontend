@@ -1,5 +1,7 @@
 // Interface text only. User-authored stories, correction text and saved option values are never translated here.
 export const uiText = {
+  'Review workflow notifications and delivery history.': 'Kagua taarifa za kazi na historia ya uwasilishaji.',
+  'Check connections': 'Kagua miunganisho',
   Read: 'Soma',
   'Select text': 'Chagua maandishi',
   'Select image': 'Chagua picha',

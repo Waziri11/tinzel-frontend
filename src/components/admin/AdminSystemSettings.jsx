@@ -1,0 +1,412 @@
+import React, { useState, useEffect } from 'react';
+import { api } from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
+const operationalFields = [
+  ['printer_name', 'Printer name', 'Jina la mchapishaji'],
+  ['printer_whatsapp_phone', 'Printer WhatsApp', 'WhatsApp ya mchapishaji'],
+  ['printer_email', 'Printer email', 'Barua pepe ya mchapishaji'],
+  ['printer_preferred_language', 'Printer language', 'Lugha ya mchapishaji'],
+  ['support_phone', 'Support phone', 'Simu ya msaada'],
+  ['support_email', 'Support email', 'Barua pepe ya msaada'],
+  ['payment_instructions', 'Payment instructions', 'Maelekezo ya malipo'],
+  [
+    'default_max_workload',
+    'Default designer capacity',
+    'Kikomo cha kazi cha awali',
+  ],
+];
+const fieldLabels = {
+  NEXTSMS_AUTH_MODE: ['Authentication', 'Uthibitisho'],
+  NEXTSMS_API_KEY: ['API key', 'Ufunguo wa API'],
+  NEXTSMS_USERNAME: ['Username', 'Jina la mtumiaji'],
+  NEXTSMS_PASSWORD: ['Password', 'Nenosiri'],
+  NEXTSMS_SENDER_ID: ['Sender ID', 'Jina la mtumaji'],
+  SMTP_HOST: ['SMTP host', 'Seva ya SMTP'],
+  SMTP_PORT: ['Port', 'Mlango'],
+  SMTP_SECURE: ['TLS connection', 'Muunganisho wa TLS'],
+  SMTP_USER: ['SMTP username', 'Jina la SMTP'],
+  SMTP_PASS: ['SMTP password', 'Nenosiri la SMTP'],
+  SMTP_FROM: ['Sender address', 'Anwani ya mtumaji'],
+  TWILIO_ACCOUNT_SID: ['Account SID', 'SID ya akaunti'],
+  TWILIO_AUTH_TOKEN: ['Auth token', 'Tokeni ya uthibitisho'],
+  TWILIO_PHONE_NUMBER: ['Phone number', 'Namba ya simu'],
+  TWILIO_WHATSAPP_NUMBER: ['WhatsApp number', 'Namba ya WhatsApp'],
+  TWILIO_STATUS_CALLBACK_URL: [
+    'Status callback URL',
+    'Anwani ya taarifa za uwasilishaji',
+  ],
+  ENABLE_TWILIO_SMS_FALLBACK: ['SMS fallback', 'SMS ya akiba'],
+};
+export default function AdminSystemSettings({ token }) {
+  const { lang } = useLanguage(),
+    t = (en, sw) => (lang === 'sw' ? sw : en);
+  const [providers, setProviders] = useState([]),
+    [config, setConfig] = useState({}),
+    [drafts, setDrafts] = useState({}),
+    [remove, setRemove] = useState({}),
+    [busy, setBusy] = useState({}),
+    [notice, setNotice] = useState({}),
+    [error, setError] = useState({});
+  const loadProviders = () =>
+    api.providerConfig
+      .get(token)
+      .then((r) => setProviders(r.providers))
+      .catch(() =>
+        setError((x) => ({
+          ...x,
+          providers: t(
+            'Unable to load providers.',
+            'Imeshindikana kupakia watoa huduma.',
+          ),
+        })),
+      );
+  const loadConfig = () =>
+    api.admin
+      .getConfig(token)
+      .then((r) =>
+        setConfig(Object.fromEntries(r.configs.map((x) => [x.key, x.value]))),
+      )
+      .catch(() =>
+        setError((x) => ({
+          ...x,
+          config: t(
+            'Unable to load settings.',
+            'Imeshindikana kupakia mipangilio.',
+          ),
+        })),
+      );
+  useEffect(() => {
+    loadProviders();
+    loadConfig();
+  }, [token]);
+  const run = async (key, action) => {
+    setBusy((x) => ({ ...x, [key]: true }));
+    setError((x) => ({ ...x, [key]: '' }));
+    setNotice((x) => ({ ...x, [key]: '' }));
+    try {
+      await action();
+    } catch (e) {
+      setError((x) => ({ ...x, [key]: e.message }));
+    } finally {
+      setBusy((x) => ({ ...x, [key]: false }));
+    }
+  };
+  const feedback = (key) => (
+    <>
+      {error[key] && <p role="alert">{error[key]}</p>}
+      {notice[key] && <p role="status">{notice[key]}</p>}
+    </>
+  );
+  return (
+    <section style={{ marginTop: 32 }}>
+      <h2>{t('Configuration', 'Mipangilio')}</h2>
+      {feedback('config')}
+      {error.config && (
+        <button className="ui-button" onClick={loadConfig}>
+          {t('Retry', 'Jaribu tena')}
+        </button>
+      )}
+      <div className="system-settings-grid">
+        <article className="system-settings-card">
+          <h3>{t('Operational settings', 'Mipangilio ya uendeshaji')}</h3>
+          {operationalFields.map(([key, en, sw]) => (
+            <form
+              key={key}
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(key, async () => {
+                  await api.admin.updateConfig(token, {
+                    key,
+                    value:
+                      key === 'default_max_workload'
+                        ? Number(config[key] || 5)
+                        : (config[key] ?? ''),
+                  });
+                  setNotice((x) => ({
+                    ...x,
+                    [key]: t('Saved.', 'Imehifadhiwa.'),
+                  }));
+                });
+              }}
+              style={{ marginBottom: 20 }}
+            >
+              <label>
+                {t(en, sw)}
+                {key === 'printer_preferred_language' ? (
+                  <select
+                    value={config[key] || 'sw'}
+                    onChange={(e) =>
+                      setConfig((x) => ({ ...x, [key]: e.target.value }))
+                    }
+                  >
+                    <option value="en">English</option>
+                    <option value="sw">Kiswahili</option>
+                  </select>
+                ) : key === 'payment_instructions' ? (
+                  <textarea
+                    maxLength={2000}
+                    value={config[key] || ''}
+                    onChange={(e) =>
+                      setConfig((x) => ({ ...x, [key]: e.target.value }))
+                    }
+                  />
+                ) : (
+                  <input
+                    type={
+                      key === 'default_max_workload'
+                        ? 'number'
+                        : key.includes('email')
+                          ? 'email'
+                          : 'text'
+                    }
+                    min={key === 'default_max_workload' ? 1 : undefined}
+                    max={key === 'default_max_workload' ? 20 : undefined}
+                    value={
+                      config[key] ?? (key === 'default_max_workload' ? 5 : '')
+                    }
+                    onChange={(e) =>
+                      setConfig((x) => ({ ...x, [key]: e.target.value }))
+                    }
+                  />
+                )}
+              </label>
+              {feedback(key)}
+              <button
+                disabled={busy[key] || !!error.config}
+                className="ui-button"
+                style={{ marginTop: 8 }}
+              >
+                {t('Save', 'Hifadhi')}
+              </button>
+            </form>
+          ))}
+        </article>
+        {providers.map((provider) => (
+          <article key={provider.provider} className="system-settings-card">
+            <h3>
+              {provider.provider === 'smtp'
+                ? 'SMTP Email'
+                : provider.provider === 'nextsms'
+                  ? 'NextSMS'
+                  : 'Twilio / WhatsApp'}
+            </h3>
+            <form
+              autoComplete="off"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(provider.provider, async () => {
+                  const result = await api.providerConfig.save(
+                    token,
+                    provider.provider,
+                    {
+                      values: drafts[provider.provider] || {},
+                      remove: remove[provider.provider] || [],
+                      revision: provider.revision,
+                    },
+                  );
+                  setProviders(result.providers);
+                  setDrafts((x) => ({ ...x, [provider.provider]: {} }));
+                  setRemove((x) => ({ ...x, [provider.provider]: [] }));
+                  setNotice((x) => ({
+                    ...x,
+                    [provider.provider]: t(
+                      'Settings saved. Existing secrets remain hidden.',
+                      'Mipangilio imehifadhiwa. Siri zilizopo zinaendelea kufichwa.',
+                    ),
+                  }));
+                });
+              }}
+            >
+              {provider.fields.map((field) => (
+                <div key={field.name} style={{ marginBottom: 16 }}>
+                  <label>
+                    {t(...fieldLabels[field.name])}
+                    {[
+                      'NEXTSMS_AUTH_MODE',
+                      'SMTP_SECURE',
+                      'ENABLE_TWILIO_SMS_FALLBACK',
+                    ].includes(field.name) ? (
+                      <select
+                        value={
+                          drafts[provider.provider]?.[field.name] ??
+                          field.value ??
+                          ''
+                        }
+                        onChange={(e) =>
+                          setDrafts((x) => ({
+                            ...x,
+                            [provider.provider]: {
+                              ...x[provider.provider],
+                              [field.name]: e.target.value,
+                            },
+                          }))
+                        }
+                      >
+                        <option value="">
+                          {t('Deployment default', 'Mpangilio wa seva')}
+                        </option>
+                        {(field.name === 'NEXTSMS_AUTH_MODE'
+                          ? ['auto', 'api_key', 'basic']
+                          : ['true', 'false']
+                        ).map((value) => (
+                          <option key={value} value={value}>
+                            {value === 'auto'
+                              ? t('Automatic', 'Kiotomatiki')
+                              : value === 'api_key'
+                                ? 'API key'
+                                : value === 'basic'
+                                  ? t(
+                                      'Username and password',
+                                      'Jina na nenosiri',
+                                    )
+                                  : value === 'true'
+                                    ? t('Enabled', 'Imewashwa')
+                                    : t('Disabled', 'Imezimwa')}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.secret ? 'password' : 'text'}
+                        autoComplete="new-password"
+                        value={
+                          drafts[provider.provider]?.[field.name] ??
+                          (field.secret ? '' : field.value)
+                        }
+                        placeholder={
+                          field.secret && field.configured
+                            ? t(
+                                'Configured — leave blank to keep',
+                                'Imesanidiwa — acha wazi kuhifadhi',
+                              )
+                            : ''
+                        }
+                        onChange={(e) =>
+                          setDrafts((x) => ({
+                            ...x,
+                            [provider.provider]: {
+                              ...x[provider.provider],
+                              [field.name]: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    )}
+                  </label>
+                  <small>
+                    {field.source === 'saved'
+                      ? t('Saved override', 'Mpangilio uliohifadhiwa')
+                      : field.source === 'environment'
+                        ? t('Deployment default', 'Mpangilio wa seva')
+                        : t('Not configured', 'Haijasanidiwa')}
+                  </small>
+                  {field.source === 'saved' && (
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginTop: 8,
+                      }}
+                    >
+                      <input
+                        style={{ width: 'auto' }}
+                        type="checkbox"
+                        checked={(remove[provider.provider] || []).includes(
+                          field.name,
+                        )}
+                        onChange={(e) =>
+                          setRemove((x) => ({
+                            ...x,
+                            [provider.provider]: e.target.checked
+                              ? [...(x[provider.provider] || []), field.name]
+                              : (x[provider.provider] || []).filter(
+                                  (k) => k !== field.name,
+                                ),
+                          }))
+                        }
+                      />
+                      {t(
+                        'Remove override; use deployment default',
+                        'Ondoa mpangilio huu; tumia wa seva',
+                      )}
+                    </label>
+                  )}
+                </div>
+              ))}
+              {feedback(provider.provider)}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="ui-button is-primary"
+                  disabled={busy[provider.provider]}
+                >
+                  {t('Save settings', 'Hifadhi mipangilio')}
+                </button>
+                <button
+                  type="button"
+                  className="ui-button"
+                  disabled={busy[provider.provider]}
+                  onClick={() =>
+                    run(provider.provider, async () => {
+                      const r = await api.providerConfig.check(
+                        token,
+                        provider.provider,
+                      );
+                      setNotice((x) => ({
+                        ...x,
+                        [provider.provider]: !r.configured
+                          ? t('Not configured.', 'Haijasanidiwa.')
+                          : r.connected
+                            ? t(
+                                'Connection verified.',
+                                'Muunganisho umethibitishwa.',
+                              )
+                            : t(
+                                'Connection failed. Check credentials and provider status.',
+                                'Muunganisho umeshindikana. Kagua taarifa za akaunti na huduma.',
+                              ),
+                      }));
+                    })
+                  }
+                >
+                  {t(
+                    'Check saved connection',
+                    'Kagua muunganisho uliohifadhiwa',
+                  )}
+                </button>
+              </div>
+              {error[provider.provider] && (
+                <button
+                  type="button"
+                  className="ui-button"
+                  onClick={() => {
+                    setDrafts({});
+                    setRemove({});
+                    loadProviders();
+                  }}
+                >
+                  {t(
+                    'Reload saved settings',
+                    'Pakia mipangilio iliyohifadhiwa',
+                  )}
+                </button>
+              )}
+            </form>
+          </article>
+        ))}
+      </div>
+      {feedback('providers')}
+      {error.providers && (
+        <button className="ui-button" onClick={loadProviders}>
+          {t('Retry', 'Jaribu tena')}
+        </button>
+      )}
+      <p style={{ color: 'var(--text-muted)', marginTop: 16 }}>
+        {t(
+          'Hosting, database, storage credentials and encryption keys are managed in deployment settings. Connection checks use saved values; they do not send messages.',
+          'Taarifa za seva, hifadhidata, hifadhi na funguo za usimbaji husimamiwa kwenye seva. Ukaguzi hutumia mipangilio iliyohifadhiwa na hautumi ujumbe.',
+        )}
+      </p>
+    </section>
+  );
+}

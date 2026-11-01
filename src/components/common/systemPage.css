@@ -1,0 +1,42 @@
+.system-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.system-settings-card {
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  min-width: 0;
+}
+.system-settings-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.system-settings-card input,
+.system-settings-card select,
+.system-settings-card textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.staff-header-profile {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .staff-header-profile > button > span:first-of-type {
+    display: none;
+  }
+  .staff-header-profile {
+    gap: 6px !important;
+  }
+  .staff-header-profile .language-switcher button {
+    padding: 6px;
+  }
+  .staff-profile-trigger {
+    min-height: 60px;
+  }
+}

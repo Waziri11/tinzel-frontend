@@ -55,7 +55,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'order_submitted',
     label: 'Order Submitted (Client & Staff)',
-    description: 'Triggered when a client submits a new magazine order form in Pre-Design.',
+    description:
+      'Triggered when a client submits a new magazine order form in Pre-Design.',
     category: 'Pre-Design',
     recipient: 'Client & Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -63,7 +64,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'payment_verified',
     label: 'Payment Verified & Tracking ID Issued',
-    description: 'Triggered when a manager verifies Lipa Namba payment and generates a Tracking ID.',
+    description:
+      'Triggered when a manager verifies Lipa Namba payment and generates a Tracking ID.',
     category: 'Pre-Design',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -71,7 +73,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'order_assigned',
     label: 'Designer Assigned to Order',
-    description: 'Triggered when an order is assigned or reassigned to an editorial designer.',
+    description:
+      'Triggered when an order is assigned or reassigned to an editorial designer.',
     category: 'Design Phase',
     recipient: 'Designer',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -79,7 +82,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'draft_uploaded',
     label: 'Draft Uploaded for Manager Review',
-    description: 'Triggered when a designer uploads a magazine draft PDF for manager QA.',
+    description:
+      'Triggered when a designer uploads a magazine draft PDF for manager QA.',
     category: 'Design Phase',
     recipient: 'Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -87,7 +91,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'draft_released',
     label: 'Draft Released to Client for Proof Review',
-    description: 'Triggered when a manager approves a draft and releases it to the client portal.',
+    description:
+      'Triggered when a manager approves a draft and releases it to the client portal.',
     category: 'Design Phase',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -95,7 +100,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'draft_returned',
     label: 'Draft Returned for Changes (Internal)',
-    description: 'Triggered when a manager returns a draft to the designer with revision items.',
+    description:
+      'Triggered when a manager returns a draft to the designer with revision items.',
     category: 'Returns',
     recipient: 'Designer',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -103,7 +109,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'client_revision_requested',
     label: 'Client Requested Revisions',
-    description: 'Triggered when a client submits page-by-page revision notes on a draft proof.',
+    description:
+      'Triggered when a client submits page-by-page revision notes on a draft proof.',
     category: 'Returns',
     recipient: 'Designer & Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -111,7 +118,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'client_approved',
     label: 'Client Approved Magazine Proof',
-    description: 'Triggered when a client approves the entire magazine proof to enter Post-Design.',
+    description:
+      'Triggered when a client approves the entire magazine proof to enter Post-Design.',
     category: 'Post-Design',
     recipient: 'Designer & Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -119,7 +127,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'print_document_uploaded',
     label: 'Print-Ready PDF Uploaded',
-    description: 'Triggered when the designer uploads the final high-resolution print PDF.',
+    description:
+      'Triggered when the designer uploads the final high-resolution print PDF.',
     category: 'Post-Design',
     recipient: 'Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -127,7 +136,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'print_dispatched',
     label: 'Order Sent to Printing Partner',
-    description: 'Triggered when a manager dispatches print specifications to the printing partner.',
+    description:
+      'Triggered when a manager dispatches print specifications to the printing partner.',
     category: 'Post-Design',
     recipient: 'Printer',
     defaults: { enabled: true, in_system: true, email: false, sms: true },
@@ -135,7 +145,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'printing_in_progress',
     label: 'Printing In Progress',
-    description: 'Triggered when the printer confirms order receipt and printing begins.',
+    description:
+      'Triggered when the printer confirms order receipt and printing begins.',
     category: 'Post-Design',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -143,7 +154,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'order_dispatched',
     label: 'Order Dispatched via Courier',
-    description: 'Triggered when courier and tracking reference details are recorded for delivery.',
+    description:
+      'Triggered when courier and tracking reference details are recorded for delivery.',
     category: 'Post-Design',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -151,7 +163,8 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'order_closed',
     label: 'Order Delivered & Closed',
-    description: 'Triggered when final magazine delivery is confirmed and the order is closed.',
+    description:
+      'Triggered when final magazine delivery is confirmed and the order is closed.',
     category: 'Post-Design',
     recipient: 'Client & Manager',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -159,14 +172,16 @@ const DEFAULT_TRIGGER_CATALOG = [
   {
     key: 'client_otp',
     label: 'Client Portal Login OTP',
-    description: 'Triggered when a client requests a one-time password to access the tracking portal.',
+    description:
+      'Triggered when a client requests a one-time password to access the tracking portal.',
     category: 'Security',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
   },
 ];
 
-const formatTemplate = (tpl) => TEMPLATE_LABELS[tpl] || String(tpl || 'Notification').replace(/_/g, ' ');
+const formatTemplate = (tpl) =>
+  TEMPLATE_LABELS[tpl] || String(tpl || 'Notification').replace(/_/g, ' ');
 
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
@@ -222,10 +237,15 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => {
   );
 };
 
-export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnreadCountChange }) {
+export default function NotificationsPage({
+  token,
+  staffUser,
+  onOpenOrder,
+  onUnreadCountChange,
+}) {
   const tx = useInterfaceText();
 
-  const isManagerOrAdmin = ['manager', 'admin'].includes(staffUser?.role);
+  const canConfigure = staffUser?.role === 'admin';
 
   // Top-level QAMS Section Tabs: 'history' | 'triggers' | 'health'
   const [activeSection, setActiveSection] = useState('history');
@@ -250,7 +270,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
   const [settings, setSettings] = useState({
     channels: { in_system: true, email: true, sms: true },
     smsSenderId: 'ORDER',
-    triggers: Object.fromEntries(DEFAULT_TRIGGER_CATALOG.map((t) => [t.key, { ...t.defaults }])),
+    triggers: Object.fromEntries(
+      DEFAULT_TRIGGER_CATALOG.map((t) => [t.key, { ...t.defaults }]),
+    ),
     catalog: DEFAULT_TRIGGER_CATALOG,
   });
   const [savingSettings, setSavingSettings] = useState(false);
@@ -259,7 +281,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
   const [smsTestForm, setSmsTestForm] = useState({
     to: '',
     from: 'ORDER',
-    message: 'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
+    message:
+      'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
   });
   const [smsTesting, setSmsTesting] = useState(false);
   const [smsTestResult, setSmsTestResult] = useState(null);
@@ -309,7 +332,10 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       if (!silent) setLoading(true);
       setError('');
       try {
-        const apiChannel = channelFilter === 'grouped' || channelFilter === 'all' ? '' : channelFilter;
+        const apiChannel =
+          channelFilter === 'grouped' || channelFilter === 'all'
+            ? ''
+            : channelFilter;
         const params = {
           limit: 200,
           ...(apiChannel ? { channel: apiChannel } : {}),
@@ -319,16 +345,18 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
         };
 
         const requests = [api.notifications.getHistory(token, params)];
-        if (isManagerOrAdmin && !silent) {
-          requests.push(api.notifications.getDiagnostics(token));
+        if (canConfigure && !silent) {
+          requests.push(Promise.resolve({ diagnostics: null }));
           requests.push(api.notifications.getSettings(token));
         }
 
-        const [histRes, diagRes, settingsRes] = await Promise.allSettled(requests);
+        const [histRes, diagRes, settingsRes] =
+          await Promise.allSettled(requests);
         if (histRes.status === 'fulfilled') {
           const list = histRes.value.notifications || [];
           setNotifications(list);
-          const nextUnread = histRes.value.unreadCount ?? list.filter((n) => !n.isRead).length;
+          const nextUnread =
+            histRes.value.unreadCount ?? list.filter((n) => !n.isRead).length;
           setUnreadCount(nextUnread);
           if (onUnreadCountChange) onUnreadCountChange(nextUnread);
           if (histRes.value.channelCounts) {
@@ -349,7 +377,11 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           }
         }
 
-        if (settingsRes && settingsRes.status === 'fulfilled' && settingsRes.value.settings) {
+        if (
+          settingsRes &&
+          settingsRes.status === 'fulfilled' &&
+          settingsRes.value.settings
+        ) {
           const loadedSettings = settingsRes.value.settings;
           setSettings((prev) => ({
             ...prev,
@@ -357,7 +389,10 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             catalog: loadedSettings.catalog || DEFAULT_TRIGGER_CATALOG,
           }));
           if (loadedSettings.smsSenderId) {
-            setSmsTestForm((prev) => ({ ...prev, from: loadedSettings.smsSenderId }));
+            setSmsTestForm((prev) => ({
+              ...prev,
+              from: loadedSettings.smsSenderId,
+            }));
           }
         }
       } catch (err) {
@@ -366,7 +401,15 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
         setLoading(false);
       }
     },
-    [token, channelFilter, statusFilter, readFilter, search, isManagerOrAdmin, onUnreadCountChange],
+    [
+      token,
+      channelFilter,
+      statusFilter,
+      readFilter,
+      search,
+      canConfigure,
+      onUnreadCountChange,
+    ],
   );
 
   useEffect(() => {
@@ -375,7 +418,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
   useVisiblePolling(() => loadNotifications(true), Boolean(token));
 
   const handleRefreshDiagnostics = async () => {
-    if (!isManagerOrAdmin) return;
+    if (!canConfigure) return;
     setDiagLoading(true);
     setError('');
     try {
@@ -406,7 +449,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           catalog: res.settings.catalog || prev.catalog,
         }));
       }
-      setNotice('Notification trigger settings saved and applied across all workflow phases.');
+      setNotice(
+        'Notification trigger settings saved and applied across all workflow phases.',
+      );
     } catch (err) {
       setError(err.message || 'Failed to save notification settings.');
     } finally {
@@ -516,7 +561,10 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
         prev.map((item) => {
           const itemId = item._id || item.id;
           const target = prev.find((p) => (p._id || p.id) === id);
-          if (itemId === id || (target?.eventGroupId && item.eventGroupId === target.eventGroupId)) {
+          if (
+            itemId === id ||
+            (target?.eventGroupId && item.eventGroupId === target.eventGroupId)
+          ) {
             return { ...item, isRead: true, readAt: new Date().toISOString() };
           }
           return item;
@@ -535,7 +583,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
   const handleMarkAllRead = async () => {
     try {
       await api.notifications.markAllRead(token);
-      setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      setNotifications((prev) =>
+        prev.map((item) => ({ ...item, isRead: true })),
+      );
       setUnreadCount(0);
       if (onUnreadCountChange) onUnreadCountChange(0);
       setNotice('All notifications have been marked as read.');
@@ -547,7 +597,11 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
   const handleResend = async (id, channel, uncertain = false) => {
     if (
       uncertain &&
-      !window.confirm(tx('Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?'))
+      !window.confirm(
+        tx(
+          'Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?',
+        ),
+      )
     )
       return;
     try {
@@ -579,8 +633,16 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
         message: composeForm.message.trim(),
       });
       setComposeOpen(false);
-      setComposeForm({ recipientName: '', email: '', phone: '', title: '', message: '' });
-      setNotice('Notification dispatched across In-System, Email, and Phone Number.');
+      setComposeForm({
+        recipientName: '',
+        email: '',
+        phone: '',
+        title: '',
+        message: '',
+      });
+      setNotice(
+        'Notification dispatched across In-System, Email, and Phone Number.',
+      );
       await loadNotifications();
     } catch (err) {
       setError(err.message || 'Failed to dispatch multi-channel notification.');
@@ -612,7 +674,10 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             item.channel === 'email'
               ? item
               : item.metadata?.channelsSummary?.email
-                ? { status: 'unconfirmed', recipient: item.metadata?.channelsSummary?.emailAddress }
+                ? {
+                    status: 'unconfirmed',
+                    recipient: item.metadata?.channelsSummary?.emailAddress,
+                  }
                 : null,
           phone: ['whatsapp', 'sms'].includes(item.channel)
             ? item
@@ -652,22 +717,38 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
     return result.map((group) => {
       const inSys = group.siblings.find((s) => s.channel === 'in_system');
       const emailRec = group.siblings.find((s) => s.channel === 'email');
-      const phoneRec = group.siblings.find((s) => ['whatsapp', 'sms'].includes(s.channel));
+      const phoneRec = group.siblings.find((s) =>
+        ['whatsapp', 'sms'].includes(s.channel),
+      );
       const summaryMeta = group.primary.metadata?.channelsSummary || {};
 
       return {
         primary: group.primary,
         siblings: group.siblings,
         channels: {
-          in_system: inSys || (summaryMeta.in_system ? { status: 'unconfirmed', channel: 'in_system' } : null),
+          in_system:
+            inSys ||
+            (summaryMeta.in_system
+              ? { status: 'unconfirmed', channel: 'in_system' }
+              : null),
           email:
             emailRec ||
             (summaryMeta.email
-              ? { status: 'unconfirmed', channel: 'email', recipient: summaryMeta.emailAddress }
+              ? {
+                  status: 'unconfirmed',
+                  channel: 'email',
+                  recipient: summaryMeta.emailAddress,
+                }
               : null),
           phone:
             phoneRec ||
-            (summaryMeta.phone ? { status: 'unconfirmed', channel: 'sms', recipient: summaryMeta.phoneNumber } : null),
+            (summaryMeta.phone
+              ? {
+                  status: 'unconfirmed',
+                  channel: 'sms',
+                  recipient: summaryMeta.phoneNumber,
+                }
+              : null),
         },
       };
     });
@@ -698,7 +779,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
         margin: '0 auto',
       }}
     >
-      {activeSection === 'triggers' && staffUser?.role === 'admin' && <PrinterNotificationSettings token={token} />}
+      {activeSection === 'triggers' && staffUser?.role === 'admin' && (
+        <PrinterNotificationSettings token={token} />
+      )}
       {/* Page Header */}
       <div
         style={{
@@ -730,24 +813,37 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           <h1
             style={{
               margin: '0 0 4px 0',
-              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+              fontFamily:
+                'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
               fontStyle: 'italic',
               fontSize: '26px',
               fontWeight: 600,
               color: 'var(--text-main)',
             }}
           >
-            <InterfaceText>Notifications, Triggers &amp; Gateway Health</InterfaceText>
+            <InterfaceText>
+              {canConfigure
+                ? 'Notifications, Triggers & Gateway Health'
+                : 'Notifications'}
+            </InterfaceText>
           </h1>
           <p style={{ margin: 0, fontSize: '13px', color: '#57534E' }}>
             <InterfaceText>
-              Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS
-              (NextSMS) and Email (SMTP) health tests.
+              {canConfigure
+                ? 'Configure automated order lifecycle triggers, inspect multi-channel dispatch history, and run live SMS (NextSMS) and Email (SMTP) health tests.'
+                : 'Review workflow notifications and delivery history.'}
             </InterfaceText>
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flexWrap: 'wrap',
+          }}
+        >
           {unreadCount > 0 && (
             <button
               type="button"
@@ -772,7 +868,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             </button>
           )}
 
-          {isManagerOrAdmin && (
+          {canConfigure && (
             <button
               type="button"
               onClick={() => setComposeOpen(true)}
@@ -820,7 +916,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       </div>
 
       {/* QAMS Section Navigation Bar (History | Triggers & Settings | SMS & Email Health Test) */}
-      {isManagerOrAdmin && (
+      {canConfigure && (
         <div
           style={{
             display: 'flex',
@@ -845,7 +941,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               label: 'Notification Triggers & Settings',
               icon: Sliders,
               badge: `${
-                Object.values(settings.triggers || {}).filter((t) => t.enabled !== false).length
+                Object.values(settings.triggers || {}).filter(
+                  (t) => t.enabled !== false,
+                ).length
               }/${(settings.catalog || DEFAULT_TRIGGER_CATALOG).length} Active`,
             },
             {
@@ -868,22 +966,31 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   gap: '8px',
                   padding: '9px 14px',
                   borderRadius: '8px',
-                  border: active ? '1px solid var(--text-main)' : '1px solid transparent',
-                  backgroundColor: active ? 'var(--text-main)' : 'var(--bg-primary)',
+                  border: active
+                    ? '1px solid var(--text-main)'
+                    : '1px solid transparent',
+                  backgroundColor: active
+                    ? 'var(--text-main)'
+                    : 'var(--bg-primary)',
                   color: active ? '#FFFFFF' : '#44403C',
                   fontSize: '13px',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
               >
-                <IconComp size={15} color={active ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                <IconComp
+                  size={15}
+                  color={active ? 'var(--accent-primary)' : 'var(--text-muted)'}
+                />
                 <span>{tx(sec.label)}</span>
                 {sec.badge && (
                   <span
                     style={{
                       padding: '2px 7px',
                       borderRadius: '999px',
-                      backgroundColor: active ? 'var(--accent-primary)' : 'var(--border-color)',
+                      backgroundColor: active
+                        ? 'var(--accent-primary)'
+                        : 'var(--border-color)',
                       color: active ? '#FFFFFF' : 'var(--text-main)',
                       fontSize: '10px',
                       fontWeight: 800,
@@ -966,7 +1073,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: '12px',
         }}
       >
@@ -995,10 +1103,19 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             <Bell size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
+            <strong
+              style={{
+                display: 'block',
+                fontSize: '20px',
+                lineHeight: 1,
+                color: 'var(--text-main)',
+              }}
+            >
               {unreadCount}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+            <span
+              style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
+            >
               <InterfaceText>Unread In-System Alerts</InterfaceText>
             </span>
           </div>
@@ -1029,10 +1146,19 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             <Mail size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
+            <strong
+              style={{
+                display: 'block',
+                fontSize: '20px',
+                lineHeight: 1,
+                color: 'var(--text-main)',
+              }}
+            >
               {channelCounts.email || 0}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+            <span
+              style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
+            >
               <InterfaceText>Email Dispatches</InterfaceText>
             </span>
           </div>
@@ -1063,11 +1189,21 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             <Phone size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: 'var(--text-main)' }}>
+            <strong
+              style={{
+                display: 'block',
+                fontSize: '20px',
+                lineHeight: 1,
+                color: 'var(--text-main)',
+              }}
+            >
               {(channelCounts.whatsapp || 0) + (channelCounts.sms || 0)}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              <InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText> {settings.smsSenderId || 'ORDER'})
+            <span
+              style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
+            >
+              <InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText>{' '}
+              {settings.smsSenderId || 'ORDER'})
             </span>
           </div>
         </div>
@@ -1097,14 +1233,23 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <strong style={{ display: 'block', fontSize: '14px', lineHeight: 1.2, color: 'var(--text-main)' }}>
+            <strong
+              style={{
+                display: 'block',
+                fontSize: '14px',
+                lineHeight: 1.2,
+                color: 'var(--text-main)',
+              }}
+            >
               {smsHealthy
                 ? `NextSMS Live (${diagnostics?.sms?.balance?.display || 'Active'})`
                 : diagnostics?.mode === 'twilio_live'
                   ? 'Live Gateway'
                   : 'Gateway not verified'}
             </strong>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
+            <span
+              style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
+            >
               {smsHealthy
                 ? `${diagnostics?.sms?.balance?.default_balance ?? '—'} SMS credits available`
                 : 'See each recorded channel outcome below'}
@@ -1116,7 +1261,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       {/* ===================================================================== */}
       {/* TAB 2: CONFIGURABLE NOTIFICATION TRIGGERS & SETTINGS                  */}
       {/* ===================================================================== */}
-      {activeSection === 'triggers' && isManagerOrAdmin && (
+      {activeSection === 'triggers' && canConfigure && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Global Channel Master Controls */}
           <div
@@ -1140,17 +1285,38 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '17px',
+                    fontWeight: 700,
+                    color: 'var(--text-main)',
+                  }}
+                >
                   <InterfaceText>Global Channel Master Controls</InterfaceText>
                 </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <p
+                  style={{
+                    margin: '4px 0 0 0',
+                    fontSize: '12px',
+                    color: 'var(--text-muted)',
+                  }}
+                >
                   <InterfaceText>
-                    Enable or mute entire delivery channels system-wide and set the default NextSMS Sender ID.
+                    Enable or mute entire delivery channels system-wide and set
+                    the default NextSMS Sender ID.
                   </InterfaceText>
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                }}
+              >
                 <button
                   type="button"
                   onClick={handleResetSettings}
@@ -1200,7 +1366,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+                gridTemplateColumns:
+                  'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
                 gap: '12px',
               }}
             >
@@ -1231,13 +1398,23 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     <Bell size={15} color="#8A6825" />
                     <InterfaceText>In-System Alerts</InterfaceText>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    <InterfaceText>Workstation inbox &amp; unread badge counters</InterfaceText>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      marginTop: '3px',
+                    }}
+                  >
+                    <InterfaceText>
+                      Workstation inbox &amp; unread badge counters
+                    </InterfaceText>
                   </div>
                 </div>
                 <ToggleSwitch
                   checked={settings.channels?.in_system !== false}
-                  onChange={(val) => handleToggleGlobalChannel('in_system', val)}
+                  onChange={(val) =>
+                    handleToggleGlobalChannel('in_system', val)
+                  }
                   label={tx('Toggle In-System channel')}
                 />
               </div>
@@ -1269,8 +1446,16 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     <Mail size={15} color="#1E40AF" />
                     <InterfaceText>Email Notifications (SMTP)</InterfaceText>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    <InterfaceText>Transactional HTML &amp; plaintext emails</InterfaceText>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      marginTop: '3px',
+                    }}
+                  >
+                    <InterfaceText>
+                      Transactional HTML &amp; plaintext emails
+                    </InterfaceText>
                   </div>
                 </div>
                 <ToggleSwitch
@@ -1307,8 +1492,16 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     <MessageSquare size={15} color="#166534" />
                     <InterfaceText>SMS Notifications (NextSMS)</InterfaceText>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    <InterfaceText>Tanzanian mobile SMS via NextSMS v2</InterfaceText>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      marginTop: '3px',
+                    }}
+                  >
+                    <InterfaceText>
+                      Tanzanian mobile SMS via NextSMS v2
+                    </InterfaceText>
                   </div>
                 </div>
                 <ToggleSwitch
@@ -1333,7 +1526,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               >
                 <label
                   htmlFor="nextsms-sender-id-input"
-                  style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#57534E' }}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    color: '#57534E',
+                  }}
                 >
                   <InterfaceText>Active NextSMS Sender ID</InterfaceText>
                 </label>
@@ -1394,7 +1592,13 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 >
                   {category} <InterfaceText>Triggers</InterfaceText>
                 </strong>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--text-muted)',
+                  }}
+                >
                   {items.length} <InterfaceText>milestone events</InterfaceText>
                 </span>
               </div>
@@ -1408,19 +1612,34 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       key={item.key}
                       style={{
                         padding: '14px 18px',
-                        borderBottom: idx < items.length - 1 ? '1px solid #F5F5F4' : 'none',
+                        borderBottom:
+                          idx < items.length - 1 ? '1px solid #F5F5F4' : 'none',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: '16px',
                         flexWrap: 'wrap',
-                        backgroundColor: isEnabled ? '#FFFFFF' : 'var(--bg-primary)',
+                        backgroundColor: isEnabled
+                          ? '#FFFFFF'
+                          : 'var(--bg-primary)',
                       }}
                     >
                       <div style={{ flex: '1 1 320px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            flexWrap: 'wrap',
+                          }}
+                        >
                           <strong
-                            style={{ fontSize: '14px', color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)' }}
+                            style={{
+                              fontSize: '14px',
+                              color: isEnabled
+                                ? 'var(--text-main)'
+                                : 'var(--text-muted)',
+                            }}
                           >
                             {tx(item.label)}
                           </strong>
@@ -1434,7 +1653,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                               fontWeight: 800,
                             }}
                           >
-                            <InterfaceText>Recipient:</InterfaceText> {item.recipient}
+                            <InterfaceText>Recipient:</InterfaceText>{' '}
+                            {item.recipient}
                           </span>
                           <code
                             style={{
@@ -1448,19 +1668,46 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                             {item.key}
                           </code>
                         </div>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                        <p
+                          style={{
+                            margin: '4px 0 0 0',
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           {tx(item.description)}
                         </p>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '20px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              color: 'var(--text-main)',
+                            }}
+                          >
                             <InterfaceText>Trigger Enabled</InterfaceText>
                           </span>
                           <ToggleSwitch
                             checked={isEnabled}
-                            onChange={(val) => handleToggleTriggerField(item.key, 'enabled', val)}
+                            onChange={(val) =>
+                              handleToggleTriggerField(item.key, 'enabled', val)
+                            }
                             label={`${item.label} master toggle`}
                           />
                         </div>
@@ -1483,15 +1730,29 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? 'var(--text-main)' : 'var(--text-muted)',
+                              color: isEnabled
+                                ? 'var(--text-main)'
+                                : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
                             <input
                               type="checkbox"
-                              disabled={!isEnabled || settings.channels?.in_system === false}
-                              checked={Boolean(cfg.in_system && settings.channels?.in_system !== false)}
-                              onChange={(e) => handleToggleTriggerField(item.key, 'in_system', e.target.checked)}
+                              disabled={
+                                !isEnabled ||
+                                settings.channels?.in_system === false
+                              }
+                              checked={Boolean(
+                                cfg.in_system &&
+                                  settings.channels?.in_system !== false,
+                              )}
+                              onChange={(e) =>
+                                handleToggleTriggerField(
+                                  item.key,
+                                  'in_system',
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <InterfaceText>In-System</InterfaceText>
                           </label>
@@ -1503,15 +1764,27 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? '#1E40AF' : 'var(--text-muted)',
+                              color: isEnabled
+                                ? '#1E40AF'
+                                : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
                             <input
                               type="checkbox"
-                              disabled={!isEnabled || settings.channels?.email === false}
-                              checked={Boolean(cfg.email && settings.channels?.email !== false)}
-                              onChange={(e) => handleToggleTriggerField(item.key, 'email', e.target.checked)}
+                              disabled={
+                                !isEnabled || settings.channels?.email === false
+                              }
+                              checked={Boolean(
+                                cfg.email && settings.channels?.email !== false,
+                              )}
+                              onChange={(e) =>
+                                handleToggleTriggerField(
+                                  item.key,
+                                  'email',
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <InterfaceText>Email</InterfaceText>
                           </label>
@@ -1523,15 +1796,27 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                               gap: '6px',
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: isEnabled ? '#166534' : 'var(--text-muted)',
+                              color: isEnabled
+                                ? '#166534'
+                                : 'var(--text-muted)',
                               cursor: isEnabled ? 'pointer' : 'not-allowed',
                             }}
                           >
                             <input
                               type="checkbox"
-                              disabled={!isEnabled || settings.channels?.sms === false}
-                              checked={Boolean(cfg.sms && settings.channels?.sms !== false)}
-                              onChange={(e) => handleToggleTriggerField(item.key, 'sms', e.target.checked)}
+                              disabled={
+                                !isEnabled || settings.channels?.sms === false
+                              }
+                              checked={Boolean(
+                                cfg.sms && settings.channels?.sms !== false,
+                              )}
+                              onChange={(e) =>
+                                handleToggleTriggerField(
+                                  item.key,
+                                  'sms',
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <InterfaceText>SMS (NextSMS)</InterfaceText>
                           </label>
@@ -1549,7 +1834,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       {/* ===================================================================== */}
       {/* TAB 3: SMS & EMAIL HEALTH TEST                                        */}
       {/* ===================================================================== */}
-      {activeSection === 'health' && isManagerOrAdmin && (
+      {activeSection === 'health' && canConfigure && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div
             style={{
@@ -1565,13 +1850,29 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
             }}
           >
             <div>
-              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}>
-                <InterfaceText>Gateway Connectivity &amp; Live Health Verification</InterfaceText>
-              </h2>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '17px',
+                  fontWeight: 700,
+                  color: 'var(--text-main)',
+                }}
+              >
                 <InterfaceText>
-                  Verify live NextSMS API v2 credentials, inspect SMS credit balance, check Google SMTP connectivity,
-                  and dispatch real test messages.
+                  Gateway Connectivity &amp; Live Health Verification
+                </InterfaceText>
+              </h2>
+              <p
+                style={{
+                  margin: '4px 0 0 0',
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <InterfaceText>
+                  Verify live NextSMS API v2 credentials, inspect SMS credit
+                  balance, check Google SMTP connectivity, and dispatch real
+                  test messages.
                 </InterfaceText>
               </p>
             </div>
@@ -1601,7 +1902,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+              gridTemplateColumns:
+                'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
               gap: '16px',
             }}
           >
@@ -1617,8 +1919,17 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 gap: '16px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
+                >
                   <div
                     style={{
                       width: '40px',
@@ -1633,11 +1944,24 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     <MessageSquare size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
-                      <InterfaceText>SMS Gateway Health (NextSMS API)</InterfaceText>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: '16px',
+                        fontWeight: 700,
+                        color: 'var(--text-main)',
+                      }}
+                    >
+                      <InterfaceText>
+                        SMS Gateway Health (NextSMS API)
+                      </InterfaceText>
                     </h3>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <InterfaceText>Endpoint: messaging-service.co.tz (</InterfaceText>
+                    <span
+                      style={{ fontSize: '12px', color: 'var(--text-muted)' }}
+                    >
+                      <InterfaceText>
+                        Endpoint: messaging-service.co.tz (
+                      </InterfaceText>
                       {diagnostics?.sms?.apiVersion || 'v2'})
                     </span>
                   </div>
@@ -1653,7 +1977,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     color: smsHealthy ? '#166534' : '#991B1B',
                   }}
                 >
-                  {smsHealthy ? 'CONNECTED & AUTHENTICATED' : 'DISCONNECTED / CHECK KEY'}
+                  {smsHealthy
+                    ? 'CONNECTED & AUTHENTICATED'
+                    : 'DISCONNECTED / CHECK KEY'}
                 </span>
               </div>
 
@@ -1670,15 +1996,29 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>SMS Credit Balance</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
+                  <strong
+                    style={{ fontSize: '15px', color: 'var(--text-main)' }}
+                  >
                     {diagnostics?.sms?.balance?.display || '—'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Estimated Remaining SMS</InterfaceText>
                   </span>
                   <strong style={{ fontSize: '15px', color: '#166534' }}>
@@ -1688,19 +2028,39 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Active Sender ID</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
-                    {diagnostics?.sms?.configuredSenderId || settings.smsSenderId || 'ORDER'}
+                  <strong
+                    style={{ fontSize: '13px', color: 'var(--text-main)' }}
+                  >
+                    {diagnostics?.sms?.configuredSenderId ||
+                      settings.smsSenderId ||
+                      'ORDER'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Gateway Latency</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
-                    {diagnostics?.sms?.latencyMs ? `${diagnostics.sms.latencyMs} ms` : '—'}
+                  <strong
+                    style={{ fontSize: '13px', color: 'var(--text-main)' }}
+                  >
+                    {diagnostics?.sms?.latencyMs
+                      ? `${diagnostics.sms.latencyMs} ms`
+                      : '—'}
                   </strong>
                 </div>
               </div>
@@ -1708,11 +2068,20 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               {/* Send Test SMS Form */}
               <form
                 onSubmit={handleRunSmsHealthTest}
-                style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  paddingTop: '4px',
+                }}
               >
                 <div
                   className="admin-form-grid"
-                  style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr',
+                    gap: '10px',
+                  }}
                 >
                   <div>
                     <label
@@ -1725,14 +2094,18 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                         marginBottom: '4px',
                       }}
                     >
-                      <InterfaceText>Test Recipient Phone (Tanzania)</InterfaceText>
+                      <InterfaceText>
+                        Test Recipient Phone (Tanzania)
+                      </InterfaceText>
                     </label>
                     <input
                       id={`control-59897`}
                       type="text"
                       required
                       value={smsTestForm.to}
-                      onChange={(e) => setSmsTestForm({ ...smsTestForm, to: e.target.value })}
+                      onChange={(e) =>
+                        setSmsTestForm({ ...smsTestForm, to: e.target.value })
+                      }
                       placeholder="+255762022730"
                       style={{
                         width: '100%',
@@ -1761,7 +2134,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       id={`control-60967`}
                       type="text"
                       value={smsTestForm.from}
-                      onChange={(e) => setSmsTestForm({ ...smsTestForm, from: e.target.value.toUpperCase() })}
+                      onChange={(e) =>
+                        setSmsTestForm({
+                          ...smsTestForm,
+                          from: e.target.value.toUpperCase(),
+                        })
+                      }
                       placeholder={tx('ORDER')}
                       style={{
                         width: '100%',
@@ -1794,7 +2172,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     rows="2"
                     required
                     value={smsTestForm.message}
-                    onChange={(e) => setSmsTestForm({ ...smsTestForm, message: e.target.value })}
+                    onChange={(e) =>
+                      setSmsTestForm({
+                        ...smsTestForm,
+                        message: e.target.value,
+                      })
+                    }
                     style={{
                       width: '100%',
                       padding: '8px 10px',
@@ -1825,7 +2208,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   }}
                 >
                   <Send size={14} />
-                  {smsTesting ? 'Sending Test SMS via NextSMS…' : 'Send Test SMS Now'}
+                  {smsTesting
+                    ? 'Sending Test SMS via NextSMS…'
+                    : 'Send Test SMS Now'}
                 </button>
               </form>
 
@@ -1834,28 +2219,37 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   style={{
                     padding: '12px',
                     borderRadius: '8px',
-                    backgroundColor: smsTestResult.success ? '#F0FDF4' : '#FEF2F2',
-                    border: smsTestResult.success ? '1px solid #86EFAC' : '1px solid #FECACA',
+                    backgroundColor: smsTestResult.success
+                      ? '#F0FDF4'
+                      : '#FEF2F2',
+                    border: smsTestResult.success
+                      ? '1px solid #86EFAC'
+                      : '1px solid #FECACA',
                     fontSize: '12px',
                     color: smsTestResult.success ? '#166534' : '#991B1B',
                   }}
                 >
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
-                    {smsTestResult.success ? 'SMS Health Test Passed' : 'SMS Health Test Failed'}
+                    {smsTestResult.success
+                      ? 'SMS Health Test Passed'
+                      : 'SMS Health Test Failed'}
                   </div>
                   <div>
                     <InterfaceText>Recipient:</InterfaceText>
                     <strong>{smsTestResult.to}</strong>
-                    <InterfaceText>| Sender:</InterfaceText> <strong>{smsTestResult.senderId}</strong>
+                    <InterfaceText>| Sender:</InterfaceText>{' '}
+                    <strong>{smsTestResult.senderId}</strong>
                     <InterfaceText>| Latency:</InterfaceText>{' '}
                     <strong>
-                      {smsTestResult.latencyMs} <InterfaceText>ms</InterfaceText>
+                      {smsTestResult.latencyMs}{' '}
+                      <InterfaceText>ms</InterfaceText>
                     </strong>
                   </div>
                   {smsTestResult.nextSmsStatus && (
                     <div>
                       <InterfaceText>Gateway Status:</InterfaceText>
-                      <strong>{smsTestResult.nextSmsStatus.name}</strong> ({smsTestResult.nextSmsStatus.description})
+                      <strong>{smsTestResult.nextSmsStatus.name}</strong> (
+                      {smsTestResult.nextSmsStatus.description})
                     </div>
                   )}
                   {smsTestResult.messageId && (
@@ -1864,7 +2258,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       <code>{smsTestResult.messageId}</code>
                       <InterfaceText>| Cost:</InterfaceText>{' '}
                       <strong>
-                        {smsTestResult.price ?? 16} <InterfaceText>TZS</InterfaceText>
+                        {smsTestResult.price ?? 16}{' '}
+                        <InterfaceText>TZS</InterfaceText>
                       </strong>
                     </div>
                   )}
@@ -1884,8 +2279,17 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 gap: '16px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
+                >
                   <div
                     style={{
                       width: '40px',
@@ -1900,11 +2304,23 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     <Mail size={20} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
-                      <InterfaceText>Email Gateway Health (Google SMTP)</InterfaceText>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: '16px',
+                        fontWeight: 700,
+                        color: 'var(--text-main)',
+                      }}
+                    >
+                      <InterfaceText>
+                        Email Gateway Health (Google SMTP)
+                      </InterfaceText>
                     </h3>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <InterfaceText>Host:</InterfaceText> {diagnostics?.email?.host || 'smtp.gmail.com'}:
+                    <span
+                      style={{ fontSize: '12px', color: 'var(--text-muted)' }}
+                    >
+                      <InterfaceText>Host:</InterfaceText>{' '}
+                      {diagnostics?.email?.host || 'smtp.gmail.com'}:
                       {diagnostics?.email?.port || 465}
                     </span>
                   </div>
@@ -1937,36 +2353,77 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Delivery Mode</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}>
-                    {emailHealthy ? 'Live Google SMTP' : 'Local Simulation Fallback'}
+                  <strong
+                    style={{ fontSize: '14px', color: 'var(--text-main)' }}
+                  >
+                    {emailHealthy
+                      ? 'Live Google SMTP'
+                      : 'Local Simulation Fallback'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Encryption / Port</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '14px', color: 'var(--text-main)' }}>
-                    <InterfaceText>Port</InterfaceText> {diagnostics?.email?.port || 465} (
-                    {diagnostics?.email?.secure !== false ? 'SSL/TLS' : 'STARTTLS'})
+                  <strong
+                    style={{ fontSize: '14px', color: 'var(--text-main)' }}
+                  >
+                    <InterfaceText>Port</InterfaceText>{' '}
+                    {diagnostics?.email?.port || 465} (
+                    {diagnostics?.email?.secure !== false
+                      ? 'SSL/TLS'
+                      : 'STARTTLS'}
+                    )
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>Sender Identity</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '12px', color: 'var(--text-main)' }}>
-                    {diagnostics?.email?.from || 'Tinzel <notifications@tinzel.com>'}
+                  <strong
+                    style={{ fontSize: '12px', color: 'var(--text-main)' }}
+                  >
+                    {diagnostics?.email?.from ||
+                      'Tinzel <notifications@tinzel.com>'}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      display: 'block',
+                    }}
+                  >
                     <InterfaceText>SMTP Handshake Latency</InterfaceText>
                   </span>
-                  <strong style={{ fontSize: '13px', color: 'var(--text-main)' }}>
-                    {diagnostics?.email?.latencyMs ? `${diagnostics.email.latencyMs} ms` : '0 ms (Simulated)'}
+                  <strong
+                    style={{ fontSize: '13px', color: 'var(--text-main)' }}
+                  >
+                    {diagnostics?.email?.latencyMs
+                      ? `${diagnostics.email.latencyMs} ms`
+                      : '0 ms (Simulated)'}
                   </strong>
                 </div>
               </div>
@@ -1974,11 +2431,20 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               {/* Send Test Email Form */}
               <form
                 onSubmit={handleRunEmailHealthTest}
-                style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingTop: '4px' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  paddingTop: '4px',
+                }}
               >
                 <div
                   className="admin-form-grid"
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '10px',
+                  }}
                 >
                   <div>
                     <label
@@ -1998,7 +2464,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       type="email"
                       required
                       value={emailTestForm.to}
-                      onChange={(e) => setEmailTestForm({ ...emailTestForm, to: e.target.value })}
+                      onChange={(e) =>
+                        setEmailTestForm({
+                          ...emailTestForm,
+                          to: e.target.value,
+                        })
+                      }
                       placeholder={tx('you@example.com')}
                       style={{
                         width: '100%',
@@ -2028,7 +2499,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       type="text"
                       required
                       value={emailTestForm.subject}
-                      onChange={(e) => setEmailTestForm({ ...emailTestForm, subject: e.target.value })}
+                      onChange={(e) =>
+                        setEmailTestForm({
+                          ...emailTestForm,
+                          subject: e.target.value,
+                        })
+                      }
                       style={{
                         width: '100%',
                         padding: '8px 10px',
@@ -2059,7 +2535,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     rows="2"
                     required
                     value={emailTestForm.message}
-                    onChange={(e) => setEmailTestForm({ ...emailTestForm, message: e.target.value })}
+                    onChange={(e) =>
+                      setEmailTestForm({
+                        ...emailTestForm,
+                        message: e.target.value,
+                      })
+                    }
                     style={{
                       width: '100%',
                       padding: '8px 10px',
@@ -2090,7 +2571,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   }}
                 >
                   <Mail size={14} />
-                  {emailTesting ? 'Dispatching Test Email…' : 'Send Test Email Now'}
+                  {emailTesting
+                    ? 'Dispatching Test Email…'
+                    : 'Send Test Email Now'}
                 </button>
               </form>
 
@@ -2099,22 +2582,30 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   style={{
                     padding: '12px',
                     borderRadius: '8px',
-                    backgroundColor: emailTestResult.success ? '#EFF6FF' : '#FEF2F2',
-                    border: emailTestResult.success ? '1px solid #93C5FD' : '1px solid #FECACA',
+                    backgroundColor: emailTestResult.success
+                      ? '#EFF6FF'
+                      : '#FEF2F2',
+                    border: emailTestResult.success
+                      ? '1px solid #93C5FD'
+                      : '1px solid #FECACA',
                     fontSize: '12px',
                     color: emailTestResult.success ? '#1E40AF' : '#991B1B',
                   }}
                 >
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
-                    {emailTestResult.success ? 'Email Health Test Completed' : 'Email Health Test Failed'}
+                    {emailTestResult.success
+                      ? 'Email Health Test Completed'
+                      : 'Email Health Test Failed'}
                   </div>
                   <div>
                     <InterfaceText>Recipient:</InterfaceText>
                     <strong>{emailTestResult.to}</strong>
-                    <InterfaceText>| Mode:</InterfaceText> <strong>{emailTestResult.mode}</strong>
+                    <InterfaceText>| Mode:</InterfaceText>{' '}
+                    <strong>{emailTestResult.mode}</strong>
                     <InterfaceText>| Latency:</InterfaceText>{' '}
                     <strong>
-                      {emailTestResult.latencyMs} <InterfaceText>ms</InterfaceText>
+                      {emailTestResult.latencyMs}{' '}
+                      <InterfaceText>ms</InterfaceText>
                     </strong>
                   </div>
                   {emailTestResult.messageId && (
@@ -2133,7 +2624,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
       {/* ===================================================================== */}
       {/* TAB 1: NOTIFICATION HISTORY & INBOX                                   */}
       {/* ===================================================================== */}
-      {(activeSection === 'history' || !isManagerOrAdmin) && (
+      {(activeSection === 'history' || !canConfigure) && (
         <>
           {/* Filter & Search Bar */}
           <div
@@ -2149,7 +2640,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flexWrap: 'wrap',
+              }}
+            >
               {[
                 { id: 'grouped', label: 'Unified Tri-Channel' },
                 { id: 'in_system', label: 'In-System Inbox' },
@@ -2165,7 +2663,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     padding: '7px 12px',
                     borderRadius: '6px',
                     border: '1px solid #D6D3D1',
-                    backgroundColor: channelFilter === tab.id ? 'var(--text-main)' : '#FFFFFF',
+                    backgroundColor:
+                      channelFilter === tab.id ? 'var(--text-main)' : '#FFFFFF',
                     color: channelFilter === tab.id ? '#FFFFFF' : '#44403C',
                     fontSize: '12px',
                     fontWeight: 600,
@@ -2177,7 +2676,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+              }}
+            >
               <div
                 style={{
                   display: 'inline-flex',
@@ -2200,7 +2706,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       border: 'none',
                       padding: '5px 10px',
                       borderRadius: '5px',
-                      backgroundColor: readFilter === rf.id ? '#FFFFFF' : 'transparent',
+                      backgroundColor:
+                        readFilter === rf.id ? '#FFFFFF' : 'transparent',
                       color: 'var(--text-main)',
                       fontSize: '12px',
                       fontWeight: readFilter === rf.id ? 700 : 500,
@@ -2307,7 +2814,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           </div>
 
           {/* Notification List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+          >
             {loading && displayedItems.length === 0 ? (
               <PageSkeleton variant="table" compact />
             ) : displayedItems.length === 0 ? (
@@ -2321,13 +2830,24 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   color: 'var(--text-muted)',
                 }}
               >
-                <Bell size={28} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
-                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
+                <Bell
+                  size={28}
+                  color="var(--text-muted)"
+                  style={{ marginBottom: '8px' }}
+                />
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: 'var(--text-main)',
+                  }}
+                >
                   <InterfaceText>No notifications found</InterfaceText>
                 </div>
                 <div style={{ fontSize: '12px', marginTop: '4px' }}>
                   <InterfaceText>
-                    Notifications sent via Email, Phone (NextSMS), and In-System will appear here automatically.
+                    Notifications sent via Email, Phone (NextSMS), and In-System
+                    will appear here automatically.
                   </InterfaceText>
                 </div>
               </div>
@@ -2335,16 +2855,26 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               displayedItems.map(({ primary, siblings, channels }) => {
                 const id = primary._id || primary.id;
                 const isUnread = !primary.isRead;
-                const orderObj = primary.orderId && typeof primary.orderId === 'object' ? primary.orderId : null;
+                const orderObj =
+                  primary.orderId && typeof primary.orderId === 'object'
+                    ? primary.orderId
+                    : null;
                 const orderTracking =
                   orderObj?.trackingId ||
                   orderObj?.submissionId ||
                   primary.metadata?.trackingId ||
                   primary.metadata?.submissionId ||
                   null;
-                const orderTargetId = orderObj?._id || (typeof primary.orderId === 'string' ? primary.orderId : null);
+                const orderTargetId =
+                  orderObj?._id ||
+                  (typeof primary.orderId === 'string'
+                    ? primary.orderId
+                    : null);
                 const hasFailedSibling = siblings.some(
-                  (s) => s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed',
+                  (s) =>
+                    s.status === 'failed' ||
+                    s.status === 'undelivered' ||
+                    s.status === 'unconfirmed',
                 );
 
                 return (
@@ -2352,8 +2882,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     key={id}
                     style={{
                       backgroundColor: isUnread ? '#FFFDF9' : '#FFFFFF',
-                      border: hasFailedSibling ? '1px solid #FCA5A5' : '1px solid var(--border-color)',
-                      borderLeft: isUnread ? '4px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                      border: hasFailedSibling
+                        ? '1px solid #FCA5A5'
+                        : '1px solid var(--border-color)',
+                      borderLeft: isUnread
+                        ? '4px solid var(--accent-primary)'
+                        : '1px solid var(--border-color)',
                       borderRadius: '10px',
                       padding: '16px 18px',
                       display: 'flex',
@@ -2371,7 +2905,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                         flexWrap: 'wrap',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         {isUnread && (
                           <span
                             style={{
@@ -2389,8 +2930,15 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                           </span>
                         )}
 
-                        <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>
-                          {primary.title || primary.subject || formatTemplate(primary.template)}
+                        <strong
+                          style={{
+                            fontSize: '15px',
+                            color: 'var(--text-main)',
+                          }}
+                        >
+                          {primary.title ||
+                            primary.subject ||
+                            formatTemplate(primary.template)}
                         </strong>
 
                         <span
@@ -2463,7 +3011,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                         paddingTop: '4px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         {/* 1. In-System Channel Pill */}
                         <span
                           style={{
@@ -2474,8 +3029,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                             borderRadius: '6px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: channels.in_system ? '#F4EAD5' : '#F5F5F4',
-                            color: channels.in_system ? '#6F531C' : 'var(--text-muted)',
+                            backgroundColor: channels.in_system
+                              ? '#F4EAD5'
+                              : '#F5F5F4',
+                            color: channels.in_system
+                              ? '#6F531C'
+                              : 'var(--text-muted)',
                           }}
                         >
                           <Bell size={12} />
@@ -2544,7 +3103,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                         >
                           <MessageSquare size={12} />
                           <InterfaceText>Phone (</InterfaceText>
-                          {(channels.phone?.channel || 'sms').toUpperCase()}):{' '}
+                          {(
+                            channels.phone?.channel || 'sms'
+                          ).toUpperCase()}):{' '}
                           {channels.phone
                             ? `${channels.phone.status === 'sent' ? 'provider accepted' : channels.phone.status || 'unconfirmed'}${
                                 channels.phone.recipient || channels.phone.to
@@ -2558,11 +3119,21 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       {primary.workflowEventKey && (
                         <div style={{ fontSize: 12, color: '#57534E' }}>
                           {siblings.map((item) => (
-                            <p key={item._id || item.id} style={{ overflowWrap: 'anywhere' }}>
+                            <p
+                              key={item._id || item.id}
+                              style={{ overflowWrap: 'anywhere' }}
+                            >
                               {item.channel.toUpperCase()}:{' '}
-                              {tx(item.status === 'sent' ? 'provider accepted' : item.status)} · {item.attempts || 0}{' '}
+                              {tx(
+                                item.status === 'sent'
+                                  ? 'provider accepted'
+                                  : item.status,
+                              )}{' '}
+                              · {item.attempts || 0}{' '}
                               <InterfaceText>/5 attempts</InterfaceText>{' '}
-                              {item.errorMessage ? ` — ${item.errorMessage}` : ''}
+                              {item.errorMessage
+                                ? ` — ${item.errorMessage}`
+                                : ''}
                               {item.nextAttemptAt && item.retryable
                                 ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}`
                                 : ''}
@@ -2571,7 +3142,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                         </div>
                       )}
                       {/* Card Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         {isUnread && (
                           <button
                             type="button"
@@ -2591,12 +3169,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                           </button>
                         )}
 
-                        {isManagerOrAdmin &&
+                        {['manager', 'admin'].includes(staffUser?.role) &&
                           siblings
                             .filter(
                               (s) =>
                                 s.channel !== 'in_system' &&
-                                (s.status === 'failed' || s.status === 'undelivered' || s.status === 'unconfirmed'),
+                                (s.status === 'failed' ||
+                                  s.status === 'undelivered' ||
+                                  s.status === 'unconfirmed'),
                             )
                             .map((failedItem) => {
                               const fId = failedItem._id || failedItem.id;
@@ -2606,7 +3186,11 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                                   type="button"
                                   disabled={resendingId === fId}
                                   onClick={() =>
-                                    handleResend(fId, failedItem.channel, failedItem.status === 'unconfirmed')
+                                    handleResend(
+                                      fId,
+                                      failedItem.channel,
+                                      failedItem.status === 'unconfirmed',
+                                    )
                                   }
                                   style={{
                                     display: 'inline-flex',
@@ -2623,7 +3207,8 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                                   }}
                                 >
                                   <RotateCw size={12} />
-                                  <InterfaceText>Retry</InterfaceText> {failedItem.channel.toUpperCase()}
+                                  <InterfaceText>Retry</InterfaceText>{' '}
+                                  {failedItem.channel.toUpperCase()}
                                 </button>
                               );
                             })}
@@ -2701,12 +3286,26 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '18px',
+                    fontWeight: 700,
+                    color: 'var(--text-main)',
+                  }}
+                >
                   <InterfaceText>Send Tri-Channel Notification</InterfaceText>
                 </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                <p
+                  style={{
+                    margin: '4px 0 0 0',
+                    fontSize: '12px',
+                    color: 'var(--text-muted)',
+                  }}
+                >
                   <InterfaceText>
-                    Dispatches simultaneously to In-System Notifications, Email, and Phone (NextSMS / WhatsApp).
+                    Dispatches simultaneously to In-System Notifications, Email,
+                    and Phone (NextSMS / WhatsApp).
                   </InterfaceText>
                 </p>
               </div>
@@ -2724,7 +3323,10 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
               </button>
             </div>
 
-            <form onSubmit={handleSendTriChannel} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form
+              onSubmit={handleSendTriChannel}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               <div>
                 <label
                   htmlFor={`control-100153`}
@@ -2744,7 +3346,12 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   required
                   placeholder={tx('e.g. Amani Juma')}
                   value={composeForm.recipientName}
-                  onChange={(e) => setComposeForm({ ...composeForm, recipientName: e.target.value })}
+                  onChange={(e) =>
+                    setComposeForm({
+                      ...composeForm,
+                      recipientName: e.target.value,
+                    })
+                  }
                   style={{
                     width: '100%',
                     padding: '9px 11px',
@@ -2756,7 +3363,14 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                 />
               </div>
 
-              <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div
+                className="admin-form-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '10px',
+                }}
+              >
                 <div>
                   <label
                     htmlFor={`control-101295`}
@@ -2775,7 +3389,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                     type="email"
                     placeholder={tx('client@example.com')}
                     value={composeForm.email}
-                    onChange={(e) => setComposeForm({ ...composeForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setComposeForm({ ...composeForm, email: e.target.value })
+                    }
                     style={{
                       width: '100%',
                       padding: '9px 11px',
@@ -2798,14 +3414,18 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                       marginBottom: '4px',
                     }}
                   >
-                    <InterfaceText>Phone Number (NextSMS / WhatsApp)</InterfaceText>
+                    <InterfaceText>
+                      Phone Number (NextSMS / WhatsApp)
+                    </InterfaceText>
                   </label>
                   <input
                     id={`control-102285`}
                     type="text"
                     placeholder="+255762022730"
                     value={composeForm.phone}
-                    onChange={(e) => setComposeForm({ ...composeForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setComposeForm({ ...composeForm, phone: e.target.value })
+                    }
                     style={{
                       width: '100%',
                       padding: '9px 11px',
@@ -2837,7 +3457,9 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   required
                   placeholder={tx('e.g. Taarifa ya Maendeleo ya Jarida Lako')}
                   value={composeForm.title}
-                  onChange={(e) => setComposeForm({ ...composeForm, title: e.target.value })}
+                  onChange={(e) =>
+                    setComposeForm({ ...composeForm, title: e.target.value })
+                  }
                   style={{
                     width: '100%',
                     padding: '9px 11px',
@@ -2866,9 +3488,13 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
                   id={`control-104305`}
                   rows="4"
                   required
-                  placeholder={tx('Write the notification message to send across Email, Phone, and In-System...')}
+                  placeholder={tx(
+                    'Write the notification message to send across Email, Phone, and In-System...',
+                  )}
                   value={composeForm.message}
-                  onChange={(e) => setComposeForm({ ...composeForm, message: e.target.value })}
+                  onChange={(e) =>
+                    setComposeForm({ ...composeForm, message: e.target.value })
+                  }
                   style={{
                     width: '100%',
                     padding: '9px 11px',
