@@ -464,7 +464,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 }}
               >
                 <ArrowLeft size={16} />
-                {ui('Return to Client Catalogue', 'Rudi kwenye matoleo')}
+                {ui('Back', 'Rudi')}
               </button>
             </div>
           )}
@@ -485,21 +485,16 @@ export default function StaffWorkspace({ onExitToHome }) {
               <h1
                 style={{
                   fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-                  fontStyle: 'italic',
+                  fontStyle: 'normal',
                   fontSize: '28px',
                   fontWeight: '600',
                   color: 'var(--text-main)',
                   marginBottom: '6px',
                 }}
               >
-                {ui('Staff Workstation Sign In', 'Ingia kwenye ofisi')}
+                {ui('Sign in', 'Ingia')}
               </h1>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                {ui(
-                  'Secure access for Production Managers, Editorial Designers, and Administrators.',
-                  'Kwa wasimamizi, wasanifu na watendaji wa Tinzel.',
-                )}
-              </p>
+
             </div>
 
             {error && (
@@ -527,7 +522,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 e.preventDefault();
                 handleLogin(email, password);
               }}
-              style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
             >
               <div>
                 <label
@@ -647,8 +642,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   marginTop: '4px',
                 }}
               >
-                {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
-                <InterfaceText>Sign In to Workstation</InterfaceText>
+                {loading && <Loader2 size={16} className="spin" />}
+                {ui('Sign in', 'Ingia')}
               </button>
             </form>
           </div>
