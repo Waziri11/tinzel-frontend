@@ -8,7 +8,7 @@ async function openForm(page, sw = false) {
   await expect(page.locator('#upload-first')).toBeAttached();
 }
 
-test('branded catalogue loading respects reduced motion', async ({ page }) => {
+test('catalogue skeleton appears during navigation and respects reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
@@ -16,10 +16,14 @@ test('branded catalogue loading respects reduced motion', async ({ page }) => {
   try {
     await page.goto('/'); await chooseEnglish(page);
     await page.getByText('New Magazine Order', { exact: true }).click();
-    await expect(page.getByText('Finding the right edition for your story.')).toBeVisible();
-    await expect(page.locator('.tinzel-loading .tinzel-mark img')).toHaveCSS('animation-name', 'none');
+    await expect(page.locator('.page-skeleton[aria-busy="true"]')).toBeVisible();
+    await expect(page.locator('.page-skeleton__grid.is-catalogue')).toBeVisible();
+    await expect(page.locator('.page-skeleton__block').first()).toHaveCSS('animation-name', 'none');
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { release(); }
   await expect(page.getByText('Upload Performance Test', { exact: true })).toBeVisible();
+  await expect(page.locator('.page-skeleton')).toHaveCount(0);
 });
 
 test('upload stays interactive, confirms before 100%, collapses successes and shows real save stages', async ({ page }, testInfo) => {
@@ -141,3 +145,47 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   expect(archiveRequests).toHaveLength(1);
   expect(archiveRequests.every((url) => url.includes('/ux-order/'))).toBe(true);
 });
+
+
+test('form skeleton gives way to a fetch error instead of remaining busy', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/public/forms/skeleton-error', async route => {
+    await gate;
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Temporarily unavailable' }) });
+  });
+  try {
+    await page.goto('/catalogue/skeleton-error');
+    await expect(page.locator('.page-skeleton__field').first()).toBeVisible();
+  } finally { release(); }
+  await expect(page.locator('.page-skeleton')).toHaveCount(0);
+  await expect(page.getByText('Temporarily unavailable', { exact: true })).toBeVisible();
+});
+
+
+for (const scenario of [
+  { role: 'designer', path: '/staff/design', api: '**/api/designer/orders', variant: '.page-skeleton__row', data: { orders: [] } },
+  { role: 'manager', path: '/staff/pre-design', api: '**/api/manager/orders?*', variant: '.page-skeleton__grid.is-board', data: { orders: [], summary: {}, statusCounts: {}, pageCount: 1, total: 0 } },
+]) {
+  test(`${scenario.role} skeleton covers delayed workspace data`, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('tinzel_language', 'en');
+      localStorage.setItem('tinzel_staff_token', 'skeleton-test');
+    });
+    await page.route('**/api/staff/me', route => route.fulfill({ json: { user: {
+      _id: 'skeleton-user', name: 'Skeleton User', role: scenario.role, preferredLanguage: 'en', isActive: true,
+    } } }));
+    await page.route('**/api/notifications/history?*', route => route.fulfill({ json: { notifications: [], unreadCount: 0 } }));
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route(scenario.api, async route => { await gate; await route.fulfill({ json: scenario.data }); });
+    try {
+      await page.goto(scenario.path);
+      await expect(page.locator(scenario.variant).first()).toBeVisible();
+      await page.setViewportSize({ width: 390, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    } finally { release(); }
+    await expect(page.locator('.page-skeleton')).toHaveCount(0);
+  });
+}

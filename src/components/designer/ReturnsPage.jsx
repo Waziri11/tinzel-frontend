@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import BrandLoading from '../common/BrandLoading';
+import PageSkeleton from '../common/PageSkeleton';
 import './designerWorkspace.css';
 
 export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
@@ -365,7 +365,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
       {error && <div className="designer-alert is-error">{error}</div>}
 
       {loading ? (
-        <BrandLoading compact title={tx('Loading returned magazines')} />
+        <PageSkeleton variant="table" compact title={tx('Loading returned magazines')} />
       ) : (
         <div className="designer-table-card">
           <table>

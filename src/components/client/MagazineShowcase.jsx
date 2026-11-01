@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
 import { navigate, editionSlug } from '../../navigation/location';
-import BrandLoading from '../common/BrandLoading';
+import PageSkeleton from '../common/PageSkeleton';
 import { Button, EmptyState, Feedback } from '../common/UI';
 import '../../theme/customer.css';
 const DynamicFormRenderer = lazy(() => import('./DynamicFormRenderer'));
@@ -67,7 +67,7 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
           <ArrowLeft size={16} />
           {t('showcase.backEditions')}
         </button>
-        <Suspense fallback={<BrandLoading title={t('form.loading')} />}>
+        <Suspense fallback={<PageSkeleton variant="form" title={t('form.loading')} />}>
           <DynamicFormRenderer key={slug} slug={slug} onNavigateToTracking={onNavigateToTracking} />
         </Suspense>
       </div>
@@ -114,7 +114,7 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
         )}
       </div>
       {loading ? (
-        <BrandLoading
+        <PageSkeleton variant="catalogue"
           title={t('showcase.loading')}
           description={
             sw ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'

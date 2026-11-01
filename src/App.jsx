@@ -3,7 +3,7 @@ import { Menu } from 'lucide-react';
 import { Drawer } from 'antd';
 import LandingHero from './components/landing/LandingHero';
 import TinzelLogo from './components/common/TinzelLogo';
-import BrandLoading from './components/common/BrandLoading';
+import PageSkeleton from './components/common/PageSkeleton';
 import LanguageSelect from './components/landing/LanguageSelect';
 import LanguageSwitcher from './components/common/LanguageSwitcher';
 import { PageBoundary, Button, EmptyState } from './components/common/UI';
@@ -123,7 +123,7 @@ export default function App() {
       </Drawer>
       <main id="main-content" tabIndex={-1} className={staff ? 'workspace-root' : 'public-main'}>
         <PageBoundary key={path}>
-          <Suspense fallback={<BrandLoading title={sw ? 'Inafunguka…' : 'Opening Tinzel…'} />}>
+          <Suspense fallback={<div className="ui-page"><PageSkeleton variant={catalogue ? (/\/(catalogue|showcase)\/[^/]+/.test(path) ? 'form' : 'catalogue') : tracking ? 'form' : 'table'} /></div>}>
             {home && (
               <LandingHero
                 onSelectNewOrder={() => navigate('/catalogue')}

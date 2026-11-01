@@ -6,7 +6,7 @@ import DraftUploadProgress from './DraftUploadProgress';
 import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
-import BrandLoading from '../common/BrandLoading';
+import PageSkeleton from '../common/PageSkeleton';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import './designerWorkspace.css';
@@ -184,7 +184,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   };
 
   if (loading)
-    return <BrandLoading title={tx('Opening order')} description={tx('Loading its files, fixes and history.')} />;
+    return <PageSkeleton variant="detail" title={tx('Opening order')} description={tx('Loading its files, fixes and history.')} />;
   if (!order)
     return (
       <section className="designer-page">

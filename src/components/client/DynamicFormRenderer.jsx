@@ -22,6 +22,7 @@ import OrderAnswersView from '../common/OrderAnswersView';
 import { Button } from '../common/UI';
 import LipaNambaScreen from './LipaNambaScreen';
 import UploadJourney from './UploadJourney';
+import PageSkeleton from '../common/PageSkeleton';
 import BrandLoading, { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 
@@ -296,7 +297,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   };
   if (loading) {
     return (
-      <BrandLoading
+      <PageSkeleton variant="form"
         title={t('form.loading')}
         description={ui('Opening a new chapter for your story.', 'Tunafungua ukurasa mpya wa hadithi yako.')}
       />

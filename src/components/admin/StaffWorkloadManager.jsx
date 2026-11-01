@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import './administration.css';
@@ -227,6 +228,8 @@ export default function StaffWorkloadManager({ token }) {
       setSaving(false);
     }
   };
+
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="team-admin">

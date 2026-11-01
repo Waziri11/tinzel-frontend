@@ -1,3 +1,4 @@
+import PageSkeleton from './PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import '../admin/administration.css';
@@ -2308,18 +2309,7 @@ export default function NotificationsPage({ token, staffUser, onOpenOrder, onUnr
           {/* Notification List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {loading && displayedItems.length === 0 ? (
-              <div
-                style={{
-                  padding: '48px 24px',
-                  textAlign: 'center',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <InterfaceText>Loading notifications…</InterfaceText>
-              </div>
+              <PageSkeleton variant="table" compact />
             ) : displayedItems.length === 0 ? (
               <div
                 style={{

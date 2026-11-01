@@ -1,0 +1,22 @@
+.page-skeleton { width: 100%; min-width: 0; padding: 24px 0; }
+.page-skeleton--compact { padding: 8px 0; }
+.page-skeleton__status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.page-skeleton__block { display: block; height: 14px; border-radius: 5px; background: var(--border-color, #e8e4db); animation: page-skeleton-pulse 1.6s ease-in-out infinite; }
+.page-skeleton__heading { display: grid; gap: 16px; margin-bottom: 28px; }
+.page-skeleton .is-title { width: 55%; max-width: 360px; height: 28px; }
+.page-skeleton .is-subtitle { width: 75%; max-width: 540px; }
+.page-skeleton__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.page-skeleton__grid.is-board { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.page-skeleton__card, .page-skeleton__panel { min-width: 0; padding: 20px; border: 1px solid var(--border-color, #e8e4db); border-radius: 12px; }
+.page-skeleton__card { display: grid; gap: 18px; align-content: start; }
+.page-skeleton .is-cover { width: 100%; height: auto; aspect-ratio: 480 / 600; }
+.page-skeleton .is-order { height: 108px; }
+.page-skeleton .is-field { height: 44px; width: 100%; }
+.page-skeleton .is-label { width: 28%; }
+.page-skeleton .is-toolbar { height: 40px; width: 70%; margin-bottom: 20px; }
+.page-skeleton__field { display: grid; gap: 10px; margin-top: 24px; }
+.page-skeleton__row { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr; gap: 20px; padding: 20px 0; border-top: 1px solid var(--border-color, #e8e4db); }
+@keyframes page-skeleton-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@media (max-width: 900px) { .page-skeleton__grid, .page-skeleton__grid.is-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .page-skeleton__grid, .page-skeleton__grid.is-board { grid-template-columns: 1fr; } .page-skeleton__row { grid-template-columns: 2fr 1fr; gap: 14px; } .page-skeleton__card, .page-skeleton__panel { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { .page-skeleton__block { animation: none; } }

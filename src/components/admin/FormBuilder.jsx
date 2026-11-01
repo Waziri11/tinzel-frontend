@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import EditionPreview from './EditionPreview';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -750,12 +751,7 @@ export default function FormBuilder({ token }) {
         )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <Loader2 size={24} className="spin" style={{ margin: '0 auto 12px auto' }} />
-            <p style={{ fontSize: '14px' }}>
-              <InterfaceText>Loading magazine editions...</InterfaceText>
-            </p>
-          </div>
+          <PageSkeleton variant="catalogue" compact />
         ) : forms.length === 0 ? (
           <div
             style={{

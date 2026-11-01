@@ -26,7 +26,7 @@ import { useAccountLanguage } from '../../hooks/useAccountLanguage';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
 import { tinzelAntdTheme } from '../../theme/antdTheme';
-import BrandLoading from './BrandLoading';
+import PageSkeleton from './PageSkeleton';
 import InitialPasswordSetup from './InitialPasswordSetup';
 import LanguageSwitcher from './LanguageSwitcher';
 import TinzelLogo from './TinzelLogo';
@@ -1028,7 +1028,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
           <div className="staff-content" style={{ padding: '32px', flex: 1 }}>
-            <Suspense fallback={<BrandLoading label={ui('Loading workspace…', 'Ofisi inafunguka…')} />}>
+            <Suspense fallback={<PageSkeleton variant={['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) ? 'board' : effectiveActivePage === 'designer_order' ? 'detail' : 'table'} />}>
               {['missing', 'denied'].includes(effectiveActivePage) && (
                 <EmptyState
                   title={
@@ -1070,6 +1070,7 @@ export default function StaffWorkspace({ onExitToHome }) {
 
               {effectiveActivePage === 'designer_order' && routeOrderId && (
                 <DesignerOrderPage
+                  key={routeOrderId}
                   token={token}
                   staffUser={currentUser}
                   orderId={routeOrderId}

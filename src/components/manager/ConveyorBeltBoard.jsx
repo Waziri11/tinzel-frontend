@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
@@ -709,13 +710,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </button>
       </div>
 
-      {loading && orders.length === 0 ? (
-        <div className="manager-loading">
-          <RefreshCw className="spin" />
-          <span>
-            <InterfaceText>Loading production orders…</InterfaceText>
-          </span>
-        </div>
+      {loading ? (
+        <PageSkeleton variant={view === 'board' ? 'board' : 'table'} compact />
       ) : null}
 
       {!loading && view === 'attention' && (
@@ -916,12 +912,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         className="manager-order-drawer"
       >
         {detailLoading ? (
-          <div className="manager-loading">
-            <RefreshCw className="spin" />
-            <span>
-              <InterfaceText>Loading complete order…</InterfaceText>
-            </span>
-          </div>
+          <PageSkeleton variant="detail" />
         ) : orderDetail ? (
           <OrderDetail
             activeTab={detailTab}

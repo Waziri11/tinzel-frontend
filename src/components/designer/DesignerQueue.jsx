@@ -2,7 +2,7 @@ import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../services/api';
-import BrandLoading from '../common/BrandLoading';
+import PageSkeleton from '../common/PageSkeleton';
 import './designerWorkspace.css';
 
 const ACTIVE_STATUSES = new Set(['assigned', 'in_design', 'revision_requested']);
@@ -86,7 +86,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
   }, [filteredOrders, currentPage]);
 
   if (loading) {
-    return <BrandLoading title={tx('Loading assigned orders')} description={tx('Getting your design queue ready.')} />;
+    return <PageSkeleton variant="table" title={tx('Loading assigned orders')} description={tx('Getting your design queue ready.')} />;
   }
 
   return (
