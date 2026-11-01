@@ -10,8 +10,15 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
   const [{ active: activeCover, previous: previousCover }, setCoverPosition] = useState({
     active: 0, previous: null,
   });
+  const [isPhone, setIsPhone] = useState(() => window.matchMedia('(max-width: 600px)').matches);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const phone = window.matchMedia('(max-width: 600px)');
+    const update = () => setIsPhone(phone.matches);
+    phone.addEventListener('change', update);
+    return () => phone.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReducedMotion(media.matches);
@@ -41,14 +48,14 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
-    if (covers.length < 2 || paused || reducedMotion) return;
+    if (covers.length < 2 || paused || reducedMotion || isPhone) return;
     const timer = window.setInterval(() => {
       setCoverPosition(({ active }) => ({
         active: (active + 1) % covers.length, previous: active,
       }));
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [covers.length, paused, reducedMotion]);
+  }, [covers.length, paused, reducedMotion, isPhone]);
   return (
     <div className="landing-page">
       <section className="landing-hero">

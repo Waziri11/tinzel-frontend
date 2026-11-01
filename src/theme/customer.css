@@ -329,6 +329,9 @@
   }
 }
 @media (max-width: 600px) {
+  .landing-art {
+    display: none;
+  }
   .landing-page {
     padding: 0 24px;
   }
@@ -338,7 +341,7 @@
     padding: 40px 0;
   }
   .landing-copy h1 {
-    font-size: 56px;
+    font-size: clamp(44px, 12vw, 56px);
   }
   .landing-copy > p {
     font-size: 14px;
