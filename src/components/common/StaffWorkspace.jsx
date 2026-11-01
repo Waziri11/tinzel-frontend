@@ -18,6 +18,8 @@ import {
   Printer,
   Bell,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { EmptyState, Button } from './UI';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
@@ -104,6 +106,10 @@ const NAVIGATION_ITEMS = [
 ];
 
 export default function StaffWorkspace({ onExitToHome }) {
+  const {lang}=useLanguage();
+  const ui=(en,sw)=>lang==='sw'?sw:en;
+  const labels={'Pre-Design':'Kabla ya usanifu','Design Phase':'Usanifu','Post-Design Phase':'Baada ya usanifu','Design Orders':'Oda za usanifu','Returns':'Marekebisho','Notifications':'Taarifa','Forms':'Fomu','Users':'Watumiaji','Kanban Phases':'Hatua za oda','Editorial':'Uhariri','Operations':'Uendeshaji','Administration':'Utawala'};
+  const label=text=>lang==='sw'?(labels[text]||text):text;
   const screens = Grid.useBreakpoint();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef(null);
@@ -132,7 +138,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     if (pathname.startsWith('/staff/forms')) return { page: 'form_builder', orderId: null };
     if (pathname.startsWith('/staff/users')) return { page: 'staff_roster', orderId: null };
     if (pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
-    return { page: 'pre_design', orderId: null };
+    return { page: pathname==='/staff'||pathname==='/staff/'?'pre_design':'missing', orderId: null };
   };
   const initialRoute = readRoute();
   const [activePage, setActivePage] = useState(initialRoute.page);
@@ -253,9 +259,7 @@ export default function StaffWorkspace({ onExitToHome }) {
 
   // Enforce that active page is always permitted by RBAC
   const orderPageAllowed = activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
-  const effectiveActivePage = orderPageAllowed ? activePage : allowedMenuItems.some((item) => item.id === activePage)
-    ? activePage
-    : allowedMenuItems[0]?.id || 'pre_design';
+  const effectiveActivePage = activePage==='missing'?'missing':orderPageAllowed || allowedMenuItems.some(item=>item.id===activePage)?activePage:'denied';
 
   // -------------------------------------------------------------
   if(token && currentUser?.mustChangePassword)return <InitialPasswordSetup token={token} user={currentUser} onLogout={handleLogout} onComplete={data=>{setCurrentUser(data.user);setToken(data.token);localStorage.setItem('tinzel_staff_token',data.token);const route=readRoute();const allowed=route.page==='designer_order'||NAVIGATION_ITEMS.some(item=>item.id===route.page&&item.roles.includes(data.user.role));if(!allowed)navigateStaff(data.user.role==='designer'?'/staff/design':'/staff/pre-design',data.user.role==='designer'?'designer_queue':'pre_design');refreshUnreadCount(data.token);}}/>;
@@ -404,7 +408,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 }}
               >
                 <ArrowLeft size={16} />
-                Return to Client Catalogue
+                {ui('Return to Client Catalogue','Rudi kwenye matoleo')}
               </button>
             </div>
           )}
@@ -432,10 +436,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                   marginBottom: '6px',
                 }}
               >
-                Staff Workstation Sign In
+                {ui('Staff Workstation Sign In','Ingia kwenye ofisi')}
               </h1>
               <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
-                Secure access for Production Managers, Editorial Designers, and Administrators.
+                {ui('Secure access for Production Managers, Editorial Designers, and Administrators.','Kwa wasimamizi, wasanifu na watendaji wa Tinzel.')}
               </p>
             </div>
 
@@ -467,7 +471,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}
             >
               <div>
-                <label
+                <label htmlFor="staff-email"
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -478,12 +482,12 @@ export default function StaffWorkspace({ onExitToHome }) {
                     marginBottom: '6px',
                   }}
                 >
-                  Work Email Address
+                  {ui('Work Email Address','Barua pepe ya kazi')}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="name@example.com"
+                  id="staff-email" autoComplete="username" placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
@@ -501,7 +505,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
 
               <div>
-                <label
+                <label htmlFor="staff-password"
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -512,13 +516,13 @@ export default function StaffWorkspace({ onExitToHome }) {
                     marginBottom: '6px',
                   }}
                 >
-                  Password
+                  {ui('Password','Nenosiri')}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    id="staff-password" autoComplete="current-password" placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{
@@ -535,7 +539,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword?ui("Hide password","Ficha nenosiri"):ui("Show password","Onyesha nenosiri")} onClick={() => setShowPassword(!showPassword)}
                     style={{
                       position: 'absolute',
                       right: '12px',
@@ -591,8 +595,8 @@ export default function StaffWorkspace({ onExitToHome }) {
   const navigation = (
       <aside className="staff-sidebar"
         style={{
-          width: '280px',
-          minWidth: '280px',
+          width: '232px',
+          minWidth: '232px',
           height: '100vh',
           backgroundColor: '#FFFFFF',
           borderRight: '1px solid #E7E5E4',
@@ -687,7 +691,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                           color: '#A8A29E',
                         }}
                       >
-                        {item.section}
+                        {label(item.section)}
                       </div>
                     )}
                     <button
@@ -712,7 +716,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
-                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{item.label}</div>
+                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{label(item.label)}</div>
                       </div>
                       {item.id === 'notifications' && unreadNotifications > 0 && (
                         <span
@@ -760,7 +764,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               }}
             >
               <ArrowLeft size={14} />
-              Client site
+              {ui('Client site','Tovuti ya wateja')}
             </button>
           )}
 
@@ -784,7 +788,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             }}
           >
             <LogOut size={14} />
-            Sign out
+            {ui('Sign out','Toka')}
           </button>
         </div>
       </aside>
@@ -839,7 +843,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 lineHeight: '1.2',
               }}
             >
-              {effectiveActivePage === 'designer_order' ? 'Design order' : NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
+              {effectiveActivePage === 'designer_order' ? 'Design order' : label(NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || ui('Workstation','Ofisi'))}
             </h2>
           </div>
 
@@ -864,7 +868,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               }}
             >
               <Bell size={15} color="#8A6825" />
-              <span>Notifications</span>
+              <span>{ui('Notifications','Taarifa')}</span>
               {unreadNotifications > 0 && (
                 <span
                   style={{
@@ -897,8 +901,9 @@ export default function StaffWorkspace({ onExitToHome }) {
 
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
-          <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
-            <Suspense fallback={<BrandLoading label="Loading workspace..." />}>
+          <div className="staff-content" style={{ padding: '32px', flex: 1 }}>
+            <Suspense fallback={<BrandLoading label={ui("Loading workspace…","Ofisi inafunguka…")} />}>
+              {["missing","denied"].includes(effectiveActivePage)&&<EmptyState title={effectiveActivePage==="denied"?ui("Access unavailable","Huna ruhusa"):ui("Page not found","Ukurasa haupatikani")} description={ui("Choose an available page from your workspace menu.","Chagua ukurasa unaoruhusiwa kwenye menyu.")}><Button onClick={()=>navigateStaff(allowedMenuItems[0].path,allowedMenuItems[0].id)}>{ui("Open workspace","Fungua ofisi")}</Button></EmptyState>}
               {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
                 (currentUser.role === 'admin' || currentUser.role === 'manager') && (
                   <ConveyorBeltBoard

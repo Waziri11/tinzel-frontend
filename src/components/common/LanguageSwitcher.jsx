@@ -12,9 +12,9 @@ export default function LanguageSwitcher() {
       onClick={() => setLang(code)}
       aria-pressed={active === code}
       style={{
-        padding: '6px 12px',
+        padding: '10px 12px',
         border: 'none',
-        backgroundColor: active === code ? '#C5A059' : '#FFFFFF',
+        backgroundColor: active === code ? 'var(--accent-primary)' : '#FFFFFF',
         color: active === code ? '#FFFFFF' : '#1C1917',
         fontSize: '12px',
         fontWeight: '700',

@@ -12,7 +12,8 @@ const STORAGE_KEY = 'tinzel_language';
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || null;
+      const stored = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+      return ['en','sw'].includes(stored) ? stored : null;
     } catch {
       return null;
     }
