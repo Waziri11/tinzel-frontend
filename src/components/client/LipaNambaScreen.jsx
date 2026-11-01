@@ -13,17 +13,15 @@ import { useLanguage } from '../../i18n/LanguageContext';
 export default function LipaNambaScreen({ order, lipaNambaInstructions, onNavigateToTracking }) {
   const { t, isSwahili } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const [copyError,setCopyError]=useState(false);
 
-  const copyTillNumber = () => {
-    if (lipaNambaInstructions?.tillNumber) {
-      navigator.clipboard.writeText(lipaNambaInstructions.tillNumber);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const copyTillNumber = async () => {
+    if(!lipaNambaInstructions?.tillNumber)return;
+    try{await navigator.clipboard.writeText(lipaNambaInstructions.tillNumber);setCopied(true);setCopyError(false);setTimeout(()=>setCopied(false),2000);}catch{setCopyError(true);}
   };
 
   return (
-    <div style={{ maxWidth: '680px', margin: '0 auto', overflowWrap: 'anywhere' }}>
+    <div className="payment-page" style={{ maxWidth: '680px', margin: '0 auto', overflowWrap: 'anywhere' }}>
       <div
         style={{
           backgroundColor: 'var(--card-bg)',
@@ -137,10 +135,10 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#8A6A30' }}>
-                  {lipaNambaInstructions?.tillNumber || '55667788'}
+                  {lipaNambaInstructions?.tillNumber || (isSwahili?'Haijapatikana':'Unavailable')}
                 </span>
                 <button
-                  onClick={copyTillNumber}
+                  disabled={!lipaNambaInstructions?.tillNumber} onClick={copyTillNumber}
                   style={{
                     backgroundColor: 'var(--bg-secondary)',
                     border: '1px solid var(--border-color)',
@@ -173,7 +171,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
             <span style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', marginBottom: '4px' }}>
               {t('pay.account')}
             </span>
-            {lipaNambaInstructions?.accountName || 'Tinzel Media Ltd'}
+            {lipaNambaInstructions?.accountName || '—'}
           </div>
 
           <div
@@ -191,7 +189,8 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           </div>
         </div>
 
-        {/* Bottom Actions */}
+        {copyError&&<p role="alert">{isSwahili?'Nakili namba iliyo juu kwa mkono.':'Copy the till number above manually.'}</p>}
+      {/* Bottom Actions */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
             <Clock size={14} />
