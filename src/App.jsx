@@ -122,7 +122,7 @@ export default function App() {
         <nav className="public-mobile-nav">{nav}</nav>
       </Drawer>
       <main id="main-content" tabIndex={-1} className={staff ? 'workspace-root' : 'public-main'}>
-        <PageBoundary key={path}>
+        <PageBoundary key={staff ? 'staff' : path}>
           <Suspense fallback={<div className="ui-page"><PageSkeleton variant={catalogue ? (/\/(catalogue|showcase)\/[^/]+/.test(path) ? 'form' : 'catalogue') : tracking ? 'form' : 'table'} /></div>}>
             {home && (
               <LandingHero
