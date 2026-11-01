@@ -1,3 +1,4 @@
+import InterfaceText from '../../i18n/InterfaceText';
 import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigProvider, Drawer, Grid } from 'antd';
 import {
@@ -18,6 +19,9 @@ import {
   Printer,
   Bell,
 } from 'lucide-react';
+import { navigate as navigateLocation } from '../../navigation/location';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { EmptyState, Button } from './UI';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
@@ -104,6 +108,23 @@ const NAVIGATION_ITEMS = [
 ];
 
 export default function StaffWorkspace({ onExitToHome }) {
+  const { lang } = useLanguage();
+  const ui = (en, sw) => (lang === 'sw' ? sw : en);
+  const labels = {
+    'Pre-Design': 'Kabla ya usanifu',
+    'Design Phase': 'Usanifu',
+    'Post-Design Phase': 'Baada ya usanifu',
+    'Design Orders': 'Oda za usanifu',
+    Returns: 'Marekebisho',
+    Notifications: 'Taarifa',
+    Forms: 'Fomu',
+    Users: 'Watumiaji',
+    'Kanban Phases': 'Hatua za oda',
+    Editorial: 'Uhariri',
+    Operations: 'Uendeshaji',
+    Administration: 'Utawala',
+  };
+  const label = (text) => (lang === 'sw' ? labels[text] || text : text);
   const screens = Grid.useBreakpoint();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef(null);
@@ -112,7 +133,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  useAccountLanguage('staff',token,currentUser?.id || currentUser?._id,currentUser?.preferredLanguage,setError);
+  useAccountLanguage('staff', token, currentUser?.id || currentUser?._id, currentUser?.preferredLanguage, setError);
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -132,31 +153,45 @@ export default function StaffWorkspace({ onExitToHome }) {
     if (pathname.startsWith('/staff/forms')) return { page: 'form_builder', orderId: null };
     if (pathname.startsWith('/staff/users')) return { page: 'staff_roster', orderId: null };
     if (pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
-    return { page: 'pre_design', orderId: null };
+    return { page: pathname === '/staff' || pathname === '/staff/' ? 'pre_design' : 'missing', orderId: null };
   };
   const initialRoute = readRoute();
   const [activePage, setActivePage] = useState(initialRoute.page);
   const [routeOrderId, setRouteOrderId] = useState(initialRoute.orderId);
   const navigateStaff = (path, page, orderId = null) => {
-    window.history.pushState({}, '', path); setActivePage(page); setRouteOrderId(orderId); setMenuOpen(false);
+    if (!navigateLocation(path)) return;
+    setActivePage(page);
+    setRouteOrderId(orderId);
+    setMenuOpen(false);
   };
-  useEffect(() => { const pop = () => { const route = readRoute(); setActivePage(route.page); setRouteOrderId(route.orderId); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, []);
+  useEffect(() => {
+    const pop = () => {
+      const route = readRoute();
+      setActivePage(route.page);
+      setRouteOrderId(route.orderId);
+    };
+    window.addEventListener('popstate', pop);
+    return () => window.removeEventListener('popstate', pop);
+  }, []);
 
-  const refreshUnreadCount = useCallback(async (authToken = token) => {
-    if (!authToken) return;
-    try {
-      const data = await api.notifications.getHistory(authToken, { limit: 100 });
-      if (typeof data.unreadCount === 'number') {
-        setUnreadNotifications(data.unreadCount);
-      } else {
-        setUnreadNotifications((data.notifications || []).filter((n) => !n.isRead).length);
+  const refreshUnreadCount = useCallback(
+    async (authToken = token) => {
+      if (!authToken) return;
+      try {
+        const data = await api.notifications.getHistory(authToken, { limit: 100 });
+        if (typeof data.unreadCount === 'number') {
+          setUnreadNotifications(data.unreadCount);
+        } else {
+          setUnreadNotifications((data.notifications || []).filter((n) => !n.isRead).length);
+        }
+      } catch {
+        // Ignore background badge refresh errors
       }
-    } catch {
-      // Ignore background badge refresh errors
-    }
-  }, [token]);
+    },
+    [token],
+  );
 
-  useVisiblePolling(()=>refreshUnreadCount(token),Boolean(token && currentUser && !currentUser.mustChangePassword));
+  useVisiblePolling(() => refreshUnreadCount(token), Boolean(token && currentUser && !currentUser.mustChangePassword));
 
   useEffect(() => {
     const onUnauthorized = (event) => {
@@ -176,11 +211,12 @@ export default function StaffWorkspace({ onExitToHome }) {
   }, [token, refreshUnreadCount]);
 
   const loadProfile = async (authToken) => {
-    setLoading(true);setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await api.staffAuth.getMe(authToken);
       setCurrentUser(data.user);
-      if(!data.user.mustChangePassword)refreshUnreadCount(authToken);
+      if (!data.user.mustChangePassword) refreshUnreadCount(authToken);
 
       // Default page based on RBAC role and current URL
       const route = readRoute();
@@ -214,7 +250,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.setItem('tinzel_staff_token', data.token);
       setCurrentUser(data.user);
       setPassword('');
-      if(!data.user.mustChangePassword)refreshUnreadCount(data.token);
+      if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
 
       const route = readRoute();
       if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
@@ -247,31 +283,55 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
 
   // Filter allowed navigation items based on the user's role (Strict RBAC)
-  const allowedMenuItems = currentUser
-    ? NAVIGATION_ITEMS.filter((item) => item.roles.includes(currentUser.role))
-    : [];
+  const allowedMenuItems = currentUser ? NAVIGATION_ITEMS.filter((item) => item.roles.includes(currentUser.role)) : [];
 
   // Enforce that active page is always permitted by RBAC
-  const orderPageAllowed = activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
-  const effectiveActivePage = orderPageAllowed ? activePage : allowedMenuItems.some((item) => item.id === activePage)
-    ? activePage
-    : allowedMenuItems[0]?.id || 'pre_design';
+  const orderPageAllowed =
+    activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
+  const effectiveActivePage =
+    activePage === 'missing'
+      ? 'missing'
+      : orderPageAllowed || allowedMenuItems.some((item) => item.id === activePage)
+        ? activePage
+        : 'denied';
 
   // -------------------------------------------------------------
-  if(token && currentUser?.mustChangePassword)return <InitialPasswordSetup token={token} user={currentUser} onLogout={handleLogout} onComplete={data=>{setCurrentUser(data.user);setToken(data.token);localStorage.setItem('tinzel_staff_token',data.token);const route=readRoute();const allowed=route.page==='designer_order'||NAVIGATION_ITEMS.some(item=>item.id===route.page&&item.roles.includes(data.user.role));if(!allowed)navigateStaff(data.user.role==='designer'?'/staff/design':'/staff/pre-design',data.user.role==='designer'?'designer_queue':'pre_design');refreshUnreadCount(data.token);}}/>;
+  if (token && currentUser?.mustChangePassword)
+    return (
+      <InitialPasswordSetup
+        token={token}
+        user={currentUser}
+        onLogout={handleLogout}
+        onComplete={(data) => {
+          setCurrentUser(data.user);
+          setToken(data.token);
+          localStorage.setItem('tinzel_staff_token', data.token);
+          const route = readRoute();
+          const allowed =
+            route.page === 'designer_order' ||
+            NAVIGATION_ITEMS.some((item) => item.id === route.page && item.roles.includes(data.user.role));
+          if (!allowed)
+            navigateStaff(
+              data.user.role === 'designer' ? '/staff/design' : '/staff/pre-design',
+              data.user.role === 'designer' ? 'designer_queue' : 'pre_design',
+            );
+          refreshUnreadCount(data.token);
+        }}
+      />
+    );
 
   // Unauthenticated: High-End Minimalist Login Screen
   // -------------------------------------------------------------
   if (token && !currentUser) {
     return (
-      <main
+      <section
         style={{
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
           padding: '24px',
           textAlign: 'center',
         }}
@@ -282,7 +342,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             maxWidth: '440px',
             width: '100%',
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             padding: '32px 24px',
             display: 'flex',
@@ -298,11 +358,11 @@ export default function StaffWorkspace({ onExitToHome }) {
               fontStyle: 'italic',
               fontSize: '22px',
               fontWeight: '600',
-              color: '#1C1917',
+              color: 'var(--text-main)',
               margin: 0,
             }}
           >
-            Staff Workspace
+            <InterfaceText>Staff Workspace</InterfaceText>
           </h2>
           <p role="status" style={{ fontSize: '14px', color: '#57534E', margin: 0, lineHeight: 1.5 }}>
             {error || 'Reconnecting to your workspace…'}
@@ -317,8 +377,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   width: '100%',
                   padding: '10px 16px',
                   borderRadius: '6px',
-                  border: '1px solid #C5A059',
-                  backgroundColor: '#C5A059',
+                  border: '1px solid var(--accent-primary)',
+                  backgroundColor: 'var(--accent-primary)',
                   color: '#FFFFFF',
                   fontWeight: '600',
                   fontSize: '13px',
@@ -335,7 +395,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 width: '100%',
                 padding: '9px 16px',
                 borderRadius: '6px',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 backgroundColor: '#FFFFFF',
                 color: '#57534E',
                 fontWeight: '600',
@@ -343,7 +403,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 cursor: 'pointer',
               }}
             >
-              Sign out / Sign in with another account
+              <InterfaceText>Sign out / Sign in with another account</InterfaceText>
             </button>
             {onExitToHome && (
               <button
@@ -353,20 +413,20 @@ export default function StaffWorkspace({ onExitToHome }) {
                   width: '100%',
                   padding: '9px 16px',
                   borderRadius: '6px',
-                  border: '1px solid #E7E5E4',
-                  backgroundColor: '#FAFAF9',
-                  color: '#78716C',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-muted)',
                   fontWeight: '600',
                   fontSize: '13px',
                   cursor: 'pointer',
                 }}
               >
-                Return to client homepage
+                <InterfaceText>Return to client homepage</InterfaceText>
               </button>
             )}
           </div>
         </div>
-      </main>
+      </section>
     );
   }
 
@@ -375,7 +435,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       <div
         style={{
           minHeight: '100vh',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -396,7 +456,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   gap: '8px',
                   backgroundColor: 'transparent',
                   border: 'none',
-                  color: '#78716C',
+                  color: 'var(--text-muted)',
                   fontSize: '13px',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -404,7 +464,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 }}
               >
                 <ArrowLeft size={16} />
-                Return to Client Catalogue
+                {ui('Return to Client Catalogue', 'Rudi kwenye matoleo')}
               </button>
             </div>
           )}
@@ -412,7 +472,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           <div
             style={{
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '36px 32px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
@@ -428,14 +488,17 @@ export default function StaffWorkspace({ onExitToHome }) {
                   fontStyle: 'italic',
                   fontSize: '28px',
                   fontWeight: '600',
-                  color: '#1C1917',
+                  color: 'var(--text-main)',
                   marginBottom: '6px',
                 }}
               >
-                Staff Workstation Sign In
+                {ui('Staff Workstation Sign In', 'Ingia kwenye ofisi')}
               </h1>
-              <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
-                Secure access for Production Managers, Editorial Designers, and Administrators.
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                {ui(
+                  'Secure access for Production Managers, Editorial Designers, and Administrators.',
+                  'Kwa wasimamizi, wasanifu na watendaji wa Tinzel.',
+                )}
               </p>
             </div>
 
@@ -468,6 +531,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             >
               <div>
                 <label
+                  htmlFor="staff-email"
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -478,21 +542,23 @@ export default function StaffWorkspace({ onExitToHome }) {
                     marginBottom: '6px',
                   }}
                 >
-                  Work Email Address
+                  {ui('Work Email Address', 'Barua pepe ya kazi')}
                 </label>
                 <input
                   type="email"
                   required
+                  id="staff-email"
+                  autoComplete="username"
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    backgroundColor: '#FAFAF9',
+                    backgroundColor: 'var(--bg-primary)',
                     border: '1px solid #D6D3D1',
                     borderRadius: '6px',
-                    color: '#1C1917',
+                    color: 'var(--text-main)',
                     fontSize: '14px',
                     outline: 'none',
                     boxSizing: 'border-box',
@@ -502,6 +568,7 @@ export default function StaffWorkspace({ onExitToHome }) {
 
               <div>
                 <label
+                  htmlFor="staff-password"
                   style={{
                     display: 'block',
                     fontSize: '12px',
@@ -512,22 +579,24 @@ export default function StaffWorkspace({ onExitToHome }) {
                     marginBottom: '6px',
                   }}
                 >
-                  Password
+                  {ui('Password', 'Nenosiri')}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
+                    id="staff-password"
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '10px 42px 10px 14px',
-                      backgroundColor: '#FAFAF9',
+                      padding: '10px 56px 10px 14px',
+                      backgroundColor: 'var(--bg-primary)',
                       border: '1px solid #D6D3D1',
                       borderRadius: '6px',
-                      color: '#1C1917',
+                      color: 'var(--text-main)',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -535,6 +604,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                   />
                   <button
                     type="button"
+                    className="staff-password-toggle"
+                    aria-label={
+                      showPassword ? ui('Hide password', 'Ficha nenosiri') : ui('Show password', 'Onyesha nenosiri')
+                    }
                     onClick={() => setShowPassword(!showPassword)}
                     style={{
                       position: 'absolute',
@@ -543,7 +616,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                       transform: 'translateY(-50%)',
                       backgroundColor: 'transparent',
                       border: 'none',
-                      color: '#78716C',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: 0,
                     }}
@@ -557,7 +630,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 type="submit"
                 disabled={loading}
                 style={{
-                  backgroundColor: '#C5A059',
+                  backgroundColor: 'var(--accent-primary)',
                   color: '#FFFFFF',
                   padding: '11px 16px',
                   borderRadius: '6px',
@@ -575,10 +648,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                 }}
               >
                 {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
-                Sign In to Workstation
+                <InterfaceText>Sign In to Workstation</InterfaceText>
               </button>
             </form>
-
           </div>
         </div>
       </div>
@@ -589,234 +661,271 @@ export default function StaffWorkspace({ onExitToHome }) {
   // Authenticated: Unified Full-Height Sidebar Dashboard Layout
   // -------------------------------------------------------------
   const navigation = (
-      <aside className="staff-sidebar"
-        style={{
-          width: '280px',
-          minWidth: '280px',
-          height: '100vh',
-          backgroundColor: '#FFFFFF',
-          borderRight: '1px solid #E7E5E4',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          zIndex: 40,
-        }}
-      >
-        {/* Top: Logo & Staff Profile */}
-        <div>
-          {/* Brand Header */}
-          <div
-            style={{
-              padding: '24px 20px 20px 20px',
-              borderBottom: '1px solid #F5F5F4',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <TinzelLogo variant="full" height={36} />
-          </div>
-
-          {/* User Profile Card */}
-          <div
-            style={{
-              padding: '16px 20px',
-              backgroundColor: '#FAFAF9',
-              borderBottom: '1px solid #E7E5E4',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1C1917', lineHeight: '1.2' }}>
-                {currentUser.name}
-              </span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor:
-                    currentUser.role === 'admin'
-                      ? '#1C1917'
-                      : currentUser.role === 'manager'
-                      ? '#C5A059'
-                      : '#E7E5E4',
-                  color:
-                    currentUser.role === 'admin'
-                      ? '#C5A059'
-                      : currentUser.role === 'manager'
-                      ? '#FFFFFF'
-                      : '#1C1917',
-                  letterSpacing: '0.6px',
-                }}
-              >
-                {currentUser.role}
-              </span>
-            </div>
-
-            {currentUser.role === 'designer' && (
-              <div style={{ marginTop: '8px', fontSize: '11px', color: '#A8A29E' }}>
-                <strong style={{ color: '#1C1917' }}>{currentUser.currentActiveWorkload || 0}</strong> / {currentUser.maxActiveWorkload || 5} active
-              </div>
-            )}
-          </div>
-
-          <div style={{padding:'8px 20px'}}><LanguageSwitcher /></div>
-          {/* Navigation Menu by RBAC */}
-          <div style={{ padding: '16px 12px 10px 12px' }}>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {allowedMenuItems.map((item, idx) => {
-                const IconComponent = item.icon;
-                const isActive =
-                  effectiveActivePage === item.id ||
-                  (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
-                const prevSection = idx > 0 ? allowedMenuItems[idx - 1].section : null;
-                const showSectionHeader = item.section && item.section !== prevSection;
-
-                return (
-                  <React.Fragment key={item.id}>
-                    {showSectionHeader && (
-                      <div
-                        style={{
-                          padding: idx === 0 ? '0 14px 4px 14px' : '12px 14px 4px 14px',
-                          fontSize: '10px',
-                          fontWeight: '800',
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          color: '#A8A29E',
-                        }}
-                      >
-                        {item.section}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => navigateStaff(item.path || '/staff', item.id)}
-                      aria-current={isActive ? 'page' : undefined}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        backgroundColor: isActive ? '#FAF5EA' : 'transparent',
-                        borderLeft: isActive ? '3px solid #C5A059' : '3px solid transparent',
-                        color: isActive ? '#1C1917' : '#57534E',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <IconComponent size={18} color={isActive ? '#C5A059' : '#78716C'} />
-                        <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{item.label}</div>
-                      </div>
-                      {item.id === 'notifications' && unreadNotifications > 0 && (
-                        <span
-                          style={{
-                            minWidth: '20px',
-                            padding: '2px 6px',
-                            borderRadius: '999px',
-                            backgroundColor: '#C5A059',
-                            color: '#FFFFFF',
-                            fontSize: '10px',
-                            fontWeight: '800',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {unreadNotifications}
-                        </span>
-                      )}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-            </nav>
-          </div>
+    <aside
+      className="staff-sidebar"
+      style={{
+        width: '232px',
+        minWidth: '232px',
+        height: '100vh',
+        backgroundColor: '#FFFFFF',
+        borderRight: '1px solid var(--border-color)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        zIndex: 40,
+      }}
+    >
+      {/* Top: Logo & Staff Profile */}
+      <div>
+        {/* Brand Header */}
+        <div
+          style={{
+            padding: '24px 20px 20px 20px',
+            borderBottom: '1px solid #F5F5F4',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <TinzelLogo variant="full" height={36} />
         </div>
 
-        {/* Bottom Sidebar: Return & Sign Out */}
-        <div style={{ padding: '16px 14px', borderTop: '1px solid #E7E5E4', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {onExitToHome && (
-            <button
-              type="button"
-              onClick={onExitToHome}
+        {/* User Profile Card */}
+        <div
+          style={{
+            padding: '16px 20px',
+            backgroundColor: 'var(--bg-primary)',
+            borderBottom: '1px solid var(--border-color)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
+              {currentUser.name}
+            </span>
+            <span
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                width: '100%',
-                padding: '8px 12px',
-                backgroundColor: 'transparent',
-                border: '1px solid #E7E5E4',
-                borderRadius: '6px',
-                color: '#57534E',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                backgroundColor:
+                  currentUser.role === 'admin'
+                    ? 'var(--text-main)'
+                    : currentUser.role === 'manager'
+                      ? 'var(--accent-primary)'
+                      : 'var(--border-color)',
+                color:
+                  currentUser.role === 'admin'
+                    ? '#C5A059'
+                    : currentUser.role === 'manager'
+                      ? '#FFFFFF'
+                      : 'var(--text-main)',
+                letterSpacing: '0.6px',
               }}
             >
-              <ArrowLeft size={14} />
-              Client site
-            </button>
-          )}
+              {ui(
+                currentUser.role,
+                { admin: 'Msimamizi mkuu', manager: 'Msimamizi', designer: 'Msanifu' }[currentUser.role] ||
+                  currentUser.role,
+              )}
+            </span>
+          </div>
 
+          {currentUser.role === 'designer' && (
+            <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              <strong style={{ color: 'var(--text-main)' }}>{currentUser.currentActiveWorkload || 0}</strong> /{' '}
+              {currentUser.maxActiveWorkload ?? 5} <InterfaceText>active</InterfaceText>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '8px 20px' }}>
+          <LanguageSwitcher />
+        </div>
+        {/* Navigation Menu by RBAC */}
+        <div style={{ padding: '16px 12px 10px 12px' }}>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {allowedMenuItems.map((item, idx) => {
+              const IconComponent = item.icon;
+              const isActive =
+                effectiveActivePage === item.id ||
+                (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
+              const prevSection = idx > 0 ? allowedMenuItems[idx - 1].section : null;
+              const showSectionHeader = item.section && item.section !== prevSection;
+
+              return (
+                <React.Fragment key={item.id}>
+                  {showSectionHeader && (
+                    <div
+                      style={{
+                        padding: idx === 0 ? '0 14px 4px 14px' : '12px 14px 4px 14px',
+                        fontSize: '10px',
+                        fontWeight: '800',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {label(item.section)}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigateStaff(item.path || '/staff', item.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: isActive ? '#FAF5EA' : 'transparent',
+                      borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                      color: isActive ? 'var(--text-main)' : '#57534E',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <IconComponent size={18} color={isActive ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                      <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{label(item.label)}</div>
+                    </div>
+                    {item.id === 'notifications' && unreadNotifications > 0 && (
+                      <span
+                        style={{
+                          minWidth: '20px',
+                          padding: '2px 6px',
+                          borderRadius: '999px',
+                          backgroundColor: 'var(--accent-primary)',
+                          color: '#FFFFFF',
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {unreadNotifications}
+                      </span>
+                    )}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Bottom Sidebar: Return & Sign Out */}
+      <div
+        style={{
+          padding: '16px 14px',
+          borderTop: '1px solid var(--border-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}
+      >
+        {onExitToHome && (
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={onExitToHome}
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '8px',
               width: '100%',
-              padding: '9px 12px',
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FECACA',
+              padding: '8px 12px',
+              backgroundColor: 'transparent',
+              border: '1px solid var(--border-color)',
               borderRadius: '6px',
-              color: '#991B1B',
+              color: '#57534E',
               fontSize: '12px',
-              fontWeight: '700',
+              fontWeight: '600',
               cursor: 'pointer',
             }}
           >
-            <LogOut size={14} />
-            Sign out
+            <ArrowLeft size={14} />
+            {ui('Client site', 'Tovuti ya wateja')}
           </button>
-        </div>
-      </aside>
+        )}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '9px 12px',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: '6px',
+            color: '#991B1B',
+            fontSize: '12px',
+            fontWeight: '700',
+            cursor: 'pointer',
+          }}
+        >
+          <LogOut size={14} />
+          {ui('Sign out', 'Toka')}
+        </button>
+      </div>
+    </aside>
   );
   return (
-    <div className="staff-workspace" style={{ display: 'flex', height: '100dvh', width: '100%', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
-      {screens.lg ? navigation : (
-        <Drawer title="Your workspace" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)}
-          afterOpenChange={(open) => { if (!open) menuButton.current?.focus({ preventScroll: true }); }}
-          size="min(90vw, 340px)" styles={{ body: { padding: 0 } }}>
+    <div
+      className="staff-workspace"
+      style={{
+        display: 'flex',
+        height: '100dvh',
+        width: '100%',
+        overflow: 'hidden',
+        backgroundColor: 'var(--bg-primary)',
+      }}
+    >
+      {screens.lg ? (
+        navigation
+      ) : (
+        <Drawer
+          title={ui('Your workspace', 'Ofisi yako')}
+          placement="left"
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          afterOpenChange={(open) => {
+            if (!open) menuButton.current?.focus({ preventScroll: true });
+          }}
+          size="min(90vw, 340px)"
+          styles={{ body: { padding: 0 } }}
+        >
           {navigation}
         </Drawer>
       )}
       {/* ============================================================ */}
       {/* 2. Main Content Viewport                                     */}
       {/* ============================================================ */}
-      <main className="staff-main"
+      <section
+        className="staff-main"
         style={{
           flex: 1,
           height: '100vh',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#FAFAF9',
+          backgroundColor: 'var(--bg-primary)',
         }}
       >
         {/* Viewport Top Header */}
-        <header className="staff-header"
+        <header
+          className="staff-header"
           style={{
             height: '64px',
             backgroundColor: '#FFFFFF',
-            borderBottom: '1px solid #E7E5E4',
+            borderBottom: '1px solid var(--border-color)',
             padding: '0 32px',
             display: 'flex',
             alignItems: 'center',
@@ -826,7 +935,18 @@ export default function StaffWorkspace({ onExitToHome }) {
             zIndex: 30,
           }}
         >
-          {!screens.lg && <button ref={menuButton} type="button" className="staff-menu-toggle" aria-label="Open workspace menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>}
+          {!screens.lg && (
+            <button
+              ref={menuButton}
+              type="button"
+              className="staff-menu-toggle"
+              aria-label={ui('Open workspace menu', 'Fungua menyu ya ofisi')}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+          )}
           <div>
             <h2
               style={{
@@ -834,12 +954,17 @@ export default function StaffWorkspace({ onExitToHome }) {
                 fontStyle: 'italic',
                 fontSize: '24px',
                 fontWeight: '600',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 margin: 0,
                 lineHeight: '1.2',
               }}
             >
-              {effectiveActivePage === 'designer_order' ? 'Design order' : NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label || 'Workstation'}
+              {effectiveActivePage === 'designer_order'
+                ? 'Design order'
+                : label(
+                    NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label ||
+                      ui('Workstation', 'Ofisi'),
+                  )}
             </h2>
           </div>
 
@@ -855,22 +980,22 @@ export default function StaffWorkspace({ onExitToHome }) {
                 gap: '6px',
                 padding: '6px 10px',
                 borderRadius: '6px',
-                border: '1px solid #E7E5E4',
+                border: '1px solid var(--border-color)',
                 backgroundColor: effectiveActivePage === 'notifications' ? '#FAF5EA' : '#FFFFFF',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
               <Bell size={15} color="#8A6825" />
-              <span>Notifications</span>
+              <span>{ui('Notifications', 'Taarifa')}</span>
               {unreadNotifications > 0 && (
                 <span
                   style={{
                     padding: '1px 6px',
                     borderRadius: '999px',
-                    backgroundColor: '#C5A059',
+                    backgroundColor: 'var(--accent-primary)',
                     color: '#FFFFFF',
                     fontSize: '10px',
                     fontWeight: 800,
@@ -883,22 +1008,44 @@ export default function StaffWorkspace({ onExitToHome }) {
             <span
               style={{
                 fontSize: '12px',
-                color: '#78716C',
+                color: 'var(--text-muted)',
                 padding: '4px 10px',
-                backgroundColor: '#FAFAF9',
-                border: '1px solid #E7E5E4',
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '6px',
               }}
             >
-              <strong style={{ color: '#1C1917' }}>{currentUser.name}</strong> · {currentUser.role}
+              <strong style={{ color: 'var(--text-main)' }}>{currentUser.name}</strong> ·{' '}
+              {ui(
+                currentUser.role,
+                { admin: 'Msimamizi mkuu', manager: 'Msimamizi', designer: 'Msanifu' }[currentUser.role] ||
+                  currentUser.role,
+              )}
             </span>
           </div>
         </header>
 
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
-          <div className="staff-content" style={{ padding: '28px 32px', flex: 1 }}>
-            <Suspense fallback={<BrandLoading label="Loading workspace..." />}>
+          <div className="staff-content" style={{ padding: '32px', flex: 1 }}>
+            <Suspense fallback={<BrandLoading label={ui('Loading workspace…', 'Ofisi inafunguka…')} />}>
+              {['missing', 'denied'].includes(effectiveActivePage) && (
+                <EmptyState
+                  title={
+                    effectiveActivePage === 'denied'
+                      ? ui('Access unavailable', 'Huna ruhusa')
+                      : ui('Page not found', 'Ukurasa haupatikani')
+                  }
+                  description={ui(
+                    'Choose an available page from your workspace menu.',
+                    'Chagua ukurasa unaoruhusiwa kwenye menyu.',
+                  )}
+                >
+                  <Button onClick={() => navigateStaff(allowedMenuItems[0].path, allowedMenuItems[0].id)}>
+                    {ui('Open workspace', 'Fungua ofisi')}
+                  </Button>
+                </EmptyState>
+              )}
               {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
                 (currentUser.role === 'admin' || currentUser.role === 'manager') && (
                   <ConveyorBeltBoard
@@ -911,20 +1058,35 @@ export default function StaffWorkspace({ onExitToHome }) {
                   />
                 )}
 
-              {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && (
-                <FormBuilder token={token} />
-              )}
+              {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && <FormBuilder token={token} />}
 
               {effectiveActivePage === 'designer_queue' && (
-                <DesignerQueue token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+                <DesignerQueue
+                  token={token}
+                  staffUser={currentUser}
+                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                />
               )}
 
               {effectiveActivePage === 'designer_order' && routeOrderId && (
-                <DesignerOrderPage token={token} staffUser={currentUser} orderId={routeOrderId} onBack={() => currentUser.role === 'manager' ? navigateStaff('/staff/returns', 'returns') : navigateStaff('/staff/design', 'designer_queue')} />
+                <DesignerOrderPage
+                  token={token}
+                  staffUser={currentUser}
+                  orderId={routeOrderId}
+                  onBack={() =>
+                    currentUser.role === 'manager'
+                      ? navigateStaff('/staff/returns', 'returns')
+                      : navigateStaff('/staff/design', 'designer_queue')
+                  }
+                />
               )}
 
               {effectiveActivePage === 'returns' && (
-                <ReturnsPage token={token} staffUser={currentUser} onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)} />
+                <ReturnsPage
+                  token={token}
+                  staffUser={currentUser}
+                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                />
               )}
 
               {effectiveActivePage === 'notifications' && (
@@ -942,7 +1104,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             </Suspense>
           </div>
         </ConfigProvider>
-      </main>
+      </section>
     </div>
   );
 }

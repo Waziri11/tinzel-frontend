@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 const json=(route,data)=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
 const staff={id:'staff-1',name:'Neema Manager',role:'admin',preferredLanguage:'en'};
 const order={_id:'order-1',submissionId:'SUB-2026-001',trackingId:'TNZ-2026-001',clientName:'Asha',clientWhatsApp:'0712000000',formTitle:'Magazine',status:'assigned',clientPreferredLanguage:'sw',draftVersions:[]};
@@ -20,6 +20,7 @@ test('staff language persists, actual channel outcomes are shown, and unconfirme
  await expect(page.getByText(/EMAIL: provider accepted/)).toBeVisible();await expect(page.getByText(/SMS: unconfirmed/)).toBeVisible();
  await page.getByRole('button',{name:'SW',exact:true}).click();await expect.poll(()=>writes).toEqual(['sw']);
  await page.reload();await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');expect(writes).toEqual(['sw']);
+ await page.getByRole('button',{name:'EN',exact:true}).click();
  page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Retry SMS',exact:true}).click();expect(retryBody).toBeUndefined();
  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Retry SMS',exact:true}).click();await expect.poll(()=>retryBody).toEqual({channel:'sms',confirmUncertain:true});
  await page.screenshot({path:'/tmp/tinzel-workflow-notifications-desktop.png',fullPage:true});

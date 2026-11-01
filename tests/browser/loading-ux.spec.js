@@ -1,12 +1,10 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 import fs from 'node:fs';
 
 const photo = (name, size = 150000) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.alloc(size, 42) });
 async function openForm(page, sw = false) {
-  await page.goto('/');
-  await page.getByRole('button', { name: sw ? 'Kiswahili SW' : 'English EN' }).click();
-  await page.getByText(sw ? 'Oda Mpya ya Jarida' : 'New Magazine Order', { exact: true }).click();
-  await page.getByText('Upload Performance Test', { exact: true }).click();
+  await page.addInitScript(lang=>localStorage.setItem('tinzel_language',lang),sw?'sw':'en');
+  await page.goto('/catalogue/upload-performance-test?step=photos');
   await expect(page.locator('#upload-first')).toBeAttached();
 }
 
@@ -16,7 +14,7 @@ test('branded catalogue loading respects reduced motion', async ({ page }) => {
   const gate = new Promise((resolve) => { release = resolve; });
   await page.route('**/api/public/forms', async (route) => { await gate; await route.continue(); });
   try {
-    await page.goto('/'); await page.getByRole('button', { name: 'English EN' }).click();
+    await page.goto('/'); await chooseEnglish(page);
     await page.getByText('New Magazine Order', { exact: true }).click();
     await expect(page.getByText('Finding the right edition for your story.')).toBeVisible();
     await expect(page.locator('.tinzel-loading .tinzel-mark img')).toHaveCSS('animation-name', 'none');
@@ -39,9 +37,10 @@ test('upload stays interactive, confirms before 100%, collapses successes and sh
     await expect(page.getByText('Confirming your photo…')).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Overall photo upload' })).toHaveAttribute('value', '99');
     await expect(page.getByText('Your photos are ready', { exact: true })).toHaveCount(0);
+    await page.getByRole('button',{name:'1 Your details'}).click();
     await page.locator('#magazine-client-name').fill('My Tinzel Story');
     await page.getByPlaceholder('e.g. +255712345678').fill('+255700000007');
-    await expect(page.getByRole('link', { name: 'Return to upload progress' })).toBeVisible();
+    await page.getByRole('button',{name:'3 Photographs'}).click();
     await page.locator('#photo-progress').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('uploading-mobile.png') });
     releaseComplete();
@@ -52,6 +51,7 @@ test('upload stays interactive, confirms before 100%, collapses successes and sh
     await expect(page.getByRole('link', { name: 'Return to upload progress' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Continue with your details' }).click();
     await expect(page.locator('#magazine-client-name')).toBeFocused();
+    await page.getByRole('button',{name:'4 Review',exact:true}).click();
     await page.getByRole('button', { name: /Continue.*Pay/i }).click();
     await expect(page.getByRole('heading', { name: 'Saving your order' })).toBeVisible();
     await expect(page.getByText('Your order has been saved', { exact: true })).toHaveCount(0);
@@ -110,7 +110,7 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   const other = { ...order, _id: 'ux-other', trackingId: 'TNZ-OTHER', uploadedPhotos: [] };
   const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'synthetic-ui-test'));
-  await page.route('**/api/staff/me', (route) => json(route, { user: { _id: 'ux-staff', name: 'Test Designer', role: 'designer', isActive: true } }));
+  await page.route('**/api/staff/me', (route) => json(route, { user: { _id: 'ux-staff', name: 'Test Designer', role: 'designer', isActive: true,preferredLanguage:'en' } }));
   await page.route((url) => url.pathname === '/api/designer/orders', (route) => json(route, { orders: [order, other] }));
   await page.route('**/api/designer/orders/ux-order', (route) => json(route, { order }));
   await page.route('**/api/designer/orders/ux-other', (route) => json(route, { order: other }));
@@ -124,9 +124,9 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   });
   await page.route('**/api/designer/orders/ux-order/media-jobs/ux-job', (route) => json(route, { state: jobReady ? 'ready' : 'running', jobId: 'ux-job', url: '/ux-download.zip' }));
   await page.route('**/ux-download.zip', (route) => route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename="ux-test.zip"' }, body: 'Synthetic UI download' }));
-  await page.goto('/'); await page.getByRole('button', { name: 'English EN' }).click();
-  await page.getByRole('button', { name: /Login/ }).click();
+  await page.goto('/staff/design'); await chooseEnglish(page);
   await page.getByRole('button', { name: 'Open TNZ-UX-TEST' }).click();
+  await page.getByRole('tab',{name:'Client content'}).click();
   await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByText('Preview pending', { exact: true })).toBeVisible();
   previewReady = true;

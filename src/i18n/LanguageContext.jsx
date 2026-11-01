@@ -12,15 +12,16 @@ const STORAGE_KEY = 'tinzel_language';
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || null;
+      const stored = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
+      return ['en', 'sw'].includes(stored) ? stored : null;
     } catch {
       return null;
     }
   });
 
-  const setLang = useCallback((next, {persist=true} = {}) => {
-    if(next && !['en','sw'].includes(next))return;
-    if(persist && next) window.dispatchEvent(new CustomEvent('tinzel:language-choice',{detail:next}));
+  const setLang = useCallback((next, { persist = true } = {}) => {
+    if (next && !['en', 'sw'].includes(next)) return;
+    if (persist && next) window.dispatchEvent(new CustomEvent('tinzel:language-choice', { detail: next }));
     setLangState(next);
     try {
       if (next) {
@@ -46,7 +47,7 @@ export function LanguageProvider({ children }) {
     /** Look up a UI string. Supports {placeholders} via the vars object. */
     const t = (key, vars) => {
       const entry = translations[key];
-      let text = entry ? entry[active] ?? entry.en : key;
+      let text = entry ? (entry[active] ?? entry.en) : key;
       if (vars) {
         Object.keys(vars).forEach((name) => {
           text = text.replace(new RegExp(`\\{${name}\\}`, 'g'), vars[name]);

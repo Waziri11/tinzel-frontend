@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chooseEnglish } from './fixtures.js';
 
 const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
-const manager = { _id: 'manager-1', name: 'Neema Manager', email: 'manager@tinzel.test', role: 'manager', isActive: true };
+const manager = { _id: 'manager-1', name: 'Neema Manager', email: 'manager@tinzel.test', role: 'manager', preferredLanguage: 'en', isActive: true };
 const baseOrder = {
   _id: 'order-1', trackingId: 'TNZ-2026-0042', submissionId: 'SUB-2026-0042', clientName: 'Asha Mushi',
   clientWhatsApp: '+255700000001', clientEmail: 'asha@example.test', formTitle: 'Anniversary Magazine',
@@ -34,12 +34,8 @@ async function openManagerDashboard(page) {
   await page.route('**/api/manager/orders/order-1', (route) => json(route, { order: baseOrder, auditLogs: [{ _id: 'log-1', action: 'DRAFT_UPLOADED', actor: { name: 'Juma Designer' }, createdAt: '2026-10-15T09:00:00Z' }] }));
   await page.route(/\/api\/proofs\/staff\/order-1\/2(?:\/prepare)?$/, route => json(route, {state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:true}));
   await page.route('**/api/proofs/staff/order-1/2/pages/1*', route => new URL(route.request().url()).searchParams.has('text') ? json(route,{width:600,height:800,text:[]}) : route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>'}));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'English EN' }).click();
-  await page.getByRole('button', { name: /Login/ }).click();
-  const menu = page.getByRole('button', { name: 'Open workspace menu' });
-  if (page.viewportSize().width <= 760) { await expect(menu).toBeVisible(); await menu.click(); }
-  await page.getByRole('button', { name: 'Design Phase', exact: true }).click();
+  await page.goto('/staff/design-phase');
+  await chooseEnglish(page);
   await expect(page.getByText('Drafts to review')).toBeVisible();
 }
 
@@ -138,10 +134,10 @@ test('manager filters, search, refresh and pagination keep the server query cont
 });
 
 test('admin workspace keeps navigation and user management concise', async ({ page }) => {
-  const admin = { _id: 'admin-1', name: 'Amina Admin', email: 'admin@tinzel.test', role: 'admin', isActive: true };
+  const admin = { _id: 'admin-1', name: 'Amina Admin', email: 'admin@tinzel.test', role: 'admin', preferredLanguage:'en', isActive: true };
   const staff = [
     admin,
-    { _id: 'designer-1', name: 'Juma Designer', email: 'juma@tinzel.test', phone: '+255700000002', role: 'designer', isActive: true, currentActiveWorkload: 2, maxActiveWorkload: 5, isEligibleForAssignment: true },
+    { _id: 'designer-1', name: 'Juma Designer', email: 'juma@tinzel.test', phone: '+255700000002', role: 'designer', preferredLanguage: 'en', isActive: true, currentActiveWorkload: 2, maxActiveWorkload: 5, isEligibleForAssignment: true },
   ];
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'admin-dashboard-test'));
   await page.route('**/api/staff/me', (route) => json(route, { user: admin }));
@@ -149,12 +145,11 @@ test('admin workspace keeps navigation and user management concise', async ({ pa
   await page.route('**/api/manager/settings', (route) => json(route, { printer: { configured: false } }));
   await page.route((url) => url.pathname === '/api/manager/orders', (route) => json(route, { orders: [], total: 0, page: 1, pageCount: 1, summary: {}, statusCounts: {} }));
   await page.route('**/api/admin/staff', (route) => json(route, { staff }));
+  await page.route('**/api/notifications/diagnostics',route=>json(route,{diagnostics:{}}));
   await page.route('**/api/admin/audit-logs', (route) => json(route, { logs: [] }));
   await page.route('**/api/admin/config', (route) => json(route, { simulatedNotifications: [] }));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'English EN' }).click();
-  await page.getByRole('button', { name: /Login/ }).click();
-  await page.getByRole('button', { name: 'Users', exact: true }).click();
+  await page.goto('/staff/users');
+  await chooseEnglish(page);
   await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Users 2/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Messages 0/ })).toBeVisible();
@@ -163,4 +158,21 @@ test('admin workspace keeps navigation and user management concise', async ({ pa
   await expect(page.getByText('Create, view, edit, and delete')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'User' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Workload' })).toBeVisible();
+});
+
+test('assignment conflicts retain instructions and require checking the saved order',async({page})=>{
+ await openManagerDashboard(page);const assigned={...baseOrder,status:'assigned'};
+ await page.route('**/api/manager/orders/order-1',route=>json(route,{order:assigned,auditLogs:[]}));
+ await page.route('**/api/manager/orders/order-1/reassign',route=>route.fulfill({status:409,json:{message:'Designer capacity changed. Choose another designer.'}}));
+ await page.getByText('TNZ-2026-0042',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Reassign',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Assign designer'});
+ await dialog.getByLabel('Reason for assignment').fill('Preserve this instruction after a conflict.');await dialog.getByRole('button',{name:'Assign designer',exact:true}).click();
+ await expect(dialog.getByRole('alert')).toContainText('capacity');await expect(dialog.getByLabel('Reason for assignment')).toHaveValue('Preserve this instruction after a conflict.');await expect(dialog.getByRole('button',{name:'Assign designer',exact:true})).toBeDisabled();await dialog.getByRole('button',{name:'Check saved order'}).click();await expect(dialog).toHaveCount(0);
+});
+
+test('unconfigured printing remains blocked in the manager action dialog',async({page})=>{
+ await openManagerDashboard(page);
+ await page.route('**/api/manager/settings',route=>json(route,{printer:{configured:false}}));
+ await page.route('**/api/manager/orders/order-1',route=>json(route,{order:{...baseOrder,status:'print_manager_review'},auditLogs:[]}));
+ await page.reload();await page.getByText('TNZ-2026-0042',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Authorize printing',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Authorize printing'});await expect(dialog.getByText('No verified printer is configured. Ask an administrator to configure it first.')).toBeVisible();await expect(dialog.getByRole('button',{name:'Authorize printing',exact:true})).toBeDisabled();
 });

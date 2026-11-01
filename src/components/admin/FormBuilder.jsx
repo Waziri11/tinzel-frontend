@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
+import EditionPreview from './EditionPreview';
+import { useLanguage } from '../../i18n/LanguageContext';
+import './administration.css';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Trash2,
@@ -41,9 +45,17 @@ const FIELD_TYPES = [
 ];
 
 export default function FormBuilder({ token }) {
+  const tx = useInterfaceText();
+
+  const { lang } = useLanguage();
+  const [preview, setPreview] = useState(false);
+  const [baseline, setBaseline] = useState(null);
+  const resetBaseline = useRef(false);
   // Navigation View: 'list' (Editions catalogue) | 'editor' (Form builder details)
   const [viewMode, setViewMode] = useState('list');
   const [forms, setForms] = useState([]);
+  const [editionSearch, setEditionSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('current');
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,6 +95,47 @@ export default function FormBuilder({ token }) {
   const [isActive, setIsActive] = useState(false);
   const [isArchived, setIsArchived] = useState(false);
 
+  const draftSnapshot = JSON.stringify({
+    title,
+    slug,
+    description,
+    titleSw,
+    descriptionSw,
+    magazineType,
+    magazineTypeSw,
+    price,
+    currency,
+    coverImageUrl,
+    tillNumber,
+    accountName,
+    instructions,
+    sections,
+    fields,
+  });
+  const dirty = viewMode === 'editor' && baseline !== null && baseline !== draftSnapshot;
+  useEffect(() => {
+    if (resetBaseline.current) {
+      setBaseline(draftSnapshot);
+      resetBaseline.current = false;
+    }
+  }, [draftSnapshot, viewMode]);
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const leave = (event) => {
+      if (!window.confirm(lang === 'sw' ? 'Uondoke bila kuhifadhi mabadiliko?' : 'Leave without saving your changes?'))
+        event.preventDefault();
+    };
+    window.addEventListener('beforeunload', guard);
+    window.addEventListener('tinzel:before-navigate', leave);
+    return () => {
+      window.removeEventListener('beforeunload', guard);
+      window.removeEventListener('tinzel:before-navigate', leave);
+    };
+  }, [dirty, lang]);
   useEffect(() => {
     loadForms();
   }, [token]);
@@ -91,7 +144,7 @@ export default function FormBuilder({ token }) {
     setLoading(true);
     try {
       const data = await api.admin.getForms(token);
-      setForms((data.forms || []).filter((form) => !form.isArchived));
+      setForms(data.forms || []);
     } catch (err) {
       setError(err.message || 'Failed to load magazine forms');
     } finally {
@@ -109,7 +162,7 @@ export default function FormBuilder({ token }) {
     setMagazineTypeSw(form.magazineTypeSw || '');
     setEditLang('en');
     setMagazineType(form.magazineType || 'Wedding & Love Magazine');
-    setPrice(form.price || 75000);
+    setPrice(form.price ?? 75000);
     setCurrency(form.currency || 'TZS');
     setCoverImageUrl(form.coverImageUrl || '');
     setTillNumber(form.lipaNambaInstructions?.tillNumber || '55667788');
@@ -120,7 +173,12 @@ export default function FormBuilder({ token }) {
       setSections(form.sections);
     } else {
       setSections([
-        { sectionId: 'sec_1', title: 'General Information', description: 'Essential details for your magazine', order: 1 },
+        {
+          sectionId: 'sec_1',
+          title: 'General Information',
+          description: 'Essential details for your magazine',
+          order: 1,
+        },
       ]);
     }
 
@@ -130,6 +188,7 @@ export default function FormBuilder({ token }) {
     setIsArchived(Boolean(form.isArchived));
     setError(null);
     setSuccessMsg(null);
+    resetBaseline.current = true;
     setViewMode('editor');
   };
 
@@ -151,7 +210,12 @@ export default function FormBuilder({ token }) {
     setAccountName('Tinzel Media Ltd');
     setInstructions('Lipa kupitia Lipa Namba 55667788.');
     setSections([
-      { sectionId: 'sec_1', title: 'The Celebrants & Details', description: 'Personal details and introductory facts', order: 1 },
+      {
+        sectionId: 'sec_1',
+        title: 'The Celebrants & Details',
+        description: 'Personal details and introductory facts',
+        order: 1,
+      },
     ]);
     setFields([]); // 100% Empty questions - completely clean canvas!
     setImportWarnings([]);
@@ -159,6 +223,7 @@ export default function FormBuilder({ token }) {
     setIsArchived(false);
     setError(null);
     setSuccessMsg(null);
+    resetBaseline.current = true;
     setViewMode('editor');
   };
 
@@ -193,16 +258,12 @@ export default function FormBuilder({ token }) {
       return;
     }
     const fallbackSecId = sections.find((s) => s.sectionId !== secId).sectionId;
-    setFields((prev) =>
-      prev.map((f) => (f.sectionId === secId ? { ...f, sectionId: fallbackSecId } : f))
-    );
+    setFields((prev) => prev.map((f) => (f.sectionId === secId ? { ...f, sectionId: fallbackSecId } : f)));
     setSections((prev) => prev.filter((s) => s.sectionId !== secId));
   };
 
   const handleSectionChange = (secId, key, value) => {
-    setSections((prev) =>
-      prev.map((s) => (s.sectionId === secId ? { ...s, [key]: value } : s))
-    );
+    setSections((prev) => prev.map((s) => (s.sectionId === secId ? { ...s, [key]: value } : s)));
   };
 
   const handleAddFieldToSection = (sectionId, defaultType = 'text') => {
@@ -211,7 +272,7 @@ export default function FormBuilder({ token }) {
       ...prev,
       {
         fieldId: newFieldId,
-        sectionId: sectionId || (sections[0]?.sectionId || 'sec_1'),
+        sectionId: sectionId || sections[0]?.sectionId || 'sec_1',
         label: defaultType === 'photo_group' ? 'Photo Spread Gallery' : 'Untitled Question',
         type: defaultType,
         required: false,
@@ -322,6 +383,10 @@ export default function FormBuilder({ token }) {
       return;
     }
 
+    if (!Number.isFinite(Number(price)) || Number(price) <= 0) {
+      setError(lang === 'sw' ? 'Weka bei iliyo zaidi ya sifuri.' : 'Enter a price greater than zero.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccessMsg(null);
@@ -333,7 +398,7 @@ export default function FormBuilder({ token }) {
       descriptionSw: descriptionSw.trim(),
       magazineTypeSw: magazineTypeSw.trim(),
       magazineType: magazineType.trim(),
-      price: Number(price) || 50000,
+      price: Number(price),
       currency,
       coverImageUrl: coverImageUrl.trim(),
       lipaNambaInstructions: {
@@ -358,6 +423,7 @@ export default function FormBuilder({ token }) {
         setSuccessMsg(`Edition "${res.form.title}" saved successfully!`);
         await loadForms();
       }
+      setBaseline(draftSnapshot);
     } catch (err) {
       setError(err.message || 'Failed to save form');
     } finally {
@@ -366,6 +432,10 @@ export default function FormBuilder({ token }) {
   };
 
   const handlePublishForm = async () => {
+    if (dirty) {
+      setError(lang === 'sw' ? 'Hifadhi mabadiliko kabla ya kuchapisha.' : 'Save your changes before publishing.');
+      return;
+    }
     if (selectedFormId === 'new') {
       setError('Save the draft before publishing it.');
       return;
@@ -422,7 +492,7 @@ export default function FormBuilder({ token }) {
     try {
       await api.admin.archiveForm(token, form._id);
       setForms((current) => current.filter((item) => item._id !== form._id));
-      setSuccessMsg(`Edition "${form.title}" deleted from the active form builder.`);
+      setSuccessMsg(lang === 'sw' ? 'Toleo limehifadhiwa kwenye kumbukumbu.' : 'Edition archived.');
     } catch (err) {
       setError(err.message || 'Failed to delete form');
     } finally {
@@ -430,12 +500,39 @@ export default function FormBuilder({ token }) {
     }
   };
 
+  const visibleForms = forms
+    .filter((form) =>
+      editionFilter === 'archived'
+        ? form.isArchived
+        : editionFilter === 'published'
+          ? !form.isArchived && form.isActive
+          : editionFilter === 'draft'
+            ? !form.isArchived && !form.isActive
+            : editionFilter === 'all'
+              ? true
+              : !form.isArchived,
+    )
+    .filter((form) =>
+      [form.title, form.titleSw, form.description, form.descriptionSw, form.slug].some((value) =>
+        String(value || '')
+          .toLocaleLowerCase()
+          .includes(editionSearch.trim().toLocaleLowerCase()),
+      ),
+    );
   // -------------------------------------------------------------
   // VIEW 1: MASTER LIST OF MAGAZINES (Default entry)
   // -------------------------------------------------------------
   if (viewMode === 'list') {
     return (
-      <div style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}>
+      <div
+        className="edition-admin edition-list"
+        style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}
+      >
+        {error && (
+          <button className="ui-button" onClick={loadForms}>
+            {tx('Try again')}
+          </button>
+        )}
         {/* Top Header */}
         <div
           style={{
@@ -443,7 +540,7 @@ export default function FormBuilder({ token }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '32px',
-            borderBottom: '1px solid #E7E5E4',
+            borderBottom: '1px solid var(--border-color)',
             paddingBottom: '20px',
           }}
         >
@@ -454,10 +551,10 @@ export default function FormBuilder({ token }) {
                 fontWeight: '700',
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
-                color: '#C5A059',
+                color: 'var(--accent-primary)',
               }}
             >
-              Google Forms-Style Studio
+              <InterfaceText>Edition studio</InterfaceText>
             </span>
             <h1
               style={{
@@ -465,44 +562,113 @@ export default function FormBuilder({ token }) {
                 fontStyle: 'italic',
                 fontSize: '32px',
                 fontWeight: '600',
-                color: '#1C1917',
+                color: 'var(--text-main)',
                 margin: '2px 0 4px 0',
                 lineHeight: '1.2',
               }}
             >
-              Magazine Form Builder
+              <InterfaceText>Magazine editions</InterfaceText>
             </h1>
-            <p style={{ fontSize: '13px', color: '#78716C', margin: 0 }}>
-              Design custom order forms with sections and questions. Every edition dynamically appears on the "New Magazine Order" page.
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+              <InterfaceText>
+                Design custom order forms with sections and questions. Published editions appear in the catalogue.
+              </InterfaceText>
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button
               type="button"
-              onClick={() => { setShowGoogleImport((value) => !value); setError(null); }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', color: '#1C1917', border: '1px solid #C5A059', borderRadius: '6px', padding: '10px 16px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+              onClick={() => {
+                setShowGoogleImport((value) => !value);
+                setError(null);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#FFFFFF',
+                color: 'var(--text-main)',
+                border: '1px solid var(--accent-primary)',
+                borderRadius: '6px',
+                padding: '10px 16px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
             >
-              <Link2 size={16} color="#C5A059" /> Import Google Form
+              <Link2 size={16} color="var(--accent-primary)" />
+              <InterfaceText>Import Google Form</InterfaceText>
             </button>
             <button
               type="button"
               onClick={startFreshNewForm}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#C5A059', color: '#FFFFFF', border: 'none', borderRadius: '6px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)' }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--accent-primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '10px 20px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
+              }}
             >
-              <Plus size={16} /> New Magazine Edition
+              <Plus size={16} />
+              <InterfaceText>New Magazine Edition</InterfaceText>
             </button>
           </div>
         </div>
 
+        <div className="edition-list-controls">
+          <label className="ui-field">
+            {lang === 'sw' ? 'Tafuta matoleo' : 'Search editions'}
+            <input type="search" value={editionSearch} onChange={(event) => setEditionSearch(event.target.value)} />
+          </label>
+          <label className="ui-field">
+            {tx('Status')}
+            <select value={editionFilter} onChange={(event) => setEditionFilter(event.target.value)}>
+              {[
+                ['current', lang === 'sw' ? 'Yanayotumika' : 'Current editions'],
+                ['published', tx('Published')],
+                ['draft', tx('Draft')],
+                ['archived', tx('Archived')],
+                ['all', tx('All')],
+              ].map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         {showGoogleImport && (
-          <form onSubmit={handleGoogleImport} style={{ backgroundColor: '#FFFFFF', border: '1px solid #C5A059', borderRadius: '8px', padding: '20px', marginBottom: '24px', boxShadow: '0 6px 18px rgba(197, 160, 89, 0.12)' }}>
+          <form
+            onSubmit={handleGoogleImport}
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--accent-primary)',
+              borderRadius: '8px',
+              padding: '20px',
+              marginBottom: '24px',
+              boxShadow: '0 6px 18px rgba(197, 160, 89, 0.12)',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Link2 size={18} color="#C5A059" />
-              <h2 style={{ margin: 0, fontSize: '16px', color: '#1C1917' }}>Import a public Google Form</h2>
+              <Link2 size={18} color="var(--accent-primary)" />
+              <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-main)' }}>
+                <InterfaceText>Import a public Google Form</InterfaceText>
+              </h2>
             </div>
-            <p style={{ margin: '0 0 14px', color: '#78716C', fontSize: '12px' }}>
-              Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be published and allow anyone with the link to respond. Tinzel creates a private draft for review.
+            <p style={{ margin: '0 0 14px', color: 'var(--text-muted)', fontSize: '12px' }}>
+              <InterfaceText>
+                Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be
+                published and allow anyone with the link to respond. Tinzel creates a private draft for review.
+              </InterfaceText>
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
@@ -511,10 +677,31 @@ export default function FormBuilder({ token }) {
                 autoFocus
                 value={googleFormUrl}
                 onChange={(e) => setGoogleFormUrl(e.target.value)}
-                placeholder="https://forms.gle/..."
-                style={{ flex: 1, padding: '10px 12px', border: '1px solid #D6D3D1', borderRadius: '6px', fontSize: '13px' }}
+                placeholder={tx('https://forms.gle/...')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                }}
               />
-              <button type="submit" disabled={importing} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: 0, borderRadius: '6px', padding: '10px 18px', backgroundColor: '#1C1917', color: '#FFFFFF', fontWeight: '700', cursor: importing ? 'not-allowed' : 'pointer' }}>
+              <button
+                type="submit"
+                disabled={importing}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  border: 0,
+                  borderRadius: '6px',
+                  padding: '10px 18px',
+                  backgroundColor: 'var(--text-main)',
+                  color: '#FFFFFF',
+                  fontWeight: '700',
+                  cursor: importing ? 'not-allowed' : 'pointer',
+                }}
+              >
                 {importing ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
                 {importing ? 'Importing…' : 'Import as Draft'}
               </button>
@@ -543,16 +730,31 @@ export default function FormBuilder({ token }) {
         )}
 
         {successMsg && (
-          <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '6px', padding: '12px 16px', marginBottom: '24px', fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #86EFAC',
+              borderRadius: '6px',
+              padding: '12px 16px',
+              marginBottom: '24px',
+              fontSize: '13px',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
             <CheckCircle2 size={16} />
             <span>{successMsg}</span>
           </div>
         )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#78716C' }}>
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <Loader2 size={24} className="spin" style={{ margin: '0 auto 12px auto' }} />
-            <p style={{ fontSize: '14px' }}>Loading magazine editions...</p>
+            <p style={{ fontSize: '14px' }}>
+              <InterfaceText>Loading magazine editions...</InterfaceText>
+            </p>
           </div>
         ) : forms.length === 0 ? (
           <div
@@ -560,22 +762,25 @@ export default function FormBuilder({ token }) {
               textAlign: 'center',
               padding: '60px 24px',
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
+              border: '1px solid var(--border-color)',
               borderRadius: '8px',
             }}
           >
-            <FileText size={36} color="#C5A059" style={{ margin: '0 auto 12px auto' }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-              No Magazine Editions Created Yet
+            <FileText size={36} color="var(--accent-primary)" style={{ margin: '0 auto 12px auto' }} />
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+              <InterfaceText>No Magazine Editions Created Yet</InterfaceText>
             </h3>
-            <p style={{ fontSize: '13px', color: '#78716C', maxWidth: '440px', margin: '0 auto 20px auto' }}>
-              Create your first luxury publication template. You will be able to upload a cover, configure sections, and add photo spread folders.
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px auto' }}>
+              <InterfaceText>
+                Create your first luxury publication template. You will be able to upload a cover, configure sections,
+                and add photo spread folders.
+              </InterfaceText>
             </p>
             <button
               type="button"
               onClick={startFreshNewForm}
               style={{
-                backgroundColor: '#C5A059',
+                backgroundColor: 'var(--accent-primary)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -585,35 +790,62 @@ export default function FormBuilder({ token }) {
                 cursor: 'pointer',
               }}
             >
-              + Create First Magazine Edition
+              <InterfaceText>+ Create First Magazine Edition</InterfaceText>
             </button>
           </div>
         ) : (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#78716C' }}>
-                Active Magazine Editions ({forms.length})
+            <div
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}
+            >
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.8px',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <InterfaceText>Magazine editions</InterfaceText> ({visibleForms.length})
               </span>
-              <span style={{ fontSize: '12px', color: '#A8A29E' }}>
-                Edit an edition or delete it from the active catalogue
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                <InterfaceText>Edit an edition or delete it from the active catalogue</InterfaceText>
               </span>
             </div>
 
+            {!visibleForms.length && (
+              <div className="ui-empty">
+                <h2>{lang === 'sw' ? 'Hakuna matoleo yaliyopatikana' : 'No editions found'}</h2>
+                <p>
+                  {lang === 'sw' ? 'Badilisha utafutaji au kichujio cha hali.' : 'Change your search or status filter.'}
+                </p>
+                <button
+                  className="ui-button"
+                  onClick={() => {
+                    setEditionSearch('');
+                    setEditionFilter('current');
+                  }}
+                >
+                  {tx('Clear search')}
+                </button>
+              </div>
+            )}
             {/* Visual Editions Cards Grid */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
                 gap: '24px',
               }}
             >
-              {forms.map((form) => (
+              {visibleForms.map((form) => (
                 <div
                   key={form._id}
                   onClick={() => selectFormForEdit(form)}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    border: '1px solid #E7E5E4',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '10px',
                     overflow: 'hidden',
                     cursor: 'default',
@@ -623,12 +855,12 @@ export default function FormBuilder({ token }) {
                     flexDirection: 'column',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#C5A059';
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)';
                     e.currentTarget.style.transform = 'translateY(-3px)';
                     e.currentTarget.style.boxShadow = '0 10px 24px rgba(197, 160, 89, 0.18)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E7E5E4';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
                   }}
@@ -639,14 +871,18 @@ export default function FormBuilder({ token }) {
                       position: 'relative',
                       width: '100%',
                       paddingTop: '65%',
-                      backgroundColor: '#1C1917',
+                      backgroundColor: 'var(--text-main)',
                       overflow: 'hidden',
                     }}
                   >
                     {form.coverImageUrl ? (
                       <img
-                        src={form.coverImageUrl.includes('/api/public/covers/') ? `${form.coverImageUrl.split('?')[0]}?w=480` : form.coverImageUrl}
-                        alt={form.title}
+                        src={
+                          form.coverImageUrl.includes('/api/public/covers/')
+                            ? `${form.coverImageUrl.split('?')[0]}?w=480`
+                            : form.coverImageUrl
+                        }
+                        alt={(lang === 'sw' && form.titleSw) || form.title}
                         loading="lazy"
                         decoding="async"
                         style={{
@@ -666,11 +902,11 @@ export default function FormBuilder({ token }) {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#A8A29E',
+                          color: 'var(--text-muted)',
                           fontSize: '12px',
                         }}
                       >
-                        No Cover Uploaded
+                        <InterfaceText>No Cover Uploaded</InterfaceText>
                       </div>
                     )}
 
@@ -679,8 +915,8 @@ export default function FormBuilder({ token }) {
                         position: 'absolute',
                         top: '12px',
                         right: '12px',
-                        backgroundColor: '#1C1917',
-                        color: '#C5A059',
+                        backgroundColor: 'var(--text-main)',
+                        color: 'var(--accent-primary)',
                         padding: '4px 10px',
                         borderRadius: '4px',
                         fontSize: '11px',
@@ -693,7 +929,15 @@ export default function FormBuilder({ token }) {
                   </div>
 
                   {/* Body Meta */}
-                  <div style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div
+                    style={{
+                      padding: '18px 20px',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <span
@@ -704,17 +948,25 @@ export default function FormBuilder({ token }) {
                             padding: '2px 6px',
                             borderRadius: '4px',
                             backgroundColor: '#FAF5EA',
-                            color: '#C5A059',
+                            color: 'var(--accent-primary)',
                           }}
                         >
                           {form.magazineType || 'Keepsake Edition'}
                         </span>
-                        <span style={{ fontSize: '11px', color: '#A8A29E' }}>
-                          /{form.slug}
-                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/{form.slug}</span>
                         {form.importSource?.provider === 'google_forms' && (
-                          <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', color: '#2563EB', backgroundColor: '#EFF6FF', borderRadius: '4px', padding: '2px 5px' }}>
-                            Google Import
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              color: '#2563EB',
+                              backgroundColor: '#EFF6FF',
+                              borderRadius: '4px',
+                              padding: '2px 5px',
+                            }}
+                          >
+                            <InterfaceText>Google Import</InterfaceText>
                           </span>
                         )}
                       </div>
@@ -725,18 +977,18 @@ export default function FormBuilder({ token }) {
                           fontStyle: 'italic',
                           fontSize: '22px',
                           fontWeight: '600',
-                          color: '#1C1917',
+                          color: 'var(--text-main)',
                           margin: '0 0 6px 0',
                           lineHeight: '1.2',
                         }}
                       >
-                        {form.title}
+                        {(lang === 'sw' && form.titleSw) || form.title}
                       </h3>
 
                       <p
                         style={{
                           fontSize: '12px',
-                          color: '#78716C',
+                          color: 'var(--text-muted)',
                           margin: '0 0 14px 0',
                           lineHeight: '1.5',
                           overflow: 'hidden',
@@ -745,7 +997,11 @@ export default function FormBuilder({ token }) {
                           WebkitBoxOrient: 'vertical',
                         }}
                       >
-                        {form.description || 'Custom keepsake publication configured with tailored question prompts.'}
+                        {(lang === 'sw' && form.descriptionSw) ||
+                          form.description ||
+                          (lang === 'sw'
+                            ? 'Toleo maalumu lenye maswali yaliyopangwa.'
+                            : 'A personal edition with carefully arranged questions.')}
                       </p>
                     </div>
 
@@ -759,28 +1015,66 @@ export default function FormBuilder({ token }) {
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
-                          {form.sections?.length || 1} Sections • {form.fields?.length || 0} Questions
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                          {form.sections?.length || 1} <InterfaceText>Sections •</InterfaceText>{' '}
+                          {form.fields?.length || 0} <InterfaceText>Questions</InterfaceText>
                         </div>
-                        <div style={{ marginTop: '3px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: form.isActive ? '#166534' : '#B45309' }}>
-                          {form.isActive ? 'Published' : 'Draft'}
+                        <div
+                          style={{
+                            marginTop: '3px',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            color: form.isActive ? '#166534' : '#B45309',
+                          }}
+                        >
+                          {tx(form.isArchived ? 'Archived' : form.isActive ? 'Published' : 'Draft')}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           type="button"
-                          onClick={(event) => { event.stopPropagation(); selectFormForEdit(form); }}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #C5A059', borderRadius: '5px', backgroundColor: '#FFFFFF', color: '#8A6825', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            selectFormForEdit(form);
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '7px 11px',
+                            border: '1px solid var(--accent-primary)',
+                            borderRadius: '5px',
+                            backgroundColor: '#FFFFFF',
+                            color: '#8A6825',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
                         >
-                          <FileText size={13} /> Edit
+                          <FileText size={13} />
+                          {tx(form.isArchived ? 'View' : 'Edit')}
                         </button>
                         <button
                           type="button"
-                          disabled={deletingFormId === form._id}
+                          disabled={deletingFormId === form._id || form.isArchived}
                           onClick={(event) => handleDeleteForm(form, event)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 11px', border: '1px solid #FCA5A5', borderRadius: '5px', backgroundColor: '#FEF2F2', color: '#B91C1C', fontSize: '11px', fontWeight: '700', cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer' }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '7px 11px',
+                            border: '1px solid #FCA5A5',
+                            borderRadius: '5px',
+                            backgroundColor: '#FEF2F2',
+                            color: '#B91C1C',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer',
+                          }}
                         >
-                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Delete
+                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}{' '}
+                          {lang === 'sw' ? 'Hifadhi kwenye kumbukumbu' : 'Archive'}
                         </button>
                       </div>
                     </div>
@@ -798,7 +1092,15 @@ export default function FormBuilder({ token }) {
   // VIEW 2: FORM BUILDER EDITOR (Detail Mode)
   // -------------------------------------------------------------
   return (
-    <div style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div
+      className="edition-admin edition-editor"
+      style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}
+    >
+      <EditionPreview
+        open={preview}
+        onClose={() => setPreview(false)}
+        form={{ title, titleSw, description, descriptionSw, price, currency, sections, fields }}
+      />
       {/* Editor Sub-Header: Back Button & Actions */}
       <div
         style={{
@@ -807,12 +1109,19 @@ export default function FormBuilder({ token }) {
           justifyContent: 'space-between',
           marginBottom: '28px',
           paddingBottom: '16px',
-          borderBottom: '1px solid #E7E5E4',
+          borderBottom: '1px solid var(--border-color)',
         }}
       >
         <button
           type="button"
           onClick={() => {
+            if (
+              dirty &&
+              !window.confirm(
+                lang === 'sw' ? 'Uondoke bila kuhifadhi mabadiliko?' : 'Leave without saving your changes?',
+              )
+            )
+              return;
             setViewMode('list');
             loadForms();
           }}
@@ -821,10 +1130,10 @@ export default function FormBuilder({ token }) {
             alignItems: 'center',
             gap: '8px',
             backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
+            border: '1px solid var(--border-color)',
             borderRadius: '6px',
             padding: '8px 14px',
-            color: '#1C1917',
+            color: 'var(--text-main)',
             fontSize: '13px',
             fontWeight: '600',
             cursor: 'pointer',
@@ -832,7 +1141,7 @@ export default function FormBuilder({ token }) {
           }}
         >
           <ArrowLeft size={16} />
-          Back to Magazine Editions
+          <InterfaceText>Back to Magazine Editions</InterfaceText>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -844,12 +1153,16 @@ export default function FormBuilder({ token }) {
               padding: '4px 8px',
               borderRadius: '4px',
               backgroundColor: selectedFormId === 'new' ? '#FEF3C7' : '#FAF5EA',
-              color: selectedFormId === 'new' ? '#B45309' : '#C5A059',
+              color: selectedFormId === 'new' ? '#B45309' : 'var(--accent-primary)',
             }}
           >
             {selectedFormId === 'new' ? 'New Blank Canvas' : isArchived ? 'Archived' : isActive ? 'Published' : 'Draft'}
           </span>
 
+          <button type="button" className="ui-button" onClick={() => setPreview(true)}>
+            <Eye size={16} />
+            {lang === 'sw' ? 'Hakiki' : 'Preview'}
+          </button>
           <button
             type="button"
             onClick={handleSaveForm}
@@ -858,7 +1171,7 @@ export default function FormBuilder({ token }) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: '#C5A059',
+              backgroundColor: 'var(--accent-primary)',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '6px',
@@ -869,8 +1182,8 @@ export default function FormBuilder({ token }) {
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
-            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
-            Save {isActive ? 'Changes' : 'Draft'}
+            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />} <InterfaceText>Save</InterfaceText>{' '}
+            {isActive ? 'Changes' : 'Draft'}
           </button>
           {!isActive && !isArchived && selectedFormId !== 'new' && (
             <button
@@ -878,13 +1191,21 @@ export default function FormBuilder({ token }) {
               onClick={handlePublishForm}
               disabled={saving || uploadingCover || publishing}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#1C1917', color: '#FFFFFF',
-                border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: '700',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--text-main)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '9px 20px',
+                fontSize: '13px',
+                fontWeight: '700',
                 cursor: publishing ? 'not-allowed' : 'pointer',
               }}
             >
-              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-              Publish Edition
+              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}{' '}
+              <InterfaceText>Publish Edition</InterfaceText>
             </button>
           )}
         </div>
@@ -931,713 +1252,1050 @@ export default function FormBuilder({ token }) {
       )}
 
       {importWarnings.length > 0 && (
-        <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: '6px', padding: '14px 16px', marginBottom: '24px', color: '#92400E', fontSize: '12px' }}>
+        <div
+          style={{
+            backgroundColor: '#FFFBEB',
+            border: '1px solid #F59E0B',
+            borderRadius: '6px',
+            padding: '14px 16px',
+            marginBottom: '24px',
+            color: '#92400E',
+            fontSize: '12px',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: '700', marginBottom: '7px' }}>
-            <AlertCircle size={16} /> Review {importWarnings.length} import {importWarnings.length === 1 ? 'warning' : 'warnings'} before publishing
+            <AlertCircle size={16} />
+            <InterfaceText>Review</InterfaceText> {importWarnings.length} <InterfaceText>import</InterfaceText>{' '}
+            {importWarnings.length === 1 ? 'warning' : 'warnings'} <InterfaceText>before publishing</InterfaceText>
           </div>
           <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
-            {importWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
+            {importWarnings.map((warning, index) => (
+              <li key={`${warning}-${index}`}>{warning}</li>
+            ))}
           </ul>
         </div>
       )}
 
       <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* LANGUAGE MENU: switches every text input below between the English and Swahili versions */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 20,
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #C5A059',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>Content Language</div>
-            <div style={{ fontSize: '12px', color: '#78716C' }}>
-              {isSw
-                ? 'Editing the Kiswahili version. Empty Kiswahili fields fall back to the English text for clients.'
-                : 'Editing the English version. Switch to Kiswahili to write the translated version of every question.'}
+        <fieldset disabled={isArchived} style={{ display: 'contents', border: 0 }}>
+          {/* LANGUAGE MENU: switches every text input below between the English and Swahili versions */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 20,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--accent-primary)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
+                <InterfaceText>Content Language</InterfaceText>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {isSw
+                  ? 'Editing the Kiswahili version. Empty Kiswahili fields fall back to the English text for clients.'
+                  : 'Editing the English version. Switch to Kiswahili to write the translated version of every question.'}
+              </div>
+            </div>
+            <div
+              role="group"
+              aria-label={tx('Content language')}
+              style={{
+                display: 'inline-flex',
+                border: '1px solid var(--accent-primary)',
+                borderRadius: '6px',
+                overflow: 'hidden',
+              }}
+            >
+              {[
+                ['en', 'English'],
+                ['sw', 'Kiswahili'],
+              ].map(([code, label]) => (
+                <button
+                  key={code}
+                  type="button"
+                  aria-pressed={editLang === code}
+                  onClick={() => setEditLang(code)}
+                  style={{
+                    padding: '8px 20px',
+                    border: 'none',
+                    backgroundColor: editLang === code ? 'var(--accent-primary)' : '#FFFFFF',
+                    color: editLang === code ? '#FFFFFF' : 'var(--text-main)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tx(label)}
+                </button>
+              ))}
             </div>
           </div>
-          <div role="tablist" aria-label="Content language" style={{ display: 'inline-flex', border: '1px solid #C5A059', borderRadius: '6px', overflow: 'hidden' }}>
-            {[['en', 'English'], ['sw', 'Kiswahili']].map(([code, label]) => (
-              <button
-                key={code}
-                type="button"
-                role="tab"
-                aria-selected={editLang === code}
-                onClick={() => setEditLang(code)}
+
+          {/* CARD 1: MANDATORY MAGAZINE COVER ARTWORK */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: `2px solid ${coverImageUrl ? 'var(--accent-primary)' : '#DC2626'}`,
+              borderRadius: '8px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ImageIcon size={18} color="var(--accent-primary)" />
+                  <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
+                    <InterfaceText>Magazine Cover Artwork</InterfaceText>
+                    <span style={{ color: '#DC2626' }}>
+                      <InterfaceText>* (REQUIRED)</InterfaceText>
+                    </span>
+                  </h2>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', margin: 0 }}>
+                  <InterfaceText>
+                    Every edition is required to have a cover. Clients click this image directly on the catalogue to
+                    open this form.
+                  </InterfaceText>
+                </p>
+              </div>
+
+              <label
                 style={{
-                  padding: '8px 20px',
-                  border: 'none',
-                  backgroundColor: editLang === code ? '#C5A059' : '#FFFFFF',
-                  color: editLang === code ? '#FFFFFF' : '#1C1917',
-                  fontSize: '13px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: '6px',
+                  color: 'var(--accent-primary)',
+                  fontSize: '12px',
                   fontWeight: '700',
                   cursor: 'pointer',
                 }}
               >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CARD 1: MANDATORY MAGAZINE COVER ARTWORK */}
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: `2px solid ${coverImageUrl ? '#C5A059' : '#DC2626'}`,
-            borderRadius: '8px',
-            padding: '24px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ImageIcon size={18} color="#C5A059" />
-                <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
-                  Magazine Cover Artwork <span style={{ color: '#DC2626' }}>* (REQUIRED)</span>
-                </h2>
-              </div>
-              <p style={{ fontSize: '12px', color: '#78716C', marginTop: '4px', margin: 0 }}>
-                Every edition is required to have a cover. Clients click this image directly on the catalogue to open this form.
-              </p>
-            </div>
-
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #C5A059',
-                borderRadius: '6px',
-                color: '#C5A059',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              <UploadCloud size={14} />
-              {uploadingCover ? 'Uploading...' : coverImageUrl ? 'Change Cover Photo' : 'Choose Cover Photo'}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleCoverUpload}
-                disabled={uploadingCover}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </div>
-
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-            <div
-              style={{
-                width: '120px',
-                height: '160px',
-                backgroundColor: '#1C1917',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                flexShrink: 0,
-                border: '1px solid #D6D3D1',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {coverImageUrl ? (
-                <img
-                  src={coverImageUrl}
-                  alt="Cover preview"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                <UploadCloud size={14} />
+                {uploadingCover ? 'Uploading...' : coverImageUrl ? 'Change Cover Photo' : 'Choose Cover Photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverUpload}
+                  disabled={uploadingCover}
+                  style={{ display: 'none' }}
                 />
-              ) : (
-                <span style={{ fontSize: '11px', color: '#EF4444', textAlign: 'center', padding: '8px' }}>
-                  Cover required
-                </span>
-              )}
-            </div>
-
-            <div style={{ flex: 1, fontSize: '13px', color: '#78716C' }}>
-              {uploadingCover
-                ? 'Uploading your cover photo...'
-                : coverImageUrl
-                  ? 'Cover photo selected. Choose another photo to replace it.'
-                  : 'Choose a photo from your device to use as the magazine cover.'}
-            </div>
-          </div>
-        </div>
-
-        {/* CARD 2: PUBLICATION SPECIFICATIONS */}
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
-            borderRadius: '8px',
-            padding: '24px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-          }}
-        >
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1C1917', marginBottom: '16px' }}>
-            Edition Specifications
-          </h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                {isSw ? 'Magazine Edition Title (Kiswahili)' : 'Magazine Edition Title *'}
               </label>
-              <input
-                type="text"
-                required={!isSw}
-                placeholder={isSw ? title || 'e.g. Jarida la Kumbukumbu ya Mahafali' : 'e.g. Graduation Keepsake Magazine'}
-                value={isSw ? titleSw : title}
-                onChange={(e) => (isSw ? setTitleSw(e.target.value) : handleTitleChange(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #D6D3D1',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
-                }}
-              />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                URL Slug (Generated automatically)
-              </label>
-              <input
-                type="text"
-                readOnly
-                placeholder="Generated from the edition title"
-                value={slug}
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <div
                 style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #D6D3D1',
+                  width: '120px',
+                  height: '160px',
+                  backgroundColor: 'var(--text-main)',
                   borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <span style={{ fontSize: '11px', color: '#A8A29E', marginTop: '6px', display: 'block' }}>
-                {selectedFormId === 'new'
-                  ? 'Created from the title when saved. A number is added if the name is already used.'
-                  : 'This address stays the same when the title changes.'}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                {isSw ? 'Magazine Type (Kiswahili)' : 'Magazine Type'}
-              </label>
-              <input
-                type="text"
-                placeholder={isSw ? magazineType : 'e.g. Wedding Magazine'}
-                value={isSw ? magazineTypeSw : magazineType}
-                onChange={(e) => (isSw ? setMagazineTypeSw(e.target.value) : setMagazineType(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
+                  overflow: 'hidden',
+                  flexShrink: 0,
                   border: '1px solid #D6D3D1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Price *
-              </label>
-              <input
-                type="number"
-                required
-                placeholder="75000"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #D6D3D1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-                Currency
-              </label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  backgroundColor: '#FAFAF9',
-                  border: '1px solid #D6D3D1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1C1917',
-                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <option value="TZS">TZS</option>
-                <option value="USD">USD</option>
-                <option value="KES">KES</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#1C1917', marginBottom: '6px' }}>
-              {isSw ? 'Form Description & Welcome Note (Kiswahili)' : 'Form Description & Welcome Note'}
-            </label>
-            <textarea
-              rows={2}
-              placeholder={isSw ? description : 'e.g. Personalized luxury publication celebrating your milestones with custom layouts.'}
-              value={isSw ? descriptionSw : description}
-              onChange={(e) => (isSw ? setDescriptionSw(e.target.value) : setDescription(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                backgroundColor: '#FAFAF9',
-                border: '1px solid #D6D3D1',
-                borderRadius: '6px',
-                fontSize: '13px',
-                color: '#1C1917',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* CARD 3: GOOGLE FORMS-STYLE SECTIONS & QUESTIONS */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1C1917', margin: 0 }}>
-                Sections & Question Prompts
-              </h2>
-              <span style={{ fontSize: '12px', color: '#78716C' }}>
-                Organize client submissions into sequential spreads and photo folders.
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleAddSection}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #C5A059',
-                borderRadius: '6px',
-                color: '#C5A059',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              <FolderPlus size={14} />
-              + Add Section
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {sections.map((sec, secIdx) => {
-              const sectionFields = fields.filter((f) => f.sectionId === sec.sectionId);
-
-              return (
-                <div
-                  key={sec.sectionId}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E7E5E4',
-                    borderRadius: '8px',
-                    padding: '20px',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
-                  }}
-                >
-                  {/* Section Title & Description */}
-                  <div
+                {coverImageUrl ? (
+                  <img
+                    src={coverImageUrl}
+                    alt="Cover preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '14px',
-                      paddingBottom: '12px',
-                      borderBottom: '1px solid #F5F5F4',
+                      fontSize: '11px',
+                      color: 'var(--accent-danger)',
+                      backgroundColor: '#FDF0EE',
+                      borderRadius: 6,
+                      textAlign: 'center',
+                      padding: '8px',
                     }}
                   >
-                    <div style={{ flex: 1, marginRight: '16px' }}>
-                      <div style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: '#C5A059', letterSpacing: '0.8px' }}>
-                        Section {secIdx + 1} of {sections.length}
+                    <InterfaceText>Cover required</InterfaceText>
+                  </span>
+                )}
+              </div>
+
+              <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-muted)' }}>
+                {uploadingCover
+                  ? 'Uploading your cover photo...'
+                  : coverImageUrl
+                    ? 'Cover photo selected. Choose another photo to replace it.'
+                    : 'Choose a photo from your device to use as the magazine cover.'}
+              </div>
+            </div>
+          </div>
+
+          {/* CARD 2: PUBLICATION SPECIFICATIONS */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            }}
+          >
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px' }}>
+              <InterfaceText>Edition Specifications</InterfaceText>
+            </h2>
+
+            <div
+              className="admin-form-grid"
+              style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '16px' }}
+            >
+              <div>
+                <label
+                  htmlFor={`control-44917`}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--text-main)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  {tx(isSw ? 'Magazine Edition Title (Kiswahili)' : 'Magazine Edition Title *')}
+                </label>
+                <input
+                  id={`control-44917`}
+                  type="text"
+                  required={!isSw}
+                  placeholder={
+                    isSw ? title || 'e.g. Jarida la Kumbukumbu ya Mahafali' : 'e.g. Graduation Keepsake Magazine'
+                  }
+                  value={isSw ? titleSw : title}
+                  onChange={(e) => (isSw ? setTitleSw(e.target.value) : handleTitleChange(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: 'var(--text-main)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`control-46001`}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--text-main)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <InterfaceText>URL Slug (Generated automatically)</InterfaceText>
+                </label>
+                <input
+                  id={`control-46001`}
+                  type="text"
+                  readOnly
+                  placeholder={tx('Generated from the edition title')}
+                  value={slug}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: 'var(--text-main)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                  {selectedFormId === 'new'
+                    ? 'Created from the title when saved. A number is added if the name is already used.'
+                    : 'This address stays the same when the title changes.'}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="admin-form-grid"
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}
+            >
+              <div>
+                <label
+                  htmlFor={`control-47337`}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--text-main)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  {tx(isSw ? 'Magazine Type (Kiswahili)' : 'Magazine Type')}
+                </label>
+                <input
+                  id={`control-47337`}
+                  type="text"
+                  placeholder={isSw ? magazineType : 'e.g. Wedding Magazine'}
+                  value={isSw ? magazineTypeSw : magazineType}
+                  onChange={(e) => (isSw ? setMagazineTypeSw(e.target.value) : setMagazineType(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: 'var(--text-main)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`control-48301`}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--text-main)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <InterfaceText>Price *</InterfaceText>
+                </label>
+                <input
+                  id={`control-48301`}
+                  type="number"
+                  required
+                  placeholder="75000"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: 'var(--text-main)',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`control-49121`}
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--text-main)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <InterfaceText>Currency</InterfaceText>
+                </label>
+                <select
+                  id={`control-49121`}
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid #D6D3D1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: 'var(--text-main)',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="TZS">
+                    <InterfaceText>TZS</InterfaceText>
+                  </option>
+                  <option value="USD">
+                    <InterfaceText>USD</InterfaceText>
+                  </option>
+                  <option value="KES">
+                    <InterfaceText>KES</InterfaceText>
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor={`control-50136`}
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: 'var(--text-main)',
+                  marginBottom: '6px',
+                }}
+              >
+                {isSw ? 'Form Description & Welcome Note (Kiswahili)' : 'Form Description & Welcome Note'}
+              </label>
+              <textarea
+                id={`control-50136`}
+                rows={2}
+                placeholder={
+                  isSw
+                    ? description
+                    : 'e.g. Personalized luxury publication celebrating your milestones with custom layouts.'
+                }
+                value={isSw ? descriptionSw : description}
+                onChange={(e) => (isSw ? setDescriptionSw(e.target.value) : setDescription(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid #D6D3D1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  color: 'var(--text-main)',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* CARD 3: GOOGLE FORMS-STYLE SECTIONS & QUESTIONS */}
+          <div>
+            <div
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}
+            >
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
+                  <InterfaceText>Sections &amp; Question Prompts</InterfaceText>
+                </h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <InterfaceText>Organize client submissions into sequential spreads and photo folders.</InterfaceText>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddSection}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--accent-primary)',
+                  borderRadius: '6px',
+                  color: 'var(--accent-primary)',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                <FolderPlus size={14} />
+                <InterfaceText>+ Add Section</InterfaceText>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {sections.map((sec, secIdx) => {
+                const sectionFields = fields.filter((f) => f.sectionId === sec.sectionId);
+
+                return (
+                  <div
+                    key={sec.sectionId}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '20px',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
+                    }}
+                  >
+                    {/* Section Title & Description */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '14px',
+                        paddingBottom: '12px',
+                        borderBottom: '1px solid #F5F5F4',
+                      }}
+                    >
+                      <div style={{ flex: 1, marginRight: '16px' }}>
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            color: 'var(--accent-primary)',
+                            letterSpacing: '0.8px',
+                          }}
+                        >
+                          <InterfaceText>Section</InterfaceText> {secIdx + 1} <InterfaceText>of</InterfaceText>{' '}
+                          {sections.length}
+                        </div>
+                        <input
+                          type="text"
+                          value={sec[lk('title')] || ''}
+                          onChange={(e) => handleSectionChange(sec.sectionId, lk('title'), e.target.value)}
+                          placeholder={
+                            isSw
+                              ? `Kiswahili: ${sec.title || 'Section Title'}`
+                              : 'Section Title (e.g. The Couple & Story)'
+                          }
+                          style={{
+                            fontSize: '16px',
+                            fontWeight: '700',
+                            color: 'var(--text-main)',
+                            border: 'none',
+                            borderBottom: '1px solid transparent',
+                            outline: 'none',
+                            width: '100%',
+                            padding: '4px 0',
+                          }}
+                          onFocus={(e) => (e.target.style.borderBottom = '1px solid var(--accent-primary)')}
+                          onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
+                        />
+                        <input
+                          type="text"
+                          value={sec[lk('description')] || ''}
+                          onChange={(e) => handleSectionChange(sec.sectionId, lk('description'), e.target.value)}
+                          placeholder={
+                            isSw
+                              ? `Kiswahili: ${sec.description || 'Section instructions (optional)'}`
+                              : 'Section instructions or description (optional)'
+                          }
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                            border: 'none',
+                            outline: 'none',
+                            width: '100%',
+                            padding: '2px 0',
+                          }}
+                        />
                       </div>
-                      <input
-                        type="text"
-                        value={sec[lk('title')] || ''}
-                        onChange={(e) => handleSectionChange(sec.sectionId, lk('title'), e.target.value)}
-                        placeholder={isSw ? `Kiswahili: ${sec.title || 'Section Title'}` : 'Section Title (e.g. The Couple & Story)'}
-                        style={{
-                          fontSize: '16px',
-                          fontWeight: '700',
-                          color: '#1C1917',
-                          border: 'none',
-                          borderBottom: '1px solid transparent',
-                          outline: 'none',
-                          width: '100%',
-                          padding: '4px 0',
-                        }}
-                        onFocus={(e) => (e.target.style.borderBottom = '1px solid #C5A059')}
-                        onBlur={(e) => (e.target.style.borderBottom = '1px solid transparent')}
-                      />
-                      <input
-                        type="text"
-                        value={sec[lk('description')] || ''}
-                        onChange={(e) => handleSectionChange(sec.sectionId, lk('description'), e.target.value)}
-                        placeholder={isSw ? `Kiswahili: ${sec.description || 'Section instructions (optional)'}` : 'Section instructions or description (optional)'}
-                        style={{
-                          fontSize: '12px',
-                          color: '#78716C',
-                          border: 'none',
-                          outline: 'none',
-                          width: '100%',
-                          padding: '2px 0',
-                        }}
-                      />
+
+                      {sections.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSection(sec.sectionId)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                            padding: '4px',
+                          }}
+                          title={tx('Delete Section')}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
 
-                    {sections.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSection(sec.sectionId)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#DC2626',
-                          cursor: 'pointer',
-                          padding: '4px',
-                        }}
-                        title="Delete Section"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
+                    {/* Questions in this Section */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
+                      {sectionFields.length === 0 ? (
+                        <div
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            backgroundColor: 'var(--bg-primary)',
+                            border: '1px dashed #D6D3D1',
+                            borderRadius: '6px',
+                            color: 'var(--text-muted)',
+                            fontSize: '13px',
+                          }}
+                        >
+                          <InterfaceText>
+                            No questions in this section yet. Add a text question or a photo group spread below.
+                          </InterfaceText>
+                        </div>
+                      ) : (
+                        sectionFields.map((field) => {
+                          const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);
+                          const isPhotoGroup = field.type === 'photo_group';
 
-                  {/* Questions in this Section */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
-                    {sectionFields.length === 0 ? (
-                      <div
-                        style={{
-                          textAlign: 'center',
-                          padding: '20px',
-                          backgroundColor: '#FAFAF9',
-                          border: '1px dashed #D6D3D1',
-                          borderRadius: '6px',
-                          color: '#78716C',
-                          fontSize: '13px',
-                        }}
-                      >
-                        No questions in this section yet. Add a text question or a photo group spread below.
-                      </div>
-                    ) : (
-                      sectionFields.map((field) => {
-                        const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);
-                        const isPhotoGroup = field.type === 'photo_group';
+                          return (
+                            <div
+                              key={field.fieldId}
+                              style={{
+                                backgroundColor: isPhotoGroup ? '#FAF5EA' : 'var(--bg-primary)',
+                                border: `1px solid ${isPhotoGroup ? 'rgba(197, 160, 89, 0.4)' : 'var(--border-color)'}`,
+                                borderRadius: '6px',
+                                padding: '16px',
+                              }}
+                            >
+                              <div
+                                className="admin-form-grid"
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '2fr 1fr',
+                                  gap: '14px',
+                                  marginBottom: '12px',
+                                }}
+                              >
+                                <div>
+                                  <label
+                                    htmlFor={`control-58099-${field.fieldId}`}
+                                    style={{
+                                      display: 'block',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      color: 'var(--text-main)',
+                                      marginBottom: '4px',
+                                    }}
+                                  >
+                                    {tx(
+                                      isSw
+                                        ? 'Question Label / Spread Title (Kiswahili)'
+                                        : 'Question Label / Spread Title *',
+                                    )}
+                                  </label>
+                                  <input
+                                    id={`control-58099-${field.fieldId}`}
+                                    type="text"
+                                    required={!isSw}
+                                    placeholder={
+                                      isSw ? field.label : 'e.g. Ceremony Photos, Couple Vows, Reception Highlights'
+                                    }
+                                    value={field[lk('label')] || ''}
+                                    onChange={(e) => handleFieldChange(globalIdx, lk('label'), e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px 10px',
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #D6D3D1',
+                                      borderRadius: '4px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      color: 'var(--text-main)',
+                                      boxSizing: 'border-box',
+                                    }}
+                                  />
+                                </div>
 
-                        return (
-                          <div
-                            key={field.fieldId}
-                            style={{
-                              backgroundColor: isPhotoGroup ? '#FAF5EA' : '#FAFAF9',
-                              border: `1px solid ${isPhotoGroup ? 'rgba(197, 160, 89, 0.4)' : '#E7E5E4'}`,
-                              borderRadius: '6px',
-                              padding: '16px',
-                            }}
-                          >
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
-                              <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                                  {isSw ? 'Question Label / Spread Title (Kiswahili)' : 'Question Label / Spread Title *'}
-                                </label>
+                                <div>
+                                  <label
+                                    htmlFor={`control-59573-${field.fieldId}`}
+                                    style={{
+                                      display: 'block',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      color: 'var(--text-main)',
+                                      marginBottom: '4px',
+                                    }}
+                                  >
+                                    <InterfaceText>Response Type</InterfaceText>
+                                  </label>
+                                  <select
+                                    id={`control-59573-${field.fieldId}`}
+                                    value={field.type}
+                                    onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px 10px',
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #D6D3D1',
+                                      borderRadius: '4px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      color: 'var(--text-main)',
+                                      boxSizing: 'border-box',
+                                    }}
+                                  >
+                                    {FIELD_TYPES.map((t) => (
+                                      <option key={t.value} value={t.value}>
+                                        {tx(t.label)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Helper Text */}
+                              <div style={{ marginBottom: '12px' }}>
                                 <input
                                   type="text"
-                                  required={!isSw}
-                                  placeholder={isSw ? field.label : 'e.g. Ceremony Photos, Couple Vows, Reception Highlights'}
-                                  value={field[lk('label')] || ''}
-                                  onChange={(e) => handleFieldChange(globalIdx, lk('label'), e.target.value)}
+                                  placeholder={
+                                    isSw
+                                      ? field.helperText || 'Helper text (Kiswahili)'
+                                      : 'Helper text or instructions for the client (optional)'
+                                  }
+                                  value={field[lk('helperText')] || ''}
+                                  onChange={(e) => handleFieldChange(globalIdx, lk('helperText'), e.target.value)}
                                   style={{
                                     width: '100%',
-                                    padding: '8px 10px',
+                                    padding: '7px 10px',
                                     backgroundColor: '#FFFFFF',
-                                    border: '1px solid #D6D3D1',
+                                    border: '1px solid var(--border-color)',
                                     borderRadius: '4px',
-                                    fontSize: '13px',
-                                    fontWeight: '600',
-                                    color: '#1C1917',
+                                    fontSize: '12px',
+                                    color: 'var(--text-muted)',
                                     boxSizing: 'border-box',
                                   }}
                                 />
                               </div>
 
-                              <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#1C1917', marginBottom: '4px' }}>
-                                  Response Type
-                                </label>
-                                <select
-                                  value={field.type}
-                                  onChange={(e) => handleFieldChange(globalIdx, 'type', e.target.value)}
+                              {['dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox'].includes(
+                                field.type,
+                              ) && (
+                                <div
+                                  className="admin-form-grid"
                                   style={{
-                                    width: '100%',
-                                    padding: '8px 10px',
-                                    backgroundColor: '#FFFFFF',
-                                    border: '1px solid #D6D3D1',
-                                    borderRadius: '4px',
-                                    fontSize: '13px',
-                                    fontWeight: '600',
-                                    color: '#1C1917',
-                                    boxSizing: 'border-box',
+                                    display: 'grid',
+                                    gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr',
+                                    gap: '10px',
+                                    marginBottom: '12px',
                                   }}
                                 >
-                                  {FIELD_TYPES.map((t) => (
-                                    <option key={t.value} value={t.value}>
-                                      {t.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Helper Text */}
-                            <div style={{ marginBottom: '12px' }}>
-                              <input
-                                type="text"
-                                placeholder={isSw ? (field.helperText || 'Helper text (Kiswahili)') : 'Helper text or instructions for the client (optional)'}
-                                value={field[lk('helperText')] || ''}
-                                onChange={(e) => handleFieldChange(globalIdx, lk('helperText'), e.target.value)}
-                                style={{
-                                  width: '100%',
-                                  padding: '7px 10px',
-                                  backgroundColor: '#FFFFFF',
-                                  border: '1px solid #E7E5E4',
-                                  borderRadius: '4px',
-                                  fontSize: '12px',
-                                  color: '#78716C',
-                                  boxSizing: 'border-box',
-                                }}
-                              />
-                            </div>
-
-                            {['dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox'].includes(field.type) && (
-                              <div style={{ display: 'grid', gridTemplateColumns: field.type.startsWith('grid_') ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '12px' }}>
-                                {field.type.startsWith('grid_') && (
-                                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
-                                    {isSw ? 'Rows in Kiswahili (same order as English, one per line)' : 'Rows (one per line)'}
+                                  {field.type.startsWith('grid_') && (
+                                    <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)' }}>
+                                      {isSw
+                                        ? 'Rows in Kiswahili (same order as English, one per line)'
+                                        : 'Rows (one per line)'}
+                                      <textarea
+                                        rows={4}
+                                        placeholder={isSw ? (field.rows || []).join('\n') : undefined}
+                                        value={(field[lk('rows')] || []).join('\n')}
+                                        onChange={(e) => {
+                                          const lines = e.target.value.split('\n').map((v) => v.trim());
+                                          // Kiswahili lines keep their position so they match the English rows by index
+                                          handleFieldChange(
+                                            globalIdx,
+                                            lk('rows'),
+                                            isSw ? lines : lines.filter(Boolean),
+                                          );
+                                        }}
+                                        style={{
+                                          width: '100%',
+                                          marginTop: '4px',
+                                          padding: '8px',
+                                          boxSizing: 'border-box',
+                                          border: '1px solid #D6D3D1',
+                                          borderRadius: '4px',
+                                        }}
+                                      />
+                                    </label>
+                                  )}
+                                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)' }}>
+                                    {field.type.startsWith('grid_') ? 'Columns' : 'Options'}
+                                    {isSw ? ' in Kiswahili (same order as English, one per line)' : ' (one per line)'}
                                     <textarea
                                       rows={4}
-                                      placeholder={isSw ? (field.rows || []).join('\n') : undefined}
-                                      value={(field[lk('rows')] || []).join('\n')}
+                                      placeholder={isSw ? (field.options || []).join('\n') : undefined}
+                                      value={(field[lk('options')] || []).join('\n')}
                                       onChange={(e) => {
                                         const lines = e.target.value.split('\n').map((v) => v.trim());
-                                        // Kiswahili lines keep their position so they match the English rows by index
-                                        handleFieldChange(globalIdx, lk('rows'), isSw ? lines : lines.filter(Boolean));
+                                        // Kiswahili lines keep their position so they match the English options by index
+                                        handleFieldChange(
+                                          globalIdx,
+                                          lk('options'),
+                                          isSw ? lines : lines.filter(Boolean),
+                                        );
                                       }}
-                                      style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
+                                      style={{
+                                        width: '100%',
+                                        marginTop: '4px',
+                                        padding: '8px',
+                                        boxSizing: 'border-box',
+                                        border: '1px solid #D6D3D1',
+                                        borderRadius: '4px',
+                                      }}
                                     />
                                   </label>
-                                )}
-                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#1C1917' }}>
-                                  {field.type.startsWith('grid_') ? 'Columns' : 'Options'}{isSw ? ' in Kiswahili (same order as English, one per line)' : ' (one per line)'}
-                                  <textarea
-                                    rows={4}
-                                    placeholder={isSw ? (field.options || []).join('\n') : undefined}
-                                    value={(field[lk('options')] || []).join('\n')}
-                                    onChange={(e) => {
-                                      const lines = e.target.value.split('\n').map((v) => v.trim());
-                                      // Kiswahili lines keep their position so they match the English options by index
-                                      handleFieldChange(globalIdx, lk('options'), isSw ? lines : lines.filter(Boolean));
-                                    }}
-                                    style={{ width: '100%', marginTop: '4px', padding: '8px', boxSizing: 'border-box', border: '1px solid #D6D3D1', borderRadius: '4px' }}
+                                </div>
+                              )}
+
+                              {field.type === 'linear_scale' && (
+                                <div
+                                  className="admin-form-grid"
+                                  style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '90px 90px 1fr 1fr',
+                                    gap: '10px',
+                                    marginBottom: '12px',
+                                  }}
+                                >
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    value={field.scaleConfig?.low ?? 1}
+                                    onChange={(e) =>
+                                      handleFieldChange(globalIdx, 'scaleConfig', {
+                                        ...field.scaleConfig,
+                                        low: Number(e.target.value),
+                                      })
+                                    }
+                                    aria-label={tx('Scale minimum')}
                                   />
-                                </label>
-                              </div>
-                            )}
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={field.scaleConfig?.high ?? 5}
+                                    onChange={(e) =>
+                                      handleFieldChange(globalIdx, 'scaleConfig', {
+                                        ...field.scaleConfig,
+                                        high: Number(e.target.value),
+                                      })
+                                    }
+                                    aria-label={tx('Scale maximum')}
+                                  />
+                                  <input
+                                    value={field.scaleConfig?.[lk('lowLabel')] || ''}
+                                    onChange={(e) =>
+                                      handleFieldChange(globalIdx, 'scaleConfig', {
+                                        ...field.scaleConfig,
+                                        [lk('lowLabel')]: e.target.value,
+                                      })
+                                    }
+                                    placeholder={
+                                      isSw
+                                        ? `Low label (Kiswahili)${field.scaleConfig?.lowLabel ? `: ${field.scaleConfig.lowLabel}` : ''}`
+                                        : 'Low label'
+                                    }
+                                  />
+                                  <input
+                                    value={field.scaleConfig?.[lk('highLabel')] || ''}
+                                    onChange={(e) =>
+                                      handleFieldChange(globalIdx, 'scaleConfig', {
+                                        ...field.scaleConfig,
+                                        [lk('highLabel')]: e.target.value,
+                                      })
+                                    }
+                                    placeholder={
+                                      isSw
+                                        ? `High label (Kiswahili)${field.scaleConfig?.highLabel ? `: ${field.scaleConfig.highLabel}` : ''}`
+                                        : 'High label'
+                                    }
+                                  />
+                                </div>
+                              )}
 
-                            {field.type === 'linear_scale' && (
-                              <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                                <input type="number" min="0" max="10" value={field.scaleConfig?.low ?? 1} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, low: Number(e.target.value) })} aria-label="Scale minimum" />
-                                <input type="number" min="1" max="10" value={field.scaleConfig?.high ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, high: Number(e.target.value) })} aria-label="Scale maximum" />
-                                <input value={field.scaleConfig?.[lk('lowLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('lowLabel')]: e.target.value })} placeholder={isSw ? `Low label (Kiswahili)${field.scaleConfig?.lowLabel ? `: ${field.scaleConfig.lowLabel}` : ''}` : 'Low label'} />
-                                <input value={field.scaleConfig?.[lk('highLabel')] || ''} onChange={(e) => handleFieldChange(globalIdx, 'scaleConfig', { ...field.scaleConfig, [lk('highLabel')]: e.target.value })} placeholder={isSw ? `High label (Kiswahili)${field.scaleConfig?.highLabel ? `: ${field.scaleConfig.highLabel}` : ''}` : 'High label'} />
-                              </div>
-                            )}
+                              {field.type === 'rating' && (
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                                  <label
+                                    htmlFor={`control-66719-${field.fieldId}`}
+                                    style={{ fontSize: '11px', fontWeight: '700' }}
+                                  >
+                                    <InterfaceText>Levels</InterfaceText>
+                                    <input
+                                      type="number"
+                                      min="3"
+                                      max="10"
+                                      value={field.ratingConfig?.levelCount ?? 5}
+                                      onChange={(e) =>
+                                        handleFieldChange(globalIdx, 'ratingConfig', {
+                                          ...field.ratingConfig,
+                                          levelCount: Number(e.target.value),
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                  <select
+                                    id={`control-66719-${field.fieldId}`}
+                                    value={field.ratingConfig?.iconType || 'star'}
+                                    onChange={(e) =>
+                                      handleFieldChange(globalIdx, 'ratingConfig', {
+                                        ...field.ratingConfig,
+                                        iconType: e.target.value,
+                                      })
+                                    }
+                                  >
+                                    <option value="star">
+                                      <InterfaceText>Stars</InterfaceText>
+                                    </option>
+                                    <option value="heart">
+                                      <InterfaceText>Hearts</InterfaceText>
+                                    </option>
+                                    <option value="thumb">
+                                      <InterfaceText>Thumbs</InterfaceText>
+                                    </option>
+                                  </select>
+                                </div>
+                              )}
 
-                            {field.type === 'rating' && (
-                              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-                                <label style={{ fontSize: '11px', fontWeight: '700' }}>Levels <input type="number" min="3" max="10" value={field.ratingConfig?.levelCount ?? 5} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, levelCount: Number(e.target.value) })} /></label>
-                                <select value={field.ratingConfig?.iconType || 'star'} onChange={(e) => handleFieldChange(globalIdx, 'ratingConfig', { ...field.ratingConfig, iconType: e.target.value })}>
-                                  <option value="star">Stars</option><option value="heart">Hearts</option><option value="thumb">Thumbs</option>
-                                </select>
-                              </div>
-                            )}
+                              {/* Photo Group Spread Badge & Notice */}
+                              {isPhotoGroup && (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid rgba(197, 160, 89, 0.3)',
+                                    borderRadius: '4px',
+                                    padding: '8px 12px',
+                                    marginBottom: '12px',
+                                  }}
+                                >
+                                  <Folder size={16} color="var(--accent-primary)" />
+                                  <span style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: '600' }}>
+                                    <InterfaceText>
+                                      Photo Group: Clients can upload multiple photos here. They will appear as a
+                                      dedicated folder named
+                                    </InterfaceText>
+                                    <strong>"{field.label || 'Photo Spread'}"</strong>
+                                    <InterfaceText>on the Manager Conveyor and Designer Workstation.</InterfaceText>
+                                  </span>
+                                </div>
+                              )}
 
-                            {/* Photo Group Spread Badge & Notice */}
-                            {isPhotoGroup && (
+                              {/* Footer Controls: Required toggle, Duplicate, Delete */}
                               <div
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '8px',
-                                  backgroundColor: '#FFFFFF',
-                                  border: '1px solid rgba(197, 160, 89, 0.3)',
-                                  borderRadius: '4px',
-                                  padding: '8px 12px',
-                                  marginBottom: '12px',
+                                  justifyContent: 'space-between',
+                                  paddingTop: '8px',
+                                  borderTop: '1px solid var(--border-color)',
                                 }}
                               >
-                                <Folder size={16} color="#C5A059" />
-                                <span style={{ fontSize: '12px', color: '#1C1917', fontWeight: '600' }}>
-                                  Photo Group: Clients can upload multiple photos here. They will appear as a dedicated folder named <strong>"{field.label || 'Photo Spread'}"</strong> on the Manager Conveyor and Designer Workstation.
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Footer Controls: Required toggle, Duplicate, Delete */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #E7E5E4' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#1C1917', cursor: 'pointer' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={field.required}
-                                  onChange={(e) => handleFieldChange(globalIdx, 'required', e.target.checked)}
-                                />
-                                Required Field
-                              </label>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDuplicateField(globalIdx)}
+                                <label
                                   style={{
-                                    display: 'inline-flex',
+                                    display: 'flex',
                                     alignItems: 'center',
-                                    gap: '4px',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    color: '#78716C',
+                                    gap: '6px',
                                     fontSize: '12px',
+                                    color: 'var(--text-main)',
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  <Copy size={13} />
-                                  Duplicate
-                                </button>
+                                  <input
+                                    type="checkbox"
+                                    checked={field.required}
+                                    onChange={(e) => handleFieldChange(globalIdx, 'required', e.target.checked)}
+                                  />
+                                  <InterfaceText>Required Field</InterfaceText>
+                                </label>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveField(globalIdx)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    color: '#DC2626',
-                                    fontSize: '12px',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  <Trash2 size={13} />
-                                  Delete
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDuplicateField(globalIdx)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      backgroundColor: 'transparent',
+                                      border: 'none',
+                                      color: 'var(--text-muted)',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    <Copy size={13} />
+                                    <InterfaceText>Duplicate</InterfaceText>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveField(globalIdx)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      backgroundColor: 'transparent',
+                                      border: 'none',
+                                      color: '#DC2626',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    <Trash2 size={13} />
+                                    {lang === 'sw' ? 'Hifadhi kwenye kumbukumbu' : 'Archive'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                          );
+                        })
+                      )}
+                    </div>
 
-                  {/* Section Add Question Buttons */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleAddFieldToSection(sec.sectionId, 'text')}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 12px',
-                        backgroundColor: '#FAFAF9',
-                        border: '1px solid #D6D3D1',
-                        borderRadius: '4px',
-                        color: '#1C1917',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Plus size={13} />
-                      + Add Question
-                    </button>
+                    {/* Section Add Question Buttons */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAddFieldToSection(sec.sectionId, 'text')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 12px',
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid #D6D3D1',
+                          borderRadius: '4px',
+                          color: 'var(--text-main)',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Plus size={13} />
+                        <InterfaceText>+ Add Question</InterfaceText>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleAddFieldToSection(sec.sectionId, 'photo_group')}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '7px 12px',
-                        backgroundColor: '#FAF5EA',
-                        border: '1px solid #C5A059',
-                        borderRadius: '4px',
-                        color: '#1C1917',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <FolderPlus size={13} color="#C5A059" />
-                      + Add Photo Group Spread
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddFieldToSection(sec.sectionId, 'photo_group')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 12px',
+                          backgroundColor: '#FAF5EA',
+                          border: '1px solid var(--accent-primary)',
+                          borderRadius: '4px',
+                          color: 'var(--text-main)',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <FolderPlus size={13} color="var(--accent-primary)" />
+                        <InterfaceText>+ Add Photo Group Spread</InterfaceText>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </fieldset>
       </form>
     </div>
   );

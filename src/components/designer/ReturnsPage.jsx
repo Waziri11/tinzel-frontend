@@ -1,3 +1,4 @@
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -15,6 +16,8 @@ import BrandLoading from '../common/BrandLoading';
 import './designerWorkspace.css';
 
 export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
+  const tx = useInterfaceText();
+
   const [filter, setFilter] = useState('active');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [searchInput, setSearchInput] = useState('');
@@ -70,7 +73,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               marginBottom: '4px',
             }}
           >
-            Quality Control & Revisions
+            <InterfaceText>Quality Control &amp; Revisions</InterfaceText>
           </span>
           <h1
             style={{
@@ -80,7 +83,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               fontWeight: 600,
             }}
           >
-            Returned Magazines & Changes
+            <InterfaceText>Returned Magazines &amp; Changes</InterfaceText>
           </h1>
           <p>
             {isManagerOrAdmin
@@ -89,39 +92,35 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div className="segmented" role="tablist" aria-label="Filter returns by status">
-            <button
-              type="button"
-              className={filter === 'active' ? 'active' : ''}
-              onClick={() => setFilter('active')}
-            >
-              Active ({summary.active || 0})
+          <div className="segmented" role="group" aria-label={tx('Filter returns by status')}>
+            <button type="button" className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>
+              <InterfaceText>Active (</InterfaceText>
+              {summary.active || 0})
             </button>
-            <button
-              type="button"
-              className={filter === 'open' ? 'active' : ''}
-              onClick={() => setFilter('open')}
-            >
-              With Designer ({summary.open || 0})
+            <button type="button" className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>
+              <InterfaceText>With Designer (</InterfaceText>
+              {summary.open || 0})
             </button>
             <button
               type="button"
               className={filter === 'submitted_for_review' ? 'active' : ''}
               onClick={() => setFilter('submitted_for_review')}
             >
-              Resubmitted ({summary.submitted_for_review || 0})
+              <InterfaceText>Resubmitted (</InterfaceText>
+              {summary.submitted_for_review || 0})
             </button>
             <button
               type="button"
               className={filter === 'resolved' ? 'active' : ''}
               onClick={() => setFilter('resolved')}
             >
-              Resolved ({summary.resolved || 0})
+              <InterfaceText>Resolved (</InterfaceText>
+              {summary.resolved || 0})
             </button>
           </div>
           <button type="button" className="secondary-button" onClick={loadReturns} disabled={loading}>
             <RefreshCw size={15} className={loading ? 'spin' : ''} />
-            Refresh
+            <InterfaceText>Refresh</InterfaceText>
           </button>
         </div>
       </div>
@@ -163,7 +162,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               {summary.open || 0}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Open Returns (Needs Fixes)
+              <InterfaceText>Open Returns (Needs Fixes)</InterfaceText>
             </span>
           </div>
         </div>
@@ -197,7 +196,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               {summary.submitted_for_review || 0}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Resubmitted for Manager Review
+              <InterfaceText>Resubmitted for Manager Review</InterfaceText>
             </span>
           </div>
         </div>
@@ -231,7 +230,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               {summary.manager || 0}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Returned by Manager
+              <InterfaceText>Returned by Manager</InterfaceText>
             </span>
           </div>
         </div>
@@ -265,7 +264,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               {summary.client || 0}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
-              Returned by Client
+              <InterfaceText>Returned by Client</InterfaceText>
             </span>
           </div>
         </div>
@@ -303,8 +302,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
         >
           <Search size={15} color="#78716C" />
           <input
-            aria-label="Search returned magazines"
-            placeholder="Search by Tracking ID, client, magazine title, designer, or requested fix..."
+            aria-label={tx('Search returned magazines')}
+            placeholder={tx('Search by Tracking ID, client, magazine title, designer, or requested fix...')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             style={{
@@ -338,7 +337,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#78716C' }}>
-            Source:
+            <InterfaceText>Source:</InterfaceText>
           </span>
           {['all', 'manager', 'client'].map((src) => (
             <button
@@ -366,19 +365,33 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
       {error && <div className="designer-alert is-error">{error}</div>}
 
       {loading ? (
-        <BrandLoading compact title="Loading returned magazines" />
+        <BrandLoading compact title={tx('Loading returned magazines')} />
       ) : (
         <div className="designer-table-card">
           <table>
             <thead>
               <tr>
-                <th>Order & Magazine</th>
-                <th>Client</th>
-                <th>Designer</th>
-                <th>Return Source</th>
-                <th>Round & Draft</th>
-                <th>Requested Changes</th>
-                <th>Progress</th>
+                <th>
+                  <InterfaceText>Order &amp; Magazine</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Client</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Designer</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Return Source</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Round &amp; Draft</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Requested Changes</InterfaceText>
+                </th>
+                <th>
+                  <InterfaceText>Progress</InterfaceText>
+                </th>
                 <th></th>
               </tr>
             </thead>
@@ -390,9 +403,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                   <tr key={row._id || `${row.orderId}-${row.roundNumber}`}>
                     <td>
                       <strong style={{ display: 'block', color: '#1C1917' }}>{row.trackingId}</strong>
-                      <span style={{ fontSize: '12px', color: '#78716C' }}>
-                        {row.formTitle || 'Tinzel Magazine'}
-                      </span>
+                      <span style={{ fontSize: '12px', color: '#78716C' }}>{row.formTitle || 'Tinzel Magazine'}</span>
                     </td>
                     <td>
                       <strong style={{ display: 'block', fontWeight: 600 }}>{row.clientName}</strong>
@@ -402,11 +413,11 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                     </td>
                     <td>
                       {row.assignedDesigner?.name ? (
-                        <span style={{ fontWeight: 600, color: '#1C1917' }}>
-                          {row.assignedDesigner.name}
-                        </span>
+                        <span style={{ fontWeight: 600, color: '#1C1917' }}>{row.assignedDesigner.name}</span>
                       ) : (
-                        <span style={{ color: '#A8A29E' }}>Unassigned</span>
+                        <span style={{ color: '#A8A29E' }}>
+                          <InterfaceText>Unassigned</InterfaceText>
+                        </span>
                       )}
                     </td>
                     <td>
@@ -426,9 +437,11 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                       </span>
                     </td>
                     <td>
-                      <strong style={{ display: 'block' }}>Round {row.roundNumber}</strong>
+                      <strong style={{ display: 'block' }}>
+                        <InterfaceText>Round</InterfaceText> {row.roundNumber}
+                      </strong>
                       <span style={{ fontSize: '11px', color: '#78716C' }}>
-                        Draft V{row.draftVersionNumber || row.currentDraftVersion || 1}
+                        <InterfaceText>Draft V</InterfaceText> {row.draftVersionNumber || row.currentDraftVersion || 1}
                       </span>
                     </td>
                     <td style={{ maxWidth: '320px' }}>
@@ -441,7 +454,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                         ))}
                         {items.length > 3 && (
                           <li style={{ color: '#78716C', listStyle: 'none' }}>
-                            +{items.length - 3} more item{items.length - 3 === 1 ? '' : 's'}
+                            +{items.length - 3} <InterfaceText>more item</InterfaceText>{' '}
+                            {items.length - 3 === 1 ? '' : 's'}
                           </li>
                         )}
                       </ul>
@@ -450,7 +464,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                       {row.status === 'resolved' ? (
                         <span className="return-progress done">
                           <CheckCircle2 size={14} />
-                          Resolved
+                          <InterfaceText>Resolved</InterfaceText>
                         </span>
                       ) : row.status === 'submitted_for_review' ? (
                         <span
@@ -464,18 +478,20 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                           }}
                         >
                           <FileCheck2 size={14} />
-                          Resubmitted (V{row.submittedVersionNumber || row.currentDraftVersion})
+                          <InterfaceText>Resubmitted (V</InterfaceText>{' '}
+                          {row.submittedVersionNumber || row.currentDraftVersion})
                         </span>
                       ) : (
                         <span className="return-progress">
                           <Clock3 size={14} />
-                          {done}/{items.length} addressed
+                          {done}/{items.length} <InterfaceText>addressed</InterfaceText>
                         </span>
                       )}
                     </td>
                     <td>
                       <button type="button" onClick={() => onOpenOrder(row.orderId)}>
-                        Open <ArrowRight size={15} />
+                        <InterfaceText>Open</InterfaceText>
+                        <ArrowRight size={15} />
                       </button>
                     </td>
                   </tr>
@@ -485,7 +501,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </table>
           {!rows.length && (
             <div className="designer-empty">
-              No returned magazines match the selected filters.
+              <InterfaceText>No returned magazines match the selected filters.</InterfaceText>
             </div>
           )}
         </div>

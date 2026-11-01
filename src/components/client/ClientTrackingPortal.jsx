@@ -1,4 +1,4 @@
-import React, { lazy, useState, useEffect, useCallback } from 'react';
+import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   Lock,
@@ -32,14 +32,19 @@ const STAGES = [
 ];
 
 export default function ClientTrackingPortal() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const ui = (en, sw) => (lang === 'sw' ? sw : en);
+  const otpInput = useRef(null);
   const [trackingId, setTrackingId] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  useEffect(() => {
+    if (otpSent) otpInput.current?.focus();
+  }, [otpSent]);
   const [clientToken, setClientToken] = useState(sessionStorage.getItem('tinzel_client_token') || '');
   const [order, setOrder] = useState(null);
-  useAccountLanguage('client',clientToken,order?._id,order?.clientPreferredLanguage,message=>setError(message));
+  useAccountLanguage('client', clientToken, order?._id, order?.clientPreferredLanguage, (message) => setError(message));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -49,7 +54,7 @@ export default function ClientTrackingPortal() {
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [revisionItems, setRevisionItems] = useState([{ text: '', pageReference: '' }]);
   const [submittingDecision, setSubmittingDecision] = useState(false);
-  const [readerVersion,setReaderVersion] = useState(null);
+  const [readerVersion, setReaderVersion] = useState(null);
 
   useEffect(() => {
     if (clientToken) {
@@ -124,14 +129,27 @@ export default function ClientTrackingPortal() {
     setOrder(null);
     setOtpSent(false);
     setOtpCode('');
+    setSuccessMsg(null);
   }, []);
+  useEffect(() => {
+    const expired = (event) => {
+      handleLogout();
+      setError(event.detail?.message || t('track.err.sessionExpired'));
+    };
+    window.addEventListener('tinzel:client:unauthorized', expired);
+    return () => window.removeEventListener('tinzel:client:unauthorized', expired);
+  }, [handleLogout, t]);
 
   const handleApproveWholeMagazine = async () => {
     if (!confirm(t('track.confirm.approve'))) return;
     setSubmittingDecision(true);
     setError(null);
     try {
-      const res = await api.client.approveDraft(clientToken, 'Client approved whole magazine.', order.currentDraftVersion);
+      const res = await api.client.approveDraft(
+        clientToken,
+        'Client approved whole magazine.',
+        order.currentDraftVersion,
+      );
       setOrder(res.order);
       setSuccessMsg(t('track.ok.approved'));
     } catch (err) {
@@ -143,7 +161,9 @@ export default function ClientTrackingPortal() {
 
   const handleRequestRevision = async (e) => {
     e.preventDefault();
-    const items = revisionItems.map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() })).filter((item) => item.text);
+    const items = revisionItems
+      .map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() }))
+      .filter((item) => item.text);
     if (!items.length) {
       setError(t('track.err.describeChanges'));
       return;
@@ -167,9 +187,8 @@ export default function ClientTrackingPortal() {
   // Determine stage progression
   const getStageIndex = (status) => {
     // If order is placed on hold, preserve its actual workflow stage
-    const effectiveStatus = (status === 'on_hold' && order?.previousStatusBeforeHold)
-      ? order.previousStatusBeforeHold
-      : status;
+    const effectiveStatus =
+      status === 'on_hold' && order?.previousStatusBeforeHold ? order.previousStatusBeforeHold : status;
     switch (effectiveStatus) {
       case 'awaiting_payment':
         return 0;
@@ -202,7 +221,7 @@ export default function ClientTrackingPortal() {
   // Login Gate View
   if (!clientToken || !order) {
     return (
-      <div style={{ maxWidth: '480px', margin: '40px auto' }}>
+      <div className="tracking-access">
         <div
           style={{
             backgroundColor: 'var(--card-bg)',
@@ -216,7 +235,7 @@ export default function ClientTrackingPortal() {
               style={{
                 width: '48px',
                 height: '48px',
-                backgroundColor: '#1e3a8a',
+                backgroundColor: 'var(--accent-gold-light)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
@@ -224,18 +243,14 @@ export default function ClientTrackingPortal() {
                 margin: '0 auto 12px auto',
               }}
             >
-              <KeyRound size={24} color="#93c5fd" />
+              <KeyRound size={24} color="var(--accent-primary)" />
             </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '6px' }}>
-              {t('track.login.title')}
-            </h1>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              {t('track.login.subtitle')}
-            </p>
+            <h1 className="ui-title">{t('track.login.title')}</h1>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('track.login.subtitle')}</p>
           </div>
 
           {error && (
-            <div style={{ marginBottom: '18px' }}>
+            <div role="alert" style={{ marginBottom: '18px' }}>
               <div
                 style={{
                   backgroundColor: '#450a0a',
@@ -298,7 +313,10 @@ export default function ClientTrackingPortal() {
           {!otpSent ? (
             <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label htmlFor="track-login-id" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label
+                  htmlFor="track-login-id"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}
+                >
                   {t('track.login.trackingId')}
                 </label>
                 <input
@@ -322,12 +340,16 @@ export default function ClientTrackingPortal() {
               </div>
 
               <div>
-                <label htmlFor="track-login-whatsapp" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label
+                  htmlFor="track-login-whatsapp"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}
+                >
                   {t('track.login.whatsapp')}
                 </label>
                 <input
                   id="track-login-whatsapp"
-                  type="text"
+                  type="tel"
+                  autoComplete="tel"
                   placeholder={t('track.login.whatsappPh')}
                   required
                   value={clientWhatsApp}
@@ -368,17 +390,24 @@ export default function ClientTrackingPortal() {
           ) : (
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label htmlFor="track-login-otp" style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
+                <label
+                  htmlFor="track-login-otp"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}
+                >
                   {t('track.login.enterOtp')}
                 </label>
                 <input
                   id="track-login-otp"
+                  ref={otpInput}
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
                   maxLength={6}
                   placeholder="123456"
                   required
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -392,7 +421,7 @@ export default function ClientTrackingPortal() {
                   }}
                 />
                 {devOtp && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#60a5fa' }}>
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--info)' }}>
                     {t('track.login.devOtp')} <strong>{devOtp}</strong>
                   </div>
                 )}
@@ -420,7 +449,12 @@ export default function ClientTrackingPortal() {
 
               <button
                 type="button"
-                onClick={() => setOtpSent(false)}
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtpCode('');
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
                 style={{
                   backgroundColor: 'transparent',
                   color: 'var(--text-muted)',
@@ -431,6 +465,9 @@ export default function ClientTrackingPortal() {
               >
                 {t('track.login.change')}
               </button>
+              <button type="button" className="ui-button" disabled={loading} onClick={handleRequestOtp}>
+                {ui('Resend verification code', 'Tuma msimbo tena')}
+              </button>
             </form>
           )}
         </div>
@@ -440,10 +477,12 @@ export default function ClientTrackingPortal() {
 
   // Active Order & Whole-Magazine Review Portal View
   const currentStageIdx = getStageIndex(order.status);
-  const releasedDraft = (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) || (order.draftVersions || []).at(-1);
+  const releasedDraft =
+    (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) ||
+    (order.draftVersions || []).at(-1);
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div className="tracking-order">
       {/* Top Banner / Order Summary */}
       <div
         style={{
@@ -464,8 +503,8 @@ export default function ClientTrackingPortal() {
             </span>
             <span
               style={{
-                backgroundColor: '#1e3a8a',
-                color: '#93c5fd',
+                backgroundColor: 'var(--accent-gold-light)',
+                color: 'var(--accent-primary)',
                 fontSize: '11px',
                 fontWeight: '600',
                 padding: '2px 8px',
@@ -477,7 +516,8 @@ export default function ClientTrackingPortal() {
             </span>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            {t('track.client')} <strong>{order.clientName}</strong> • {t('track.magazine')} <strong>{order.formTitle}</strong>
+            {t('track.client')} <strong>{order.clientName}</strong> • {t('track.magazine')}{' '}
+            <strong>{order.formTitle}</strong>
           </p>
         </div>
 
@@ -520,7 +560,8 @@ export default function ClientTrackingPortal() {
               {t('track.status.on_hold') || 'Order Placed On Hold'}
             </div>
             <p style={{ color: '#78350F', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
-              {order.holdReason || 'Your magazine order is temporarily on hold pending review. Our team will notify you immediately once production resumes.'}
+              {order.holdReason ||
+                'Your magazine order is temporarily on hold pending review. Our team will notify you immediately once production resumes.'}
             </p>
           </div>
         </div>
@@ -537,7 +578,17 @@ export default function ClientTrackingPortal() {
             marginBottom: '24px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#1E40AF', fontWeight: '700', fontSize: '15px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '8px',
+              color: '#1E40AF',
+              fontWeight: '700',
+              fontSize: '15px',
+            }}
+          >
             <CreditCard size={18} />
             <span>{t('pay.title')}</span>
           </div>
@@ -545,8 +596,20 @@ export default function ClientTrackingPortal() {
             {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
           </p>
           {order.lipaNambaInstructions?.tillNumber && (
-            <div style={{ display: 'inline-block', backgroundColor: '#FFFFFF', border: '1px solid #93C5FD', borderRadius: '6px', padding: '8px 14px', fontSize: '13px', color: '#1E3A8A', fontWeight: '600' }}>
-              Till: {order.lipaNambaInstructions.tillNumber} ({order.lipaNambaInstructions.accountName || 'Tinzel Media Ltd'})
+            <div
+              style={{
+                display: 'inline-block',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #93C5FD',
+                borderRadius: '6px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                color: '#1E3A8A',
+                fontWeight: '600',
+              }}
+            >
+              Till: {order.lipaNambaInstructions.tillNumber} (
+              {order.lipaNambaInstructions.accountName || 'Tinzel Media Ltd'})
             </div>
           )}
         </div>
@@ -580,14 +643,8 @@ export default function ClientTrackingPortal() {
               <div
                 key={stg.key}
                 style={{
-                  backgroundColor: isCompleted
-                    ? '#F0FDF4'
-                    : isCurrent
-                    ? '#EFF6FF'
-                    : 'var(--bg-primary)',
-                  border: `1px solid ${
-                    isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : 'var(--border-color)'
-                  }`,
+                  backgroundColor: isCompleted ? '#F0FDF4' : isCurrent ? '#EFF6FF' : 'var(--bg-primary)',
+                  border: `1px solid ${isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : 'var(--border-color)'}`,
                   borderRadius: '6px',
                   padding: '10px 8px',
                   textAlign: 'center',
@@ -652,12 +709,34 @@ export default function ClientTrackingPortal() {
       )}
 
       {(order.revisionRequests || []).length > 0 && (
-        <section style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 20, marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 12 }}>Your requested fixes</h2>
-          {(order.revisionRequests || []).slice().reverse().map((request) => <div key={request._id} style={{ borderTop: '1px solid var(--border-color)', padding: '12px 0' }}>
-            <strong style={{ fontSize: 13 }}>Round {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}</strong>
-            <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>{request.items.map((item) => <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>{item.pageReference ? `Page ${item.pageReference}: ` : ''}{item.text}</li>)}</ul>
-          </div>)}
+        <section
+          style={{
+            backgroundColor: 'var(--card-bg)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 8,
+            padding: 20,
+            marginBottom: 24,
+          }}
+        >
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>{ui('Your requested fixes', 'Marekebisho uliyoomba')}</h2>
+          {(order.revisionRequests || [])
+            .slice()
+            .reverse()
+            .map((request) => (
+              <div key={request._id} style={{ borderTop: '1px solid var(--border-color)', padding: '12px 0' }}>
+                <strong style={{ fontSize: 13 }}>
+                  {ui('Round', 'Awamu')} {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}
+                </strong>
+                <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                  {request.items.map((item) => (
+                    <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>
+                      {item.pageReference ? `Page ${item.pageReference}: ` : ''}
+                      {item.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
         </section>
       )}
 
@@ -686,14 +765,31 @@ export default function ClientTrackingPortal() {
               <h2 style={{ fontSize: '18px', fontWeight: '700' }}>
                 {t('track.proof.title', { version: releasedDraft?.versionNumber })}
               </h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                {t('track.proof.hint')}
-              </p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('track.proof.hint')}</p>
             </div>
           </div>
 
-          <label>Magazine version <select aria-label="Magazine version" value={readerVersion||releasedDraft?.versionNumber} onChange={(e)=>setReaderVersion(Number(e.target.value))}>{(order.draftVersions||[]).map((v)=><option key={v.versionNumber} value={v.versionNumber}>Version {v.versionNumber}</option>)}</select></label>
-          <PdfBookReader token={clientToken} version={readerVersion||releasedDraft?.versionNumber} client title={t('track.proof.title', { version: readerVersion||releasedDraft?.versionNumber })} onReviewed={()=>loadOrder(clientToken)} />
+          <label>
+            Magazine version{' '}
+            <select
+              aria-label="Magazine version"
+              value={readerVersion || releasedDraft?.versionNumber}
+              onChange={(e) => setReaderVersion(Number(e.target.value))}
+            >
+              {(order.draftVersions || []).map((v) => (
+                <option key={v.versionNumber} value={v.versionNumber}>
+                  Version {v.versionNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+          <PdfBookReader
+            token={clientToken}
+            version={readerVersion || releasedDraft?.versionNumber}
+            client
+            title={t('track.proof.title', { version: readerVersion || releasedDraft?.versionNumber })}
+            onReviewed={() => loadOrder(clientToken)}
+          />
 
           {/* Action Decision Controls (Whole-Magazine Approval Gate) */}
           {order.status === 'client_review' ? (
@@ -705,9 +801,7 @@ export default function ClientTrackingPortal() {
                 padding: '24px',
               }}
             >
-              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>
-                {t('track.decision.title')}
-              </h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{t('track.decision.title')}</h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
                 {t('track.decision.desc')}
               </p>
@@ -758,8 +852,58 @@ export default function ClientTrackingPortal() {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
                     {t('track.decision.describe')}
                   </label>
-                  {revisionItems.map((item,index)=><div key={index} style={{display:'grid',gridTemplateColumns:'110px 1fr auto',gap:8,marginBottom:10}}><input aria-label={`Page reference ${index+1}`} placeholder="Page (optional)" value={item.pageReference} onChange={(e)=>setRevisionItems((rows)=>rows.map((row,i)=>i===index?{...row,pageReference:e.target.value}:row))} style={{padding:'10px 12px',border:'1px solid var(--border-color)',borderRadius:6}}/><textarea rows={2} required placeholder={t('track.decision.describePh')} value={item.text} onChange={(e)=>setRevisionItems((rows)=>rows.map((row,i)=>i===index?{...row,text:e.target.value}:row))} style={{padding:'10px 12px',border:'1px solid var(--border-color)',borderRadius:6}}/>{revisionItems.length>1&&<button type="button" onClick={()=>setRevisionItems((rows)=>rows.filter((_,i)=>i!==index))} style={{border:0,background:'transparent',color:'#991B1B'}}>Remove</button>}</div>)}
-                  <button type="button" onClick={()=>setRevisionItems((rows)=>[...rows,{text:'',pageReference:''}])} style={{background:'transparent',border:'1px solid var(--border-color)',borderRadius:6,padding:'8px 12px',marginBottom:16}}>Add another fix</button>
+                  {revisionItems.map((item, index) => (
+                    <div
+                      key={index}
+                      style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: 8, marginBottom: 10 }}
+                    >
+                      <input
+                        aria-label={`Page reference ${index + 1}`}
+                        placeholder="Page (optional)"
+                        value={item.pageReference}
+                        onChange={(e) =>
+                          setRevisionItems((rows) =>
+                            rows.map((row, i) => (i === index ? { ...row, pageReference: e.target.value } : row)),
+                          )
+                        }
+                        style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
+                      />
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder={t('track.decision.describePh')}
+                        value={item.text}
+                        onChange={(e) =>
+                          setRevisionItems((rows) =>
+                            rows.map((row, i) => (i === index ? { ...row, text: e.target.value } : row)),
+                          )
+                        }
+                        style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
+                      />
+                      {revisionItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setRevisionItems((rows) => rows.filter((_, i) => i !== index))}
+                          style={{ border: 0, background: 'transparent', color: '#991B1B' }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRevisionItems((rows) => [...rows, { text: '', pageReference: '' }])}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                      marginBottom: 16,
+                    }}
+                  >
+                    Add another fix
+                  </button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <button
                       type="submit"
@@ -812,7 +956,8 @@ export default function ClientTrackingPortal() {
             >
               <CheckCircle2 size={20} />
               <div>
-                <strong>{t('track.approved.title', { version: order.approvedVersionNumber })}</strong>! {t('track.approved.body')}
+                <strong>{t('track.approved.title', { version: order.approvedVersionNumber })}</strong>!{' '}
+                {t('track.approved.body')}
               </div>
             </div>
           ) : order.status === 'revision_requested' ? (
@@ -861,9 +1006,7 @@ export default function ClientTrackingPortal() {
           >
             <Clock size={28} color="var(--accent-primary)" />
           </div>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-            {t('track.wait.title')}
-          </h2>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>{t('track.wait.title')}</h2>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto' }}>
             {t('track.wait.body')}
           </p>
@@ -872,7 +1015,7 @@ export default function ClientTrackingPortal() {
 
       {/* Printing & Delivery Tracking Details */}
       {['printing_sent', 'printing_in_progress', 'printing_completed', 'dispatched', 'delivered'].includes(
-        order.status
+        order.status,
       ) && (
         <div
           style={{

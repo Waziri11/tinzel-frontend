@@ -1,406 +1,180 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import BrandLoading from '../common/BrandLoading';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
-
+import { navigate, editionSlug } from '../../navigation/location';
+import BrandLoading from '../common/BrandLoading';
+import { Button, EmptyState, Feedback } from '../common/UI';
+import '../../theme/customer.css';
 const DynamicFormRenderer = lazy(() => import('./DynamicFormRenderer'));
-
-function buildResponsiveCoverImageProps(url) {
-  const raw = String(url || '/brand/magazine-cover-sample.jpg').trim();
-  if (raw.includes('/api/public/covers/')) {
-    const baseUrl = raw.split('?')[0];
-    return {
-      src: `${baseUrl}?w=480`,
-      srcSet: `${baseUrl}?w=480 480w, ${baseUrl}?w=960 960w`,
-      sizes: '(max-width: 768px) 88vw, 380px',
-    };
-  }
-  return { src: raw };
-}
-
-function MagazineCoverCard({ form, onSelect }) {
-  const { t, lang } = useLanguage();
-  const [hovered, setHovered] = useState(false);
-  const coverImage = form.coverImageUrl || '/brand/magazine-cover-sample.jpg';
-  const coverProps = buildResponsiveCoverImageProps(coverImage);
-
-  // Format title: If it contains 'Harusi Yetu - Wedding Edition', clean to 'Wedding Magazine'
-  let displayTitle = localized(form, 'title', lang) || t('showcase.defaultTitle');
-  const hasSwahiliTitle = lang === 'sw' && String(form.titleSw || '').trim();
-  if (!hasSwahiliTitle) {
-    if (displayTitle.toLowerCase().includes('harusi yetu') || form.slug === 'wedding-magazine') {
-      displayTitle = t('showcase.weddingTitle');
-    } else if (displayTitle.toLowerCase().includes('birthday celebration special')) {
-      displayTitle = t('showcase.birthdayTitle');
-    }
-  }
-
+function Cover({ form, lang }) {
+  const [failed, setFailed] = useState(false);
+  const title = localized(form, 'title', lang);
+  const url = form.coverImageUrl;
   return (
-    <div style={{ textAlign: 'center' }}>
-      {/* Interactive Magazine Cover Link - Pure clean art */}
-      <button
-        type="button"
-        onClick={() => onSelect(form.slug)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        aria-label={`${displayTitle} - ${form.price?.toLocaleString()} ${form.currency}`}
-        style={{
-          cursor: 'pointer',
-          display: 'inline-block',
-          position: 'relative',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          backgroundColor: '#FFFFFF',
-          border: `2px solid ${hovered ? '#C5A059' : '#E7E5E4'}`,
-          boxShadow: hovered
-            ? '0 24px 48px rgba(197, 160, 89, 0.28), 0 8px 16px rgba(0, 0, 0, 0.08)'
-            : '0 12px 28px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04)',
-          transform: hovered ? 'translateY(-8px) scale(1.02)' : 'translateY(0) scale(1)',
-          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          maxWidth: '380px',
-          width: '100%',
-          padding: 0,
-        }}
-      >
-        {/* Magazine Cover Portrait Image */}
-        <div style={{ position: 'relative', width: '100%', paddingTop: '141.4%', backgroundColor: '#1C1917' }}>
-          <img
-            {...coverProps}
-            alt={displayTitle}
-            loading="lazy"
-            decoding="async"
-            width="480"
-            height="679"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-            }}
-          />
-
-          {/* Book Spine Edge Accent (Solid border, strict no-gradient rule) */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              bottom: 0,
-              width: '4px',
-              backgroundColor: '#C5A059',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Golden inner foil border effect */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '10px',
-              left: '10px',
-              right: '10px',
-              bottom: '10px',
-              border: `1px solid ${hovered ? 'rgba(212, 175, 55, 0.9)' : 'rgba(255, 255, 255, 0.25)'}`,
-              pointerEvents: 'none',
-              transition: 'border-color 0.3s ease',
-            }}
-          />
+    <div className="edition-cover">
+      {url && !failed ? (
+        <img
+          src={url.includes('/api/public/covers/') ? `${url.split('?')[0]}?w=480` : url}
+          alt={title}
+          loading="lazy"
+          width="480"
+          height="679"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="edition-cover-fallback">
+          <BookOpen size={40} />
+          <span>{title}</span>
+          <small>{lang === 'sw' ? 'Jalada linakuja' : 'Cover preview unavailable'}</small>
         </div>
-      </button>
-
-      {/* Ultra Minimalist Bottom Title & Price Only */}
-      <div style={{ marginTop: '18px' }}>
-        <h2
-          style={{
-            fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-            fontStyle: 'italic',
-            fontSize: '32px',
-            fontWeight: '600',
-            color: hovered ? 'var(--text-gold, #8A6621)' : '#1C1917',
-            marginBottom: '4px',
-            lineHeight: '1.2',
-            transition: 'color 0.2s ease',
-          }}
-        >
-          {displayTitle}
-        </h2>
-
-        {/* Price only in gold text */}
-        <div
-          style={{
-            fontSize: '14px',
-            fontWeight: '700',
-            color: 'var(--text-gold, #8A6621)',
-            letterSpacing: '0.6px',
-          }}
-        >
-          {form.price?.toLocaleString()} {form.currency}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
-
-export default function MagazineShowcase({ onBackToHome, onNavigateToTracking }) {
-  const { t, lang } = useLanguage();
-  const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedFormSlug, setSelectedFormSlug] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-
+export default function MagazineShowcase({ onNavigateToTracking }) {
+  const { lang, t } = useLanguage();
+  const sw = lang === 'sw';
+  const [forms, setForms] = useState([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(''),
+    [query, setQuery] = useState(''),
+    [slug, setSlug] = useState(editionSlug);
   useEffect(() => {
-    loadForms();
+    const update = () => setSlug(editionSlug());
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
   }, []);
-
-  const loadForms = async () => {
+  const load = async () => {
     setLoading(true);
-    setError(null);
+    setError('');
     try {
       const data = await api.public.getForms();
       setForms(data.forms || []);
     } catch (err) {
-      console.error('Failed to load forms:', err);
-      setError(err.message || 'Unable to load magazine catalogue. Please check your connection.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
-  const filteredForms = normalizedSearch
-    ? forms.filter((form) => [form.title, form.titleSw, form.description, form.descriptionSw, form.magazineType, form.magazineTypeSw, form.slug]
-      .some((value) => String(value || '').toLocaleLowerCase().includes(normalizedSearch)))
-    : forms;
-
-  // If user selected a magazine format, render the submission form
-  if (selectedFormSlug) {
+  useEffect(() => {
+    if (!slug) load();
+  }, [slug]);
+  if (slug)
     return (
-      <div style={{ maxWidth: '820px', margin: '0 auto', paddingBottom: '60px' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <button
-            type="button"
-            onClick={() => setSelectedFormSlug(null)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #E7E5E4',
-              borderRadius: '6px',
-              color: '#1C1917',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            title={t('showcase.backEditions')}
-          >
-            <ArrowLeft size={16} />
-          </button>
-        </div>
-
-        <Suspense fallback={<BrandLoading title="Opening form" description="Preparing your magazine questionnaire." />}>
-          <DynamicFormRenderer
-            slug={selectedFormSlug}
-            onNavigateToTracking={onNavigateToTracking}
-          />
+      <div className="ui-page order-page">
+        <button className="text-back" onClick={() => navigate('/catalogue')}>
+          <ArrowLeft size={16} />
+          {t('showcase.backEditions')}
+        </button>
+        <Suspense fallback={<BrandLoading title={t('form.loading')} />}>
+          <DynamicFormRenderer key={slug} slug={slug} onNavigateToTracking={onNavigateToTracking} />
         </Suspense>
       </div>
     );
-  }
-
+  const filtered = forms.filter((form) =>
+    [
+      form.title,
+      form.titleSw,
+      form.description,
+      form.descriptionSw,
+      form.magazineType,
+      form.magazineTypeSw,
+      form.slug,
+    ].some((value) =>
+      String(value || '')
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
+    ),
+  );
   return (
-    <div style={{ maxWidth: '1120px', margin: '0 auto', paddingBottom: '60px' }}>
-      {/* Top Header / Minimalist Back Arrow & Refined Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '48px',
-          borderBottom: '1px solid #E7E5E4',
-          paddingBottom: '20px',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBackToHome}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '42px',
-            height: '42px',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
-            borderRadius: '6px',
-            color: '#1C1917',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          title={t('showcase.backHome')}
-        >
-          <ArrowLeft size={16} />
-        </button>
-
-        <div style={{ textAlign: 'right' }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
-              fontStyle: 'italic',
-              fontSize: '26px',
-              fontWeight: '600',
-              color: '#1C1917',
-              lineHeight: '1.1',
-              marginBottom: '2px',
-            }}
-          >
-            {t('showcase.catalogue')}
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
-              fontSize: '12px',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              color: '#C5A059',
-            }}
-          >
-            {t('showcase.select')}
-          </div>
+    <section className="ui-page catalogue-page">
+      <div className="ui-page-heading">
+        <div>
+          <span className="ui-eyebrow">{sw ? 'Hadithi yako inaanzia hapa' : 'Your story starts here'}</span>
+          <h1 className="ui-title">{sw ? 'Chagua toleo lako' : 'An edition for your occasion.'}</h1>
+          <p className="ui-description">
+            {sw
+              ? 'Chagua jarida linalofaa tukio lako, kisha ulifanye lako kwa maneno na picha.'
+              : 'Choose a magazine for your occasion, then make it yours with words and photographs.'}
+          </p>
         </div>
-      </div>
-
-      {!loading && forms.length > 0 && (
-        <div style={{ maxWidth: '620px', margin: '0 auto 40px' }}>
-          <label
-            htmlFor="magazine-catalogue-search"
-            style={{ display: 'block', marginBottom: '8px', color: '#44403C', fontSize: '13px', fontWeight: '700' }}
-          >
-            {t('showcase.searchLabel')}
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Search
-              aria-hidden="true"
-              size={18}
-              style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#A8A29E', pointerEvents: 'none' }}
-            />
+        {forms.length > 0 && (
+          <label className="catalogue-search">
+            <Search size={18} />
             <input
               id="magazine-catalogue-search"
+              aria-label={t('showcase.searchLabel')}
               type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder={t('showcase.searchPlaceholder')}
-              autoComplete="off"
-              style={{
-                width: '100%',
-                minHeight: '50px',
-                padding: '12px 16px 12px 48px',
-                border: '1px solid #D6D3D1',
-                borderRadius: '8px',
-                backgroundColor: '#FFFFFF',
-                color: '#1C1917',
-                fontSize: '15px',
-                outlineColor: '#C5A059',
-                boxShadow: '0 6px 18px rgba(28, 25, 23, 0.05)',
-              }}
             />
-          </div>
-          <div aria-live="polite" style={{ minHeight: '20px', marginTop: '8px', color: '#78716C', fontSize: '12px' }}>
-            {normalizedSearch
-              ? t(filteredForms.length === 1 ? 'showcase.found.one' : 'showcase.found.many', { count: filteredForms.length })
-              : t(forms.length === 1 ? 'showcase.available.one' : 'showcase.available.many', { count: forms.length })}
-          </div>
-        </div>
-      )}
-
+          </label>
+        )}
+      </div>
       {loading ? (
-        <BrandLoading title={t('showcase.loading')} description={lang === 'sw' ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'} />
+        <BrandLoading
+          title={t('showcase.loading')}
+          description={
+            sw ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'
+          }
+        />
       ) : error ? (
-        <div
-          style={{
-            textAlign: 'center',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--accent-danger)',
-            borderRadius: '8px',
-            padding: '36px 24px',
-            color: '#1C1917',
-          }}
+        <>
+          <Feedback kind="error" title={sw ? 'Matoleo hayajafunguka' : 'The catalogue could not load'}>
+            {sw ? 'Angalia mtandao wako kisha ujaribu tena.' : 'Check your connection and try again.'}
+          </Feedback>
+          <Button onClick={load}>{sw ? 'Jaribu tena' : 'Retry Loading'}</Button>
+        </>
+      ) : !forms.length ? (
+        <EmptyState
+          title={sw ? 'Matoleo mapya yanakuja' : 'New editions are on their way'}
+          description={t('showcase.none')}
+        />
+      ) : !filtered.length ? (
+        <EmptyState
+          title={sw ? 'Hakuna matoleo yaliyopatikana' : 'No editions found'}
+          description={t('showcase.noMatch', { query })}
         >
-          <p style={{ color: 'var(--accent-danger)', fontWeight: '600', marginBottom: '16px', fontSize: '14px' }}>
-            {error}
-          </p>
-          <button
-            type="button"
-            onClick={loadForms}
-            style={{
-              border: '1px solid var(--accent-primary)',
-              borderRadius: '6px',
-              padding: '9px 20px',
-              backgroundColor: 'var(--accent-primary)',
-              color: '#FFFFFF',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '13px',
-            }}
-          >
-            {lang === 'sw' ? 'Jaribu Tena' : 'Retry Loading'}
-          </button>
-        </div>
-      ) : forms.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
-            borderRadius: '8px',
-            padding: '40px',
-            color: '#78716C',
-          }}
-        >
-          {t('showcase.none')}
-        </div>
-      ) : filteredForms.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E7E5E4',
-            borderRadius: '8px',
-            padding: '40px 24px',
-            color: '#78716C',
-          }}
-        >
-          <div style={{ marginBottom: '16px' }}>{t('showcase.noMatch', { query: searchQuery.trim() })}</div>
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            style={{ border: '1px solid #C5A059', borderRadius: '6px', padding: '9px 16px', backgroundColor: '#FFFFFF', color: '#1C1917', fontWeight: '700', cursor: 'pointer' }}
-          >
-            {t('showcase.clear')}
-          </button>
-        </div>
+          <Button onClick={() => setQuery('')}>{t('showcase.clear')}</Button>
+        </EmptyState>
       ) : (
-        /* Magazine Cover Showcase Grid */
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 340px))',
-            justifyContent: 'center',
-            gap: '48px',
-          }}
-        >
-          {filteredForms.map((form) => (
-            <MagazineCoverCard key={form.slug} form={form} onSelect={(slug) => setSelectedFormSlug(slug)} />
-          ))}
-        </div>
+        <>
+          <p className="catalogue-count" role="status">
+            {t(filtered.length === 1 ? 'showcase.available.one' : 'showcase.available.many', {
+              count: filtered.length,
+            })}
+          </p>
+          <div className="edition-grid">
+            {filtered.map((form) => (
+              <article className="edition-card" key={form.slug}>
+                <button
+                  className="edition-select"
+                  onClick={() => navigate(`/catalogue/${encodeURIComponent(form.slug)}?step=details`)}
+                  aria-label={`${localized(form, 'title', lang)} — ${form.price?.toLocaleString()} ${form.currency}`}
+                >
+                  <Cover form={form} lang={lang} />
+                  <div className="edition-info">
+                    <span className="ui-eyebrow">{localized(form, 'magazineType', lang) || 'Tinzel'}</span>
+                    <h2>{localized(form, 'title', lang)}</h2>
+                    <p>{localized(form, 'description', lang)}</p>
+                    <div>
+                      <strong>
+                        {form.price?.toLocaleString()} {form.currency}
+                      </strong>
+                      <span>
+                        {sw ? 'Chagua toleo' : 'Choose edition'}
+                        <ArrowRight size={15} />
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
       )}
-    </div>
+    </section>
   );
 }

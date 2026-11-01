@@ -1,0 +1,423 @@
+.landing-page {
+  max-width: 1280px;
+  margin: auto;
+  padding: 0 40px;
+}
+.landing-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 80px;
+  align-items: center;
+  padding: 72px 0 64px;
+}
+.landing-copy h1 {
+  font: 500 clamp(54px, 5.6vw, 82px) / 1.04 var(--font-brand);
+  letter-spacing: -0.035em;
+  margin: 20px 0 24px;
+}
+.landing-copy h1 em {
+  font-style: normal;
+  color: var(--accent-primary);
+}
+.landing-copy > p {
+  max-width: 440px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+.landing-actions {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+.landing-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px 0;
+}
+.landing-art {
+  text-align: center;
+}
+.landing-arch {
+  padding: 48px 64px 40px;
+  border-radius: 48% 48% 8px 8px;
+  background: #efe9dd;
+}
+.landing-arch img {
+  width: 100%;
+  max-width: 284px;
+  height: auto;
+  transform: rotate(5deg);
+  box-shadow: 12px 20px 22px #28272030;
+}
+.landing-art > span {
+  display: block;
+  margin-top: 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.landing-process {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 32px 0 44px;
+  border-top: 1px solid var(--border-color);
+  gap: 40px;
+}
+.landing-process article {
+  display: flex;
+  gap: 18px;
+}
+.process-number {
+  font: 500 30px var(--font-brand);
+  color: var(--accent-primary);
+}
+.landing-process svg {
+  display: none;
+}
+.landing-process h2 {
+  font: 600 16px var(--font-body);
+  margin: 5px 0 8px;
+}
+.landing-process p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+.catalogue-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: white;
+  padding: 0 12px;
+  min-width: 240px;
+}
+.catalogue-search input {
+  width: 100%;
+  border: 0;
+  padding-left: 0;
+  font-size: 13px;
+}
+.catalogue-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: -4px 0 20px;
+}
+.edition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+.edition-card {
+  min-width: 0;
+}
+.edition-select {
+  width: 100%;
+  background: white;
+  text-align: left;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.edition-select:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow);
+}
+.edition-cover {
+  background: #efe9dd;
+  padding: 28px 40px;
+  aspect-ratio: 1/1.18;
+  display: grid;
+  place-items: center;
+}
+.edition-cover img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(6px 9px 8px #28272025);
+}
+.edition-cover-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+  color: var(--accent-primary);
+}
+.edition-cover-fallback span {
+  font: 500 32px var(--font-brand);
+}
+.edition-cover-fallback small {
+  font-size: 11px;
+}
+.edition-info {
+  padding: 24px;
+}
+.edition-info h2 {
+  font: 500 32px/1.15 var(--font-brand);
+}
+.edition-info > p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin: 10px 0 24px;
+}
+.edition-info > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+.edition-info > div span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-primary);
+}
+.order-page {
+  max-width: 960px;
+}
+.order-page > .text-back {
+  margin-bottom: 24px;
+}
+.order-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 28px;
+}
+.order-steps button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  text-align: left;
+  background: transparent;
+  border-bottom: 2px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.order-steps button[aria-current='step'] {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  font-weight: 700;
+}
+.order-steps button span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-gold-light);
+  color: var(--accent-primary);
+  font-size: 11px;
+}
+.order-step-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 24px 0;
+}
+.order-review {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.order-review h2 {
+  font: 500 32px var(--font-brand);
+  margin-bottom: 16px;
+}
+.order-review dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 13px;
+}
+.order-review dt {
+  color: var(--text-muted);
+}
+.order-review dd {
+  overflow-wrap: anywhere;
+}
+.order-review > section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.order-review .ui-button {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+@media (max-width: 1000px) {
+  .landing-hero {
+    gap: 40px;
+  }
+  .landing-arch {
+    padding: 40px;
+  }
+  .edition-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .landing-page {
+    padding: 0 24px;
+  }
+  .landing-hero {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    padding: 40px 0;
+  }
+  .landing-copy h1 {
+    font-size: 56px;
+  }
+  .landing-copy > p {
+    font-size: 14px;
+  }
+  .landing-arch {
+    max-width: 320px;
+    margin: auto;
+    padding: 36px 56px;
+  }
+  .landing-arch img {
+    max-width: 190px;
+  }
+  .landing-process {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 28px 0;
+  }
+  .landing-process article {
+    gap: 20px;
+  }
+  .edition-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .edition-cover {
+    padding: 28px 64px;
+    aspect-ratio: 1/1;
+  }
+  .catalogue-search {
+    min-width: 0;
+  }
+  .order-steps {
+    gap: 4px;
+  }
+  .order-steps button {
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 11px;
+    padding: 10px 2px;
+  }
+  .order-review dl {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .order-review dd {
+    margin-bottom: 10px;
+  }
+}
+.order-heading {
+  margin-bottom: 28px;
+}
+.order-price {
+  display: block;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.order-form [hidden] {
+  display: none;
+}
+.order-form h2 {
+  font-family: var(--font-brand);
+  font-size: 28px;
+  font-weight: 500;
+}
+.order-form [id='magazine-client-name'] {
+  scroll-margin-top: 110px;
+}
+.order-form [role='alert'] {
+  scroll-margin-top: 110px;
+}
+.order-form .tinzel-submit-button {
+  box-shadow: none;
+}
+.order-form .ui-title:focus {
+  outline: 0;
+}
+.tracking-access {
+  width: min(520px, 100%);
+  margin: 24px auto 48px;
+}
+.tracking-access > div {
+  box-shadow: var(--shadow);
+}
+.tracking-access .ui-title {
+  font: 500 40px/1.1 var(--font-brand);
+  margin: 16px 0;
+}
+.tracking-order {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+.tracking-order > div:first-child {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 24px;
+}
+.tracking-order > div:first-child > div > div > span:first-child {
+  font: 500 36px var(--font-brand);
+  letter-spacing: 0;
+}
+.tracking-order h2 {
+  font: 500 30px var(--font-brand);
+}
+.client-inbox {
+  background: white;
+  font-size: 13px;
+}
+.client-inbox summary {
+  padding: 5px;
+  min-height: 36px;
+}
+.client-inbox article:last-child {
+  border-bottom: 0;
+}
+.client-inbox button {
+  min-height: 40px;
+}
+.payment-page h1 {
+  font: 500 40px var(--font-brand);
+}
+.payment-page h2 {
+  font: 500 28px var(--font-brand);
+}
+@media (max-width: 600px) {
+  .tracking-access {
+    margin: 0 auto 24px;
+  }
+  .tracking-access > div {
+    padding: 24px;
+  }
+  .tracking-order > div:first-child {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .tracking-order > div:first-child > div > div > span:first-child {
+    font-size: 30px;
+  }
+}

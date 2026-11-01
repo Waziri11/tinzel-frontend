@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-01",
+  "frontendUnitTests": {
+    "passed": 26,
+    "failed": 0
+  },
+  "backendTests": {
+    "passed": 119,
+    "failed": 0
+  },
+  "fullBrowserSuite": {
+    "passed": 91,
+    "failed": 0,
+    "duration": "3.8 minutes",
+    "server": "MongoMemoryServer on loopback; disposable files; simulated external providers"
+  },
+  "productionBuild": "passed",
+  "coverage": {
+    "views": 111,
+    "states": 438,
+    "languageViewportCombinationsMapped": 1752
+  },
+  "languages": [
+    "en",
+    "sw"
+  ],
+  "responsiveWidths": [
+    320,
+    390,
+    430,
+    768,
+    1440
+  ],
+  "zoomLayout": "720 CSS pixels, equivalent layout width for 1440px at 200%",
+  "accessibility": "WCAG2A, WCAG2AA, WCAG21AA, WCAG22AA axe checks; labels, contrast and keyboard focus checks",
+  "physicalScreenReaderCertification": false,
+  "all1752StatesManuallyInspected": false,
+  "productionMutationTests": false,
+  "previewVerification": "Recorded separately in final workspace rollout record",
+  "productionVerification": "Recorded separately in final workspace rollout record",
+  "productionDependencyAudit": {
+    "frontend": 0,
+    "backend": 0
+  },
+  "backendDependencyNote": "follow-redirects 1.16.2; readdir-glob scoped to minimatch 11.0.1; 119 tests pass after update"
+}
