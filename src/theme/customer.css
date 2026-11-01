@@ -67,14 +67,7 @@
   opacity: 1;
   transform: translateY(0) rotate(0);
 }
-.landing-slideshow-control {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-}
+
 /* Give tablets and desktops enough depth to see the magazines trade places. */
 @media (min-width: 601px) and (prefers-reduced-motion: no-preference) {
   .landing-art {
@@ -115,12 +108,7 @@
 @media (prefers-reduced-motion: reduce) {
   .landing-covers img { transition: none; transform: none; }
 }
-.landing-art > span {
-  display: block;
-  margin-top: 20px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
+
 .landing-process {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

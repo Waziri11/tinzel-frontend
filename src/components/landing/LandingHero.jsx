@@ -11,7 +11,6 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
     active: 0, previous: null,
   });
   const [isPhone, setIsPhone] = useState(() => window.matchMedia('(max-width: 600px)').matches);
-  const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
     const phone = window.matchMedia('(max-width: 600px)');
@@ -48,14 +47,14 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
-    if (covers.length < 2 || paused || reducedMotion || isPhone) return;
+    if (covers.length < 2 || reducedMotion || isPhone) return;
     const timer = window.setInterval(() => {
       setCoverPosition(({ active }) => ({
         active: (active + 1) % covers.length, previous: active,
       }));
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [covers.length, paused, reducedMotion, isPhone]);
+  }, [covers.length, reducedMotion, isPhone]);
   return (
     <div className="landing-page">
       <section className="landing-hero">
@@ -109,14 +108,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
                 width="480" height="679" fetchPriority="high" />
             )}
           </div>
-          {covers.length > 1 && !reducedMotion && (
-            <button className="landing-slideshow-control" onClick={() => setPaused(!paused)}
-              aria-pressed={paused}>
-              {paused ? (sw ? 'Endelea kubadilisha majalada' : 'Resume cover slideshow')
-                : (sw ? 'Sitisha kubadilisha majalada' : 'Pause cover slideshow')}
-            </button>
-          )}
-          <span>{sw ? 'Hadithi yako. Imeundwa kukumbukwa.' : 'Your story. Designed to be remembered.'}</span>
+
         </div>
       </section>
       <section className="landing-process" aria-label={sw ? 'Inavyofanya kazi' : 'How it works'}>
