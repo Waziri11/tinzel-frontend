@@ -1,5 +1,12 @@
 import InterfaceText from '../../i18n/InterfaceText';
-import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import { ConfigProvider, Drawer, Grid } from 'antd';
 import {
   Layers,
@@ -39,11 +46,12 @@ const ReturnsPage = lazy(() => import('../designer/ReturnsPage'));
 const NotificationsPage = lazy(() => import('./NotificationsPage'));
 const FormBuilder = lazy(() => import('../admin/FormBuilder'));
 const SystemPage = lazy(() => import('./SystemPage'));
-const StaffWorkloadManager = lazy(() => import('../admin/StaffWorkloadManager'));
+const StaffWorkloadManager = lazy(
+  () => import('../admin/StaffWorkloadManager'),
+);
 
 // RBAC Navigation Configuration
 const NAVIGATION_ITEMS = [
-  {id:'system',label:'System',path:'/staff/system',section:'Operations',icon:Layers,roles:['admin','manager']},
   {
     id: 'pre_design',
     label: 'Pre-Design',
@@ -93,6 +101,14 @@ const NAVIGATION_ITEMS = [
     roles: ['admin', 'manager', 'designer'],
   },
   {
+    id: 'system',
+    label: 'System',
+    path: '/staff/system',
+    section: 'Operations',
+    icon: Layers,
+    roles: ['admin', 'manager'],
+  },
+  {
     id: 'form_builder',
     label: 'Forms',
     path: '/staff/forms',
@@ -132,12 +148,20 @@ export default function StaffWorkspace({ onExitToHome }) {
   const screens = Grid.useBreakpoint();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef(null);
-  const [token, setToken] = useState(localStorage.getItem('tinzel_staff_token') || '');
+  const [token, setToken] = useState(
+    localStorage.getItem('tinzel_staff_token') || '',
+  );
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  useAccountLanguage('staff', token, currentUser?.id || currentUser?._id, currentUser?.preferredLanguage, setError);
+  useAccountLanguage(
+    'staff',
+    token,
+    currentUser?.id || currentUser?._id,
+    currentUser?.preferredLanguage,
+    setError,
+  );
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -148,17 +172,36 @@ export default function StaffWorkspace({ onExitToHome }) {
   const readRoute = () => {
     const pathname = window.location.pathname;
     const orderMatch = pathname.match(/^\/staff\/design\/orders\/([^/]+)/);
-    if (orderMatch) return { page: 'designer_order', orderId: decodeURIComponent(orderMatch[1]) };
-    if (pathname.startsWith('/staff/pre-design')) return { page: 'pre_design', orderId: null };
-    if (pathname.startsWith('/staff/design-phase')) return { page: 'design_phase', orderId: null };
-    if (pathname.startsWith('/staff/post-design')) return { page: 'post_design', orderId: null };
-    if (pathname.startsWith('/staff/returns')) return { page: 'returns', orderId: null };
-    if (pathname.startsWith('/staff/notifications')) return { page: 'notifications', orderId: null };
-    if (pathname.startsWith('/staff/forms')) return { page: 'form_builder', orderId: null };
-    if (pathname.startsWith('/staff/system')) return { page: 'system', orderId: null };
-    if (pathname.startsWith('/staff/users')) return { page: 'staff_roster', orderId: null };
-    if (pathname.startsWith('/staff/design')) return { page: 'designer_queue', orderId: null };
-    return { page: pathname === '/staff' || pathname === '/staff/' ? 'pre_design' : 'missing', orderId: null };
+    if (orderMatch)
+      return {
+        page: 'designer_order',
+        orderId: decodeURIComponent(orderMatch[1]),
+      };
+    if (pathname.startsWith('/staff/pre-design'))
+      return { page: 'pre_design', orderId: null };
+    if (pathname.startsWith('/staff/design-phase'))
+      return { page: 'design_phase', orderId: null };
+    if (pathname.startsWith('/staff/post-design'))
+      return { page: 'post_design', orderId: null };
+    if (pathname.startsWith('/staff/returns'))
+      return { page: 'returns', orderId: null };
+    if (pathname.startsWith('/staff/notifications'))
+      return { page: 'notifications', orderId: null };
+    if (pathname.startsWith('/staff/forms'))
+      return { page: 'form_builder', orderId: null };
+    if (pathname.startsWith('/staff/system'))
+      return { page: 'system', orderId: null };
+    if (pathname.startsWith('/staff/users'))
+      return { page: 'staff_roster', orderId: null };
+    if (pathname.startsWith('/staff/design'))
+      return { page: 'designer_queue', orderId: null };
+    return {
+      page:
+        pathname === '/staff' || pathname === '/staff/'
+          ? 'pre_design'
+          : 'missing',
+      orderId: null,
+    };
   };
   const initialRoute = readRoute();
   const [activePage, setActivePage] = useState(initialRoute.page);
@@ -183,11 +226,15 @@ export default function StaffWorkspace({ onExitToHome }) {
     async (authToken = token) => {
       if (!authToken) return;
       try {
-        const data = await api.notifications.getHistory(authToken, { limit: 100 });
+        const data = await api.notifications.getHistory(authToken, {
+          limit: 100,
+        });
         if (typeof data.unreadCount === 'number') {
           setUnreadNotifications(data.unreadCount);
         } else {
-          setUnreadNotifications((data.notifications || []).filter((n) => !n.isRead).length);
+          setUnreadNotifications(
+            (data.notifications || []).filter((n) => !n.isRead).length,
+          );
         }
       } catch {
         // Ignore background badge refresh errors
@@ -196,17 +243,24 @@ export default function StaffWorkspace({ onExitToHome }) {
     [token],
   );
 
-  useVisiblePolling(() => refreshUnreadCount(token), Boolean(token && currentUser && !currentUser.mustChangePassword));
+  useVisiblePolling(
+    () => refreshUnreadCount(token),
+    Boolean(token && currentUser && !currentUser.mustChangePassword),
+  );
 
   useEffect(() => {
     const onUnauthorized = (event) => {
       setToken('');
       setCurrentUser(null);
       localStorage.removeItem('tinzel_staff_token');
-      setError(event?.detail?.message || 'Your session has expired or is invalid. Please sign in again.');
+      setError(
+        event?.detail?.message ||
+          'Your session has expired or is invalid. Please sign in again.',
+      );
     };
     window.addEventListener('tinzel:staff:unauthorized', onUnauthorized);
-    return () => window.removeEventListener('tinzel:staff:unauthorized', onUnauthorized);
+    return () =>
+      window.removeEventListener('tinzel:staff:unauthorized', onUnauthorized);
   }, []);
 
   useEffect(() => {
@@ -225,7 +279,10 @@ export default function StaffWorkspace({ onExitToHome }) {
 
       // Default page based on RBAC role and current URL
       const route = readRoute();
-      if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+      if (
+        window.location.pathname !== '/staff' &&
+        window.location.pathname !== '/staff/'
+      ) {
         setActivePage(route.page);
         setRouteOrderId(route.orderId);
       } else if (data.user.role === 'designer') {
@@ -239,7 +296,9 @@ export default function StaffWorkspace({ onExitToHome }) {
         setToken('');
         localStorage.removeItem('tinzel_staff_token');
       } else {
-        setError('Unable to reconnect to your workspace. Please check your backend connection or sign in again.');
+        setError(
+          'Unable to reconnect to your workspace. Please check your backend connection or sign in again.',
+        );
       }
     } finally {
       setLoading(false);
@@ -258,7 +317,10 @@ export default function StaffWorkspace({ onExitToHome }) {
       if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
 
       const route = readRoute();
-      if (window.location.pathname !== '/staff' && window.location.pathname !== '/staff/') {
+      if (
+        window.location.pathname !== '/staff' &&
+        window.location.pathname !== '/staff/'
+      ) {
         setActivePage(route.page);
         setRouteOrderId(route.orderId);
       } else if (data.user.role === 'designer') {
@@ -288,15 +350,19 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
 
   // Filter allowed navigation items based on the user's role (Strict RBAC)
-  const allowedMenuItems = currentUser ? NAVIGATION_ITEMS.filter((item) => item.roles.includes(currentUser.role)) : [];
+  const allowedMenuItems = currentUser
+    ? NAVIGATION_ITEMS.filter((item) => item.roles.includes(currentUser.role))
+    : [];
 
   // Enforce that active page is always permitted by RBAC
   const orderPageAllowed =
-    activePage === 'designer_order' && ['designer', 'manager', 'admin'].includes(currentUser?.role);
+    activePage === 'designer_order' &&
+    ['designer', 'manager', 'admin'].includes(currentUser?.role);
   const effectiveActivePage =
     activePage === 'missing'
       ? 'missing'
-      : orderPageAllowed || allowedMenuItems.some((item) => item.id === activePage)
+      : orderPageAllowed ||
+          allowedMenuItems.some((item) => item.id === activePage)
         ? activePage
         : 'denied';
 
@@ -314,10 +380,15 @@ export default function StaffWorkspace({ onExitToHome }) {
           const route = readRoute();
           const allowed =
             route.page === 'designer_order' ||
-            NAVIGATION_ITEMS.some((item) => item.id === route.page && item.roles.includes(data.user.role));
+            NAVIGATION_ITEMS.some(
+              (item) =>
+                item.id === route.page && item.roles.includes(data.user.role),
+            );
           if (!allowed)
             navigateStaff(
-              data.user.role === 'designer' ? '/staff/design' : '/staff/pre-design',
+              data.user.role === 'designer'
+                ? '/staff/design'
+                : '/staff/pre-design',
               data.user.role === 'designer' ? 'designer_queue' : 'pre_design',
             );
           refreshUnreadCount(data.token);
@@ -330,7 +401,15 @@ export default function StaffWorkspace({ onExitToHome }) {
   if (token && !currentUser && !error) {
     return (
       <div className="ui-page">
-        <PageSkeleton variant={['pre_design', 'design_phase', 'post_design'].includes(activePage) ? 'board' : activePage === 'designer_order' ? 'detail' : 'table'} />
+        <PageSkeleton
+          variant={
+            ['pre_design', 'design_phase', 'post_design'].includes(activePage)
+              ? 'board'
+              : activePage === 'designer_order'
+                ? 'detail'
+                : 'table'
+          }
+        />
       </div>
     );
   }
@@ -367,7 +446,8 @@ export default function StaffWorkspace({ onExitToHome }) {
           <TinzelLogo variant="mark" height={40} />
           <h2
             style={{
-              fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+              fontFamily:
+                'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
               fontStyle: 'italic',
               fontSize: '22px',
               fontWeight: '600',
@@ -377,10 +457,26 @@ export default function StaffWorkspace({ onExitToHome }) {
           >
             <InterfaceText>Staff Workspace</InterfaceText>
           </h2>
-          <p role="status" style={{ fontSize: '14px', color: '#57534E', margin: 0, lineHeight: 1.5 }}>
+          <p
+            role="status"
+            style={{
+              fontSize: '14px',
+              color: '#57534E',
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
             {error || 'Reconnecting to your workspace…'}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '8px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              width: '100%',
+              marginTop: '8px',
+            }}
+          >
             {error && (
               <button
                 type="button"
@@ -416,7 +512,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                 cursor: 'pointer',
               }}
             >
-              <InterfaceText>Sign out / Sign in with another account</InterfaceText>
+              <InterfaceText>
+                Sign out / Sign in with another account
+              </InterfaceText>
             </button>
             {onExitToHome && (
               <button
@@ -497,7 +595,8 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
               <h1
                 style={{
-                  fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                  fontFamily:
+                    'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
                   fontStyle: 'normal',
                   fontSize: '28px',
                   fontWeight: '600',
@@ -507,7 +606,6 @@ export default function StaffWorkspace({ onExitToHome }) {
               >
                 {ui('Sign in', 'Ingia')}
               </h1>
-
             </div>
 
             {error && (
@@ -614,7 +712,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                     type="button"
                     className="staff-password-toggle"
                     aria-label={
-                      showPassword ? ui('Hide password', 'Ficha nenosiri') : ui('Show password', 'Onyesha nenosiri')
+                      showPassword
+                        ? ui('Hide password', 'Ficha nenosiri')
+                        : ui('Show password', 'Onyesha nenosiri')
                     }
                     onClick={() => setShowPassword(!showPassword)}
                     style={{
@@ -705,16 +805,20 @@ export default function StaffWorkspace({ onExitToHome }) {
               const IconComponent = item.icon;
               const isActive =
                 effectiveActivePage === item.id ||
-                (effectiveActivePage === 'designer_order' && item.id === 'designer_queue');
-              const prevSection = idx > 0 ? allowedMenuItems[idx - 1].section : null;
-              const showSectionHeader = item.section && item.section !== prevSection;
+                (effectiveActivePage === 'designer_order' &&
+                  item.id === 'designer_queue');
+              const prevSection =
+                idx > 0 ? allowedMenuItems[idx - 1].section : null;
+              const showSectionHeader =
+                item.section && item.section !== prevSection;
 
               return (
                 <React.Fragment key={item.id}>
                   {showSectionHeader && (
                     <div
                       style={{
-                        padding: idx === 0 ? '0 14px 4px 14px' : '12px 14px 4px 14px',
+                        padding:
+                          idx === 0 ? '0 14px 4px 14px' : '12px 14px 4px 14px',
                         fontSize: '10px',
                         fontWeight: '800',
                         letterSpacing: '0.08em',
@@ -727,7 +831,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                   )}
                   <button
                     type="button"
-                    onClick={() => navigateStaff(item.path || '/staff', item.id)}
+                    onClick={() =>
+                      navigateStaff(item.path || '/staff', item.id)
+                    }
                     aria-current={isActive ? 'page' : undefined}
                     style={{
                       display: 'flex',
@@ -738,16 +844,38 @@ export default function StaffWorkspace({ onExitToHome }) {
                       borderRadius: '8px',
                       border: 'none',
                       backgroundColor: isActive ? '#FAF5EA' : 'transparent',
-                      borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                      borderLeft: isActive
+                        ? '3px solid var(--accent-primary)'
+                        : '3px solid transparent',
                       color: isActive ? 'var(--text-main)' : '#57534E',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <IconComponent size={18} color={isActive ? 'var(--accent-primary)' : 'var(--text-muted)'} />
-                      <div style={{ fontSize: '13px', fontWeight: isActive ? '700' : '600' }}>{label(item.label)}</div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                      }}
+                    >
+                      <IconComponent
+                        size={18}
+                        color={
+                          isActive
+                            ? 'var(--accent-primary)'
+                            : 'var(--text-muted)'
+                        }
+                      />
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: isActive ? '700' : '600',
+                        }}
+                      >
+                        {label(item.label)}
+                      </div>
                     </div>
                     {item.id === 'notifications' && unreadNotifications > 0 && (
                       <span
@@ -773,8 +901,25 @@ export default function StaffWorkspace({ onExitToHome }) {
         </div>
       </div>
 
-      <div style={{padding:'16px 14px',borderTop:'1px solid var(--border-color)'}}>
-        <StaffProfile user={currentUser} token={token} onLogout={handleLogout} onCloseSidebar={()=>setMenuOpen(false)} onUpdate={(data)=>{setCurrentUser(user=>({...user,...data.user}));if(data.token){setToken(data.token);localStorage.setItem('tinzel_staff_token',data.token);}}}/>
+      <div
+        style={{
+          padding: '16px 14px',
+          borderTop: '1px solid var(--border-color)',
+        }}
+      >
+        <StaffProfile
+          user={currentUser}
+          token={token}
+          onLogout={handleLogout}
+          onCloseSidebar={() => setMenuOpen(false)}
+          onUpdate={(data) => {
+            setCurrentUser((user) => ({ ...user, ...data.user }));
+            if (data.token) {
+              setToken(data.token);
+              localStorage.setItem('tinzel_staff_token', data.token);
+            }
+          }}
+        />
       </div>
     </aside>
   );
@@ -798,7 +943,13 @@ export default function StaffWorkspace({ onExitToHome }) {
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
           afterOpenChange={(open) => {
-            if (!open) menuButton.current?.focus({ preventScroll: true });
+            if (
+              !open &&
+              ![...document.querySelectorAll('.ant-modal-wrap')].some(
+                (el) => el.getClientRects().length,
+              )
+            )
+              menuButton.current?.focus({ preventScroll: true });
           }}
           size="min(90vw, 340px)"
           styles={{ body: { padding: 0 } }}
@@ -851,7 +1002,8 @@ export default function StaffWorkspace({ onExitToHome }) {
           <div>
             <h2
               style={{
-                fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
+                fontFamily:
+                  'var(--font-brand, "Cormorant Garamond", Georgia, serif)',
                 fontStyle: 'italic',
                 fontSize: '24px',
                 fontWeight: '600',
@@ -863,18 +1015,24 @@ export default function StaffWorkspace({ onExitToHome }) {
               {effectiveActivePage === 'designer_order'
                 ? 'Design order'
                 : label(
-                    NAVIGATION_ITEMS.find((item) => item.id === effectiveActivePage)?.label ||
-                      ui('Workstation', 'Ofisi'),
+                    NAVIGATION_ITEMS.find(
+                      (item) => item.id === effectiveActivePage,
+                    )?.label || ui('Workstation', 'Ofisi'),
                   )}
             </h2>
           </div>
 
-          <div className="staff-header-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            className="staff-header-profile"
+            style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+          >
             <LanguageSwitcher />
             <button
               type="button"
               aria-label={`Notifications${unreadNotifications > 0 ? ` (${unreadNotifications} unread)` : ''}`}
-              onClick={() => navigateStaff('/staff/notifications', 'notifications')}
+              onClick={() =>
+                navigateStaff('/staff/notifications', 'notifications')
+              }
               style={{
                 position: 'relative',
                 display: 'inline-flex',
@@ -883,7 +1041,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                 padding: '6px 10px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-color)',
-                backgroundColor: effectiveActivePage === 'notifications' ? '#FAF5EA' : '#FFFFFF',
+                backgroundColor:
+                  effectiveActivePage === 'notifications'
+                    ? '#FAF5EA'
+                    : '#FFFFFF',
                 color: 'var(--text-main)',
                 fontSize: '12px',
                 fontWeight: 700,
@@ -891,17 +1052,34 @@ export default function StaffWorkspace({ onExitToHome }) {
               }}
             >
               <Bell size={15} color="#8A6825" />
-              <span>{ui('Notifications', 'Taarifa')}</span>
-              <span aria-label="Unread notifications">{unreadNotifications > 0 ? unreadNotifications : null}</span>
+              <span className="staff-notification-label">
+                {ui('Notifications', 'Taarifa')}
+              </span>
+              <span aria-label="Unread notifications">
+                {unreadNotifications > 0 ? unreadNotifications : null}
+              </span>
             </button>
-
           </div>
         </header>
 
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
           <div className="staff-content" style={{ padding: '32px', flex: 1 }}>
-            <Suspense fallback={<PageSkeleton variant={['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) ? 'board' : effectiveActivePage === 'designer_order' ? 'detail' : 'table'} />}>
+            <Suspense
+              fallback={
+                <PageSkeleton
+                  variant={
+                    ['pre_design', 'design_phase', 'post_design'].includes(
+                      effectiveActivePage,
+                    )
+                      ? 'board'
+                      : effectiveActivePage === 'designer_order'
+                        ? 'detail'
+                        : 'table'
+                  }
+                />
+              }
+            >
               {['missing', 'denied'].includes(effectiveActivePage) && (
                 <EmptyState
                   title={
@@ -914,30 +1092,49 @@ export default function StaffWorkspace({ onExitToHome }) {
                     'Chagua ukurasa unaoruhusiwa kwenye menyu.',
                   )}
                 >
-                  <Button onClick={() => navigateStaff(allowedMenuItems[0].path, allowedMenuItems[0].id)}>
+                  <Button
+                    onClick={() =>
+                      navigateStaff(
+                        allowedMenuItems[0].path,
+                        allowedMenuItems[0].id,
+                      )
+                    }
+                  >
                     {ui('Open workspace', 'Fungua ofisi')}
                   </Button>
                 </EmptyState>
               )}
-              {['pre_design', 'design_phase', 'post_design'].includes(effectiveActivePage) &&
-                (currentUser.role === 'admin' || currentUser.role === 'manager') && (
+              {['pre_design', 'design_phase', 'post_design'].includes(
+                effectiveActivePage,
+              ) &&
+                (currentUser.role === 'admin' ||
+                  currentUser.role === 'manager') && (
                   <ConveyorBeltBoard
                     key={effectiveActivePage}
                     token={token}
                     phase={effectiveActivePage}
                     staffUser={currentUser}
                     compact={!screens.lg}
-                    onNavigateToReturns={() => navigateStaff('/staff/returns', 'returns')}
+                    onNavigateToReturns={() =>
+                      navigateStaff('/staff/returns', 'returns')
+                    }
                   />
                 )}
 
-              {effectiveActivePage === 'form_builder' && currentUser.role === 'admin' && <FormBuilder token={token} />}
+              {effectiveActivePage === 'form_builder' &&
+                currentUser.role === 'admin' && <FormBuilder token={token} />}
 
               {effectiveActivePage === 'designer_queue' && (
                 <DesignerQueue
                   token={token}
                   staffUser={currentUser}
-                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                  onOpenOrder={(id) =>
+                    navigateStaff(
+                      `/staff/design/orders/${id}`,
+                      'designer_order',
+                      id,
+                    )
+                  }
                 />
               )}
 
@@ -959,7 +1156,13 @@ export default function StaffWorkspace({ onExitToHome }) {
                 <ReturnsPage
                   token={token}
                   staffUser={currentUser}
-                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                  onOpenOrder={(id) =>
+                    navigateStaff(
+                      `/staff/design/orders/${id}`,
+                      'designer_order',
+                      id,
+                    )
+                  }
                 />
               )}
 
@@ -967,15 +1170,24 @@ export default function StaffWorkspace({ onExitToHome }) {
                 <NotificationsPage
                   token={token}
                   staffUser={currentUser}
-                  onOpenOrder={(id) => navigateStaff(`/staff/design/orders/${id}`, 'designer_order', id)}
+                  onOpenOrder={(id) =>
+                    navigateStaff(
+                      `/staff/design/orders/${id}`,
+                      'designer_order',
+                      id,
+                    )
+                  }
                   onUnreadCountChange={setUnreadNotifications}
                 />
               )}
 
-              {effectiveActivePage === 'system' && <SystemPage token={token} user={currentUser} />}
-              {effectiveActivePage === 'staff_roster' && ['admin','manager'].includes(currentUser.role) && (
-                <StaffWorkloadManager token={token} role={currentUser.role} />
+              {effectiveActivePage === 'system' && (
+                <SystemPage token={token} user={currentUser} />
               )}
+              {effectiveActivePage === 'staff_roster' &&
+                ['admin', 'manager'].includes(currentUser.role) && (
+                  <StaffWorkloadManager token={token} role={currentUser.role} />
+                )}
             </Suspense>
           </div>
         </ConfigProvider>

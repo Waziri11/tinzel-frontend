@@ -874,9 +874,6 @@
     justify-content: flex-start !important;
     gap: 12px;
   }
-  .staff-header-profile {
-    display: none !important;
-  }
   .ant-drawer .staff-sidebar {
     width: 100% !important;
     min-width: 0 !important;

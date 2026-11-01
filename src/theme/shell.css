@@ -179,3 +179,15 @@ button.staff-password-toggle {
   place-items: center;
   right: 4px;
 }
+
+/* Staff header tools stay accessible when the navigation moves into a drawer. */
+@media (max-width: 991px) {
+  .staff-header-profile { display: flex !important; flex-wrap: nowrap; margin-left: auto; gap: 8px !important; flex-shrink: 0; }
+  .staff-header { gap: 8px !important; }
+  .staff-header > div:not(.staff-header-profile) { min-width: 0; }
+  .staff-header h2 { font-size: 20px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .staff-notification-label { display: none; }
+}
+.staff-sidebar { min-height: 0; }
+.staff-sidebar > div:first-child { min-height: 0; overflow-y: auto; }
+.staff-sidebar > div:last-child { flex-shrink: 0; }
