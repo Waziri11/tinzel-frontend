@@ -159,6 +159,11 @@ export const api = {
       }).then(handleBlob),
   },
 
+  staffManagement: (role) => {
+    const base = role === 'manager' ? '/api/manager/staff' : '/api/admin/staff';
+    const call = (token,path='',method='GET',body) => fetchWithTimeout(`${API_BASE}${base}${path}`,{method,headers:getHeaders(token),...(body!==undefined?{body:JSON.stringify(body)}:{})}).then(handleResponse);
+    return {getStaff:token=>call(token),getStaffUser:(token,id)=>call(token,`/${id}`),createStaff:(token,data)=>call(token,'','POST',data),updateStaff:(token,id,data)=>call(token,`/${id}`,'PUT',data),deleteStaff:(token,id)=>call(token,`/${id}`,'DELETE'),issueInitialPassword:(token,id)=>call(token,`/${id}/initial-password`,'POST'),retryCredentialDelivery:(token,id,channel,confirmUncertain=false)=>call(token,`/${id}/credential-delivery/retry`,'POST',{channel,confirmUncertain})};
+  },
   // Staff Auth Endpoints
   staffAuth: {
     updateProfile: (token, profile) => fetchWithTimeout(`${API_BASE}/api/staff/profile`, {method:'PATCH', headers:getHeaders(token),body:JSON.stringify(profile)}).then(handleResponse),

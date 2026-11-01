@@ -104,7 +104,7 @@ const NAVIGATION_ITEMS = [
     path: '/staff/users',
     section: 'Administration',
     icon: Users,
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
   },
 ];
 
@@ -968,8 +968,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                 />
               )}
 
-              {effectiveActivePage === 'staff_roster' && currentUser.role === 'admin' && (
-                <StaffWorkloadManager token={token} />
+              {effectiveActivePage === 'staff_roster' && ['admin','manager'].includes(currentUser.role) && (
+                <StaffWorkloadManager token={token} role={currentUser.role} />
               )}
             </Suspense>
           </div>

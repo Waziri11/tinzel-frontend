@@ -18,7 +18,7 @@ const controlStyle = {
   cursor: 'pointer',
 };
 const deliveryLabel = (status) => (status === 'sent' ? 'provider accepted' : status || 'not issued');
-export default function StaffOnboardingStatus({ user, token, onUpdate }) {
+export default function StaffOnboardingStatus({ user, token, onUpdate, role = 'admin' }) {
   const tx = useInterfaceText();
 
   const [busy, setBusy] = useState(false),
@@ -26,7 +26,7 @@ export default function StaffOnboardingStatus({ user, token, onUpdate }) {
     [notice, setNotice] = useState('');
   const expired = user.mustChangePassword && new Date(user.temporaryPasswordExpiresAt) <= new Date();
   const refresh = async () => {
-    const data = await api.admin.getStaffUser(token, user._id);
+    const data = await api.staffManagement(role).getStaffUser(token, user._id);
     onUpdate(data.user);
   };
   useVisiblePolling(refresh, Boolean(user.mustChangePassword));
@@ -43,7 +43,7 @@ export default function StaffOnboardingStatus({ user, token, onUpdate }) {
     setError('');
     setNotice('');
     try {
-      const data = await api.admin.issueInitialPassword(token, user._id);
+      const data = await api.staffManagement(role).issueInitialPassword(token, user._id);
       onUpdate(data.user);
       setNotice('New initial password issued. Check SMS and email outcomes below.');
     } catch (error) {
@@ -64,7 +64,7 @@ export default function StaffOnboardingStatus({ user, token, onUpdate }) {
     setError('');
     setNotice('');
     try {
-      const data = await api.admin.retryCredentialDelivery(token, user._id, channel, uncertain);
+      const data = await api.staffManagement(role).retryCredentialDelivery(token, user._id, channel, uncertain);
       onUpdate(data.user);
       setNotice('Retry processed. Check the channel outcome.');
     } catch (error) {

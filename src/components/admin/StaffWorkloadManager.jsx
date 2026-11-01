@@ -22,14 +22,16 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 
-export default function StaffWorkloadManager({ token }) {
+export default function StaffWorkloadManager({ token, role = 'admin', initialTab = 'staff', systemOnly = false }) {
   const tx = useInterfaceText();
+  const managerOnly = role === 'manager';
+  const staffApi = api.staffManagement(role);
 
   const { lang } = useLanguage();
   const [staff, setStaff] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [simulatedNotifs, setSimulatedNotifs] = useState([]);
-  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'logs' | 'notifs'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'staff' | 'logs' | 'notifs'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
@@ -86,8 +88,9 @@ export default function StaffWorkloadManager({ token }) {
     setLoading(true);
     setError(null);
     try {
-      const staffRes = await api.admin.getStaff(token);
+      const staffRes = await staffApi.getStaff(token);
       setStaff(staffRes.staff || []);
+      if (managerOnly) return;
       const [logsRes, notifsRes, diagRes] = await Promise.allSettled([
         api.admin.getAuditLogs(token),
         api.notifications.getHistory(token, { limit: 100 }),
@@ -135,7 +138,7 @@ export default function StaffWorkloadManager({ token }) {
 
   const handleUpdateStaff = async (id, updates) => {
     try {
-      await api.admin.updateStaff(token, id, updates);
+      await staffApi.updateStaff(token, id, updates);
       await loadData();
     } catch (err) {
       setError(err.message);
@@ -147,7 +150,7 @@ export default function StaffWorkloadManager({ token }) {
     if (creating) return;
     setCreating(true);
     try {
-      await api.admin.createStaff(token, {
+      await staffApi.createStaff(token, {
         name: newName,
         email: newEmail,
         preferredLanguage: newLanguage,
@@ -178,7 +181,7 @@ export default function StaffWorkloadManager({ token }) {
   const openUser = async (user, mode) => {
     setError(null);
     try {
-      const response = await api.admin.getStaffUser(token, user._id);
+      const response = await staffApi.getStaffUser(token, user._id);
       setSelectedUser(response.user);
       setUserForm({
         name: response.user.name,
@@ -203,7 +206,7 @@ export default function StaffWorkloadManager({ token }) {
     try {
       const payload = { ...userForm, maxActiveWorkload: Number(userForm.maxActiveWorkload) };
 
-      await api.admin.updateStaff(token, selectedUser._id, payload);
+      await staffApi.updateStaff(token, selectedUser._id, payload);
       setUserModal(null);
       setNotice('User account updated.');
       await loadData();
@@ -218,7 +221,7 @@ export default function StaffWorkloadManager({ token }) {
     setSaving(true);
     setError(null);
     try {
-      await api.admin.deleteStaff(token, selectedUser._id);
+      await staffApi.deleteStaff(token, selectedUser._id);
       setUserModal(null);
       setNotice('User account deleted. Its order and audit history was preserved.');
       await loadData();
@@ -250,7 +253,7 @@ export default function StaffWorkloadManager({ token }) {
         </div>
       )}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <button
+        {!systemOnly && <button
           onClick={() => setActiveTab('staff')}
           style={{
             padding: '8px 16px',
@@ -268,9 +271,9 @@ export default function StaffWorkloadManager({ token }) {
           <Users size={14} />
           <InterfaceText>Users</InterfaceText>
           <span aria-label={`${staff.length} users`}>{staff.length}</span>
-        </button>
+        </button>}
 
-        <button
+        {!managerOnly && <button
           onClick={() => setActiveTab('notifs')}
           style={{
             padding: '8px 16px',
@@ -288,9 +291,9 @@ export default function StaffWorkloadManager({ token }) {
           <Send size={14} />
           <InterfaceText>Messages</InterfaceText>
           <span aria-label={`${simulatedNotifs.length} messages`}>{simulatedNotifs.length}</span>
-        </button>
+        </button>}
 
-        <button
+        {!managerOnly && <button
           onClick={() => setActiveTab('logs')}
           style={{
             padding: '8px 16px',
@@ -308,7 +311,7 @@ export default function StaffWorkloadManager({ token }) {
           <Activity size={14} />
           <InterfaceText>Audit</InterfaceText>
           <span aria-label={`${auditLogs.length} audit entries`}>{auditLogs.length}</span>
-        </button>
+        </button>}
       </div>
 
       {/* Staff View */}
@@ -360,12 +363,12 @@ export default function StaffWorkloadManager({ token }) {
               <option value="all">
                 <InterfaceText>All roles</InterfaceText>
               </option>
-              <option value="admin">
+              {!managerOnly && <option value="admin">
                 <InterfaceText>Administrators</InterfaceText>
-              </option>
-              <option value="manager">
+              </option>}
+              {!managerOnly && <option value="manager">
                 <InterfaceText>Managers</InterfaceText>
-              </option>
+              </option>}
               <option value="designer">
                 <InterfaceText>Designers</InterfaceText>
               </option>
@@ -553,7 +556,7 @@ export default function StaffWorkloadManager({ token }) {
                           >
                             <Pencil size={15} />
                           </button>
-                          <button
+                          {!managerOnly && <button
                             type="button"
                             title={tx('Delete user')}
                             aria-label={`Delete ${s.name}`}
@@ -561,7 +564,7 @@ export default function StaffWorkloadManager({ token }) {
                             style={{ padding: 6, color: '#991B1B' }}
                           >
                             <Trash2 size={15} />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     );
@@ -1154,12 +1157,12 @@ export default function StaffWorkloadManager({ token }) {
                   <option value="designer">
                     <InterfaceText>Designer</InterfaceText>
                   </option>
-                  <option value="manager">
+                  {!managerOnly && <option value="manager">
                     <InterfaceText>Manager</InterfaceText>
-                  </option>
-                  <option value="admin">
+                  </option>}
+                  {!managerOnly && <option value="admin">
                     <InterfaceText>Administrator</InterfaceText>
-                  </option>
+                  </option>}
                 </select>
               </div>
 
@@ -1268,6 +1271,7 @@ export default function StaffWorkloadManager({ token }) {
               <StaffOnboardingStatus
                 user={selectedUser}
                 token={token}
+                role={role}
                 onUpdate={(user) => {
                   setSelectedUser(user);
                   setStaff((previous) => previous.map((item) => (item._id === user._id ? user : item)));
@@ -1366,12 +1370,12 @@ export default function StaffWorkloadManager({ token }) {
                     onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
                     style={{ display: 'block', width: '100%', padding: 8 }}
                   >
-                    <option value="admin">
+                    {!managerOnly && <option value="admin">
                       <InterfaceText>Administrator</InterfaceText>
-                    </option>
-                    <option value="manager">
+                    </option>}
+                    {!managerOnly && <option value="manager">
                       <InterfaceText>Manager</InterfaceText>
-                    </option>
+                    </option>}
                     <option value="designer">
                       <InterfaceText>Designer</InterfaceText>
                     </option>
