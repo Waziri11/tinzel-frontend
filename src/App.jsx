@@ -32,9 +32,7 @@ export default function App() {
     window.addEventListener('popstate', update);
     return () => window.removeEventListener('popstate', update);
   }, []);
-  useEffect(() => {
-    document.title = `Tinzel — ${staff ? (sw ? 'Ofisi' : 'Workspace') : catalogue ? (sw ? 'Matoleo' : 'Editions') : tracking ? (sw ? 'Fuatilia oda' : 'Track your order') : sw ? 'Hadithi yako, kwenye karatasi' : 'Your story, in print'}`;
-  }, [path, lang]);
+
   if(/^\/printer\/[a-f0-9]+$/.test(path))return <PrinterPortal />;
   if (!lang)
     return (
