@@ -24,6 +24,7 @@ async function openManagerDashboard(page) {
   await page.route('**/api/manager/designers', (route) => json(route, { designers: [{ _id: 'designer-1', name: 'Juma Designer', currentActiveWorkload: 2, maxActiveWorkload: 5 }] }));
   await page.route('**/api/manager/settings', (route) => json(route, { printer: { configured: true, phone: '+255712000000' } }));
   await page.route((url) => url.pathname === '/api/manager/orders', (route) => {
+    expect(new URL(route.request().url()).searchParams.get('scope')).toBe('all');
     const pageNumber = Number(new URL(route.request().url()).searchParams.get('page') || 1);
     return json(route, {
       orders, total: 103, page: pageNumber, pageCount: 2,
@@ -118,13 +119,11 @@ test('manager filters, search, refresh and pagination keep the server query cont
   await page.getByRole('textbox', { name: 'Search orders' }).press('Enter');
   await searchRequest;
 
-  const scopeRequest = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/manager/orders' && new URL(request.url()).searchParams.get('scope') === 'all');
-  await page.getByLabel('Filter order scope').selectOption('all');
-  await scopeRequest;
+  await expect(page.getByLabel('Filter order scope')).toHaveCount(0);
 
   const refreshRequest = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/manager/orders');
   await page.getByRole('button', { name: 'Refresh orders' }).click();
-  await refreshRequest;
+  expect(new URL((await refreshRequest).url()).searchParams.get('scope')).toBe('all');
 
   const nextPageRequest = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/manager/orders' && new URL(request.url()).searchParams.get('page') === '2');
   await page.getByRole('button', { name: 'Next page' }).click();

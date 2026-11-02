@@ -265,7 +265,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [mobileStage, setMobileStage] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [scope, setScope] = useState(phase === 'post_design' ? 'all' : 'active');
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -288,7 +287,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     setMobileStage('');
     setPage(1);
     setView('attention');
-    setScope(phase === 'post_design' ? 'all' : 'active');
   }, [phase]);
 
   const loadOrders = useCallback(async () => {
@@ -298,7 +296,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       const queryParams = {
         search,
         status: statusFilter,
-        scope,
+        scope: 'all',
         page,
         limit: 100,
       };
@@ -315,7 +313,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     } finally {
       setLoading(false);
     }
-  }, [page, phase, scope, search, statusFilter, token]);
+  }, [page, phase, search, statusFilter, token]);
 
   useEffect(() => {
     loadOrders();
@@ -669,26 +667,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                 {labelStatus(status)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="manager-filter">
-          <span className="visually-hidden">
-            <InterfaceText>Order scope</InterfaceText>
-          </span>
-          <select
-            aria-label={tx('Filter order scope')}
-            value={scope}
-            onChange={(event) => {
-              setScope(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="active">
-              <InterfaceText>Active</InterfaceText>
-            </option>
-            <option value="all">
-              <InterfaceText>All orders</InterfaceText>
-            </option>
           </select>
         </label>
         <button
