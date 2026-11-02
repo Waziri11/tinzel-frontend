@@ -1,7 +1,9 @@
+import {navigate} from '../../navigation/location';
+import MagazineDraftCards, {magazineReviewPath} from './MagazineDraftCards';
 import {downloadMagazine} from '../common/SecurityCenter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
 import {
   AlertTriangle,
@@ -30,7 +32,7 @@ import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import './managerDashboard.css';
 
-const ManagerMagazineReview = lazy(() => import('./ManagerMagazineReview'));
+
 
 const ALL_STAGES = [
   { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },
@@ -276,8 +278,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [detailLoading, setDetailLoading] = useState(false);
   const [designers, setDesigners] = useState([]);
   const [settings, setSettings] = useState({ printer: { configured: false, phone: '' } });
-  const reviewGuard=useRef(null), reviewLocation=useRef(window.location.href), restoringReview=useRef(false);
-  const registerReviewGuard=useCallback(guard=>{reviewGuard.current=guard;if(guard)reviewLocation.current=window.location.href;},[]);
   const [action, setAction] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
@@ -342,8 +342,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     activeStages.find((stage) => orders.some((order) => stage.statuses.includes(order.status)))?.id ||
     activeStages[0]?.id;
 
-  const openOrder = async (order, updateRoute = true, skipGuard = false) => {
-    if(!skipGuard && reviewGuard.current && !reviewGuard.current())return;
+  const openOrder = async (order, updateRoute = true) => {
     if (updateRoute) {
       const params = new URLSearchParams(window.location.search);
       params.set('orderId', order._id);
@@ -366,8 +365,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   useEffect(() => {
     const restore = () => {
-      if(restoringReview.current){restoringReview.current=false;return;}
-      if(reviewGuard.current && !reviewGuard.current()){window.history.pushState({},'',reviewLocation.current);restoringReview.current=true;window.dispatchEvent(new PopStateEvent('popstate'));return;}
       const params = new URLSearchParams(window.location.search),
         id = params.get('orderId');
       setDetailTab(params.get('tab') || 'overview');
@@ -382,7 +379,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     return () => window.removeEventListener('popstate', restore);
   }, [token, phase]);
   const changeDetailTab = (tab) => {
-    if(tab!==detailTab && reviewGuard.current && !reviewGuard.current())return;
     setDetailTab(tab);
     const params = new URLSearchParams(window.location.search);
     params.set('tab', tab);
@@ -390,7 +386,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   };
 
   const closeDetail = () => {
-    if(reviewGuard.current && !reviewGuard.current())return;
     const params = new URLSearchParams(window.location.search);
     params.delete('orderId');
     params.delete('tab');
@@ -402,15 +397,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   const beginAction = (name, order = orderDetail || selectedOrder) => {
     if (!order) return;
-    if(name==='draft'){
-      if(detailTab==='drafts' && orderDetail?._id===order._id)return;
-      if(reviewGuard.current && !reviewGuard.current())return;
-      setDetailTab('drafts');
-      const params=new URLSearchParams(window.location.search);params.set('orderId',order._id);params.set('tab','drafts');
-      window.history.pushState({},'',`${window.location.pathname}?${params}`);
-      openOrder(order,false,true);return;
-    }
-    if(reviewGuard.current && !reviewGuard.current())return;
+    if(name==='draft'){navigate(magazineReviewPath(order._id,order.currentDraftVersion));return;}
     setSelectedOrder(order);
     setForm({
       ...emptyForm,
@@ -878,7 +865,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
       <Drawer
         title={selectedOrder ? `${orderId(selectedOrder)} · ${selectedOrder.clientName}` : 'Order details'}
-        width={detailTab==='drafts'?'min(1200px, 100vw)':720}
+        width={720}
         open={Boolean(selectedOrder)}
         onClose={closeDetail}
         className="manager-order-drawer"
@@ -894,10 +881,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             auditLogs={auditLogs}
             beginAction={beginAction}
             nextActionButton={nextActionButton}
-            onReviewed={(message)=>{reviewGuard.current=null;return finishAction(message);}}
-            onReload={()=>openOrder(orderDetail,false)}
-            registerReviewGuard={registerReviewGuard}
-            checkReviewGuard={()=>!reviewGuard.current||reviewGuard.current()}
           />
         ) : null}
       </Drawer>
@@ -924,11 +907,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   );
 }
 
-function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton, onReviewed, onReload, registerReviewGuard, checkReviewGuard }) {
+function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton }) {
   const tx = useInterfaceText();
 
   const currentDraft = order.draftVersions?.find((draft) => draft.versionNumber === order.currentDraftVersion);
-  const [selectedVersion, setSelectedVersion] = useState(null);
+
   const items = [
     {
       key: 'overview',
@@ -966,48 +949,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
     {
       key: 'drafts',
       label: `Drafts (${order.draftVersions?.length || 0})`,
-      children: (
-        <div>
-          {currentDraft && (
-            <ManagerMagazineReview
-              key={`${order._id}:${selectedVersion || currentDraft.versionNumber}`}
-              order={order}
-              onReload={onReload}
-              registerGuard={registerReviewGuard}
-              token={token}
-              version={selectedVersion || currentDraft.versionNumber}
-              onReviewed={onReviewed}
-            />
-          )}
-          <div className="manager-version-list">
-            {(order.draftVersions || [])
-              .slice()
-              .reverse()
-              .map((draft) => (
-                <article
-                  key={draft._id || draft.versionNumber}
-                  className={draft.versionNumber === order.currentDraftVersion ? 'is-current' : ''}
-                >
-                  <div>
-                    <button onClick={() => {if(checkReviewGuard())setSelectedVersion(draft.versionNumber);}}>
-                      <InterfaceText>Open version</InterfaceText> {draft.versionNumber}
-                    </button>
-                    <span>{displayDate(draft.uploadedAt)}</span>
-                  </div>
-                  <p>{draft.designerNotes || 'No designer notes.'}</p>
-                  <div className="manager-version-actions">
-                    <span>
-                      <InterfaceText>Manager:</InterfaceText> {draft.managerReview?.status || 'pending'}
-                    </span>
-                    <span>
-                      <InterfaceText>Client:</InterfaceText> {draft.clientReview?.status || 'pending'}
-                    </span>
-                  </div>
-                </article>
-              ))}
-          </div>
-        </div>
-      ),
+      children: <MagazineDraftCards token={token} order={order}/>,
     },
     {
       key: 'production',

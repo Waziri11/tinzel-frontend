@@ -42,6 +42,7 @@ import StaffProfile from './StaffProfile';
 
 const ConveyorBeltBoard = lazy(() => import('../manager/ConveyorBeltBoard'));
 const DesignerQueue = lazy(() => import('../designer/DesignerQueue'));
+const MagazineReviewPage = lazy(() => import('../manager/MagazineReviewPage'));
 const DesignerOrderPage = lazy(() => import('../designer/DesignerOrderPage'));
 const ReturnsPage = lazy(() => import('../designer/ReturnsPage'));
 const NotificationsPage = lazy(() => import('./NotificationsPage'));
@@ -174,6 +175,8 @@ export default function StaffWorkspace({ onExitToHome }) {
   // Active page state
   const readRoute = () => {
     const pathname = window.location.pathname;
+    const reviewMatch = pathname.match(/^\/staff\/review\/([^/]+)\/versions\/([1-9]\d*)$/);
+    if(reviewMatch)return {page:'magazine_review',orderId:decodeURIComponent(reviewMatch[1]),version:Number(reviewMatch[2])};
     const orderMatch = pathname.match(/^\/staff\/design\/orders\/([^/]+)/);
     if (orderMatch)
       return {
@@ -208,6 +211,8 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
   const initialRoute = readRoute();
   const [activePage, setActivePage] = useState(initialRoute.page);
+  const staffLocation = useRef(window.location.href);
+  const [reviewVersion,setReviewVersion]=useState(initialRoute.version);
   const [routeOrderId, setRouteOrderId] = useState(initialRoute.orderId);
   const navigateStaff = (path, page, orderId = null) => {
     if (!navigateLocation(path)) return;
@@ -216,10 +221,18 @@ export default function StaffWorkspace({ onExitToHome }) {
     setMenuOpen(false);
   };
   useEffect(() => {
-    const pop = () => {
+    const pop = (event) => {
+      // Ask the active editor before changing routes on native Back/Forward.
+      // Programmatic navigation already performs this check in navigateLocation.
+      if (event.isTrusted && !window.dispatchEvent(new Event('tinzel:before-navigate', {cancelable:true}))) {
+        window.history.pushState({}, '', staffLocation.current);
+        return;
+      }
+      staffLocation.current = window.location.href;
       const route = readRoute();
       setActivePage(route.page);
       setRouteOrderId(route.orderId);
+      setReviewVersion(route.version);
     };
     window.addEventListener('popstate', pop);
     return () => window.removeEventListener('popstate', pop);
@@ -367,8 +380,9 @@ export default function StaffWorkspace({ onExitToHome }) {
 
   // Enforce that active page is always permitted by RBAC
   const orderPageAllowed =
-    activePage === 'designer_order' &&
-    ['designer', 'manager', 'admin'].includes(currentUser?.role);
+    (activePage === 'designer_order' &&
+    ['designer', 'manager', 'admin'].includes(currentUser?.role)) ||
+    (activePage === 'magazine_review' && ['manager', 'admin'].includes(currentUser?.role));
   const effectiveActivePage =
     activePage === 'missing'
       ? 'missing'
@@ -818,7 +832,8 @@ export default function StaffWorkspace({ onExitToHome }) {
               const isActive =
                 effectiveActivePage === item.id ||
                 (effectiveActivePage === 'designer_order' &&
-                  item.id === 'designer_queue');
+                  item.id === 'designer_queue') ||
+                (effectiveActivePage === 'magazine_review' && item.id === 'design_phase');
               const prevSection =
                 idx > 0 ? allowedMenuItems[idx - 1].section : null;
               const showSectionHeader =
@@ -1024,7 +1039,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 lineHeight: '1.2',
               }}
             >
-              {effectiveActivePage === 'designer_order'
+              {effectiveActivePage === 'magazine_review' ? ui('Magazine review','Ukaguzi wa jarida') : effectiveActivePage === 'designer_order'
                 ? 'Design order'
                 : label(
                     NAVIGATION_ITEMS.find(
@@ -1149,6 +1164,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                   }
                 />
               )}
+
+              {effectiveActivePage === 'magazine_review' && routeOrderId && <MagazineReviewPage key={`${routeOrderId}:${reviewVersion}`} token={token} orderId={routeOrderId} version={reviewVersion}/>}
 
               {effectiveActivePage === 'designer_order' && routeOrderId && (
                 <DesignerOrderPage

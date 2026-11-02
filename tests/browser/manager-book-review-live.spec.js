@@ -102,6 +102,7 @@ test('real book return, designer checklist, corrected upload and manager approva
   try {
     const m = await managerContext.newPage();
     await m.goto(`/staff/design-phase?orderId=${id}&tab=drafts`);
+    await m.getByRole('button',{name:'Review magazine version 1',exact:true}).click();
     await expect(
       m.getByAltText('Magazine page 1', { exact: true }),
     ).toBeVisible({ timeout: 45000 });
@@ -197,6 +198,7 @@ test('real book return, designer checklist, corrected upload and manager approva
     expect(saved.currentDraftVersion).toBe(2);
     expect(saved.status).toBe('draft_manager_review');
     await m.reload();
+    await m.getByLabel('Magazine version',{exact:true}).selectOption('2');
     await expect(
       m.getByText('Magazine version 2', { exact: true }),
     ).toBeVisible();

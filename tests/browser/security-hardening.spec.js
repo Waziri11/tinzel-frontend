@@ -18,7 +18,7 @@ test('admin SMS OTP rejects incorrect codes, signs in, and keeps credentials out
 test('manager downloads the original with an audit trail; designer and unauthenticated requests cannot',async({browser,request},info)=>{
  const {context,token}=await sessionContext(browser,request,'manager');const page=await context.newPage();
  const orders=await (await request.get('/api/manager/orders',{headers:auth(token)})).json();const order=orders.orders.find(o=>o.trackingId==='TNZ-SECURITY-1');expect(order).toBeTruthy();
- await page.goto(`/staff/design-phase?orderId=${order._id}&tab=drafts`);await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+ await page.goto(`/staff/design-phase?orderId=${order._id}&tab=drafts`);await page.getByRole('button',{name:'Review magazine version 1',exact:true}).click();await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download original PDF',exact:true}).click();expect((await download).suggestedFilename()).toContain('.pdf');
  const audit=await (await request.get(`/api/security/downloads?orderId=${order._id}`,{headers:auth(token)})).json();expect(audit.events.some(e=>e.action==='DOWNLOAD_COMPLETED')).toBe(true);
  const designer=await securityLogin(request,'designer');expect((await request.get(`/api/security/orders/${order._id}/download/1`,{headers:auth(designer)})).status()).toBe(403);

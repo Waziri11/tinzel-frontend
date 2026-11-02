@@ -188,7 +188,7 @@ for (const width of [390, 768, 1440])
   }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const state = await setup(page);
-    await expect(page).toHaveURL(/tab=drafts/);
+    await expect(page).toHaveURL(/staff\/review\/order-1\/versions\/2/);
     const approve = page.getByRole('button', {
       name: 'Approve and release to client',
       exact: true,
@@ -197,6 +197,7 @@ for (const width of [390, 768, 1440])
     await expect(
       page.getByRole('button', { name: 'Return to designer', exact: true }),
     ).toBeDisabled();
+    await page.screenshot({path:testInfo.outputPath(`review-page-${width}.png`),fullPage:true});
     await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
     await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
     await expect(approve).toBeVisible();
@@ -355,7 +356,7 @@ test('unsaved comments and notes warn on close while saved corrections survive r
   const state = await setup(page);
   await mark(page, 'Persist this correction');
   page.once('dialog', (d) => d.dismiss());
-  await page.locator('.manager-order-drawer .ant-drawer-close').click();
+  await page.getByRole('button', { name: 'Back to order', exact: true }).click();
   await expect(
     page.getByLabel('Correction comment', { exact: true }),
   ).toHaveValue('Persist this correction');
@@ -363,16 +364,13 @@ test('unsaved comments and notes warn on close while saved corrections survive r
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();
   await page.getByLabel('General notes', { exact: true }).fill('Unsaved note');
   page.once('dialog', (d) => d.dismiss());
-  await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to order', exact: true }).click();
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Unsaved note',
   );
   page.once('dialog', (d) => d.accept());
-  await page.locator('.manager-order-drawer .ant-drawer-close').click();
-  await page
-    .getByRole('button', { name: 'Review magazine', exact: true })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Back to order', exact: true }).click();
+  await page.getByRole('button', {name: 'Review magazine version 2', exact: true}).click();
   await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   await expect(
     page.getByText('Persist this correction', { exact: true }),
@@ -401,9 +399,7 @@ test('historical versions stay read-only and discarding current corrections rest
       exact: true,
     }),
   ).toBeDisabled();
-  await page
-    .getByRole('button', { name: 'Open version 1', exact: true })
-    .click();
+  await page.getByLabel('Magazine version', {exact:true}).selectOption('1');
   await expect(
     page.getByText('Magazine version 1', { exact: true }),
   ).toBeVisible();
@@ -416,9 +412,7 @@ test('historical versions stay read-only and discarding current corrections rest
   await expect(
     page.getByRole('button', { name: 'Mark area', exact: true }),
   ).toHaveCount(0);
-  await page
-    .getByRole('button', { name: 'Open version 2', exact: true })
-    .click();
+  await page.getByLabel('Magazine version', {exact:true}).selectOption('2');
   await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   await page.getByRole('button', { name: 'Discard', exact: true }).click();
   await expect(
@@ -462,13 +456,13 @@ test('unsent notes guard application and browser-back navigation', async ({
     ),
   );
   expect(allowed).toBe(false);
-  await expect(page).toHaveURL(/tab=drafts/);
+  await expect(page).toHaveURL(/staff\/review\/order-1\/versions\/2/);
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Do not lose these review instructions.',
   );
   page.once('dialog', (d) => d.dismiss());
   await page.goBack();
-  await expect(page).toHaveURL(/tab=drafts/);
+  await expect(page).toHaveURL(/staff\/review\/order-1\/versions\/2/);
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Do not lose these review instructions.',
   );
@@ -515,12 +509,7 @@ test('manager review actions and confirmation are available in Kiswahili', async
   page,
 }) => {
   await setup(page);
-  await page.locator('.manager-order-drawer .ant-drawer-close').click();
   await page.getByRole('button', { name: 'SW', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Kagua jarida', exact: true })
-    .first()
-    .click();
   await expect(
     page.getByText('Toleo la jarida 2', { exact: true }),
   ).toBeVisible();
@@ -542,3 +531,13 @@ test('manager review actions and confirmation are available in Kiswahili', async
     page.getByText('Jarida limerudishwa kwa msanifu', { exact: true }),
   ).toBeVisible();
 });
+
+ test('review links survive reload and deny designer access to manager review', async ({page}) => {
+  await setup(page);
+  await page.reload();
+  await expect(page.getByAltText('Magazine page 1', {exact:true})).toBeVisible();
+  await page.route('**/api/staff/me', route => json(route,{user:{id:'designer-1',name:'Test designer',role:'designer',preferredLanguage:'en'}}));
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Access unavailable'})).toBeVisible();
+  await expect(page.getByAltText('Magazine page 1',{exact:true})).toHaveCount(0);
+ });

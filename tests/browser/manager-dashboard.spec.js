@@ -54,6 +54,12 @@ test('manager gets an action-first dashboard and complete draft review context',
   await expect(page.getByRole('tab', { name: 'Drafts (1)' })).toBeVisible();
   await page.getByRole('tab', { name: 'Drafts (1)' }).click();
   await expect(page.getByRole('button', { name: 'Download PDF' })).toHaveCount(0);
+  await expect(page.getByAltText('Magazine page 1')).toHaveCount(0);
+  await expect(page.getByRole('button', {name:'Approve and release to client',exact:true})).toHaveCount(0);
+  await expect(page.getByAltText('Magazine cover, version 2')).toBeVisible();
+  await page.screenshot({path:'test-results/magazine-draft-card.png',fullPage:true});
+  await page.getByRole('button', {name:'Review magazine version 2',exact:true}).click();
+  await expect(page).toHaveURL(/staff\/review\//);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Forms', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
