@@ -48,7 +48,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
     load();
   }, [token]);
 
-  // Reset pagination on search or tab filter changes
+  // Reset pagination on search or status filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, activeTab]);
@@ -56,7 +56,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
   const filteredOrders = useMemo(() => {
     let list = orders;
 
-    // Filter by Tab
+    // Filter by status
     if (activeTab === 'active') {
       list = list.filter((o) => ACTIVE_STATUSES.has(o.status));
     } else if (activeTab === 'review') {
@@ -125,36 +125,17 @@ export default function DesignerQueue({ token, onOpenOrder }) {
           alignItems: 'center',
         }}
       >
-        <div className="segmented">
-          <button
-            type="button"
-            className={activeTab === 'active' ? 'active' : ''}
-            onClick={() => setActiveTab('active')}
-          >
-            <InterfaceText>Active (</InterfaceText>
-            {orders.filter((o) => ACTIVE_STATUSES.has(o.status)).length})
-          </button>
-          <button
-            type="button"
-            className={activeTab === 'review' ? 'active' : ''}
-            onClick={() => setActiveTab('review')}
-          >
-            <InterfaceText>In Review (</InterfaceText>
-            {orders.filter((o) => REVIEW_STATUSES.has(o.status)).length})
-          </button>
-          <button
-            type="button"
-            className={activeTab === 'completed' ? 'active' : ''}
-            onClick={() => setActiveTab('completed')}
-          >
-            <InterfaceText>Completed (</InterfaceText>
-            {orders.filter((o) => COMPLETED_STATUSES.has(o.status)).length})
-          </button>
-          <button type="button" className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>
-            <InterfaceText>All (</InterfaceText>
-            {orders.length})
-          </button>
-        </div>
+        <select
+          className="designer-status-filter"
+          aria-label={tx('Status')}
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value)}
+        >
+          <option value="active">{tx('Active (')}{orders.filter((o) => ACTIVE_STATUSES.has(o.status)).length})</option>
+          <option value="review">{tx('In Review (')}{orders.filter((o) => REVIEW_STATUSES.has(o.status)).length})</option>
+          <option value="completed">{tx('Completed (')}{orders.filter((o) => COMPLETED_STATUSES.has(o.status)).length})</option>
+          <option value="all">{tx('All (')}{orders.length})</option>
+        </select>
 
         <div style={{ position: 'relative', width: 'min(320px, 100%)' }}>
           <Search
