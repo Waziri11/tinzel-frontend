@@ -21,7 +21,7 @@ export function useDialogFocus(open, onClose) {
       }
     });
     const key = (event) => {
-      if (!dialog) return;
+      if (!dialog || dialog !== [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1)) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
