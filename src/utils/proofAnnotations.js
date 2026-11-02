@@ -1,11 +1,13 @@
-export const geometryVersion=2;
+export const geometryVersion=3;
 export const rectStyle=r=>({left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.width*100}%`,height:`${r.height*100}%`});
-export function containsPoint(quad,p){let inside=false;for(let i=0,j=quad.length-1;i<quad.length;j=i++){const a=quad[i],b=quad[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;}
+export function containsPoint(quad,p){let inside=false;for(let i=0,j=quad.length-1;i<quad.length;j=i++){const a=quad[i],b=quad[j];const cross=(p.x-a.x)*(b.y-a.y)-(p.y-a.y)*(b.x-a.x);if(Math.abs(cross)<1e-10&&p.x>=Math.min(a.x,b.x)&&p.x<=Math.max(a.x,b.x)&&p.y>=Math.min(a.y,b.y)&&p.y<=Math.max(a.y,b.y))return true;if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;}
 export function smallestImage(regions,p){return regions.filter(r=>containsPoint(r.quad,p)).sort((a,b)=>a.rect.width*a.rect.height-b.rect.width*b.rect.height)[0];}
 export function selectionAnchor(surface,selection){
  if(!selection?.rangeCount||!selection.toString().trim()||!surface.contains(selection.anchorNode)||!surface.contains(selection.focusNode))return null;
+ const layer=surface.querySelector('.proof-text-layer');
+ if(!layer||!layer.contains(selection.anchorNode)||!layer.contains(selection.focusNode))return null;
  const bounds=surface.getBoundingClientRect(),range=selection.getRangeAt(0),rects=[];
- const walker=document.createTreeWalker(surface.querySelector('.proof-text-layer'),NodeFilter.SHOW_TEXT);
+ const walker=document.createTreeWalker(layer,NodeFilter.SHOW_TEXT);
  while(walker.nextNode()){
   const node=walker.currentNode;if(!range.intersectsNode(node))continue;
   const part=document.createRange();part.selectNodeContents(node);

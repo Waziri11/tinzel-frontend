@@ -1,7 +1,9 @@
+import ProofAttachments from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useRef, useState } from 'react';
 import { annotationStatus } from '../../utils/proofAnnotations';
 export default function ProofComments({
+  reader,
   annotations,
   focused,
   focusSerial,
@@ -119,6 +121,7 @@ export default function ProofComments({
                   <span className="proof-comment-body">{a.text}</span>
                   <small>{new Date(a.createdAt).toLocaleString()}</small>
                 </button>
+                <ProofAttachments attachments={a.attachments} reader={reader} />
                 {a.correction && (
                   <div className="proof-comment-response">
                     <small>

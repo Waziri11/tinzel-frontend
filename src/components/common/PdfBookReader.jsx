@@ -1,3 +1,5 @@
+import { useProofAttachments } from '../../hooks/useProofAttachments';
+import { AttachmentEditor } from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { createProofPageCache, proofWindow } from '../../utils/proofPageCache';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -36,6 +38,7 @@ export default function PdfBookReader({
 }) {
   const tx = useInterfaceText();
   const reader = useMemo(() => proofApi(token, orderId, version, client), [token, orderId, version, client]);
+  const uploads = useProofAttachments(reader);
   const [cache, setCache] = useState(null);
   const [opened, setOpened] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -91,7 +94,7 @@ export default function PdfBookReader({
       setError('Wait for the current comment to finish saving.');
       return;
     }
-    if (draftRef.current?.selection && draftRef.current.comment.trim()) {
+    if (draftRef.current?.selection && (draftRef.current.comment.trim() || draftRef.current.hasImages)) {
       setReplacement(value);
       return;
     }
@@ -108,10 +111,25 @@ export default function PdfBookReader({
   const [sync, setSync] = useState('');
   const [focused, setFocused] = useState(null);
   const [showComments, setShowComments] = useState(false);
-  draftRef.current = { selection, comment, saving };
+  draftRef.current = { selection, comment, saving, hasImages: uploads.items.length > 0 };
   useEffect(() => {
     if (selection) commentInput.current?.focus({ preventScroll: true });
   }, [selection]);
+  useEffect(() => {
+    // Manager review owns the combined notes/comment guard. Other readers need
+    // the same protection for attachment-only drafts and in-flight saves.
+    if (renderReviewControls) return;
+    const unload = event => {
+      if (draftRef.current?.selection || draftRef.current?.saving) { event.preventDefault(); event.returnValue = ''; }
+    };
+    const navigate = event => {
+      if (draftRef.current?.saving || (draftRef.current?.selection && !window.confirm(tx('Discard the unfinished comment? Saved comments will remain.')))) event.preventDefault();
+    };
+    window.addEventListener('beforeunload', unload);
+    window.addEventListener('tinzel:before-navigate', navigate);
+    return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', navigate); };
+  }, [renderReviewControls, tx]);
+
   useEffect(() => {
     if (!focused || turn || navigating) return;
     const pin = Array.from(root.current?.querySelectorAll('[data-comment-id]') || []).find(
@@ -191,6 +209,7 @@ export default function PdfBookReader({
     setReplacement(null);
     setPage(1);
     setSelection(null);
+    uploads.clear(true);
     setComment('');
     setError('');
     setSync('');
@@ -399,11 +418,11 @@ export default function PdfBookReader({
   }, [opened, metadata, saving, discarding, selection, onReviewStateChange]);
   const save = async (e) => {
     e.preventDefault();
-    if (!selection || !comment.trim() || saving || interactionDisabled) return;
+    if (!selection || (!comment.trim() && !uploads.items.length) || !uploads.ready || saving || interactionDisabled) return;
     const { anchor, ...fields } = selection;
     const generation = reviewGeneration.current,
       submitted = { selection, comment },
-      body = { ...fields, text: comment.trim() },
+      body = { ...fields, text: comment.trim(), attachmentIds: uploads.ids },
       key = JSON.stringify(body);
     if (saveAttempt.current?.key !== key) saveAttempt.current = { key, id: crypto.randomUUID() };
     const saveAttemptId = saveAttempt.current.id;
@@ -414,6 +433,7 @@ export default function PdfBookReader({
       const data = await reader.save({ ...body, clientMutationId: saveAttempt.current.id });
       if (generation !== reviewGeneration.current) return;
       annotationRevision.current++;
+      uploads.clear();
       rememberMetadata({ ...metadataRef.current, annotations: data.annotations });
       if (draftRef.current.selection === submitted.selection && draftRef.current.comment === submitted.comment) {
         setSelection(replacement || null);
@@ -657,6 +677,7 @@ export default function PdfBookReader({
             />
             {showComments && (
               <ProofComments
+                reader={reader}
                 annotations={annotations}
                 focused={focused}
                 focusSerial={focusSerial}
@@ -676,6 +697,9 @@ export default function PdfBookReader({
                 className="proof-composer"
                 aria-label={tx('Comment editor')}
                 onSubmit={save}
+                onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+                onDrop={e => { e.preventDefault(); if (!saving) uploads.add(e.dataTransfer.files); }}
+                onPaste={e => { if (e.clipboardData.files.length) { e.preventDefault(); if (!saving) uploads.add(e.clipboardData.files); } }}
                 style={
                   !mobile && selection.anchor
                     ? {
@@ -710,17 +734,18 @@ export default function PdfBookReader({
                   aria-label={tx('Correction comment')}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  required
                   maxLength={4000}
                 />
-                <div>
-                  <button disabled={saving}>
+                <AttachmentEditor uploads={uploads} disabled={saving} />
+                <div className="proof-composer-actions">
+                  <button disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                     <InterfaceText>Save comment</InterfaceText>
                   </button>
                   <button
                     type="button"
                     disabled={saving}
                     onClick={() => {
+                      uploads.clear(true);
                       setSelection(null);
                       setReplacement(null);
                       setComment('');
@@ -734,13 +759,14 @@ export default function PdfBookReader({
                     <p>
                       <InterfaceText>Save or discard this comment before choosing another selection.</InterfaceText>
                     </p>
-                    <button type="submit" disabled={saving || !comment.trim()}>
+                    <button type="submit" disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                       <InterfaceText>Save current comment</InterfaceText>
                     </button>
                     <button
                       type="button"
                       disabled={saving}
                       onClick={() => {
+                        uploads.clear(true);
                         setSelection(replacement);
                         setReplacement(null);
                         setComment('');

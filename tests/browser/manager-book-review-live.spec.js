@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {securityLogin} from './security-login.js';
 import { test, expect } from '@playwright/test';
 import { proofPdf } from '../../../tinzel-backend/tests/fixtures/proofPdf.js';
@@ -115,6 +116,8 @@ test('real book return, designer checklist, corrected upload and manager approva
     await m
       .getByLabel('Correction comment', { exact: true })
       .fill('Replace the marked photograph.');
+    await m.locator('.proof-attachment-editor input').setInputFiles({ name: 'reference.png', mimeType: 'image/png', buffer: readFileSync(new URL('../../../tinzel-backend/tests/fixtures/review-reference.png', import.meta.url)) });
+    await expect(m.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
     await m.getByRole('button', { name: 'Save comment', exact: true }).click();
     await expect(m.getByText('Saved', { exact: true })).toBeVisible();
     await m
@@ -156,6 +159,10 @@ test('real book return, designer checklist, corrected upload and manager approva
     await expect(
       d.getByAltText('Magazine page 1', { exact: true }),
     ).toBeVisible({ timeout: 30000 });
+    await expect(d.locator('.proof-attached-image img')).toBeVisible();
+    await d.getByRole('button', { name: 'Open image: reference.png' }).click();
+    await expect(d.getByRole('dialog', { name: 'Attached image' }).locator('img')).toBeVisible();
+    await d.getByRole('button', { name: 'Close image', exact: true }).click();
     await d.getByRole('tab', { name: 'Corrections', exact: true }).click();
     for (const item of round.items) {
       const response = d.getByLabel(`Response for ${item.text}`, {
@@ -251,8 +258,24 @@ test('real book return, designer checklist, corrected upload and manager approva
     await expect(
       page.getByRole('link', { name: /Download PDF|Original PDF/i }),
     ).toHaveCount(0);
+    await page.getByRole('button', { name: 'EN', exact: true }).click();
+    await page.getByRole('button', { name: 'Mark area', exact: true }).click();
+    const clientPage = await page.locator('.proof-sheet').first().boundingBox();
+    await page.mouse.move(clientPage.x + clientPage.width * .2, clientPage.y + clientPage.height * .3);
+    await page.mouse.down(); await page.mouse.move(clientPage.x + clientPage.width * .6, clientPage.y + clientPage.height * .5); await page.mouse.up();
+    await page.locator('.proof-attachment-editor input').setInputFiles({ name: 'client-reference.png', mimeType: 'image/png', buffer: readFileSync(new URL('../../../tinzel-backend/tests/fixtures/review-reference.png', import.meta.url)) });
+    await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Save comment', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Open image: client-reference.png' })).toBeVisible();
+    await page.getByRole('button', { name: 'Return for corrections (1)', exact: true }).click();
+    await expect(page.getByText('Corrections submitted', { exact: true })).toBeVisible();
+    const clientRound = (await api(request, `/manager/orders/${id}`, manager, undefined, 'get')).order.revisionRequests.at(-1);
+    expect(clientRound.source).toBe('client'); expect(clientRound.items[0].annotationId).toBeTruthy();
+    await d.reload(); await d.getByRole('tab', { name: 'Corrections', exact: true }).click();
+    await d.locator('.fix-round').first().getByRole('button', { name: 'View marked area', exact: true }).click();
+    await expect(d.getByRole('button', { name: 'Open image: client-reference.png' })).toBeVisible();
     await page.screenshot({
-      path: testInfo.outputPath('client-approved-manager-book.png'),
+      path: testInfo.outputPath('client-image-correction.png'),
       fullPage: true,
     });
   } finally {

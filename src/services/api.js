@@ -716,8 +716,9 @@ export const api = {
 export function proofApi(token, orderId, version, client = false) {
   const base = `${API_BASE}/api/proofs/${client ? 'client' : `staff/${orderId}`}/${version}`;
   const view = crypto.randomUUID();
-  const request = (suffix = '', method = 'GET', body) =>
+  const request = (suffix = '', method = 'GET', body, signal) =>
     fetchWithTimeout(base + suffix, {
+      signal,
       method,
       headers: getHeaders(token),
       cache: 'no-store',
@@ -795,6 +796,26 @@ export function proofApi(token, orderId, version, client = false) {
       return handleBlob(response);
     },
     text: (page) => request(`/pages/${page}?text=1`),
+    uploadAttachment: async (file, clientId, { signal, onProgress, onReserve } = {}) => {
+      const session = await request('/attachments', 'POST', { clientId, name: file.name, size: file.size, contentType: file.type }, signal);
+      onReserve?.(session.id);
+      if (session.state === 'ready') return session.attachment;
+      const received = new Set(session.received.map(p => p.n));
+      for (let n = 0; n < Math.ceil(file.size / session.chunkBytes); n++) {
+        if (!received.has(n)) {
+          await fetchWithTimeout(`${base}/attachments/${session.id}/chunks/${n}`, {
+            method: 'PUT', headers: { ...getHeaders(token), 'Content-Type': 'application/octet-stream' },
+            signal, body: file.slice(n * session.chunkBytes, Math.min(file.size, (n + 1) * session.chunkBytes)),
+          }).then(handleResponse);
+        }
+        onProgress?.(Math.min(99, Math.round(Math.min(file.size, (n + 1) * session.chunkBytes) / file.size * 100)));
+      }
+      return request(`/attachments/${session.id}/complete`, 'POST', {}, signal);
+    },
+    removeAttachment: id => request(`/attachments/${id}`, 'DELETE'),
+    attachmentImage: (id, thumbnail = true, signal) => fetchWithTimeout(`${base}/attachments/${id}${thumbnail ? '?thumbnail=1' : ''}`, {
+      headers: getHeaders(token), cache: 'no-store', signal,
+    }).then(handleBlob),
     save: (body) => request('/annotations', 'POST', body),
     discard: (id) => request(`/annotations/${id}`, 'DELETE'),
     retry: () => request('/retry', 'POST'),

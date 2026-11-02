@@ -46,6 +46,6 @@ test('compressed bundles enforce their memory budget and never cross reader inst
 });
 test('selection geometry upgrades retain the decoded image and respect the compressed cache budget',async()=>{
  let loads=0;const cache=createProofPageCache({bundle:async()=>{loads++;return {blob:new Blob([new Uint8Array(100)]),text:{geometryVersion:0,text:[]}};}},{maxEncodedBytes:1500,decode:async()=>{},createUrl:()=>'/same-page',revokeUrl:()=>{}});
- await cache.get(1);const updated={geometryVersion:2,text:[{str:'Actual PDF words'}],imageRegions:[]};cache.updateText(1,updated);assert.equal(cache.peek(1).image,'/same-page');assert.deepEqual((await cache.get(1)).text,updated);assert.equal(loads,1);assert.ok(cache.encodedBytes<=1500);
+ await cache.get(1);const updated={geometryVersion:3,text:[{str:'Actual PDF words'}],imageRegions:[]};cache.updateText(1,updated);assert.equal(cache.peek(1).image,'/same-page');assert.deepEqual((await cache.get(1)).text,updated);assert.equal(loads,1);assert.ok(cache.encodedBytes<=1500);
  cache.updateText(1,{...updated,text:[{str:'x'.repeat(3000)}]});assert.equal(cache.encodedSize,0);assert.equal(cache.peek(1).image,'/same-page');cache.dispose();
 });

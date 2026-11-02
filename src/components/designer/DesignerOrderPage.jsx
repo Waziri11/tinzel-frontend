@@ -27,6 +27,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const [notes, setNotes] = useState('');
   const [verifyAll, setVerifyAll] = useState(false);
   const [responses, setResponses] = useState({});
+  const [addressing, setAddressing] = useState(null);
   useDialogFocus(showUpload, () => {
     if (!uploading) setShowUpload(false);
   });
@@ -61,6 +62,8 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     () => order?.revisionRequests?.find((item) => item.status === 'open' || item.status === 'submitted_for_review'),
     [order],
   );
+  const pendingFixes = activeReturn?.items.filter((item) => item.status !== 'addressed') || [];
+  const allAddressed = pendingFixes.length === 0;
   const currentDraft = order?.draftVersions?.find((item) => item.versionNumber === order.currentDraftVersion);
   const canEdit = ['designer', 'admin'].includes(staffUser?.role);
   const [tab, setTab] = useState(null);
@@ -69,14 +72,21 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
 
   const address = async (requestId, itemId) => {
     const response = String(responses[itemId] || '').trim();
-    if (!response) return;
+    if (!response || addressing) return;
+    setAddressing(itemId);
     setError('');
+    setUploadError('');
     try {
       await api.designer.addressFix(token, orderId, requestId, itemId, response);
+      // Refresh the checklist without unmounting the dialog and its selected PDF.
+      const data = await api.designer.getOrder(token, orderId);
+      setOrder(data.order);
+      setLogs(data.auditLogs || []);
       setResponses((old) => ({ ...old, [itemId]: '' }));
-      await load();
     } catch (err) {
-      setError(err.message);
+      (showUpload ? setUploadError : setError)(err.message || 'Unable to save this correction. Please retry.');
+    } finally {
+      setAddressing(null);
     }
   };
   useEffect(() => () => uploadAbort.current?.abort(), []);
@@ -90,6 +100,13 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   };
   const upload = async (event) => {
     event.preventDefault();
+    if (uploading || addressing) return;
+    if (activeReturn && (!allAddressed || !verifyAll)) {
+      setUploadError(!allAddressed
+        ? 'Describe and mark each correction addressed below before uploading.'
+        : 'Confirm that you verified every requested fix before uploading.');
+      return;
+    }
     if (!file) {
       setUploadError('Select a magazine PDF before continuing.');
       return;
@@ -197,7 +214,6 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         </div>
       </section>
     );
-  const allAddressed = !activeReturn || activeReturn.items.every((item) => item.status === 'addressed');
   return (
     <section className="designer-page">
       <div className="designer-page-title">
@@ -331,7 +347,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                               value={responses[item._id] || ''}
                               onChange={(e) => setResponses({ ...responses, [item._id]: e.target.value })}
                             />
-                            <button className="secondary-button">
+                            <button className="secondary-button" disabled={Boolean(addressing) || !String(responses[item._id] || '').trim()}>
                               <InterfaceText>Mark addressed</InterfaceText>
                             </button>
                           </form>
@@ -518,6 +534,41 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <InterfaceText>. All checklist items must be completed first.</InterfaceText>
               </p>
             )}
+            {pendingFixes.length > 0 && (
+              <section className="upload-corrections" aria-label={tx('Pending corrections')}>
+                <h3><InterfaceText>Pending corrections</InterfaceText> ({pendingFixes.length})</h3>
+                <p><InterfaceText>Describe and mark each correction addressed below before uploading.</InterfaceText></p>
+                {pendingFixes.map((item) => (
+                  <div className="upload-correction" key={item._id}>
+                    <p>
+                      {item.pageReference && <strong>{tx('Page')} {item.pageReference}: </strong>}
+                      {item.text}
+                    </p>
+                    <label htmlFor={`upload-fix-${item._id}`}><InterfaceText>How was this fixed?</InterfaceText></label>
+                    <input
+                      id={`upload-fix-${item._id}`}
+                      value={responses[item._id] || ''}
+                      disabled={uploading || Boolean(addressing)}
+                      onChange={(e) => setResponses((old) => ({ ...old, [item._id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          address(activeReturn._id, item._id);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={uploading || Boolean(addressing) || !String(responses[item._id] || '').trim()}
+                      onClick={() => address(activeReturn._id, item._id)}
+                    >
+                      {tx(addressing === item._id ? 'Saving…' : 'Mark addressed')}
+                    </button>
+                  </div>
+                ))}
+              </section>
+            )}
             {resume && !uploading && (
               <p>
                 <InterfaceText>A saved upload is available for</InterfaceText> {resume.name}{' '}
@@ -526,7 +577,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             )}
             {uploadError && (
               <div className="designer-alert is-error" role="alert">
-                {uploadError}
+                {tx(uploadError)}
               </div>
             )}
             <label htmlFor="draft-pdf">
@@ -557,12 +608,22 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <input
                   type="checkbox"
                   checked={verifyAll}
-                  disabled={!allAddressed}
+                  disabled={!allAddressed || uploading || Boolean(addressing)}
+                  aria-describedby="draft-upload-requirements"
                   onChange={(e) => setVerifyAll(e.target.checked)}
                 />
                 <InterfaceText>I verified every requested fix</InterfaceText>
               </label>
             )}
+            <p id="draft-upload-requirements" className="upload-requirements" role="status">
+              {tx(!allAddressed
+                ? 'Complete the pending corrections above to unlock verification and sending.'
+                : activeReturn && !verifyAll
+                  ? 'All corrections are addressed. Tick the verification checkbox to continue.'
+                  : !file
+                    ? 'Select a magazine PDF before continuing.'
+                    : 'Ready to send to manager review.')}
+            </p>
             <footer>
               <button
                 type="button"
@@ -572,8 +633,8 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               >
                 <InterfaceText>Cancel</InterfaceText>
               </button>
-              <button className="primary-button" disabled={uploading || !file || Boolean(activeReturn && !verifyAll)}>
-                {uploading ? 'Uploading…' : 'Send to manager review'}
+              <button className="primary-button" aria-describedby="draft-upload-requirements" disabled={uploading || Boolean(addressing) || !file || !allAddressed || Boolean(activeReturn && !verifyAll)}>
+                {tx(uploading ? 'Uploading…' : 'Send to manager review')}
               </button>
             </footer>
           </form>

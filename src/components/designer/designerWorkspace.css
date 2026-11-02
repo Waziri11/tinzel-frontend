@@ -283,6 +283,33 @@
 .verify-check input {
   width: auto;
 }
+.upload-corrections {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.upload-corrections h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.upload-correction {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.upload-correction button {
+  margin-top: 8px;
+}
+.upload-requirements {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.upload-dialog button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .fix-item small {
   display: block;
   margin-top: 5px;

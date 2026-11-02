@@ -56,6 +56,9 @@ export default function ClientTrackingPortal() {
   const [revisionItems, setRevisionItems] = useState([{ text: '', pageReference: '' }]);
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
+  const [proofState, setProofState] = useState({ composing: false, saving: false });
+  const allowProofLeave = () => !proofState.saving && (!proofState.composing || window.confirm(ui('Discard the unfinished comment? Saved comments will remain.', 'Ungependa kufuta maoni ambayo hayajakamilika? Maoni yaliyohifadhiwa yatabaki.')));
+
 
   useEffect(() => {
     if (clientToken) {
@@ -143,6 +146,7 @@ export default function ClientTrackingPortal() {
   }, [handleLogout, t]);
 
   const handleApproveWholeMagazine = async () => {
+    if (proofState.composing || proofState.saving) return;
     if (!confirm(t('track.confirm.approve'))) return;
     setSubmittingDecision(true);
     setError(null);
@@ -163,6 +167,7 @@ export default function ClientTrackingPortal() {
 
   const handleRequestRevision = async (e) => {
     e.preventDefault();
+    if (proofState.composing || proofState.saving) return;
     const items = revisionItems
       .map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() }))
       .filter((item) => item.text);
@@ -524,7 +529,7 @@ export default function ClientTrackingPortal() {
         </div>
 
         <button
-          onClick={handleLogout}
+          onClick={() => { if (allowProofLeave()) handleLogout(); }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -776,7 +781,7 @@ export default function ClientTrackingPortal() {
             <select
               aria-label="Magazine version"
               value={readerVersion || releasedDraft?.versionNumber}
-              onChange={(e) => setReaderVersion(Number(e.target.value))}
+              onChange={(e) => { if (allowProofLeave()) setReaderVersion(Number(e.target.value)); }}
             >
               {(order.draftVersions || []).map((v) => (
                 <option key={v.versionNumber} value={v.versionNumber}>
@@ -786,6 +791,7 @@ export default function ClientTrackingPortal() {
             </select>
           </label>
           <PdfBookReader
+            onReviewStateChange={setProofState}
             token={clientToken}
             version={readerVersion || releasedDraft?.versionNumber}
             client
@@ -812,7 +818,7 @@ export default function ClientTrackingPortal() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <button
                     onClick={handleApproveWholeMagazine}
-                    disabled={submittingDecision}
+                    disabled={submittingDecision || proofState.composing || proofState.saving}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -832,7 +838,7 @@ export default function ClientTrackingPortal() {
 
                   <button
                     onClick={() => setShowRevisionForm(true)}
-                    disabled={submittingDecision}
+                    disabled={submittingDecision || proofState.composing || proofState.saving}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -909,7 +915,7 @@ export default function ClientTrackingPortal() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <button
                       type="submit"
-                      disabled={submittingDecision}
+                      disabled={submittingDecision || proofState.composing || proofState.saving}
                       style={{
                         display: 'flex',
                         alignItems: 'center',

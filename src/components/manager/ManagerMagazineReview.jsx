@@ -1,11 +1,13 @@
+import ProofAttachments from '../common/ProofAttachments';
 import {downloadMagazine} from '../common/SecurityCenter';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
-import { api } from '../../services/api';
+import { api, proofApi } from '../../services/api';
 import PdfBookReader from '../common/PdfBookReader';
 import './managerMagazineReview.css';
 function Confirmation({
+  reader,
   action,
   notes,
   annotations,
@@ -70,6 +72,7 @@ function Confirmation({
                   {t('Page', 'Ukurasa')} {a.page}
                 </strong>
                 : {a.text}
+                <ProofAttachments attachments={a.attachments} reader={reader} />
               </li>
             ))}
             {notes.trim() && (
@@ -112,6 +115,7 @@ export default function ManagerMagazineReview({
   onReload,
   registerGuard,
 }) {
+  const attachmentReader = useMemo(() => proofApi(token, order._id, version), [token, order._id, version]);
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
   const [notes, setNotes] = useState(''),
@@ -342,6 +346,7 @@ export default function ManagerMagazineReview({
       </section>
       {decision && (
         <Confirmation
+          reader={attachmentReader}
           action={decision}
           notes={notes}
           annotations={state.pendingAnnotations}

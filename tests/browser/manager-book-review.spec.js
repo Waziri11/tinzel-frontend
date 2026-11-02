@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from './fixtures.js';
 const samplePage =
   '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/><text x="50" y="100" font-size="24">A magazine story</text></svg>';
@@ -5,7 +6,7 @@ const json = (route, data, status = 200) =>
   route.fulfill({ status, json: data });
 async function setup(
   page,
-  { pending = [], failDecision = 0, failComment = false } = {},
+  { pending = [], failDecision = 0, failComment = false, failUpload = false } = {},
 ) {
   await page.addInitScript(() => {
     localStorage.setItem('tinzel_language', 'en');
@@ -13,6 +14,8 @@ async function setup(
   });
   const state = {
     annotations: [...pending],
+    images: new Map(),
+    uploadFailed: false,
     decisions: [],
     failDecision,
     commentFailed: false,
@@ -70,6 +73,22 @@ async function setup(
   await page.route('**/api/proofs/staff/order-1/**', (route) => {
     const url = new URL(route.request().url()),
       version = Number(url.pathname.split('/')[5]);
+    if (url.pathname.endsWith('/attachments') && route.request().method() === 'POST') {
+      const data = route.request().postDataJSON();
+      let asset = [...state.images.values()].find(a => a.clientId === data.clientId);
+      if (!asset) { asset = { ...data, id: `image-${state.images.size + 1}`, received: [], state: 'uploading' }; state.images.set(asset.id, asset); }
+      return json(route, { ...asset, chunkBytes: 1024 * 1024 });
+    }
+    if (url.pathname.includes('/attachments/')) {
+      const id = url.pathname.split('/attachments/')[1].split('/')[0], asset = state.images.get(id);
+      if (route.request().method() === 'DELETE') { state.images.delete(id); return json(route, {}); }
+      if (url.pathname.includes('/chunks/')) {
+        if (failUpload && !state.uploadFailed) { state.uploadFailed = true; return json(route, { message: 'Image upload interrupted' }, 503); }
+        asset.received.push({ n: Number(url.pathname.split('/').at(-1)) }); return json(route, {});
+      }
+      if (url.pathname.endsWith('/complete')) { asset.state = 'ready'; return json(route, { id, name: asset.name, width: 1, height: 1, contentType: 'image/webp' }); }
+      return route.fulfill({ contentType: 'image/png', body: referencePng });
+    }
     if (url.pathname.endsWith('/submit'))
       throw Error(
         'Manager review must use one consolidated decision endpoint.',
@@ -84,6 +103,7 @@ async function setup(
       }
       state.annotations.push({
         ...route.request().postDataJSON(),
+        attachments: (route.request().postDataJSON().attachmentIds || []).map(id => ({ id, name: state.images.get(id).name })),
         _id: `annotation-${state.annotations.length + 1}`,
         version,
         source: 'manager',
@@ -105,7 +125,7 @@ async function setup(
     if (url.pathname.includes('/pages/')) {
       if (url.searchParams.has('text'))
         return json(route, {
-          geometryVersion: 2,
+          geometryVersion: 3,
           width: 600,
           height: 800,
           imageRegions: [],
@@ -541,3 +561,57 @@ test('manager review actions and confirmation are available in Kiswahili', async
   await expect(page.getByRole('heading',{name:'Access unavailable'})).toBeVisible();
   await expect(page.getByAltText('Magazine page 1',{exact:true})).toHaveCount(0);
  });
+
+const referencePng = readFileSync(new URL('../../../tinzel-backend/tests/fixtures/review-reference.png', import.meta.url));
+const referenceFile = { name: 'reference.png', mimeType: 'image/png', buffer: referencePng };
+test('image-only comments retain failed uploads and saves, reopen privately, and appear in return confirmation', async ({ page }, testInfo) => {
+  const state = await setup(page, { failComment: true, failUpload: true });
+  await mark(page, '');
+  await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await expect(page.getByText('Image upload interrupted')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Retry image', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Save comment', exact: true }).click();
+  await expect(page.getByText('Save failed — retry')).toBeVisible();
+  await expect(page.locator('.proof-attachment-editor img')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Save comment', exact: true }).click();
+  await expect(page.locator('.proof-composer')).toHaveCount(0);
+  expect(state.annotations[0].text).toBe(''); expect(state.annotations[0].attachments).toHaveLength(1);
+  await page.getByRole('button', { name: 'Open image: reference.png' }).click();
+  await expect(page.getByRole('dialog', { name: 'Attached image' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close image' }).click();
+  await page.reload(); await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
+  await expect(page.locator('.proof-attached-image img')).toBeVisible();
+  await page.getByRole('button', { name: 'Return to designer', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Confirm return' }).locator('.proof-attached-image img')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('image-only-return.png'), fullPage: true });
+});
+test('mobile attachment-only drafts guard navigation and accept paste/drop with a five image limit', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 }); await setup(page);
+  await mark(page, ''); await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByLabel('Magazine version', { exact: true }).selectOption('1');
+  await expect(page.getByLabel('Magazine version', { exact: true })).toHaveValue('2');
+  await expect(page.locator('.proof-attachment-editor img')).toHaveCount(1);
+  await page.locator('.proof-composer').evaluate((element, base64) => {
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const clipboard = new DataTransfer(); clipboard.items.add(new File([bytes], 'pasted.png', { type: 'image/png' }));
+    element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }));
+    const drop = new DataTransfer(); drop.items.add(new File([bytes], 'dropped.png', { type: 'image/png' }));
+    element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: drop }));
+  }, referencePng.toString('base64'));
+  await expect(page.locator('.proof-attachment-editor img')).toHaveCount(3);
+  await page.locator('.proof-attachment-editor input').setInputFiles([referenceFile, referenceFile]);
+  await expect(page.locator('.proof-attachment-editor img')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: 'Attach images', exact: true })).toBeDisabled();
+  await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await expect(page.getByText('Choose up to five images per comment.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath('mobile-image-composer.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Remove image: pasted.png' }).click();
+  await expect(page.locator('.proof-attachment-editor img')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('.proof-composer')).toHaveCount(0);
+});

@@ -1,28 +1,33 @@
-import InterfaceText from '../../i18n/InterfaceText';
+import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { geometryVersion, rectStyle, smallestImage, selectionAnchor } from '../../utils/proofAnnotations';
 let measureContext;
 const TextRun = React.memo(function TextRun({ item: t, ratio }) {
   // Scale is independent of viewport size; one measurement also covers zoom and resize.
-  const scale = useMemo(() => {
+  const metrics = useMemo(() => {
     measureContext ||= document.createElement('canvas').getContext('2d');
     measureContext.font = `100px ${t.fontFamily || 'sans-serif'}`;
-    const measured = measureContext.measureText(t.str).width;
-    return measured > 0 && t.height > 0 ? t.width / ((t.height * ratio * measured) / 100) : 1;
+    const measurement = measureContext.measureText(t.str), measured = measurement.width;
+    const ascent = measurement.fontBoundingBoxAscent ?? 80, descent = measurement.fontBoundingBoxDescent ?? 20;
+    return { scale: measured > 0 && t.height > 0 ? t.width / ((t.height * ratio * measured) / 100) : 1,
+      baseline: (ascent - (ascent + descent - 100) / 2) / 100 };
+
   }, [t, ratio]);
+  const delta = t.source === 'ocr' ? 0 : ((t.ascent ?? .8) - metrics.baseline) * t.height;
+  const angle = (t.angle || 0) * Math.PI / 180;
   return (
     <span
       dir={t.dir || 'ltr'}
       style={{
-        left: `${t.x * 100}%`,
-        top: `${t.y * 100}%`,
+        left: `${(t.x - delta * ratio * Math.sin(angle)) * 100}%`,
+        top: `${(t.y + delta * Math.cos(angle)) * 100}%`,
         fontSize: `${Math.max(0.01, t.height * ratio * 100)}cqw`,
         fontFamily: t.fontFamily || 'sans-serif',
-        transform: `rotate(${t.angle || 0}deg) scaleX(${scale})`,
+        transform: `rotate(${t.angle || 0}deg) scaleX(${metrics.scale})`,
       }}
     >
       {t.str}
-      {t.hasEOL ? '\n' : ''}
+      {t.hasEOL ? '\n' : t.source === 'ocr' ? ' ' : ''}
     </span>
   );
 });
@@ -38,6 +43,7 @@ export default React.memo(function ProofPage({
   pendingSelection,
   onUseArea,
 }) {
+  const tx = useInterfaceText();
   const known = cache.peek(number),
     [value, setValue] = useState(known),
     [error, setError] = useState(''),
@@ -74,7 +80,7 @@ export default React.memo(function ProofPage({
     };
   }, [reader, cache, number, attempt]);
   useEffect(() => {
-    if (!value || !['text', 'image'].includes(mode) || value.text.geometryVersion >= geometryVersion) return;
+    if (!value || !['text', 'image'].includes(mode) || value.text.geometryVersion >= geometryVersion) { setGeometryState(''); return; }
     let active = true,
       timer,
       attempts = 0;
@@ -120,6 +126,38 @@ export default React.memo(function ProofPage({
       clearTimeout(timer);
     };
   }, [reader, cache, number, mode, value?.text.geometryVersion, geometryAttempt]);
+  const [ocrState, setOcrState] = useState(''), [ocrAttempt, setOcrAttempt] = useState(0);
+  useEffect(() => {
+    if (!value || mode !== 'text' || value.text.ocrVersion >= 1) { setOcrState(''); return; }
+    let active = true, timer, attempts = 0;
+    setOcrState('preparing');
+    const run = async () => {
+      try {
+        let status = await reader.prepare([number], { ocr: true, retry: ocrAttempt > 0 });
+        const poll = async () => {
+          if (!active) return;
+          try {
+            const geometry = await reader.text(number);
+            if (!active) return;
+            if (geometry.ocrVersion >= 1) {
+              cache.updateText(number, geometry);
+              setValue(v => ({ ...v, text: geometry }));
+              setOcrState(''); return;
+            }
+            if (status.pages?.find(p => p.page === number)?.ocrState === 'failed' || ++attempts > 60) {
+              setOcrState('failed'); return;
+            }
+            if (attempts % 6 === 0) status = await reader.prepare([number], { ocr: true });
+            else status = await reader.metadata();
+            if (active) timer = setTimeout(poll, 2000);
+          } catch { if (active) setOcrState('failed'); }
+        };
+        await poll();
+      } catch { if (active) setOcrState('failed'); }
+    };
+    run();
+    return () => { active = false; clearTimeout(timer); };
+  }, [reader, cache, number, mode, Boolean(value), value?.text.ocrVersion, ocrAttempt]);
   useEffect(() => {
     setCandidate(null);
     if (mode !== 'text') return;
@@ -129,7 +167,8 @@ export default React.memo(function ProofPage({
       timer = setTimeout(() => {
         if (!surface.current) return;
         const anchor = selectionAnchor(surface.current, window.getSelection());
-        setCandidate(anchor ? { ...anchor, page: number } : null);
+        if (anchor) setCandidate({ ...anchor, page: number });
+        else if (!document.activeElement?.closest('.proof-add-comment')) setCandidate(null);
       }, 80);
     };
     document.addEventListener('selectionchange', selected);
@@ -196,7 +235,7 @@ export default React.memo(function ProofPage({
       </div>
     );
   const { image, text } = value,
-    regions = text.imageRegions || [],
+    regions = (text.imageRegions || []).filter(r => !r.pageImage),
     selected = pendingSelection || candidate;
   return (
     <div
@@ -271,7 +310,12 @@ export default React.memo(function ProofPage({
           ))}
         </svg>
       )}
-      {selected?.rects.map((r, i) => (
+      {selected?.imageQuad?.length >= 3 ? (
+        <svg className="proof-selection-image" viewBox="0 0 1 1" preserveAspectRatio="none"
+          aria-label={pendingSelection ? 'Unsaved correction selection' : 'Selected correction target'}>
+          <polygon points={selected.imageQuad.map(p => `${p.x},${p.y}`).join(' ')} />
+        </svg>
+      ) : selected?.rects.map((r, i) => (
         <div
           key={i}
           className="proof-selection-mark"
@@ -310,21 +354,30 @@ export default React.memo(function ProofPage({
           )}
         </div>
       )}
-      {mode === 'text' && !text.text.length && (
+      {mode === 'text' && ocrState && (
+        <div className="proof-ocr-status" role="status">
+          {ocrState === 'preparing' ? tx('Recognizing text… You can keep reading.') : <>
+            <InterfaceText>Text recognition could not finish.</InterfaceText>{' '}
+            <button onClick={() => setOcrAttempt(n => n + 1)}><InterfaceText>Retry text recognition</InterfaceText></button>{' '}
+            <button onClick={onUseArea}><InterfaceText>Mark area</InterfaceText></button>
+          </>}
+        </div>
+      )}
+      {mode === 'text' && !text.text.length && !ocrState && (
         <button className="proof-image-page-hint" onClick={onUseArea}>
-          <InterfaceText>No selectable PDF text. Mark an area instead.</InterfaceText>
+          <InterfaceText>No selectable text found. Mark an area instead.</InterfaceText>
         </button>
       )}
       {mode === 'image' && text.geometryVersion >= geometryVersion && !regions.length && (
         <button className="proof-image-page-hint" onClick={onUseArea}>
-          <InterfaceText>No separate PDF images. Mark an area instead.</InterfaceText>
+          <InterfaceText>Draw around the photo</InterfaceText>
         </button>
       )}
       {annotations
         .filter((a) => a.page === number)
         .map((a) => (
           <React.Fragment key={a._id}>
-            {a.imageQuad?.length === 4 ? (
+            {a.imageQuad?.length >= 3 ? (
               <svg
                 className={`proof-saved-image${focused === a._id ? ' is-focused' : ''}`}
                 viewBox="0 0 1 1"
@@ -341,7 +394,7 @@ export default React.memo(function ProofPage({
               className={`proof-pin${focused === a._id ? ' is-focused' : ''}`}
               data-comment-id={a._id}
               style={{ left: `${a.rects[0].x * 100}%`, top: `${a.rects[0].y * 100}%` }}
-              aria-label={`Comment ${a.displayNumber}: ${a.text}`}
+              aria-label={`Comment ${a.displayNumber}: ${a.text || tx('Review attached images')}`}
               aria-pressed={focused === a._id}
               onClick={(e) => {
                 e.stopPropagation();
