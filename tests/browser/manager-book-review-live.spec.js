@@ -1,16 +1,11 @@
+import {securityLogin} from './security-login.js';
 import { test, expect } from '@playwright/test';
 import { proofPdf } from '../../../tinzel-backend/tests/fixtures/proofPdf.js';
 const password = 'Browser!2026';
-async function login(request, role) {
-  const res = await request.post('/api/staff/login', {
-    data: { email: `${role}@example.test`, password },
-  });
-  expect(res.status()).toBe(200);
-  return (await res.json()).token;
-}
+const login=securityLogin;
 async function api(request, path, token, data, method = 'post') {
   const res = await request[method](`/api${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: token ? { Cookie:'',Authorization: `Bearer ${token}` } : {},
     ...(data === undefined ? {} : { data }),
   });
   const body = await res.json();
@@ -21,6 +16,7 @@ async function staffContext(browser, token) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
+  await context.addCookies([{name:'tinzel_staff',value:token,url:'http://127.0.0.1:5177',httpOnly:true,sameSite:'Strict'}]);
   await context.addInitScript((value) => {
     localStorage.setItem('tinzel_staff_token', value);
     localStorage.setItem('tinzel_language', 'en');
@@ -89,7 +85,7 @@ test('real book return, designer checklist, corrected upload and manager approva
   const initial = await request.post(
     `/api/designer/orders/${id}/upload-draft`,
     {
-      headers: { Authorization: `Bearer ${designer}` },
+      headers: { Cookie:'',Authorization: `Bearer ${designer}` },
       multipart: {
         draftFile: {
           name: 'magazine-v1.pdf',

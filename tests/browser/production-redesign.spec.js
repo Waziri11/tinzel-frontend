@@ -1,10 +1,11 @@
+import {securityLogin} from './security-login.js';
 import {test,expect} from './fixtures.js';
 import AxeBuilder from '@axe-core/playwright';
 import {proofPdf} from '../../../tinzel-backend/tests/fixtures/proofPdf.js';
 const password='Browser!2026';
-async function login(request,role){const response=await request.post('/api/staff/login',{data:{email:`${role}@example.test`,password}});expect(response.status()).toBe(200);return (await response.json()).token;}
-async function api(request,path,token,data,method='post'){const response=await request[method](`/api${path}`,{headers:{Authorization:`Bearer ${token}`},...(data===undefined?{}:{data})});const body=await response.json();expect(response.ok(),`${method} ${path}: ${JSON.stringify(body)}`).toBe(true);return body;}
-async function staffSignIn(page,role,path){await page.goto(path);await page.getByLabel('Work Email Address',{exact:true}).fill(`${role}@example.test`);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign In to Workstation'}).click();}
+const login=securityLogin;
+async function api(request,path,token,data,method='post'){const response=await request[method](`/api${path}`,{headers:{Cookie:'',Authorization:`Bearer ${token}`},...(data===undefined?{}:{data})});const body=await response.json();expect(response.ok(),`${method} ${path}: ${JSON.stringify(body)}`).toBe(true);return body;}
+async function staffSignIn(page,role,path){const token=await securityLogin(page.request,role);await page.context().addCookies([{name:'tinzel_staff',value:token,url:'http://127.0.0.1:5177',httpOnly:true,sameSite:'Strict'}]);await page.goto(path);}
 async function createEdition(request,admin){const suffix=Date.now();const created=await api(request,'/admin/forms',admin,{title:`Fictional release ${suffix}`,titleSw:'Toleo la majaribio',description:'Isolated acceptance record.',price:50000,currency:'TZS',coverImageUrl:'/brand/magazine-cover-sample.jpg',sections:[{sectionId:'story',title:'Your story',titleSw:'Hadithi yako',order:0}],fields:[{fieldId:'story',sectionId:'story',label:'Your story',labelSw:'Hadithi yako',type:'textarea',required:true,order:0}],lipaNambaInstructions:{tillNumber:'TEST',accountName:'Isolated test only',instructions:'Do not pay this test order.'}});await api(request,`/admin/forms/${created.form._id}/publish`,admin);return created.form;}
 
 test('real isolated ordering, manager return, customer revision, approval and delivery closure',async({page,request},testInfo)=>{
@@ -26,17 +27,17 @@ test('real isolated ordering, manager return, customer revision, approval and de
  await page.getByRole('button',{name:'Verify payment',exact:true}).last().click();
  const payment=page.getByRole('dialog',{name:'Verify Lipa Namba payment'});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify Lipa Namba payment',exact:true}).click();
  await expect(payment).toHaveCount(0);order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(order.status).toBe('assigned');
- const upload=async version=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests?.at(-1);const response=await request.post(`/api/designer/orders/${id}/upload-draft`,{headers:{Authorization:`Bearer ${designer}`},multipart:{draftFile:{name:'isolated.pdf',mimeType:'application/pdf',buffer:proofPdf(2)},expectedVersion:String(version-1),...(revision?.status==='open'?{revisionRequestId:revision._id,verifyAll:'true'}:{})}});expect(response.ok(),await response.text()).toBe(true);};
+ const upload=async version=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests?.at(-1);const response=await request.post(`/api/designer/orders/${id}/upload-draft`,{headers:{Cookie:'',Authorization:`Bearer ${designer}`},multipart:{draftFile:{name:'isolated.pdf',mimeType:'application/pdf',buffer:proofPdf(2)},expectedVersion:String(version-1),...(revision?.status==='open'?{revisionRequestId:revision._id,verifyAll:'true'}:{})}});expect(response.ok(),await response.text()).toBe(true);};
  const address=async()=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests.at(-1);for(const item of revision.items)await api(request,`/designer/orders/${id}/returns/${revision._id}/items/${item._id}`,designer,{response:'Corrected in the isolated fixture.'},'patch');};
  await upload(1);await api(request,`/manager/orders/${id}/review-draft`,manager,{expectedVersion:1,action:'return_to_designer',items:[{text:'Fictional manager correction',pageReference:'1'}]});await address();await upload(2);
  // Blocked print and stale review both remain enforced by the real backend.
- const blocked=await request.post(`/api/manager/orders/${id}/authorise-print`,{headers:{Authorization:`Bearer ${manager}`},data:{}});expect(blocked.status()).toBeGreaterThanOrEqual(400);
- const stale=await request.post(`/api/manager/orders/${id}/review-draft`,{headers:{Authorization:`Bearer ${manager}`},data:{expectedVersion:1,action:'release_to_client'}});expect(stale.status()).toBe(409);
+ const blocked=await request.post(`/api/manager/orders/${id}/authorise-print`,{headers:{Cookie:'',Authorization:`Bearer ${manager}`},data:{}});expect(blocked.status()).toBeGreaterThanOrEqual(400);
+ const stale=await request.post(`/api/manager/orders/${id}/review-draft`,{headers:{Cookie:'',Authorization:`Bearer ${manager}`},data:{expectedVersion:1,action:'release_to_client'}});expect(stale.status()).toBe(409);
  await api(request,`/manager/orders/${id}/review-draft`,manager,{expectedVersion:2,action:'release_to_client'});order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;
  await page.goto('/track');await page.locator('#track-login-id').fill(order.trackingId);await page.locator('#track-login-whatsapp').fill('0712000088');
  const otp=page.waitForResponse(response=>response.url().endsWith('/client/request-otp'));await page.getByRole('button',{name:'Send WhatsApp Verification Code'}).click();const otpBody=await (await otp).json();expect(otpBody.devOtp).toBeTruthy();await page.locator('#track-login-otp').fill(otpBody.devOtp);await page.getByRole('button',{name:'Verify & Enter Portal'}).click();
  await expect(page.getByAltText('Magazine page 1')).toBeVisible({timeout:30000});
- const client=await page.evaluate(()=>sessionStorage.getItem('tinzel_client_token'));
+ const client=(await page.context().cookies()).find(c=>c.name==='tinzel_client').value;
  await api(request,'/client/request-revision',client,{expectedVersion:2,items:[{text:'Fictional client correction',pageReference:'1'}]});await address();await upload(3);await api(request,`/manager/orders/${id}/review-draft`,manager,{expectedVersion:3,action:'release_to_client'});
  await page.reload();await expect(page.getByAltText('Magazine page 1')).toBeVisible({timeout:30000});
  await page.screenshot({path:testInfo.outputPath('real-client-proof.png'),fullPage:true});

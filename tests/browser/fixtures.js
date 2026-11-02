@@ -13,6 +13,9 @@ export const test = base.extend({
     await page.route('**/api/**', async route => {
       const { pathname } = new URL(route.request().url());
       if (realApi) return route.continue();
+      if(pathname==='/api/staff/me')return route.fulfill({status:401,json:{message:'Sign in'}});
+      if(pathname==='/api/client/logout')return route.fulfill({json:{success:true}});
+      if(pathname==='/api/client/order')return route.fulfill({status:401,json:{message:'Sign in'}});
       // The shell polls this authenticated inbox independently from each screen.
       if (pathname === '/api/client/notifications') return route.fulfill({json:{notifications:[],unreadCount:0}});
       if (pathname === '/api/notifications/history') return route.fulfill({json:{notifications:[],unreadCount:0}});

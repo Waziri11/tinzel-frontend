@@ -4,14 +4,14 @@ const user={id:'designer-setup',name:'Juma Designer',email:'juma@example.test',r
 for(const mobile of [false,true])test(`first login forces password setup and survives refresh on ${mobile?'mobile':'desktop'}`,async({page})=>{
  await page.setViewportSize(mobile?{width:390,height:844}:{width:1440,height:900});
  await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));
- let ready=false,changed,profileCalls=0,businessWhileSetup=[];
+ let loggedIn=false,ready=false,changed,profileCalls=0,businessWhileSetup=[];
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
-  if(path==='/api/staff/login')return json(route,{token:'setup-token',user});
-  if(path==='/api/staff/me'){profileCalls++;return json(route,{user:{...user,mustChangePassword:!ready}});}
+  if(path==='/api/staff/login'){loggedIn=true;return json(route,{token:'cookie',user});}
+  if(path==='/api/staff/me'){if(!loggedIn)return route.fulfill({status:401,json:{message:'Sign in'}});profileCalls++;return json(route,{user:{...user,mustChangePassword:!ready}});}
   if(path==='/api/staff/preferences')return json(route,{success:true});
   if(path==='/api/staff/change-password'){
-   changed=route.request().postDataJSON();ready=true;return json(route,{token:'normal-token',user:{...user,mustChangePassword:false}});
+   changed=route.request().postDataJSON();ready=true;return json(route,{token:'cookie',user:{...user,mustChangePassword:false}});
   }
   if(!ready)businessWhileSetup.push(path);
   if(path==='/api/designer/orders')return json(route,{orders:[]});
@@ -20,7 +20,7 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
  });
  await page.goto('/staff/users');
  await page.getByPlaceholder('name@example.com').fill(user.email);await page.getByPlaceholder('••••••••').fill('Abc!2345');
- await page.getByRole('button',{name:'Sign In to Workstation'}).click();
+ await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Set your own password'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Users',exact:true})).toHaveCount(0);
  await page.reload();await expect(page.getByRole('heading',{name:'Set your own password'})).toBeVisible();expect(profileCalls).toBeGreaterThan(0);expect(businessWhileSetup).toEqual([]);
@@ -31,7 +31,7 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
  await page.getByRole('button',{name:'Save password and continue'}).click();
  await expect(page.getByRole('heading',{name:'Design orders',exact:true})).toBeVisible();await expect(page).toHaveURL(/\/staff\/design$/);
  expect(changed).toEqual({currentPassword:'Abc!2345',newPassword:'ChosenPass!7'});
- const storage=await page.evaluate(()=>JSON.stringify(localStorage));expect(storage).not.toContain('ChosenPass!7');expect(storage).not.toContain('Abc!2345');expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBe('normal-token');
+ const storage=await page.evaluate(()=>JSON.stringify(localStorage));expect(storage).not.toContain('ChosenPass!7');expect(storage).not.toContain('Abc!2345');expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
 });
 
