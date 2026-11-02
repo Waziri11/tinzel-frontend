@@ -287,7 +287,7 @@ test('temporary profile failure preserves sign-in and retries without showing pr
 
 test('invalid staff session is cleared and requires sign-in',async({page})=>{
  await setup(page);await page.route('**/api/staff/me',route=>route.fulfill({status:401,contentType:'application/json',body:'{}'}));
- await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('heading',{name:'Staff Workstation Sign In'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('heading',{name:'Sign in'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
 });
 
 test('cover transfer overlaps metadata and a compatible image response is downloaded only once',async({page})=>{

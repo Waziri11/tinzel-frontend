@@ -44,11 +44,11 @@ test('manager gets an action-first dashboard and complete draft review context',
   await openManagerDashboard(page);
   await expect(page.getByText('Drafts to review')).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Designer' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Review draft/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Review magazine', exact:true }).first()).toBeVisible();
   await expect(page.getByText('TNZ-2026-0042', { exact: true })).toBeVisible();
   await page.getByText('TNZ-2026-0042', { exact: true }).click();
   await expect(page.getByText('Review the entire magazine before deciding.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Review draft' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review magazine', exact:true }).last()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open complete draft' })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Drafts (1)' })).toBeVisible();
   await page.getByRole('tab', { name: 'Drafts (1)' }).click();
@@ -58,21 +58,19 @@ test('manager gets an action-first dashboard and complete draft review context',
   await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
 });
 
-test('manager returns a draft as separate checklist fixes with stale-version protection', async ({ page }) => {
+test('manager returns a magazine with general corrections and the reviewed version', async ({ page }) => {
   await openManagerDashboard(page);
   let submitted;
   await page.route('**/api/manager/orders/order-1/review-draft', async (route) => { submitted = route.request().postDataJSON(); return json(route, { message: 'Returned' }); });
-  await page.getByText('TNZ-2026-0042', { exact: true }).click();
-  await page.getByRole('button', { name: 'Review draft' }).click();
-  await page.getByLabel('Return to designer').check();
-  await page.getByLabel('Page reference 1').fill('4');
-  await page.getByLabel('Fix 1').fill('Correct the anniversary date');
-  await page.getByRole('button', { name: 'Add another fix' }).click();
-  await page.getByLabel('Fix 2').fill('Replace the cover photo');
-  await page.getByRole('button', { name: 'Return with instructions' }).click();
+  await page.getByRole('button',{name:'Review magazine',exact:true}).first().click();
+  await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+  await page.getByLabel('General notes',{exact:true}).fill('Correct the anniversary date and replace the cover photo.');
+  await page.getByRole('button',{name:'Return to designer',exact:true}).click();
+  await page.getByRole('dialog',{name:'Confirm return',exact:true}).getByRole('button',{name:'Return to designer',exact:true}).click();
   await expect.poll(() => submitted).toBeTruthy();
   expect(submitted.expectedVersion).toBe(2);
-  expect(submitted.items).toEqual([{ pageReference: '4', text: 'Correct the anniversary date' }, { pageReference: '', text: 'Replace the cover photo' }]);
+  expect(submitted.action).toBe('return_to_designer');
+  expect(submitted.feedback).toBe('Correct the anniversary date and replace the cover photo.');
 });
 
 test('manager dashboard remains readable and actionable on a phone', async ({ page }) => {
@@ -103,7 +101,7 @@ test('board uses compact stage rows and supports keyboard detail access', async 
   await draftRow.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText('Review the entire magazine before deciding.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Review draft' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review magazine' })).toBeVisible();
 });
 
 test('manager filters, search, refresh and pagination keep the server query contract', async ({ page }) => {
@@ -152,8 +150,8 @@ test('admin workspace keeps navigation and user management concise', async ({ pa
   await chooseEnglish(page);
   await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Users 2/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Messages 0/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Audit 0/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Messages 0/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Audit 0/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Add User' })).toBeVisible();
   await expect(page.getByText('Create, view, edit, and delete')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'User' })).toBeVisible();
