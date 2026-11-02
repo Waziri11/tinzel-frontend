@@ -4,7 +4,7 @@ async function sessionContext(browser,request,role){const token=await securityLo
 const auth=token=>({Cookie:'',Authorization:`Bearer ${token}`});
 test('admin SMS OTP rejects incorrect codes, signs in, and keeps credentials out of browser storage',async({page,request},info)=>{
  await request.post('http://127.0.0.1:5078/__test__/reset-otp-limits');await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));await page.setViewportSize({width:390,height:844});const initial=await page.goto('/staff');if(process.env.SECURITY_PRODUCTION_PREVIEW)expect(initial.headers()['content-security-policy']).toContain("script-src 'self'");
- await page.getByLabel('Work Email Address',{exact:true}).fill('admin@example.test');await page.getByLabel('Password',{exact:true}).fill('Browser!2026');await page.getByLabel('Sign-in verification channel').selectOption('sms');
+ await page.getByLabel('Work Email Address',{exact:true}).fill('admin@example.test');await page.getByLabel('Password',{exact:true}).fill('Browser!2026');await expect(page.getByLabel('Sign-in verification channel')).toHaveCount(0);
  const login=page.waitForResponse(r=>r.url().endsWith('/staff/login'));await page.getByRole('button',{name:'Sign in',exact:true}).click();const challenge=await (await login).json();await expect(page.getByRole('dialog')).toBeVisible();
  await page.getByLabel('Verification code',{exact:true}).fill('000000');await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Invalid verification code');
  const code=(await (await request.get(`http://127.0.0.1:5078/__test__/otp/${challenge.challengeId}`)).json()).code;

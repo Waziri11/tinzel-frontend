@@ -27,7 +27,7 @@ export const fetchWithTimeout = async (
     const data=response.headers.get('content-type')?.includes('application/json')?await response.clone().json().catch(()=>({})):{};
     if(data.csrf)csrfTokens[sessionKind(url)]=data.csrf;
     if(response.status===403 && data.errorCode==='OTP_REQUIRED' && !options._verifiedRetry){
-      if(!pendingStepUp)pendingStepUp=otpFlow({channel:'email'},'step-up').finally(()=>{pendingStepUp=null;});
+      if(!pendingStepUp)pendingStepUp=otpFlow({channel:'sms'},'step-up').finally(()=>{pendingStepUp=null;});
       await pendingStepUp;return fetchWithTimeout(url,{...options,_verifiedRetry:true},timeoutMs);
     }
     return response;
@@ -284,7 +284,7 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify({ preferredLanguage }),
       }).then(handleResponse),
-    login: (email, password, channel='email') =>
+    login: (email, password, channel='sms') =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
         method: 'POST',
         headers: getHeaders(),
