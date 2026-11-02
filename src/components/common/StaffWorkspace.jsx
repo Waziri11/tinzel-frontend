@@ -149,9 +149,11 @@ export default function StaffWorkspace({ onExitToHome }) {
   const screens = Grid.useBreakpoint();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef(null);
-  const [token, setToken] = useState(
-    'cookie',
+  // Explicit sign-in entry must not restore a session or initiate verification.
+  const [token, setToken] = useState(() =>
+    /^\/staff\/login\/?$/.test(window.location.pathname) ? '' : 'cookie',
   );
+  const loginInFlight = useRef(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -308,6 +310,8 @@ export default function StaffWorkspace({ onExitToHome }) {
 
 
   const handleLogin = async (loginEmail, loginPass) => {
+    if (loginInFlight.current) return;
+    loginInFlight.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -316,6 +320,10 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.removeItem('tinzel_staff_token');
       setCurrentUser(data.user);
       setPassword('');
+      if (/^\/staff\/login\/?$/.test(window.location.pathname)) {
+        const designer = data.user.role === 'designer';
+        navigateStaff(designer ? '/staff/design' : '/staff/pre-design', designer ? 'designer_queue' : 'pre_design');
+      }
       if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
 
       const route = readRoute();
@@ -333,6 +341,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
+      loginInFlight.current = false;
       setLoading(false);
     }
   };

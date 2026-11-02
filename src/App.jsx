@@ -65,10 +65,10 @@ export default function App() {
         {t('nav.followUp')}
       </a>
       <a
-        href="/staff"
+        href="/staff/login"
         onClick={(e) => {
           e.preventDefault();
-          navigate('/staff');
+          navigate('/staff/login');
         }}
       >
         {t('nav.staffLogin')}
@@ -130,7 +130,7 @@ export default function App() {
               <LandingHero
                 onSelectNewOrder={() => navigate('/catalogue')}
                 onOpenFollowUp={() => navigate('/track')}
-                onOpenLogin={() => navigate('/staff')}
+                onOpenLogin={() => navigate('/staff/login')}
               />
             )}
             {catalogue && (
