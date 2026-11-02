@@ -1,6 +1,6 @@
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
 import {
   AlertTriangle,
@@ -29,7 +29,7 @@ import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import './managerDashboard.css';
 
-const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
+const ManagerMagazineReview = lazy(() => import('./ManagerMagazineReview'));
 
 const ALL_STAGES = [
   { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },
@@ -229,9 +229,6 @@ const displayDate = (date) =>
 const emptyForm = {
   paymentRef: '',
   amountPaid: '',
-  draftAction: 'release_to_client',
-  draftFeedback: '',
-  draftItems: [{ text: '', pageReference: '' }],
   printerStage: 'in_progress',
   printerNotes: '',
   carrier: '',
@@ -279,6 +276,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [detailLoading, setDetailLoading] = useState(false);
   const [designers, setDesigners] = useState([]);
   const [settings, setSettings] = useState({ printer: { configured: false, phone: '' } });
+  const reviewGuard=useRef(null), reviewLocation=useRef(window.location.href), restoringReview=useRef(false);
+  const registerReviewGuard=useCallback(guard=>{reviewGuard.current=guard;if(guard)reviewLocation.current=window.location.href;},[]);
   const [action, setAction] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
@@ -344,7 +343,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     activeStages.find((stage) => orders.some((order) => stage.statuses.includes(order.status)))?.id ||
     activeStages[0]?.id;
 
-  const openOrder = async (order, updateRoute = true) => {
+  const openOrder = async (order, updateRoute = true, skipGuard = false) => {
+    if(!skipGuard && reviewGuard.current && !reviewGuard.current())return;
     if (updateRoute) {
       const params = new URLSearchParams(window.location.search);
       params.set('orderId', order._id);
@@ -367,6 +367,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   useEffect(() => {
     const restore = () => {
+      if(restoringReview.current){restoringReview.current=false;return;}
+      if(reviewGuard.current && !reviewGuard.current()){window.history.pushState({},'',reviewLocation.current);restoringReview.current=true;window.dispatchEvent(new PopStateEvent('popstate'));return;}
       const params = new URLSearchParams(window.location.search),
         id = params.get('orderId');
       setDetailTab(params.get('tab') || 'overview');
@@ -381,6 +383,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     return () => window.removeEventListener('popstate', restore);
   }, [token, phase]);
   const changeDetailTab = (tab) => {
+    if(tab!==detailTab && reviewGuard.current && !reviewGuard.current())return;
     setDetailTab(tab);
     const params = new URLSearchParams(window.location.search);
     params.set('tab', tab);
@@ -388,6 +391,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   };
 
   const closeDetail = () => {
+    if(reviewGuard.current && !reviewGuard.current())return;
     const params = new URLSearchParams(window.location.search);
     params.delete('orderId');
     params.delete('tab');
@@ -399,6 +403,15 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   const beginAction = (name, order = orderDetail || selectedOrder) => {
     if (!order) return;
+    if(name==='draft'){
+      if(detailTab==='drafts' && orderDetail?._id===order._id)return;
+      if(reviewGuard.current && !reviewGuard.current())return;
+      setDetailTab('drafts');
+      const params=new URLSearchParams(window.location.search);params.set('orderId',order._id);params.set('tab','drafts');
+      window.history.pushState({},'',`${window.location.pathname}?${params}`);
+      openOrder(order,false,true);return;
+    }
+    if(reviewGuard.current && !reviewGuard.current())return;
     setSelectedOrder(order);
     setForm({
       ...emptyForm,
@@ -430,13 +443,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         response = await api.manager.verifyPayment(token, selectedOrder._id, {
           lipaNambaReference: form.paymentRef,
           amountPaid: form.amountPaid,
-        });
-      if (action === 'draft')
-        response = await api.manager.reviewDraft(token, selectedOrder._id, {
-          action: form.draftAction,
-          feedback: form.draftFeedback,
-          items: form.draftAction === 'return_to_designer' ? form.draftItems : undefined,
-          expectedVersion: selectedOrder.currentDraftVersion,
         });
       if (action === 'print') response = await api.manager.authorisePrint(token, selectedOrder._id, {});
       if (action === 'printer')
@@ -503,7 +509,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       queued_for_assignment: ['reassign', 'Assign designer', UserRoundCheck],
       assigned: ['reassign', 'Reassign', UserRoundCheck],
       in_design: ['reassign', 'Reassign', UserRoundCheck],
-      draft_manager_review: ['draft', 'Review draft', FileCheck2],
+      draft_manager_review: ['draft', 'Review magazine', FileCheck2],
       print_manager_review: ['print', 'Authorize printing', Printer],
       printing_sent: ['printer', 'Record acknowledgement', Clock3],
       printing_in_progress: ['printer', 'Verify completion', CheckCircle2],
@@ -515,19 +521,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     const config = map[order.status];
     if (!config) return null;
     const [name, label, Icon] = config;
-    if (compact && name === 'draft')
-      return (
-        <button
-          type="button"
-          className="manager-secondary-action"
-          onClick={(event) => {
-            event.stopPropagation();
-            openOrder(order);
-          }}
-        >
-          {tx('Open Order')}
-        </button>
-      );
     return (
       <button
         type="button"
@@ -906,7 +899,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
       <Drawer
         title={selectedOrder ? `${orderId(selectedOrder)} · ${selectedOrder.clientName}` : 'Order details'}
-        width={720}
+        width={detailTab==='drafts'?'min(1200px, 100vw)':720}
         open={Boolean(selectedOrder)}
         onClose={closeDetail}
         className="manager-order-drawer"
@@ -922,7 +915,10 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             auditLogs={auditLogs}
             beginAction={beginAction}
             nextActionButton={nextActionButton}
-            onReviewed={() => finishAction('Corrections submitted')}
+            onReviewed={(message)=>{reviewGuard.current=null;return finishAction(message);}}
+            onReload={()=>openOrder(orderDetail,false)}
+            registerReviewGuard={registerReviewGuard}
+            checkReviewGuard={()=>!reviewGuard.current||reviewGuard.current()}
           />
         ) : null}
       </Drawer>
@@ -949,7 +945,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   );
 }
 
-function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton, onReviewed }) {
+function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton, onReviewed, onReload, registerReviewGuard, checkReviewGuard }) {
   const tx = useInterfaceText();
 
   const currentDraft = order.draftVersions?.find((draft) => draft.versionNumber === order.currentDraftVersion);
@@ -994,11 +990,13 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
       children: (
         <div>
           {currentDraft && (
-            <PdfBookReader
+            <ManagerMagazineReview
+              key={`${order._id}:${selectedVersion || currentDraft.versionNumber}`}
+              order={order}
+              onReload={onReload}
+              registerGuard={registerReviewGuard}
               token={token}
-              orderId={order._id}
               version={selectedVersion || currentDraft.versionNumber}
-              title={`Draft version ${selectedVersion || currentDraft.versionNumber}`}
               onReviewed={onReviewed}
             />
           )}
@@ -1012,7 +1010,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
                   className={draft.versionNumber === order.currentDraftVersion ? 'is-current' : ''}
                 >
                   <div>
-                    <button onClick={() => setSelectedVersion(draft.versionNumber)}>
+                    <button onClick={() => {if(checkReviewGuard())setSelectedVersion(draft.versionNumber);}}>
                       <InterfaceText>Open version</InterfaceText> {draft.versionNumber}
                     </button>
                     <span>{displayDate(draft.uploadedAt)}</span>
@@ -1087,7 +1085,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
           <p>{order.formTitle || order.formId?.title}</p>
         </div>
         <div className="manager-order-detail__actions">
-          {nextActionButton(order)}
+          {(activeTab!=='drafts'||order.status!=='draft_manager_review')&&nextActionButton(order)}
           {order.status !== 'closed' && order.status !== 'on_hold' && (
             <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}>
               <PauseCircle size={16} />
@@ -1106,7 +1104,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
             <p>
               <InterfaceText>Version</InterfaceText> {currentDraft.versionNumber}{' '}
               <InterfaceText>
-                is hidden from the client until you release it. Open the Drafts tab to inspect it.
+                is hidden from the client until you release it. Choose Review magazine to inspect it as a book.
               </InterfaceText>
             </p>
           </div>
@@ -1149,14 +1147,8 @@ function ActionModal({
   const tx = useInterfaceText();
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
-  const updateDraftItem = (index, key, value) =>
-    setForm((current) => ({
-      ...current,
-      draftItems: current.draftItems.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)),
-    }));
   const titles = {
     payment: 'Verify Lipa Namba payment',
-    draft: `Review complete draft V${order?.currentDraftVersion || ''}`,
     print: 'Authorize printing',
     printer: 'Record printer progress',
     dispatch: 'Authorize courier dispatch',
@@ -1218,100 +1210,6 @@ function ActionModal({
                 <InterfaceText>Amount paid (TZS)</InterfaceText>
                 <input required type="number" min="1" value={form.amountPaid} onChange={update('amountPaid')} />
               </label>
-            </>
-          )}
-          {action === 'draft' && (
-            <>
-              <p>
-                <InterfaceText>
-                  The complete magazine remains private until you approve it. Returns become a checklist for the
-                  designer.
-                </InterfaceText>
-              </p>
-              <fieldset>
-                <legend>
-                  <InterfaceText>Decision</InterfaceText>
-                </legend>
-                <label className="manager-radio">
-                  <input
-                    type="radio"
-                    name="draftAction"
-                    value="release_to_client"
-                    checked={form.draftAction === 'release_to_client'}
-                    onChange={update('draftAction')}
-                  />
-                  <InterfaceText>Approve and release to client</InterfaceText>
-                </label>
-                <label className="manager-radio">
-                  <input
-                    type="radio"
-                    name="draftAction"
-                    value="return_to_designer"
-                    checked={form.draftAction === 'return_to_designer'}
-                    onChange={update('draftAction')}
-                  />
-                  <InterfaceText>Return to designer</InterfaceText>
-                </label>
-              </fieldset>
-              {form.draftAction === 'return_to_designer' ? (
-                <div>
-                  <label>
-                    <InterfaceText>Required fixes</InterfaceText>
-                  </label>
-                  {form.draftItems.map((item, index) => (
-                    <div key={index} className="manager-fix-editor">
-                      <input
-                        aria-label={`Page reference ${index + 1}`}
-                        placeholder={tx('Page (optional)')}
-                        value={item.pageReference}
-                        onChange={(e) => updateDraftItem(index, 'pageReference', e.target.value)}
-                      />
-                      <input
-                        required
-                        aria-label={`Fix ${index + 1}`}
-                        placeholder={tx('Describe one required fix')}
-                        value={item.text}
-                        onChange={(e) => updateDraftItem(index, 'text', e.target.value)}
-                      />
-                      {form.draftItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((current) => ({
-                              ...current,
-                              draftItems: current.draftItems.filter((_, i) => i !== index),
-                            }))
-                          }
-                        >
-                          <InterfaceText>Remove</InterfaceText>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    className="manager-secondary-action"
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        draftItems: [...current.draftItems, { text: '', pageReference: '' }],
-                      }))
-                    }
-                  >
-                    <InterfaceText>Add another fix</InterfaceText>
-                  </button>
-                </div>
-              ) : (
-                <label>
-                  <InterfaceText>Review notes</InterfaceText>
-                  <textarea
-                    rows="4"
-                    value={form.draftFeedback}
-                    onChange={update('draftFeedback')}
-                    placeholder={tx('Optional internal review note')}
-                  />
-                </label>
-              )}
             </>
           )}
           {action === 'print' && (
@@ -1483,8 +1381,6 @@ function ActionModal({
               {tx(
                 submitting
                   ? 'Saving…'
-                  : action === 'draft' && form.draftAction === 'return_to_designer'
-                    ? 'Return with instructions'
                     : titles[action],
               )}
             </button>

@@ -149,7 +149,7 @@ export default function ProofComments({
             ))}
           </section>
         ))}
-      {canComment && pending.length > 0 && (
+      {canComment && pending.length > 0 && onSubmit && (
         <button disabled={saving} onClick={onSubmit}>
           <InterfaceText>Return for corrections (</InterfaceText>
           {pending.length})

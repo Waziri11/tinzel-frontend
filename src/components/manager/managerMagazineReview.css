@@ -1,0 +1,13 @@
+.manager-proof-controls {flex-shrink:0;max-height:40%;overflow:auto;border-top:1px solid var(--border-color);padding:10px 14px;background:var(--bg-primary);font-size:12px}
+.manager-proof-controls label{display:block;font-weight:600}
+.manager-proof-controls textarea{display:block;width:100%;resize:vertical;margin:6px 0 10px;min-height:48px;max-height:120px;font-size:14px}
+.manager-proof-controls p{margin:6px 0;color:var(--text-muted)}
+.manager-proof-buttons{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.pdf-book .manager-proof-buttons button{border:1px solid var(--border-color);background:white;min-height:40px;padding:9px 14px}
+.pdf-book .manager-proof-buttons button.is-primary{background:var(--accent-primary);color:white;border-color:var(--accent-primary)}
+.manager-proof-controls [role=alert]{color:var(--accent-danger);padding:8px 0}
+.manager-proof-confirm-backdrop{position:absolute;inset:0;z-index:100;display:grid;place-items:center;background:#1c191766;padding:16px}
+.manager-proof-confirmation{max-width:560px;width:100%;max-height:100%;overflow:auto;padding:24px;background:var(--bg-primary);border-radius:12px;box-shadow:0 16px 48px #0003}
+.manager-proof-confirmation h2{font:500 28px var(--font-brand)}
+.manager-proof-confirmation li{margin-bottom:10px;overflow-wrap:anywhere;white-space:pre-wrap}
+@media(max-width:600px){.manager-proof-controls{padding:8px;max-height:44%}.manager-proof-buttons{gap:6px}.pdf-book .manager-proof-buttons button{flex:1;font-size:11px}.manager-proof-confirmation{padding:16px}.manager-proof-controls textarea{font-size:16px}.manager-proof-confirmation h2{font-size:24px}}

@@ -29,6 +29,10 @@ export default function PdfBookReader({
   title = 'Magazine proof',
   onReviewed,
   focusAnnotation,
+  renderReviewControls,
+  onReviewStateChange,
+  hideCommentSubmit = false,
+  interactionDisabled = false,
 }) {
   const tx = useInterfaceText();
   const reader = useMemo(() => proofApi(token, orderId, version, client), [token, orderId, version, client]);
@@ -383,9 +387,19 @@ export default function PdfBookReader({
   const pending = annotations.filter((a) => !a.submittedAt);
   const next = () => navigate(Math.min(metadata.pageCount, page === 1 || single ? page + 1 : page + 2));
   const previous = () => navigate(Math.max(1, single ? page - 1 : page === 2 ? 1 : page - 2));
+  const reviewState = {
+    ready: opened,
+    canComment: Boolean(metadata?.canComment),
+    pendingAnnotations: pending,
+    saving: saving || Boolean(discarding),
+    composing: Boolean(selection),
+  };
+  useEffect(() => {
+    onReviewStateChange?.({ready:opened,canComment:Boolean(metadata?.canComment),pendingAnnotations:(metadata?.annotations||[]).filter(a=>!a.submittedAt),saving:saving||Boolean(discarding),composing:Boolean(selection)});
+  }, [opened, metadata, saving, discarding, selection, onReviewStateChange]);
   const save = async (e) => {
     e.preventDefault();
-    if (!selection || !comment.trim() || saving) return;
+    if (!selection || !comment.trim() || saving || interactionDisabled) return;
     const { anchor, ...fields } = selection;
     const generation = reviewGeneration.current,
       submitted = { selection, comment },
@@ -523,7 +537,7 @@ export default function PdfBookReader({
     >
       <header className="proof-toolbar">
         <strong>{tx(title)}</strong>
-        {metadata?.canComment && (
+        {metadata?.canComment && !interactionDisabled && (
           <div className="proof-modes" aria-label={tx('Review tools')}>
             {[
               ['read', 'Read'],
@@ -631,7 +645,7 @@ export default function PdfBookReader({
                     reader={reader}
                     number={number}
                     annotations={annotations}
-                    mode={metadata.canComment ? mode : 'read'}
+                    mode={metadata.canComment && !interactionDisabled ? mode : 'read'}
                     onSelect={select}
                     onFocus={focus}
                     focused={focused}
@@ -650,14 +664,14 @@ export default function PdfBookReader({
                 onClose={() => setShowComments(false)}
                 onDiscard={discard}
                 discarding={discarding}
-                canComment={metadata.canComment}
+                canComment={metadata.canComment && !interactionDisabled}
                 pending={pending}
                 saving={saving}
-                onSubmit={submit}
+                onSubmit={hideCommentSubmit ? undefined : submit}
                 currentPages={pagesAt(page)}
               />
             )}
-            {selection && metadata.canComment && (
+            {selection && metadata.canComment && !interactionDisabled && (
               <form
                 className="proof-composer"
                 aria-label={tx('Comment editor')}
@@ -807,6 +821,7 @@ export default function PdfBookReader({
           </footer>
         </>
       )}
+      {renderReviewControls?.(reviewState)}
     </section>
   );
   return expanded ? createPortal(content, document.body) : content;
