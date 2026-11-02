@@ -87,6 +87,8 @@
   grid-template-columns: repeat(4, minmax(140px, 1fr));
 }
 .manager-summary-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   min-height: 72px;
   padding: 12px 14px;
   display: flex;
@@ -117,6 +119,9 @@
   border-radius: 8px;
   background: var(--accent-gold-light);
   color: #6f531c;
+}
+.manager-summary-card > span:last-child {
+  min-width: 0;
 }
 .manager-summary-card strong,
 .manager-summary-card small {
@@ -850,8 +855,9 @@
 }
 
 @media (max-width: 1180px) {
-  .manager-summary-grid {
-    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  .manager-summary-grid,
+  .manager-summary-grid.is-four-col {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .manager-control-bar {
     flex-wrap: wrap;
@@ -918,14 +924,15 @@
 }
 
 @media (max-width: 767px) {
-  .manager-summary-grid {
+  .manager-summary-grid,
+  .manager-summary-grid.is-four-col {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .manager-summary-card {
     min-height: 68px;
     padding: 11px;
   }
-  .manager-summary-card:last-child {
+  .manager-summary-card:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
   .manager-control-bar {

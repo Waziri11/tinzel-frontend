@@ -349,13 +349,16 @@
     gap: 20px;
   }
   .edition-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
   .edition-cover {
-    padding: 28px 64px;
+    padding: 20px;
     aspect-ratio: 1/1;
   }
+  .edition-info { padding: 12px; }
+  .edition-info h2 { font-size: 24px; overflow-wrap: anywhere; }
+  .edition-cover-fallback span { font-size: 24px; overflow-wrap: anywhere; }
   .catalogue-search {
     min-width: 0;
   }

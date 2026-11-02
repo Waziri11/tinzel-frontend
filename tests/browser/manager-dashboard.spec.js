@@ -174,3 +174,28 @@ test('unconfigured printing remains blocked in the manager action dialog',async(
  await page.reload();await page.getByText('TNZ-2026-0042',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Authorize printing',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Authorize printing'});await expect(dialog.getByText('No verified printer is configured. Ask an administrator to configure it first.')).toBeVisible();await expect(dialog.getByRole('button',{name:'Authorize printing',exact:true})).toBeDisabled();
 });
+
+test('every phase keeps four summary cards in two mobile rows', async ({ page }) => {
+  await openManagerDashboard(page);
+  for (const path of ['/staff/pre-design', '/staff/design-phase', '/staff/post-design']) {
+    await page.goto(path);
+    const cards = page.locator('.manager-summary-card');
+    await expect(cards).toHaveCount(4);
+    for (const width of [320, 390, 600, 767]) {
+      await page.setViewportSize({ width, height: 844 });
+      const boxes = await cards.evaluateAll(nodes => nodes.map(node => {
+        const { x, y, width, right } = node.getBoundingClientRect();
+        return { x, y, width, right, scroll: node.scrollWidth, client: node.clientWidth };
+      }));
+      expect(boxes[0].y).toBe(boxes[1].y);
+      expect(boxes[2].y).toBe(boxes[3].y);
+      expect(boxes[2].y).toBeGreaterThan(boxes[0].y);
+      for (const box of boxes) {
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(width);
+        expect(box.width).toBeCloseTo(boxes[0].width, 0);
+        expect(box.scroll).toBeLessThanOrEqual(box.client + 1);
+      }
+    }
+  }
+});

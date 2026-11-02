@@ -127,6 +127,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
 
       {/* Summary Cards */}
       <div
+        className="returns-summary-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
