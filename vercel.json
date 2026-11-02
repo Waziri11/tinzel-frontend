@@ -1,8 +1,36 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://tinzel-backend.stryxis.com/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://tinzel-backend.stryxis.com/uploads/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://tinzel-backend.stryxis.com/api/:path*"
+    },
+    {
+      "source": "/uploads/:path*",
+      "destination": "https://tinzel-backend.stryxis.com/uploads/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.blob.vercel-storage.com; font-src 'self' data:; connect-src 'self' https://*.blob.vercel-storage.com; worker-src 'self' blob:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
   ]
 }

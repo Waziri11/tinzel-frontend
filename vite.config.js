@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import {readFileSync} from 'node:fs';
+const deploymentHeaders = Object.fromEntries(JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url))).headers[0].headers.map(({key,value})=>[key,value]));
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -16,6 +18,13 @@ export default defineConfig({
           }
         },
       },
+    },
+  },
+  preview: {
+    headers: deploymentHeaders,
+    proxy: {
+      '/api': {target: process.env.VITE_PROXY_TARGET || 'http://localhost:5001', changeOrigin: true},
+      '/uploads': {target: process.env.VITE_PROXY_TARGET || 'http://localhost:5001', changeOrigin: true},
     },
   },
   server: {

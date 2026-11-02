@@ -306,11 +306,12 @@ export default function StaffWorkspace({ onExitToHome }) {
     }
   };
 
+  const [loginChannel,setLoginChannel]=useState('email');
   const handleLogin = async (loginEmail, loginPass) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.staffAuth.login(loginEmail, loginPass);
+      const data = await api.staffAuth.login(loginEmail, loginPass,loginChannel);
       setToken(data.token);
       localStorage.removeItem('tinzel_staff_token');
       setCurrentUser(data.user);
@@ -629,6 +630,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
             )}
 
+            <label>Verification channel<select aria-label="Sign-in verification channel" value={loginChannel} onChange={e=>setLoginChannel(e.target.value)}><option value="email">Email</option><option value="sms">SMS</option></select></label>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
