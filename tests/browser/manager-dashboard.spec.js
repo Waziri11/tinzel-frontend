@@ -79,6 +79,7 @@ test('manager dashboard remains readable and actionable on a phone', async ({ pa
   await expect(page.getByRole('button', { name: 'Open workspace menu' })).toBeVisible();
   await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
   await expect(page.getByLabel('Board stage')).toBeVisible();
+  await expect(page.getByLabel('Filter by stage', { exact: true })).toBeHidden();
   await page.getByLabel('Board stage').selectOption('draft_manager_review');
   await expect(page.locator('.manager-board-column')).toHaveCount(6);
   await expect(page.locator('.manager-board-column:visible')).toHaveCount(1);

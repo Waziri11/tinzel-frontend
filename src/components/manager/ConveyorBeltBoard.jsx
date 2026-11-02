@@ -605,7 +605,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
       <div className="manager-control-bar">
         <div className="manager-view-switch" aria-label={tx('Dashboard view')}>
-          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => setView('board')}>
+          <button type="button" className={view === 'board' ? 'is-active' : ''} onClick={() => { setStatusFilter('all'); setPage(1); setView('board'); }}>
             <LayoutDashboard size={16} />
             <InterfaceText>Kanban Board</InterfaceText>
           </button>
@@ -648,7 +648,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             </button>
           )}
         </form>
-        <label className="manager-filter">
+        <label className={`manager-filter${view === 'board' ? ' manager-stage-filter--board' : ''}`}>
           <span className="visually-hidden">
             <InterfaceText>Stage</InterfaceText>
           </span>

@@ -886,6 +886,9 @@
     height: 100% !important;
     border: 0 !important;
   }
+  .manager-stage-filter--board {
+    display: none;
+  }
   .manager-mobile-stage-picker {
     margin-bottom: 10px;
     display: grid;
