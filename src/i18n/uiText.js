@@ -1,6 +1,8 @@
 // Interface text only. User-authored stories, correction text and saved option values are never translated here.
 export const uiText = {
   'Review magazine': 'Kagua jarida',
+  'Magazine approved and released to client': 'Jarida limeidhinishwa na kutumwa kwa mteja',
+  'Magazine returned to designer': 'Jarida limerudishwa kwa msanifu',
   'is hidden from the client until you release it. Choose Review magazine to inspect it as a book.': 'limefichwa kwa mteja hadi uliruhusu. Chagua Kagua jarida kulisoma kama kitabu.',
   'Choose the draft version being reviewed.': 'Chagua toleo la rasimu linalokaguliwa.',
   'Review workflow notifications and delivery history.': 'Kagua taarifa za kazi na historia ya uwasilishaji.',
