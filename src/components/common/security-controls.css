@@ -11,3 +11,9 @@
 .security-panel th, .security-panel td { padding:12px 10px; border-bottom:1px solid #d9dfd8; text-align:left; vertical-align:top; overflow-wrap:anywhere; }
 .security-panel [role="alert"], .security-panel [role="status"] { padding:12px; border-radius:8px; background:#f4efe2; color:#493919; }
 @media(max-width:600px) { .security-panel label { display:flex; margin-right:0; } .security-panel button { max-width:100%; } }
+
+.security-panel .verification-primary { background:var(--accent-primary, #795818); border-color:var(--accent-primary, #795818); color:#fff; }
+.security-panel .verification-primary:disabled { background:#f1f2f0; border-color:#cbd0c9; color:#626862; }
+.verification-links { display:flex; flex-wrap:wrap; gap:4px 24px; margin-top:8px; }
+.security-panel .verification-link { background:transparent; border:0; border-radius:0; padding:10px 0; margin:0; color:#795818; text-decoration:underline; text-underline-offset:3px; }
+.security-panel .verification-link:disabled { background:transparent; color:#626862; }

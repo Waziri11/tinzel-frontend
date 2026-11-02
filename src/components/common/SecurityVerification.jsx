@@ -11,8 +11,8 @@ export default function SecurityVerification(){
  <h2 id="verification-title">Verify your identity / Thibitisha utambulisho</h2><p>{request.challengeId?`Enter the six-digit code sent by SMS. The code expires in five minutes.`:'Send an SMS verification code to your account phone number.'}</p>
  {error&&<p role="alert">{error}</p>}<form onSubmit={async e=>{e.preventDefault();setBusy(true);try{const result=await request.verify(code);request.resolve(result);setRequest(null);}catch(err){setError(err.message);}finally{setBusy(false);}}}>
  <label>Verification code<input autoFocus aria-label="Verification code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" required maxLength={6} value={code} onChange={e=>setCode(e.target.value)} style={{display:'block',width:'100%',padding:12,margin:'12px 0'}}/></label>
- <button disabled={busy||!request.challengeId} type="submit">Verify code</button> <button type="button" onClick={close}>Cancel</button></form>
+ <button className="verification-primary" disabled={busy||!request.challengeId} type="submit">Verify code</button></form>
 
- <button disabled={busy} onClick={async()=>{setBusy(true);try{const next=await request.resend('sms');setRequest({...request,...next});setError('A new code was sent.');}catch(err){setError(err.message);}finally{setBusy(false);}}}>Send a new code</button>
+ <div className="verification-links"><button className="verification-link" type="button" disabled={busy} onClick={async()=>{setBusy(true);try{const next=await request.resend('sms');setRequest({...request,...next});setError('A new code was sent.');}catch(err){setError(err.message);}finally{setBusy(false);}}}>Request a new code</button><button className="verification-link" type="button" onClick={close}>Cancel</button></div>
  </section></div>;
 }
