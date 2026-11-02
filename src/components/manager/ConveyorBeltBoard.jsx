@@ -1,3 +1,4 @@
+import {downloadMagazine} from '../common/SecurityCenter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1016,10 +1017,10 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
           <Detail
             label={tx('Print file')}
             value={
-              order.printDocument?.url ? (
-                <a href={order.printDocument.url} target="_blank" rel="noreferrer">
+              order.printDocument?.uploadedAt ? (
+                <button onClick={()=>downloadMagazine(order._id,'print').catch(error=>window.alert(error.message))}>
                   <InterfaceText>Open print-ready document</InterfaceText>
-                </a>
+                </button>
               ) : (
                 'Not uploaded'
               )

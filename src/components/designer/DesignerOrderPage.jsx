@@ -406,7 +406,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <strong>
                   {order.printingDetails?.completedAt
                     ? 'Completed'
-                    : order.printDocument?.url
+                    : order.printDocument?.uploadedAt
                       ? 'Prepared'
                       : 'Not prepared'}
                 </strong>
@@ -418,7 +418,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <strong>{order.dispatchDetails?.trackingReference || 'Not dispatched'}</strong>
               </div>
             </div>
-            {canEdit && order.approvedVersionNumber && !order.printDocument?.url && (
+            {canEdit && order.approvedVersionNumber && !order.printDocument?.uploadedAt && (
               <form className="print-upload" onSubmit={uploadPrint}>
                 <label htmlFor="print-pdf">
                   <InterfaceText>Print-ready PDF (leave empty to promote approved draft v</InterfaceText>{' '}

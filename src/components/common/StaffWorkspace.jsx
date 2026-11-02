@@ -1,3 +1,4 @@
+import SecurityCenter from './SecurityCenter';
 import InterfaceText from '../../i18n/InterfaceText';
 import React, {
   Suspense,
@@ -1064,7 +1065,7 @@ export default function StaffWorkspace({ onExitToHome }) {
 
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
-          <div className="staff-content" style={{ padding: '32px', flex: 1 }}>
+          <SecurityCenter user={currentUser} /><div className="staff-content" style={{ padding: '32px', flex: 1 }}>
             <Suspense
               fallback={
                 <PageSkeleton

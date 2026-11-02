@@ -1,3 +1,4 @@
+import {downloadMagazine} from '../common/SecurityCenter';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -353,7 +354,7 @@ export default function ManagerMagazineReview({
     </>
   );
   return (
-    <PdfBookReader
+    <><button onClick={()=>downloadMagazine(order._id,version).catch(error=>window.alert(error.message))}>Download original PDF</button><PdfBookReader
       token={token}
       orderId={order._id}
       version={version}
@@ -362,6 +363,6 @@ export default function ManagerMagazineReview({
       interactionDisabled={busy || reloadRequired}
       onReviewStateChange={setState}
       renderReviewControls={controls}
-    />
+    /></>
   );
 }

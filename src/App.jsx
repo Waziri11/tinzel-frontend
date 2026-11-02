@@ -1,3 +1,4 @@
+import PrinterPortal from './components/client/PrinterPortal';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { Menu } from 'lucide-react';
 import { Drawer } from 'antd';
@@ -34,6 +35,7 @@ export default function App() {
   useEffect(() => {
     document.title = `Tinzel — ${staff ? (sw ? 'Ofisi' : 'Workspace') : catalogue ? (sw ? 'Matoleo' : 'Editions') : tracking ? (sw ? 'Fuatilia oda' : 'Track your order') : sw ? 'Hadithi yako, kwenye karatasi' : 'Your story, in print'}`;
   }, [path, lang]);
+  if(/^\/printer\/[a-f0-9]+$/.test(path))return <PrinterPortal />;
   if (!lang)
     return (
       <main className="language-page">
