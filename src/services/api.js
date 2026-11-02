@@ -1,5 +1,14 @@
 import { errorText } from '../i18n/errors';
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const csrfTokens={};
+const sessionKind=url=>/\/api\/(client|proofs\/client)/.test(url)?'client':/\/api\/printer/.test(url)?'printer':'staff';
+export const securityHeaders=(kind='staff')=>csrfTokens[kind]?{'X-CSRF-Token':csrfTokens[kind]}:{};
+export const requestVerification=options=>new Promise((resolve,reject)=>window.dispatchEvent(new CustomEvent('tinzel:verify',{detail:{...options,resolve,reject}})));
+async function otpFlow(challenge,purpose='login'){
+ let current=challenge;
+ const call=async(path,body)=>{const response=await fetchWithTimeout(`${API_BASE}/api/staff/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return handleResponse(response);};
+ return requestVerification({channel:current.channel,verify:code=>call(purpose==='login'?'otp/verify':'step-up/verify',{challengeId:current.challengeId,code}),resend:async channel=>{current=await call(purpose==='login'?'otp/resend':'step-up',{challengeId:current.challengeId,channel});return current;}});
+}
 export const DEFAULT_API_TIMEOUT_MS = 25000;
 export const UPLOAD_API_TIMEOUT_MS = 60000;
 
@@ -13,7 +22,14 @@ export const fetchWithTimeout = async (
     ? AbortSignal.any([options.signal, timeoutSignal])
     : timeoutSignal;
   try {
-    return await fetch(url, { ...options, signal });
+    const response=await fetch(url, { ...options, credentials:'include',headers:{...options.headers,...securityHeaders(sessionKind(url))}, signal });
+    const data=response.headers.get('content-type')?.includes('application/json')?await response.clone().json().catch(()=>({})):{};
+    if(data.csrf)csrfTokens[sessionKind(url)]=data.csrf;
+    if(response.status===403 && data.errorCode==='OTP_REQUIRED' && !options._verifiedRetry){
+      const challenge=await fetchWithTimeout(`${API_BASE}/api/staff/step-up`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:'email'}),_verifiedRetry:true}).then(handleResponse);
+      await otpFlow(challenge,'step-up');return fetchWithTimeout(url,{...options,_verifiedRetry:true},timeoutMs);
+    }
+    return response;
   } catch (err) {
     if (
       err?.name === 'TimeoutError' ||
@@ -38,7 +54,7 @@ const getHeaders = (token = null, isMultipart = false) => {
   if (!isMultipart) {
     headers['Content-Type'] = 'application/json';
   }
-  if (token) {
+  if (token && token !== 'cookie') {
     headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
@@ -266,12 +282,12 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify({ preferredLanguage }),
       }).then(handleResponse),
-    login: (email, password) =>
+    login: (email, password, channel='email') =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ email, password }),
-      }).then(handleResponse),
+        body: JSON.stringify({ email, password,channel }),
+      }).then(handleResponse).then(data=>data.otpRequired?otpFlow(data):data),
 
     getMe: (token) =>
       fetchWithTimeout(`${API_BASE}/api/staff/me`, {

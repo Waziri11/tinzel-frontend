@@ -1,3 +1,4 @@
+import {securityHeaders} from './api';
 const BASE = import.meta.env?.VITE_API_URL || '';
 export const MAX_DRAFT_BYTES = 500 * 1024 * 1024;
 const key = (staffId, orderId) => `tinzel_draft_upload:${staffId}:${orderId}`;
@@ -23,7 +24,7 @@ async function request(url, token, { method='GET', body, binary=false, signal, p
     try {
       return await new Promise((resolve,reject)=>{
         const xhr=new XMLHttpRequest();xhr.open(method,BASE+url);xhr.timeout=binary?120000:60000;
-        xhr.setRequestHeader('Authorization',`Bearer ${token}`);
+        xhr.withCredentials=true;for(const [key,value] of Object.entries(securityHeaders()))xhr.setRequestHeader(key,value);if(token!=='cookie')xhr.setRequestHeader('Authorization',`Bearer ${token}`);
         if(body!==undefined)xhr.setRequestHeader('Content-Type',binary?'application/octet-stream':'application/json');
         const abort=()=>xhr.abort();signal?.addEventListener('abort',abort,{once:true});
         xhr.onloadend=()=>signal?.removeEventListener('abort',abort);

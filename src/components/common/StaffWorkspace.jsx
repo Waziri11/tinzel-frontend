@@ -149,7 +149,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef(null);
   const [token, setToken] = useState(
-    localStorage.getItem('tinzel_staff_token') || '',
+    'cookie',
   );
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -311,7 +311,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     try {
       const data = await api.staffAuth.login(loginEmail, loginPass);
       setToken(data.token);
-      localStorage.setItem('tinzel_staff_token', data.token);
+      localStorage.removeItem('tinzel_staff_token');
       setCurrentUser(data.user);
       setPassword('');
       if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
@@ -376,7 +376,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         onComplete={(data) => {
           setCurrentUser(data.user);
           setToken(data.token);
-          localStorage.setItem('tinzel_staff_token', data.token);
+          localStorage.removeItem('tinzel_staff_token');
           const route = readRoute();
           const allowed =
             route.page === 'designer_order' ||
@@ -916,7 +916,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             setCurrentUser((user) => ({ ...user, ...data.user }));
             if (data.token) {
               setToken(data.token);
-              localStorage.setItem('tinzel_staff_token', data.token);
+              localStorage.removeItem('tinzel_staff_token');
             }
           }}
         />

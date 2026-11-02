@@ -1,3 +1,4 @@
+import {securityHeaders} from '../../services/api';
 import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
@@ -42,7 +43,7 @@ export default function ClientTrackingPortal() {
   useEffect(() => {
     if (otpSent) otpInput.current?.focus();
   }, [otpSent]);
-  const [clientToken, setClientToken] = useState(sessionStorage.getItem('tinzel_client_token') || '');
+  const [clientToken, setClientToken] = useState('cookie');
   const [order, setOrder] = useState(null);
   useAccountLanguage('client', clientToken, order?._id, order?.clientPreferredLanguage, (message) => setError(message));
   const [loading, setLoading] = useState(false);
@@ -114,7 +115,7 @@ export default function ClientTrackingPortal() {
     try {
       const res = await api.client.verifyOtp(trackingId.trim(), otpCode.trim());
       setClientToken(res.clientToken);
-      sessionStorage.setItem('tinzel_client_token', res.clientToken);
+      sessionStorage.removeItem('tinzel_client_token');
       await loadOrder(res.clientToken);
     } catch (err) {
       setError(err.message || t('track.err.invalidOtp'));
@@ -124,6 +125,7 @@ export default function ClientTrackingPortal() {
   };
 
   const handleLogout = useCallback(() => {
+    fetch('/api/client/logout',{method:'POST',credentials:'include',headers:securityHeaders('client')}).catch(()=>{});
     setClientToken('');
     sessionStorage.removeItem('tinzel_client_token');
     setOrder(null);
