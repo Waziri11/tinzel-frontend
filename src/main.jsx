@@ -1,3 +1,4 @@
+import BackgroundUploads from './components/designer/BackgroundUploads.jsx';
 import SecurityVerification from './components/common/SecurityVerification.jsx';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -11,7 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <LanguageProvider>
       <ConfigProvider theme={tinzelAntdTheme}>
-        <App /><SecurityVerification />
+        <App /><BackgroundUploads /><SecurityVerification />
       </ConfigProvider>
     </LanguageProvider>
   </React.StrictMode>,

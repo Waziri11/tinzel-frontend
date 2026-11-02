@@ -31,6 +31,7 @@ export default function PdfBookReader({
   title = 'Magazine proof',
   onReviewed,
   focusAnnotation,
+  focusPage,
   renderReviewControls,
   onReviewStateChange,
   hideCommentSubmit = false,
@@ -390,6 +391,11 @@ export default function PdfBookReader({
     }
   };
   useEffect(() => {
+    if (!opened) return;
+    if (metadata && focusPage && !focusAnnotation) {
+      const target = Math.min(metadata.pageCount, Math.max(1, Number(focusPage) || 1));
+      navigate(single || target === 1 ? target : target % 2 === 0 ? target : target - 1);
+    }
     if (focusAnnotation && metadata) {
       const a = metadata.annotations.find((a) => a._id === focusAnnotation);
       if (a) {
@@ -398,7 +404,7 @@ export default function PdfBookReader({
         setShowComments(true);
       }
     }
-  }, [focusAnnotation, metadata, single]);
+  }, [focusAnnotation, focusPage, metadata, single, opened]);
   useEffect(() => {
     if (!single) setPage((p) => (p > 1 && p % 2 === 1 ? p - 1 : p));
   }, [single]);

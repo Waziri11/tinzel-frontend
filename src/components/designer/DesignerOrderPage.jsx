@@ -1,9 +1,10 @@
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import { transferDraft, savedDraftUpload, cancelDraftUpload } from '../../services/draftUpload';
+import { savedDraftUpload, cancelDraftUpload, submitDraftUpload } from '../../services/draftUpload';
 import { tabListKeys } from '../common/UI';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
-import DraftUploadProgress from './DraftUploadProgress';
-import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { draftUploads, useDraftUploads } from '../../hooks/useDraftUploads';
+import DraftCorrectionReview from './DraftCorrectionReview';
+import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
@@ -25,14 +26,15 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
   const [notes, setNotes] = useState('');
-  const [verifyAll, setVerifyAll] = useState(false);
+  const [readyUpload, setReadyUpload] = useState(null);
   const [responses, setResponses] = useState({});
   const [addressing, setAddressing] = useState(null);
-  useDialogFocus(showUpload, () => {
+  useDialogFocus(showUpload && !readyUpload, () => {
     if (!uploading) setShowUpload(false);
   });
-  const uploadAbort = useRef(null);
-  const [progress, setProgress] = useState(null);
+  const uploads = useDraftUploads();
+  const backgroundUpload = uploads.find(job => job.orderId === orderId);
+  const uploadInProgress = backgroundUpload && ['queued', 'uploading', 'canceling'].includes(backgroundUpload.status);
   const [uploadError, setUploadError] = useState('');
   const [resume, setResume] = useState(null);
   const [printFile, setPrintFile] = useState(null);
@@ -42,8 +44,8 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     coverFinish: 'Laminated Matte',
     binding: 'Saddle Stitch',
   });
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setError('');
     try {
       const data = await api.designer.getOrder(token, orderId);
@@ -62,8 +64,6 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     () => order?.revisionRequests?.find((item) => item.status === 'open' || item.status === 'submitted_for_review'),
     [order],
   );
-  const pendingFixes = activeReturn?.items.filter((item) => item.status !== 'addressed') || [];
-  const allAddressed = pendingFixes.length === 0;
   const currentDraft = order?.draftVersions?.find((item) => item.versionNumber === order.currentDraftVersion);
   const canEdit = ['designer', 'admin'].includes(staffUser?.role);
   const [tab, setTab] = useState(null);
@@ -89,68 +89,88 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setAddressing(null);
     }
   };
-  useEffect(() => () => uploadAbort.current?.abort(), []);
   const openUpload = () => {
-    const previous = savedDraftUpload(staffUser?._id, orderId);
+    const previous = savedDraftUpload(staffUser?._id, orderId) || (backgroundUpload?.status === 'ready' ? backgroundUpload.result : null);
     setResume(previous);
-    setProgress(null);
+    setReadyUpload(previous?.readyForReview ? previous : null);
     setUploadError('');
     if (previous?.metadata?.designerNotes) setNotes(previous.metadata.designerNotes);
     setShowUpload(true);
   };
-  const upload = async (event) => {
+  useEffect(() => {
+    const openReview = () => {
+      if (window.location.pathname !== `/staff/design/orders/${encodeURIComponent(orderId)}` || !new URLSearchParams(window.location.search).has('reviewUpload')) return;
+      const saved = savedDraftUpload(staffUser?._id, orderId) || (backgroundUpload?.status === 'ready' ? backgroundUpload.result : null);
+      if (!saved?.readyForReview) return;
+      setReadyUpload(saved);
+      setResume(saved);
+      setUploadError('');
+      setShowUpload(true);
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    };
+    openReview();
+    window.addEventListener('popstate', openReview);
+    return () => window.removeEventListener('popstate', openReview);
+  }, [orderId, staffUser?._id, backgroundUpload?.status, backgroundUpload?.result]);
+  useEffect(() => {
+    if (backgroundUpload?.status !== 'complete') return;
+    setSuccess('Draft uploaded and sent to manager review. Preparing opening pages.');
+    load(true);
+  }, [backgroundUpload?.id, backgroundUpload?.status, load]);
+  const upload = (event) => {
     event.preventDefault();
-    if (uploading || addressing) return;
-    if (activeReturn && (!allAddressed || !verifyAll)) {
-      setUploadError(!allAddressed
-        ? 'Describe and mark each correction addressed below before uploading.'
-        : 'Confirm that you verified every requested fix before uploading.');
-      return;
-    }
+    if (uploading || uploadInProgress) return;
     if (!file) {
       setUploadError('Select a magazine PDF before continuing.');
       return;
     }
-    setUploading(true);
-    setUploadError('');
-    uploadAbort.current = new AbortController();
     try {
-      await transferDraft({
-        token,
-        staffId: staffUser?._id,
-        orderId,
-        file,
+      draftUploads.enqueue({
+        token, staffId: staffUser?._id, orderId, file,
+        label: order.trackingId,
         metadata: {
           designerNotes: notes,
           expectedVersion: order.currentDraftVersion,
-          ...(activeReturn ? { revisionRequestId: activeReturn._id, verifyAll } : {}),
+          ...(activeReturn ? { revisionRequestId: activeReturn._id } : {}),
         },
-        signal: uploadAbort.current.signal,
-        onProgress: setProgress,
+        deferSubmission: Boolean(activeReturn),
       });
       setShowUpload(false);
       setFile(null);
       setNotes('');
-      setVerifyAll(false);
       setResume(null);
+      setUploadError('');
+    } catch (err) {
+      setUploadError(err.message);
+    }
+  };
+  const submitReviewedDraft = async (confirmedCorrectionIds) => {
+    setUploading(true);
+    setUploadError('');
+    try {
+      await submitDraftUpload({ token, staffId: staffUser?._id, orderId, uploadId: readyUpload.id, confirmedCorrectionIds });
+      draftUploads.finishReview(orderId);
+      setShowUpload(false);
+      setReadyUpload(null);
+      setResume(null);
+      setFile(null);
+      setNotes('');
       setSelectedVersion(null);
       setTab('magazine');
       setSuccess('Draft uploaded and sent to manager review. Preparing opening pages.');
       await load();
     } catch (err) {
-      if (err.name !== 'AbortError') setUploadError(err.message);
-      setResume(savedDraftUpload(staffUser?._id, orderId));
+      setUploadError(err.message);
     } finally {
       setUploading(false);
-      uploadAbort.current = null;
     }
   };
   const cancelUpload = async () => {
-    uploadAbort.current?.abort();
     try {
       await cancelDraftUpload(token, staffUser?._id, orderId);
+      if (backgroundUpload) draftUploads.dismiss(backgroundUpload.id);
       setResume(null);
-      setProgress(null);
+      setReadyUpload(null);
       setFile(null);
       setShowUpload(false);
     } catch (err) {
@@ -236,7 +256,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <InterfaceText>Start design</InterfaceText>
               </button>
             )}
-            <button className="primary-button" onClick={openUpload}>
+            <button className="primary-button" onClick={openUpload} disabled={Boolean(uploadInProgress)}>
               <UploadCloud size={16} />
               <InterfaceText>Upload new draft</InterfaceText>
             </button>
@@ -518,7 +538,14 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             if (e.target === e.currentTarget && !uploading) setShowUpload(false);
           }}
         >
-          <form
+          {readyUpload ? (
+            <DraftCorrectionReview
+              token={token} orderId={orderId} request={activeReturn}
+              upload={readyUpload} submitting={uploading} error={uploadError}
+              onSubmit={submitReviewedDraft} onCancel={cancelUpload}
+              onClose={() => setShowUpload(false)}
+            />
+          ) : <form
             className="upload-dialog"
             onSubmit={upload}
             role="dialog"
@@ -528,47 +555,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             <h2>
               <InterfaceText>Upload new draft</InterfaceText>
             </h2>
-            {activeReturn && (
-              <p>
-                <InterfaceText>This version must address return round</InterfaceText> {activeReturn.roundNumber}{' '}
-                <InterfaceText>. All checklist items must be completed first.</InterfaceText>
-              </p>
-            )}
-            {pendingFixes.length > 0 && (
-              <section className="upload-corrections" aria-label={tx('Pending corrections')}>
-                <h3><InterfaceText>Pending corrections</InterfaceText> ({pendingFixes.length})</h3>
-                <p><InterfaceText>Describe and mark each correction addressed below before uploading.</InterfaceText></p>
-                {pendingFixes.map((item) => (
-                  <div className="upload-correction" key={item._id}>
-                    <p>
-                      {item.pageReference && <strong>{tx('Page')} {item.pageReference}: </strong>}
-                      {item.text}
-                    </p>
-                    <label htmlFor={`upload-fix-${item._id}`}><InterfaceText>How was this fixed?</InterfaceText></label>
-                    <input
-                      id={`upload-fix-${item._id}`}
-                      value={responses[item._id] || ''}
-                      disabled={uploading || Boolean(addressing)}
-                      onChange={(e) => setResponses((old) => ({ ...old, [item._id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          address(activeReturn._id, item._id);
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      disabled={uploading || Boolean(addressing) || !String(responses[item._id] || '').trim()}
-                      onClick={() => address(activeReturn._id, item._id)}
-                    >
-                      {tx(addressing === item._id ? 'Saving…' : 'Mark addressed')}
-                    </button>
-                  </div>
-                ))}
-              </section>
-            )}
+            {activeReturn && <p><InterfaceText>Upload your updated PDF first. You will preview and confirm each correction before sending it to the manager.</InterfaceText></p>}
             {resume && !uploading && (
               <p>
                 <InterfaceText>A saved upload is available for</InterfaceText> {resume.name}{' '}
@@ -602,42 +589,21 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               onChange={(e) => setNotes(e.target.value)}
               placeholder={tx('What changed in this version?')}
             />
-            <DraftUploadProgress progress={progress} />
-            {activeReturn && (
-              <label className="verify-check">
-                <input
-                  type="checkbox"
-                  checked={verifyAll}
-                  disabled={!allAddressed || uploading || Boolean(addressing)}
-                  aria-describedby="draft-upload-requirements"
-                  onChange={(e) => setVerifyAll(e.target.checked)}
-                />
-                <InterfaceText>I verified every requested fix</InterfaceText>
-              </label>
-            )}
-            <p id="draft-upload-requirements" className="upload-requirements" role="status">
-              {tx(!allAddressed
-                ? 'Complete the pending corrections above to unlock verification and sending.'
-                : activeReturn && !verifyAll
-                  ? 'All corrections are addressed. Tick the verification checkbox to continue.'
-                  : !file
-                    ? 'Select a magazine PDF before continuing.'
-                    : 'Ready to send to manager review.')}
-            </p>
+            <p className="muted"><InterfaceText>You can continue working while your magazine uploads. Progress will appear at the bottom right.</InterfaceText></p>
             <footer>
               <button
                 type="button"
                 className="secondary-button"
-                disabled={uploading && progress?.stage === 'finalizing'}
+                disabled={uploading}
                 onClick={cancelUpload}
               >
                 <InterfaceText>Cancel</InterfaceText>
               </button>
-              <button className="primary-button" aria-describedby="draft-upload-requirements" disabled={uploading || Boolean(addressing) || !file || !allAddressed || Boolean(activeReturn && !verifyAll)}>
-                {tx(uploading ? 'Uploading…' : 'Send to manager review')}
+              <button className="primary-button" disabled={uploading || !file}>
+                {tx(uploading ? 'Uploading…' : activeReturn ? 'Upload updated PDF' : 'Send to manager review')}
               </button>
             </footer>
-          </form>
+          </form>}
         </div>
       )}
     </section>

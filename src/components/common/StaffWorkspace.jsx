@@ -1,3 +1,4 @@
+import { draftUploads } from '../../hooks/useDraftUploads';
 import SecurityCenter from './SecurityCenter';
 import InterfaceText from '../../i18n/InterfaceText';
 import React, {
@@ -156,6 +157,9 @@ export default function StaffWorkspace({ onExitToHome }) {
   );
   const loginInFlight = useRef(false);
   const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    if (currentUser) draftUploads.setOwner(currentUser._id || currentUser.id);
+  }, [currentUser?._id, currentUser?.id]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -266,6 +270,7 @@ export default function StaffWorkspace({ onExitToHome }) {
 
   useEffect(() => {
     const onUnauthorized = (event) => {
+      draftUploads.reset();
       setToken('');
       setCurrentUser(null);
       localStorage.removeItem('tinzel_staff_token');
@@ -360,6 +365,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
 
   const handleLogout = async () => {
+    draftUploads.reset();
     const currentToken = token;
     setToken('');
     setCurrentUser(null);

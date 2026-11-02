@@ -31,8 +31,8 @@ export default function DesignerQueue({ token, onOpenOrder }) {
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'review' | 'completed' | 'all'
   const [currentPage, setCurrentPage] = useState(1);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setError('');
     try {
       const data = await api.designer.getOrders(token);
@@ -46,6 +46,9 @@ export default function DesignerQueue({ token, onOpenOrder }) {
 
   useEffect(() => {
     load();
+    const refresh = () => load(true);
+    window.addEventListener('tinzel:draft-submitted', refresh);
+    return () => window.removeEventListener('tinzel:draft-submitted', refresh);
   }, [token]);
 
   // Reset pagination on search or status filter changes
@@ -100,7 +103,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
             <InterfaceText>Open an order to work with its files, drafts and revision history.</InterfaceText>
           </p>
         </div>
-        <button type="button" className="secondary-button" onClick={load}>
+        <button type="button" className="secondary-button" onClick={() => load()}>
           <RefreshCw size={16} />
           <InterfaceText>Refresh</InterfaceText>
         </button>
@@ -109,7 +112,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
       {error && (
         <div className="designer-alert is-error" role="alert">
           {error}{' '}
-          <button className="secondary-button" onClick={load}>
+          <button className="secondary-button" onClick={() => load()}>
             <InterfaceText>Retry</InterfaceText>
           </button>
         </div>

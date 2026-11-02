@@ -55,7 +55,7 @@ export async function cancelDraftUpload(token, staffId, orderId) {
   if(saved){try{await request(`/api/designer/orders/${orderId}/draft-uploads/${saved.id}`,token,{method:'DELETE'});}catch(error){if(![404,410].includes(error.status))throw error;}}
   remember(staffId,orderId,null);
 }
-export async function transferDraft({ token, staffId, orderId, file, metadata, signal, onProgress }) {
+export async function transferDraft({ token, staffId, orderId, file, metadata, signal, onProgress, deferSubmission = false }) {
   if(!file||!file.name.toLowerCase().endsWith('.pdf')||file.type!=='application/pdf')throw new Error('Choose a valid PDF file.');
   if(file.size>MAX_DRAFT_BYTES)throw new Error('Magazine PDFs must be at most 500 MB.');
   const prefix=`/api/designer/orders/${orderId}/draft-uploads`;
@@ -77,7 +77,7 @@ export async function transferDraft({ token, staffId, orderId, file, metadata, s
   if(session.fingerprint!==identity)throw new Error('Select the same PDF to resume, or cancel this upload and start again.');
   if(session.provider==='blob'){
     const {transferBlobDraft}=await import('./blobDraftTransfer');
-    await transferBlobDraft({session,file,signal,emit:onProgress,call:(suffix,body)=>request(`${prefix}/${session.id}${suffix}`,token,{method:'POST',body,signal,complete:suffix==='/complete'}),renew:()=>request(`${prefix}/${session.id}`,token,{signal})});
+    await transferBlobDraft({session,file,signal,emit:onProgress,call:(suffix,body)=>request(`${prefix}/${session.id}${deferSubmission && suffix === '/complete' ? '/ready' : suffix}`,token,{method:'POST',body,signal,complete:suffix==='/complete'}),renew:()=>request(`${prefix}/${session.id}`,token,{signal})});
     acknowledged=file.size;
   } else if(session.state!=='complete') {
     const chunks=new Map(session.chunks.map((c)=>[c.n,c]));
@@ -96,6 +96,19 @@ export async function transferDraft({ token, staffId, orderId, file, metadata, s
     }
   }
   acknowledged=file.size;emit('finalizing');
+  if (deferSubmission) {
+    await request(`${prefix}/${session.id}/ready`,token,{method:'POST',body:{},signal});
+    const ready = {...saved, readyForReview:true};
+    remember(staffId,orderId,ready);emit('complete');return ready;
+  }
   const result=await request(`${prefix}/${session.id}/complete`,token,{method:'POST',body:{},signal,complete:true,retry:()=>emit('finalizing')});
   emit('complete');remember(staffId,orderId,null);return result;
+}
+
+export async function submitDraftUpload({ token, staffId, orderId, uploadId, confirmedCorrectionIds }) {
+  const result = await request(`/api/designer/orders/${orderId}/draft-uploads/${uploadId}/complete`, token, {
+    method: 'POST', body: { confirmedCorrectionIds }, complete: true,
+  });
+  remember(staffId, orderId, null);
+  return result;
 }

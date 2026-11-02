@@ -29,7 +29,7 @@ test('designer order uses its own URL, history, checklist and PDF-only top actio
   await page.reload(); await chooseEnglish(page); await expect(page.getByRole('heading', { name: 'TNZ-2026-0099' })).toBeVisible();
   await page.getByRole('button', { name: 'Upload new draft' }).click();
   await expect(page.getByLabel('Magazine PDF · up to 500 MB')).toHaveAttribute('accept', 'application/pdf,.pdf');
-  await expect(page.getByRole('button', { name: 'Send to manager review' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Upload updated PDF' })).toBeDisabled();
 });
 
 test('returns page is a separate responsive work list', async ({ page }) => {
@@ -171,9 +171,27 @@ test('draft upload shows real progress, resumes after reload, and waits for serv
   await expect(page.getByText(/A saved upload is available/)).toBeVisible();
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
   await expect(page.getByText('Finalizing draft',{exact:false})).toBeVisible();expect(counts.get(0)).toBe(1);
+  await expect(page.getByRole('dialog', { name: 'Upload new draft' })).toHaveCount(0);
+  const panel = page.getByRole('region', { name: 'Magazine uploads' });
+  await panel.getByRole('button', { name: 'Minimize uploads' }).click();
+  await expect(panel.getByRole('progressbar')).toBeHidden();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).first().click();
+  await expect(page).toHaveURL(/staff\/notifications/);
+  await expect(panel).toBeVisible();
+  await panel.getByRole('button', { name: 'Expand uploads' }).click();
+  await expect(panel.getByText('Finalizing draft', { exact: false })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/staff\/design\/orders\/order-1/);
   expect(await page.getByRole('progressbar').getAttribute('value')).not.toBe('100');
   await expect(page.getByRole('button',{name:'Cancel',exact:true})).toBeDisabled();
   await page.screenshot({path:'/tmp/tinzel-large-upload-progress.png',fullPage:true});
+  await page.setViewportSize({ width: 390, height: 844 });
+  const panelBounds = await panel.boundingBox();
+  expect(panelBounds.x).toBeGreaterThanOrEqual(0);
+  expect(panelBounds.x + panelBounds.width).toBeLessThanOrEqual(390);
+  const securityBounds = await page.getByRole('button', { name: 'Security / Usalama' }).boundingBox();
+  expect(panelBounds.y + panelBounds.height).toBeLessThan(securityBounds.y);
+  await page.screenshot({path:'/tmp/tinzel-background-upload-mobile.png',fullPage:true});
   completeRelease();await expect(page.getByRole('dialog',{name:'Upload new draft'})).toHaveCount(0);await expect(page.getByText(/Draft uploaded and sent to manager review/)).toBeVisible();
 });
 
@@ -434,4 +452,42 @@ test('image targets can be selected with the keyboard after zoom and fullscreen 
  await expect(page.getByText('Page 1 · Image comment',{exact:true})).toBeVisible();
  await expect(page.locator('.proof-selection-image polygon')).toHaveAttribute('points','0.2,0.3 0.35,0.3 0.35,0.4 0.2,0.4');
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+});
+
+
+test('background upload retries from the panel without selecting the PDF again', async ({page}) => {
+  await setup(page);
+  const editable = {...order, status:'in_design', currentDraftVersion:0, revisionRequests:[]};
+  let session, attempts = 0, sessions = 0;
+  await page.route('**/api/designer/orders/order-1', route => json(route, {order:editable, auditLogs:[]}));
+  await page.route('**/api/designer/orders/order-1/draft-uploads**', async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    if (path.endsWith('/draft-uploads')) {
+      sessions++;
+      session = {...request.postDataJSON(), id:'retry-session', state:'open', chunkBytes:1024, chunks:[]};
+      return json(route, session);
+    }
+    if (path.includes('/chunks/')) {
+      attempts++;
+      if (attempts === 1) return route.fulfill({status:400, json:{message:'Transfer interrupted. Please retry.'}});
+      return json(route, {success:true});
+    }
+    if (path.endsWith('/complete')) return json(route, {success:true, version:1});
+    return json(route, session);
+  });
+  await page.goto('/staff/design/orders/order-1');
+  await chooseEnglish(page);
+  await page.getByRole('button', {name:'Upload new draft'}).click();
+  await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles({name:'retry.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.7\nretry')});
+  await page.getByRole('button', {name:'Send to manager review'}).click();
+  const panel = page.getByRole('region', {name:'Magazine uploads'});
+  await expect(panel.getByRole('alert')).toHaveText('Transfer interrupted. Please retry.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', {name:'Notifications', exact:true}).first().click();
+  await panel.getByRole('button', {name:'Retry upload'}).click();
+  await expect(panel.getByText('Sent to manager review', {exact:true})).toBeVisible();
+  expect(attempts).toBe(2);
+  expect(sessions).toBe(1);
+  await panel.getByRole('button', {name:'Dismiss uploads', exact:true}).click();
+  await expect(panel).toHaveCount(0);
 });
