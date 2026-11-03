@@ -15,6 +15,11 @@ export function dismissTransfer(id) {
   listeners.forEach(listener => listener());
 }
 export function cancelTransfer(id) { controllers.get(id)?.abort(); }
+export function clearTransfers() {
+  controllers.forEach(controller => controller.abort());
+  controllers.clear(); active.clear(); snapshot = [];
+  listeners.forEach(listener => listener());
+}
 export const transferIsActive = job => !['complete', 'error', 'cancelled', 'handed-off'].includes(job.stage);
 
 export function runTransfer({ key, name, kind = 'download' }, work) {
@@ -25,14 +30,14 @@ export function runTransfer({ key, name, kind = 'download' }, work) {
   listeners.forEach(listener => listener());
   const progress = changes => update(id, changes);
   // Defer work until the duplicate-request lock has been registered.
-  const promise = Promise.resolve().then(() => work({ signal: controller.signal, progress })).then(result => {
+  const promise = Promise.resolve().then(() => { controller.signal.throwIfAborted(); return work({ signal: controller.signal, progress }); }).then(result => {
     const job = snapshot.find(job => job.id === id);
     if (job?.stage !== 'handed-off') progress({ stage: 'complete', percent: 100 });
     return result;
   }).catch(error => {
     progress({ stage: controller.signal.aborted ? 'cancelled' : 'error', error: error.message });
     throw error;
-  }).finally(() => { controllers.delete(id); active.delete(key); });
+  }).finally(() => { controllers.delete(id); if (active.get(key) === promise) active.delete(key); });
   active.set(key, promise);
   return promise;
 }

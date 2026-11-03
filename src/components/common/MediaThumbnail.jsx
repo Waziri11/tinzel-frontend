@@ -9,6 +9,7 @@ export default function MediaThumbnail({ photo }) {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     setLoaded(false);
+    setVersion(0);
     setFailed(false);
     setAttempt(0);
   }, [photo.thumbnailUrl, photo.url]);
@@ -42,7 +43,7 @@ export default function MediaThumbnail({ photo }) {
       />
       {!loaded && (
         <div className="tinzel-preview-placeholder">
-          <BrandMark animate={false} />
+          <BrandMark animate={version > 0 && !failed} />
           <span>
             {failed
               ? photo.thumbnailUrl && attempt < 20

@@ -69,19 +69,6 @@ select {
   font-family: inherit;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
 /* Editorial & Brand typography classes */
 .font-brand {
   font-family: var(--font-brand);

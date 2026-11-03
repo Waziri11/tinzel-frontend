@@ -525,6 +525,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     );
   };
 
+  if (loading && !hasLoaded) return <PageSkeleton variant="dashboard" />;
+
   return (
     <section
       className="manager-dashboard"
@@ -561,9 +563,9 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         <div className="manager-notice is-error" role="alert">
           <AlertTriangle size={18} />
           <span>{error}</span>
-          <button type="button" onClick={loadOrders}>
+          <ActionButton type="button" onClick={loadOrders}>
             <InterfaceText>Try again</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       )}
 
@@ -1103,9 +1105,9 @@ function ActionModal({
               The result is unconfirmed. Check the saved order before repeating this action.
             </InterfaceText>
           </p>
-          <button className="manager-secondary-action" onClick={onCheckSaved}>
+          <ActionButton className="manager-secondary-action" onClick={onCheckSaved}>
             <InterfaceText>Check saved order</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       ) : null}
       {action && (

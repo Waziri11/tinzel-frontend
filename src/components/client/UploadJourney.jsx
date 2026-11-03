@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, AlertCircle, Check } from 'lucide-react';
 import { BrandMark } from '../common/BrandLoading';
@@ -42,7 +43,7 @@ export default function UploadJourney({ uploads, lang, disabled, onRemove, onCon
     </div>
     {item.state === 'complete' && <CheckCircle2 size={17} aria-hidden="true" />}
     {item.state === 'failed' && <button type="button" disabled={disabled} aria-label={ui('Retry photo', 'Jaribu tena picha')} onClick={() => uploads.retry(item.id)}>{ui('Retry', 'Jaribu tena')}</button>}
-    {item.state !== 'complete' && <button type="button" disabled={disabled} aria-label={`${ui('Remove', 'Ondoa')} ${item.name}`} onClick={() => onRemove(item.id)}>{ui('Remove', 'Ondoa')}</button>}
+    {item.state !== 'complete' && <ActionButton type="button" disabled={disabled} aria-label={`${ui('Remove', 'Ondoa')} ${item.name}`} onClick={() => onRemove(item.id)}>{ui('Remove', 'Ondoa')}</ActionButton>}
   </li>;
   return <section className="tinzel-upload" aria-label={ui('Photo upload progress', 'Maendeleo ya kupakia picha')}>
     <div className="tinzel-upload__summary">

@@ -189,6 +189,8 @@ test('every phase keeps four summary cards in two mobile rows', async ({ page })
     await expect(cards).toHaveCount(4);
     for (const width of [320, 390, 600, 767]) {
       await page.setViewportSize({ width, height: 844 });
+      // Ant Design's breakpoint listener commits the mobile shell after the resize event.
+      await expect(page.getByRole('button', { name: 'Open workspace menu' })).toBeVisible();
       const boxes = await cards.evaluateAll(nodes => nodes.map(node => {
         const { x, y, width, right } = node.getBoundingClientRect();
         return { x, y, width, right, scroll: node.scrollWidth, client: node.clientWidth };

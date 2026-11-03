@@ -61,6 +61,8 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
 
   const isManagerOrAdmin = ['manager', 'admin'].includes(staffUser?.role);
 
+  if (loading && !hasLoaded) return <PageSkeleton variant="dashboard" />;
+
   return (
     <section className="designer-page">
       <div className="designer-page-title">

@@ -1,3 +1,4 @@
+import { clearTransfers } from '../../services/fileTransfers';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import TurnstileCheck from './TurnstileCheck';
 import PasswordRecovery from './PasswordRecovery';
@@ -358,6 +359,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
 
   const handleLogout = async () => {
+    clearTransfers();
     draftUploads.reset();
     const currentToken = token;
     setToken('');
@@ -428,8 +430,8 @@ export default function StaffWorkspace({ onExitToHome }) {
         <PageSkeleton
           variant={
             ['pre_design', 'design_phase', 'post_design'].includes(activePage)
-              ? 'board'
-              : activePage === 'designer_order'
+              ? 'dashboard'
+              : ['designer_order', 'magazine_review'].includes(activePage)
                 ? 'detail'
                 : 'table'
           }
@@ -1100,8 +1102,8 @@ export default function StaffWorkspace({ onExitToHome }) {
                     ['pre_design', 'design_phase', 'post_design'].includes(
                       effectiveActivePage,
                     )
-                      ? 'board'
-                      : effectiveActivePage === 'designer_order'
+                      ? 'dashboard'
+                      : ['designer_order', 'magazine_review'].includes(effectiveActivePage)
                         ? 'detail'
                         : 'table'
                   }

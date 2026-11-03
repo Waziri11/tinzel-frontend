@@ -166,7 +166,7 @@ test('form skeleton gives way to a fetch error instead of remaining busy', async
 
 for (const scenario of [
   { role: 'designer', path: '/staff/design', api: '**/api/designer/orders', variant: '.page-skeleton__row', data: { orders: [] } },
-  { role: 'manager', path: '/staff/pre-design', api: '**/api/manager/orders?*', variant: '.page-skeleton__grid.is-board', data: { orders: [], summary: {}, statusCounts: {}, pageCount: 1, total: 0 } },
+  { role: 'manager', path: '/staff/pre-design', api: '**/api/manager/orders?*', variant: '.page-skeleton__summary', data: { orders: [], summary: {}, statusCounts: {}, pageCount: 1, total: 0 } },
 ]) {
   test(`${scenario.role} skeleton covers delayed workspace data`, async ({ page }) => {
     await page.addInitScript(() => {

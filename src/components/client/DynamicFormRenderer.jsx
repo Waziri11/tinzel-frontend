@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
@@ -812,7 +813,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                     <span style={{ fontSize: '10px', color: '#A8A29E' }}>
                                       {(photo.size / (1024 * 1024)).toFixed(1)}MB
                                     </span>
-                                    <button
+                                    <ActionButton
                                       type="button"
                                       aria-label={`${ui('Remove', 'Ondoa')} ${photo.name}`}
                                       onClick={() => removeFieldPhoto(field.fieldId, idx)}
@@ -827,7 +828,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                                       }}
                                     >
                                       <Trash2 size={13} />
-                                    </button>
+                                    </ActionButton>
                                   </div>
                                 ))}
                               </div>

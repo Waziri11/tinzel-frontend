@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readDownload, runTransfer, getTransfers, dismissTransfer, cancelTransfer } from '../src/services/fileTransfers.js';
+import { readDownload, runTransfer, getTransfers, dismissTransfer, cancelTransfer, clearTransfers } from '../src/services/fileTransfers.js';
 import { uploadMultipart } from '../src/services/uploadTransport.js';
 
 const streamResponse = (chunks, headers = {}) => new Response(new ReadableStream({ start(controller) { chunks.forEach(chunk => controller.enqueue(new Uint8Array(chunk))); controller.close(); } }), { headers });
@@ -55,4 +55,13 @@ test('upload transport keeps authentication, caps byte progress, and waits for t
   xhr.status = 201; xhr.responseText = '{"saved":true}'; xhr.onload(); xhr.onloadend();
   assert.equal((await request).status, 201);
   assert.equal(events.some(event => event.stage === 'complete'), false);
+});
+
+test('clearing a session removes transfer details and cancels pending work', async () => {
+  let called = false;
+  const pending = runTransfer({ key: 'old-session', name: 'private.pdf' }, async () => { called = true; });
+  clearTransfers();
+  await assert.rejects(pending, { name: 'AbortError' });
+  assert.equal(called, false);
+  assert.deepEqual(getTransfers(), []);
 });

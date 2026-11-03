@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { cancelTransfer, dismissTransfer, getTransfers, subscribeTransfers, transferIsActive } from '../../services/fileTransfers';
+import { cancelTransfer, clearTransfers, dismissTransfer, getTransfers, subscribeTransfers, transferIsActive } from '../../services/fileTransfers';
 import TransferProgress from './TransferProgress';
 export default function TransferActivity() {
   const jobs = useSyncExternalStore(subscribeTransfers, getTransfers, getTransfers);
@@ -14,6 +14,14 @@ export default function TransferActivity() {
     window.addEventListener('beforeunload', guard);
     return () => window.removeEventListener('beforeunload', guard);
   }, [active.length]);
+  useEffect(() => {
+    window.addEventListener('tinzel:staff:unauthorized', clearTransfers);
+    window.addEventListener('tinzel:client:unauthorized', clearTransfers);
+    return () => {
+      window.removeEventListener('tinzel:staff:unauthorized', clearTransfers);
+      window.removeEventListener('tinzel:client:unauthorized', clearTransfers);
+    };
+  }, []);
   if (!jobs.length) return null;
   return <aside className="transfer-activity" aria-label={sw ? 'Uhamisho wa faili' : 'File transfers'}>
     <header><strong>{sw ? 'Uhamisho wa faili' : 'File transfers'}{active.length ? ` (${active.length})` : ''}</strong>

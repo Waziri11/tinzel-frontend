@@ -26,3 +26,29 @@ The UX configuration builds and serves a production bundle against the sibling b
 The new unit checks cover byte weighting, confirmed completion, stalled transfers, and byte labels. Browser checks cover reduced motion, interactive uploading, server-confirmed stages, collapsed summaries, mobile payment layout, storage failure, slow connections, and Kiswahili milestones. The staff preview/archive UI test uses synthetic mocked responses; the existing backend integration tests separately cover actual preview/archive generation and downloads.
 
 No production deployment is part of this change. Existing large-bundle build warnings are unchanged in category; physical-device testing and worker-backlog improvements remain separate work.
+
+## Application-wide loading policy — 3 November 2026
+
+| State | Presentation | Coverage |
+| --- | --- | --- |
+| First page/data load | Layout-matched `PageSkeleton` | Staff session/routes, catalogue/forms, tracking, manager dashboards/details/review, designer queue/orders/returns, staff management, notifications, system/settings and account access |
+| Refresh/search after data exists | Keep current content; soft flutter in the active control or panel | Orders, queues, returns, notifications, diagnostics and retries |
+| Short request/action | `ActionButton` or `InlineLoading` | Sign-in/verification/recovery, saves, review decisions/comments, staff administration, publishing, notifications and security actions |
+| Heavy transfer | Measured progress bar, or an indeterminate bar when length/progress is unavailable | Photos, drafts, print PDFs, cover artwork, review attachments and original PDF downloads |
+| ZIP export | Indeterminate preparation bar, followed by explicit browser download handoff | Photo folders; browser handles large archive downloads without buffering the ZIP in application memory |
+| Error/offline/paused/complete | Static state with recovery or dismissal | No indefinite animation after a failed request; 100% requires successful completion |
+
+The flutter sprite is baked from the approved Blender `SoftFlutter` clip, using `scripts/bake-soft-flutter.mjs`. The application does not load Three.js or create WebGL contexts for loaders. `ActionButton` handles promise-returning click actions and explicit form loading flags, blocks duplicate clicks, keeps clicked-button dimensions stable, and restricts shared busy-state animation to the active action. Reduced motion uses a static butterfly.
+
+File transfers use a shared in-memory activity panel that survives route changes. Original PDF downloads report received bytes when Content-Length is usable; unknown/compressed lengths remain indeterminate. File uploads use XHR byte events, preserve cookie/Bearer authentication, CSRF renewal and SMS step-up, and show a separate server-confirmation stage. These print/cover transfers are not a new resumable-upload system. Existing photo/draft recovery remains unchanged. Sign-out or session expiry clears the activity panel and cancels pending transfers.
+
+Validation commands:
+
+```sh
+npm test
+npm run build
+npx playwright test --config playwright.loading.config.js loading-system.spec.js manager-dashboard.spec.js staff-session-loading.spec.js staff-navigation-loading.spec.js manager-book-review.spec.js staff-workspace-system.spec.js
+npx playwright test loading-ux.spec.js designer-corrected-upload.spec.js csrf.spec.js auth-enhancements.spec.js staff-onboarding.spec.js
+```
+
+Checks cover delayed requests, retained refresh content, duplicate clicks, keyboard submission, reduced motion, mobile bounds, failed and interrupted transfers, and CSRF rotation. These are local browser and disposable-backend checks, not production deployment or physical-device certification.

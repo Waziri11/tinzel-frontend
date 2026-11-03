@@ -15,9 +15,10 @@ export function InlineLoading({ children, size = 28, className = '' }) {
 }
 
 /** Preserves native button/form semantics and locks promise-returning actions. */
-export function ActionButton({ loading = false, disabled, children, onClick, loadingLabel, className = '', ...props }) {
+export function ActionButton({ loading = false, disabled, children, onClick, loadingLabel, className = '', style, ...props }) {
   const [pending, setPending] = useState(false);
   const [initiated, setInitiated] = useState(false);
+  const [dimensions, setDimensions] = useState(null);
   const lock = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -26,6 +27,8 @@ export function ActionButton({ loading = false, disabled, children, onClick, loa
   const hasIndicator = Children.toArray(children).some(child => child?.type === SoftFlutter);
   const click = async event => {
     if (lock.current || loading || pending) { event.preventDefault(); return; }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setDimensions({ width: bounds.width, height: bounds.height });
     setInitiated(true);
     const result = onClick?.(event);
     if (result && typeof result.then === 'function') {
@@ -37,7 +40,7 @@ export function ActionButton({ loading = false, disabled, children, onClick, loa
       }
     }
   };
-  return <button {...props} className={`action-button ${className}`} disabled={disabled || loading || pending} aria-busy={busy || undefined} onClick={click}>
-    {busy && !hasIndicator && <SoftFlutter />}{busy && loadingLabel ? loadingLabel : children}
+  return <button {...props} className={`action-button ${className}`} style={{ ...style, ...(busy && dimensions ? { width: dimensions.width, minHeight: dimensions.height, maxWidth: '100%', boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: style?.justifyContent || 'center' } : {}) }} disabled={disabled || loading || pending} aria-busy={busy || undefined} onClick={click}>
+    {busy && !hasIndicator && <SoftFlutter size={dimensions?.width < 40 ? Math.max(10, dimensions.width - 8) : 20} />}<span className="action-button__label">{busy && loadingLabel ? loadingLabel : children}</span>
   </button>;
 }

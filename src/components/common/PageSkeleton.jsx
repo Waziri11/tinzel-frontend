@@ -16,6 +16,9 @@ export default function PageSkeleton({ variant = 'table', title, compact = false
       <span className="page-skeleton__status" role="status">{label}</span>
       <div aria-hidden="true">
         {!compact && <div className="page-skeleton__heading"><Block className="is-title" /><Block className="is-subtitle" /></div>}
+        {variant === 'dashboard' && <div className="page-skeleton__summary">
+          {[0, 1, 2, 3].map(index => <div className="page-skeleton__card" key={index}><Block className="is-title" /><Block /><Block className="is-subtitle" /></div>)}
+        </div>}
         {cards ? (
           <div className={`page-skeleton__grid is-${variant}`}>
             {Array.from({ length: variant === 'catalogue' ? 3 : 4 }, (_, index) => (

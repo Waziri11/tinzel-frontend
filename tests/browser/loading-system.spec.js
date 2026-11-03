@@ -7,6 +7,7 @@ test('soft flutter follows pending actions and prevents duplicate requests', asy
   await button.click();
   await expect(button).toBeDisabled();
   await expect(button).toHaveAttribute('aria-busy', 'true');
+  expect((await button.boundingBox()).width).toBeCloseTo(before.width, 0);
   await expect(button.locator('.soft-flutter')).toBeVisible();
   await button.evaluate(el => el.click());
   await expect(page.locator('output')).toHaveText('1');
@@ -90,4 +91,39 @@ test('file uploads keep an indeterminate confirmation bar until the server accep
     release();
     await expect(panel.getByText('Upload confirmed')).toBeVisible();
   } finally { release(); }
+});
+
+test('keyboard submission shows flutter only on the submitted action', async ({ page }) => {
+  await page.goto('/tests/loading-harness.html');
+  await page.getByLabel('Form value').fill('example');
+  await page.getByLabel('Form value').press('Enter');
+  await expect(page.getByRole('button', { name: 'Submit form' }).locator('.soft-flutter')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unrelated action' }).locator('.soft-flutter')).toHaveCount(0);
+  await page.evaluate(() => window.finishForm());
+  await expect(page.getByRole('button', { name: 'Submit form' })).toBeEnabled();
+  await expect(page.locator('.soft-flutter')).toHaveCount(0);
+});
+
+test('multipart uploads recover a rotated CSRF token once and stop on server rejection', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
+  await page.route('**/api/public/forms', route => route.fulfill({ json: { forms: [] } }));
+  await page.goto('/');
+  let lookups = 0, uploads = 0;
+  await page.route('**/api/csrf/staff', route => route.fulfill({ json: { csrf: (++lookups === 1 ? 'a' : 'b').repeat(48) } }));
+  await page.route('**/api/admin/forms/upload-cover', route => {
+    uploads++;
+    expect(route.request().headers()['x-csrf-token']).toBe((uploads === 1 ? 'a' : 'b').repeat(48));
+    return route.fulfill({ status: uploads === 1 ? 403 : 413, json: uploads === 1 ? { errorCode: 'CSRF_TOKEN_INVALID' } : { message: 'Cover exceeds the size limit' } });
+  });
+  await page.evaluate(async () => {
+    const [{ api }, { runTransfer }] = await Promise.all([import('/src/services/api.js'), import('/src/services/fileTransfers.js')]);
+    await runTransfer({ key: 'rejected-cover', name: 'large.webp', kind: 'upload' }, context => api.admin.uploadCover('cookie', new File(['fixture'], 'large.webp', { type: 'image/webp' }), context)).catch(() => {});
+  });
+  expect(uploads).toBe(2);
+  expect(lookups).toBe(2);
+  const panel = page.getByRole('complementary', { name: 'File transfers' });
+  await expect(panel.getByRole('alert')).toContainText('Cover exceeds the size limit');
+  await expect(panel.locator('.transfer-progress')).toHaveAttribute('aria-busy', 'false');
+  await expect(panel.getByText('Upload confirmed')).toHaveCount(0);
+  await expect(panel.getByRole('progressbar')).not.toHaveAttribute('value', '100');
 });

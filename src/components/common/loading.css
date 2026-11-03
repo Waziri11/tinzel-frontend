@@ -18,7 +18,9 @@
 .inline-loading { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
 .action-button[aria-busy='true'] { cursor: wait; }
 .action-button > .soft-flutter { margin-inline-end: 6px; }
-.action-button[aria-busy='true'] > svg { display: none; }
+.action-button__label { display: contents; }
+.action-button[aria-busy='true'] > .action-button__label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.action-button[aria-busy='true'] > .action-button__label > svg { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .soft-flutter { background-image: url('/brand/soft-flutter-poster.webp'); }
   .soft-flutter::before { display: none; animation: none; }
@@ -42,3 +44,13 @@
   .draft-upload-progress progress:indeterminate, .tinzel-upload progress:indeterminate { appearance: none; background: #e9dfcc; }
   .draft-upload-progress progress:indeterminate::-webkit-progress-bar, .tinzel-upload progress:indeterminate::-webkit-progress-bar { background: #e9dfcc; }
 }
+
+.action-button[aria-label][aria-busy='true'] > .soft-flutter { margin-inline-end: 0; }
+.transfer-progress progress { appearance: none; background: #e9dfcc; }
+.transfer-progress progress::-webkit-progress-bar { background: #e9dfcc; }
+.transfer-progress progress::-webkit-progress-value { background: #9b752e; border-radius: 8px; }
+.transfer-progress progress::-moz-progress-bar { background: #9b752e; border-radius: 8px; }
+.transfer-progress progress:indeterminate { background: linear-gradient(90deg, #e9dfcc 20%, #b28a43 45%, #b28a43 55%, #e9dfcc 80%); background-size: 200% 100%; animation: transfer-indeterminate 1.8s ease-in-out infinite; }
+.transfer-progress progress:indeterminate::-webkit-progress-bar { background: transparent; }
+@keyframes transfer-indeterminate { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .transfer-progress progress:indeterminate { animation: none; background: #e9dfcc; } }
