@@ -1,9 +1,10 @@
 import { errorText } from '../i18n/errors';
+import { createCsrfTransport } from './csrf';
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const csrfTokens={};
+const csrf = createCsrfTransport({ apiBase: API_BASE });
 let pendingStepUp;
-const sessionKind=url=>/\/api\/(client|proofs\/client)/.test(url)?'client':/\/api\/printer\/invitations/.test(url)?'printer':'staff';
-export const securityHeaders=(kind='staff')=>csrfTokens[kind]?{'X-CSRF-Token':csrfTokens[kind]}:{};
+export const securityHeaders = csrf.headers;
+export const ensureCsrfToken = csrf.ensureToken;
 export const requestVerification=options=>new Promise((resolve,reject)=>window.dispatchEvent(new CustomEvent('tinzel:verify',{detail:{...options,resolve,reject}})));
 async function otpFlow(challenge,purpose='login'){
  let current=challenge;
@@ -23,15 +24,15 @@ export const fetchWithTimeout = async (
     ? AbortSignal.any([options.signal, timeoutSignal])
     : timeoutSignal;
   try {
-    const response=await fetch(url, { ...options, credentials:'include',headers:{...options.headers,...securityHeaders(sessionKind(url))}, signal });
+    const response=await csrf.send(url, { ...options, signal });
     const data=response.headers.get('content-type')?.includes('application/json')?await response.clone().json().catch(()=>({})):{};
-    if(data.csrf)csrfTokens[sessionKind(url)]=data.csrf;
     if(response.status===403 && data.errorCode==='OTP_REQUIRED' && !options._verifiedRetry){
       if(!pendingStepUp)pendingStepUp=otpFlow({channel:'sms'},'step-up').finally(()=>{pendingStepUp=null;});
       await pendingStepUp;return fetchWithTimeout(url,{...options,_verifiedRetry:true},timeoutMs);
     }
     return response;
   } catch (err) {
+    if (err?.status === 401) notifyUnauthorized({ status: 401, url }, err.message);
     if (
       err?.name === 'TimeoutError' ||
       (err?.name === 'AbortError' && !options.signal?.aborted)
@@ -165,6 +166,7 @@ export const api = {
 
   // Client Tracking Endpoints
   client: {
+    logout: () => fetchWithTimeout(`${API_BASE}/api/client/logout`, { method: 'POST' }).then(handleResponse),
     setPreferences: (token, preferredLanguage) =>
       fetchWithTimeout(`${API_BASE}/api/client/preferences`, {
         method: 'PATCH',
@@ -459,7 +461,7 @@ export const api = {
         signal
           ? AbortSignal.any([signal, AbortSignal.timeout(30000)])
           : AbortSignal.timeout(30000);
-      let result = await fetch(
+      let result = await fetchWithTimeout(
         `${API_BASE}/api/designer/orders/${id}/photo-folder-download`,
         {
           method: 'POST',
@@ -480,7 +482,7 @@ export const api = {
           );
         await new Promise((resolve) => setTimeout(resolve, 2000));
         signal?.throwIfAborted();
-        result = await fetch(
+        result = await fetchWithTimeout(
           `${API_BASE}/api/designer/orders/${id}/media-jobs/${encodeURIComponent(result.jobId)}`,
           {
             headers: getHeaders(token),

@@ -1,4 +1,4 @@
-import {securityHeaders} from './api';
+import {securityHeaders, ensureCsrfToken} from './api';
 const BASE = import.meta.env?.VITE_API_URL || '';
 export const MAX_DRAFT_BYTES = 500 * 1024 * 1024;
 const key = (staffId, orderId) => `tinzel_draft_upload:${staffId}:${orderId}`;
@@ -19,9 +19,11 @@ const sleep = (ms, signal) => new Promise((resolve,reject)=>{
   signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
 });
 async function request(url, token, { method='GET', body, binary=false, signal, progress, retry, complete=false }={}) {
+  let refreshedCsrf = false;
   for(let attempt=0;attempt<3;attempt++) {
     signal?.throwIfAborted();
     try {
+      if (token === 'cookie' && !['GET', 'HEAD', 'OPTIONS'].includes(method)) await ensureCsrfToken('staff', { signal });
       return await new Promise((resolve,reject)=>{
         const xhr=new XMLHttpRequest();xhr.open(method,BASE+url);xhr.timeout=binary?120000:60000;
         xhr.withCredentials=true;for(const [key,value] of Object.entries(securityHeaders()))xhr.setRequestHeader(key,value);if(token!=='cookie')xhr.setRequestHeader('Authorization',`Bearer ${token}`);
@@ -37,13 +39,19 @@ async function request(url, token, { method='GET', body, binary=false, signal, p
           if(xhr.status>=200&&xhr.status<300)return resolve(data);
           const reference=xhr.getResponseHeader('X-Request-Id')||xhr.getResponseHeader('X-Vercel-Id');
           const message=xhr.status===413?'The server rejected an upload part as too large. Refresh the application and retry.':data.message||`Upload failed (${xhr.status}). Retry to resume.`;
-          reject(Object.assign(new Error(message+(reference?` Reference: ${reference}`:'')),{status:xhr.status}));
+          reject(Object.assign(new Error(message+(reference?` Reference: ${reference}`:'')),{status:xhr.status,code:data.errorCode}));
         };
         if(binary)xhr.setRequestHeader('X-Chunk-SHA256',body.sha256);
         if(signal?.aborted)return reject(new DOMException('Cancelled','AbortError'));
         xhr.send(body===undefined?undefined:binary?body.bytes:JSON.stringify(body));
       });
     }catch(error){
+      if (error.status === 403 && error.code === 'CSRF_TOKEN_INVALID' && !refreshedCsrf) {
+        refreshedCsrf = true;
+        await ensureCsrfToken('staff', { force: true, signal });
+        attempt--;
+        continue;
+      }
       const transient=!error.status||[408,429,502,503,504].includes(error.status)||(complete&&error.status===409);
       if(error.name==='AbortError'||attempt===2||!transient)throw error;
       retry?.();await sleep(700*2**attempt,signal);

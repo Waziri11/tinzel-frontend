@@ -1,4 +1,3 @@
-import {securityHeaders} from '../../services/api';
 import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
@@ -127,8 +126,7 @@ export default function ClientTrackingPortal() {
     }
   };
 
-  const handleLogout = useCallback(() => {
-    fetch('/api/client/logout',{method:'POST',credentials:'include',headers:securityHeaders('client')}).catch(()=>{});
+  const clearSession = useCallback(() => {
     setClientToken('');
     sessionStorage.removeItem('tinzel_client_token');
     setOrder(null);
@@ -138,12 +136,20 @@ export default function ClientTrackingPortal() {
   }, []);
   useEffect(() => {
     const expired = (event) => {
-      handleLogout();
+      clearSession();
       setError(event.detail?.message || t('track.err.sessionExpired'));
     };
     window.addEventListener('tinzel:client:unauthorized', expired);
     return () => window.removeEventListener('tinzel:client:unauthorized', expired);
-  }, [handleLogout, t]);
+  }, [clearSession, t]);
+
+  const handleLogout = async () => {
+    try { await api.client.logout(); clearSession(); }
+    catch (err) {
+      if (err.status === 401) clearSession();
+      else setError(err.message);
+    }
+  };
 
   const handleApproveWholeMagazine = async () => {
     if (proofState.composing || proofState.saving) return;
