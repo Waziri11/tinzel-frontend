@@ -1,4 +1,5 @@
 import { test, expect, chooseEnglish } from './fixtures.js';
+const csrf = 'a'.repeat(48), rotatedCsrf = 'b'.repeat(48);
 const json=(route,data)=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
 const user={id:'designer-setup',name:'Juma Designer',email:'juma@example.test',role:'designer',preferredLanguage:'en',mustChangePassword:true,temporaryPasswordExpiresAt:new Date(Date.now()+86400000).toISOString()};
 for(const mobile of [false,true])test(`first login forces password setup and survives refresh on ${mobile?'mobile':'desktop'}`,async({page})=>{
@@ -8,11 +9,12 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
   if(path==='/api/staff/auth-config')return json(route,{captcha:{enabled:false}});
-  if(path==='/api/staff/login'){loggedIn=true;return json(route,{token:'cookie',user});}
-  if(path==='/api/staff/me'){if(!loggedIn)return route.fulfill({status:401,json:{message:'Sign in'}});profileCalls++;return json(route,{user:{...user,mustChangePassword:!ready}});}
+  if(path==='/api/staff/login'){loggedIn=true;return json(route,{token:'cookie',csrf,user});}
+  if(path==='/api/staff/me'){if(!loggedIn)return route.fulfill({status:401,json:{message:'Sign in'}});profileCalls++;return json(route,{csrf:ready?rotatedCsrf:csrf,user:{...user,mustChangePassword:!ready}});}
   if(path==='/api/staff/preferences')return json(route,{success:true});
   if(path==='/api/staff/change-password'){
-   changed=route.request().postDataJSON();ready=true;return json(route,{token:'cookie',user:{...user,mustChangePassword:false}});
+   expect(route.request().headers()['x-csrf-token']).toBe(csrf);
+   changed=route.request().postDataJSON();ready=true;return json(route,{token:'cookie',csrf:rotatedCsrf,user:{...user,mustChangePassword:false}});
   }
   if(!ready)businessWhileSetup.push(path);
   if(path==='/api/designer/orders')return json(route,{orders:[]});
@@ -42,8 +44,9 @@ test('admin creates staff without entering a password and can inspect or reissue
  let staff=[admin],created,reissues=0;
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname,method=route.request().method();
-  if(path==='/api/staff/me')return json(route,{user:admin});
+  if(path==='/api/staff/me')return json(route,{csrf,user:admin});
   if(path==='/api/admin/staff'&&method==='POST'){
+   expect(route.request().headers()['x-csrf-token']).toBe(csrf);
    created=route.request().postDataJSON();staff.push({_id:'new-user',...created,isActive:true,isEligibleForAssignment:true,createdAt:new Date().toISOString(),mustChangePassword:true,temporaryPasswordExpiresAt:user.temporaryPasswordExpiresAt,credentialGeneration:1,credentialDelivery:{sms:{status:'failed',attempts:1,error:'Credential delivery failed.'},email:{status:'sent',attempts:1}}});return json(route,{user:staff[1]});
   }
   if(path==='/api/admin/staff')return json(route,{staff});
