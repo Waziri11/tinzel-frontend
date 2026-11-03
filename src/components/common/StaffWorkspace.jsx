@@ -290,6 +290,22 @@ export default function StaffWorkspace({ onExitToHome }) {
     }
   }, [token, refreshUnreadCount]);
 
+  const restoreStaffRoute = (user) => {
+    const pathname = window.location.pathname;
+    const isEntry = /^\/staff(?:\/login)?\/?$/.test(pathname);
+    // A saved/shared manager landing URL must not strand a designer at sign-in.
+    const isDesignerLanding = user.role === 'designer' &&
+      /^\/staff\/pre-design\/?$/.test(pathname);
+    if (isEntry || isDesignerLanding) {
+      const home = NAVIGATION_ITEMS.find((item) => item.roles.includes(user.role));
+      if (home) navigateLocation(home.path, { replace: true });
+    }
+    const route = readRoute();
+    setActivePage(route.page);
+    setRouteOrderId(route.orderId);
+    setReviewVersion(route.version);
+  };
+
   const loadProfile = async (authToken) => {
     setLoading(true);
     setError(null);
@@ -298,19 +314,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       setCurrentUser(data.user);
       if (!data.user.mustChangePassword) refreshUnreadCount(authToken);
 
-      // Default page based on RBAC role and current URL
-      const route = readRoute();
-      if (
-        window.location.pathname !== '/staff' &&
-        window.location.pathname !== '/staff/'
-      ) {
-        setActivePage(route.page);
-        setRouteOrderId(route.orderId);
-      } else if (data.user.role === 'designer') {
-        setActivePage('designer_queue');
-      } else {
-        setActivePage('pre_design');
-      }
+      restoreStaffRoute(data.user);
     } catch (err) {
       setCurrentUser(null);
       if ([401, 403].includes(err.status)) {
@@ -338,24 +342,9 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.removeItem('tinzel_staff_token');
       setCurrentUser(data.user);
       setPassword('');
-      if (/^\/staff\/login\/?$/.test(window.location.pathname)) {
-        const designer = data.user.role === 'designer';
-        navigateStaff(designer ? '/staff/design' : '/staff/pre-design', designer ? 'designer_queue' : 'pre_design');
-      }
       if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
 
-      const route = readRoute();
-      if (
-        window.location.pathname !== '/staff' &&
-        window.location.pathname !== '/staff/'
-      ) {
-        setActivePage(route.page);
-        setRouteOrderId(route.orderId);
-      } else if (data.user.role === 'designer') {
-        setActivePage('designer_queue');
-      } else {
-        setActivePage('pre_design');
-      }
+      restoreStaffRoute(data.user);
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
