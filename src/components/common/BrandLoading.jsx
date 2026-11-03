@@ -1,5 +1,6 @@
 import { useInterfaceText } from '../../i18n/InterfaceText';
 import React from 'react';
+import SoftFlutter from './SoftFlutter';
 import { Check } from 'lucide-react';
 import './mediaExperience.css';
 
@@ -9,7 +10,7 @@ export function BrandMark({ complete = false, animate = true }) {
       className={`tinzel-mark ${complete ? 'tinzel-mark--complete' : animate ? 'tinzel-mark--waiting' : ''}`}
       aria-hidden="true"
     >
-      <img src="/brand/tinzel-butterfly.png" alt="" width="48" height="45" />
+      {animate && !complete ? <SoftFlutter size={48} /> : <img src="/brand/tinzel-butterfly.png" alt="" width="48" height="45" />}
       {complete && <Check className="tinzel-mark__check" size={16} />}
     </span>
   );

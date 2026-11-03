@@ -1,8 +1,9 @@
 import React from 'react';
+import { ActionButton } from './SoftFlutter';
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 export function Button({ variant = '', className = '', ...props }) {
-  return <button type="button" className={`ui-button ${variant ? `is-${variant}` : ''} ${className}`} {...props} />;
+  return <ActionButton type="button" className={`ui-button ${variant ? `is-${variant}` : ''} ${className}`} {...props} />;
 }
 export function Feedback({ kind = 'info', title, children }) {
   const Icon = kind === 'error' ? AlertCircle : kind === 'success' ? CheckCircle2 : Info;
