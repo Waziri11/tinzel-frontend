@@ -1,3 +1,4 @@
+import { runTransfer } from '../../services/fileTransfers';
 import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { savedDraftUpload, cancelDraftUpload, submitDraftUpload } from '../../services/draftUpload';
@@ -198,7 +199,12 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         data.append('useApprovedDraft', 'true');
       }
       Object.entries(printSpecs).forEach(([key, value]) => data.append(key, value));
-      await api.designer.uploadPrintDocument(token, orderId, data);
+      if (printFile) {
+        await runTransfer({ key: `print:${orderId}`, name: printFile.name, kind: 'upload' }, context =>
+          api.designer.uploadPrintDocument(token, orderId, data, context));
+      } else {
+        await api.designer.uploadPrintDocument(token, orderId, data);
+      }
       setPrintFile(null);
       setSuccess('Print-ready PDF sent for manager authorization.');
       await load();
@@ -210,12 +216,18 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   };
   const downloadFolder = async (folder) => {
     try {
-      const { url } = await api.designer.downloadPhotoFolder(token, orderId, folder);
-      const link = document.createElement('a');
-      link.href = url;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await runTransfer({ key: `folder:${orderId}:${folder}`, name: `${folder}.zip`, kind: 'download' }, async context => {
+        const { url } = await api.designer.downloadPhotoFolder(token, orderId, folder, {
+          signal: context.signal,
+          onStatus: stage => context.progress({ stage: stage === 'ready' ? 'transferring' : 'preparing', percent: null }),
+        });
+        // ZIP archives can be very large. The browser streams them to disk without buffering them in app memory.
+        context.signal.throwIfAborted();
+        const link = document.createElement('a');
+        link.href = url; link.download = `${folder}.zip`;
+        document.body.appendChild(link); link.click(); link.remove();
+        context.progress({ stage: 'handed-off', percent: null });
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -499,11 +511,11 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                     />
                   </label>
                 </div>
-                <button className="primary-button" disabled={uploading}>
+                <ActionButton loading={uploading && !printFile} className="primary-button" disabled={uploading}>
                   {printFile
                     ? 'Upload & send print PDF'
                     : `Use approved draft v${order.approvedVersionNumber} for print`}
-                </button>
+                </ActionButton>
               </form>
             )}
           </div>

@@ -12,16 +12,18 @@ export default function DraftUploadProgress({ progress, paused = false }) {
   const tx = useInterfaceText();
   if (!progress) return null;
   const { stage, percent, bytes, total, speed, remaining } = progress;
+  const measured = paused || ['uploading', 'complete'].includes(stage);
+  const value = measured ? Math.min(stage === 'complete' ? 100 : 99, Math.max(0, percent || 0)) : undefined;
   return (
-    <div className="draft-upload-progress" aria-live="polite">
+    <div className="draft-upload-progress">
       <div>
-        <strong className={paused || stage === 'complete' ? '' : 'upload-animated-text'}>
+        <strong role="status">
           {tx(paused ? 'Upload interrupted' : labels[stage] || 'Preparing upload')}
           {!paused && stage !== 'complete' && <span aria-hidden="true">…</span>}
         </strong>
-        <span>{Math.floor(percent)}%</span>
+        {measured && <span>{Math.floor(value)}%</span>}
       </div>
-      <progress aria-label={tx('Magazine upload progress')} max="100" value={percent} />
+      <progress aria-label={tx('Magazine upload progress')} max="100" value={value} />
       <small>
         {formatUploadBytes(bytes)} / {formatUploadBytes(total)}
         {!paused && speed > 0 && stage === 'uploading' ? ` · ${formatUploadBytes(speed)}/s` : ''}

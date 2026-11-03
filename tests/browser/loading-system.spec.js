@@ -29,3 +29,65 @@ test('reduced motion uses a static butterfly', async ({ page }) => {
   expect(result.image).toContain('soft-flutter-poster.webp');
   await page.evaluate(() => window.finishAction());
 });
+
+test('PDF downloads show transfer progress and only complete after the response arrives', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
+  await page.route('**/api/public/forms', route => route.fulfill({ json: { forms: [] } }));
+  await page.goto('/');
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/security/orders/loading-test/download/print', async route => {
+    await gate;
+    await route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.7\nloading fixture', headers: { 'Content-Length': '24' } });
+  });
+  await page.evaluate(() => {
+    window.transferPromise = import('/src/services/api.js').then(api => api.downloadFile('/api/security/orders/loading-test/download/print', 'fixture.pdf'));
+    window.transferPromise.catch(() => {});
+  });
+  try {
+    const panel = page.getByRole('complementary', { name: 'File transfers' });
+    await expect(panel.getByRole('progressbar')).toBeVisible();
+    await expect(panel.getByRole('progressbar')).not.toHaveAttribute('value');
+    await expect(panel.locator('.soft-flutter')).toHaveCount(0);
+    const download = page.waitForEvent('download');
+    release();
+    await download;
+    await expect(panel.getByText('File ready — check your downloads')).toBeVisible();
+    await expect(panel.getByRole('progressbar')).toHaveAttribute('value', '100');
+  } finally { release(); }
+});
+
+test('file uploads keep an indeterminate confirmation bar until the server accepts them', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
+  await page.route('**/api/public/forms', route => route.fulfill({ json: { forms: [] } }));
+  await page.goto('/');
+  await page.route('**/api/csrf/staff', route => route.fulfill({ json: { csrf: 'a'.repeat(48) } }));
+  let release, received = false;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/admin/forms/upload-cover', async route => {
+    received = true;
+    expect(route.request().headers()['x-csrf-token']).toBe('a'.repeat(48));
+    expect(route.request().headers().authorization).toBeUndefined();
+    await gate;
+    await route.fulfill({ json: { coverUrl: '/test-cover.webp' } });
+  });
+  await page.evaluate(() => {
+    window.transferPromise = Promise.all([import('/src/services/api.js'), import('/src/services/fileTransfers.js')]).then(([{ api }, { runTransfer }]) =>
+      runTransfer({ key: 'test-cover', name: 'cover.webp', kind: 'upload' }, context => api.admin.uploadCover('cookie', new File([new Uint8Array(10000)], 'cover.webp', { type: 'image/webp' }), context)));
+    window.transferPromise.catch(() => {});
+  });
+  try {
+    await expect.poll(() => received).toBe(true);
+    const panel = page.getByRole('complementary', { name: 'File transfers' });
+    await expect(panel.getByRole('progressbar')).toBeVisible();
+    await expect(panel.getByText('Upload confirmed')).toHaveCount(0);
+    await expect(panel.getByRole('progressbar')).not.toHaveAttribute('value');
+    await page.setViewportSize({ width: 390, height: 844 });
+    const bounds = await panel.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: 'test-results/loading-upload-mobile.png', fullPage: true });
+    release();
+    await expect(panel.getByText('Upload confirmed')).toBeVisible();
+  } finally { release(); }
+});

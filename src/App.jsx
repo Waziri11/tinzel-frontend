@@ -1,3 +1,4 @@
+import TransferActivity from './components/common/TransferActivity';
 import PrinterPortal from './components/client/PrinterPortal';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { Menu } from 'lucide-react';
@@ -33,7 +34,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', update);
   }, []);
 
-  if(/^\/printer\/[a-f0-9]+$/.test(path))return <PrinterPortal />;
+  if(/^\/printer\/[a-f0-9]+$/.test(path))return <><PrinterPortal /><TransferActivity /></>;
   if (!lang)
     return (
       <main className="language-page">
@@ -75,6 +76,7 @@ export default function App() {
   );
   return (
     <div className="app-shell">
+      <TransferActivity />
       <a className="ui-skip" href="#main-content">
         {sw ? 'Ruka hadi maudhui' : 'Skip to content'}
       </a>

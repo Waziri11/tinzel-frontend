@@ -38,7 +38,7 @@ export default function UploadJourney({ uploads, lang, disabled, onRemove, onCon
               : item.stage === 'confirming' ? ui('Confirming your photo…', 'Tunathibitisha picha yako…')
                 : item.stage === 'retrying' ? ui('Reconnecting…', 'Tunaunganisha tena…')
                   : `${Math.floor(item.progress)}% · ${ui('Uploading', 'Inapakia')}`}</span>
-      {item.state === 'uploading' && <progress aria-label={item.name} max="100" value={item.progress} />}
+      {item.state === 'uploading' && <progress aria-label={item.name} max="100" value={['confirming', 'retrying'].includes(item.stage) ? undefined : item.progress} />}
     </div>
     {item.state === 'complete' && <CheckCircle2 size={17} aria-hidden="true" />}
     {item.state === 'failed' && <button type="button" disabled={disabled} aria-label={ui('Retry photo', 'Jaribu tena picha')} onClick={() => uploads.retry(item.id)}>{ui('Retry', 'Jaribu tena')}</button>}
@@ -46,7 +46,7 @@ export default function UploadJourney({ uploads, lang, disabled, onRemove, onCon
   </li>;
   return <section className="tinzel-upload" aria-label={ui('Photo upload progress', 'Maendeleo ya kupakia picha')}>
     <div className="tinzel-upload__summary">
-      <BrandMark complete={summary.ready && !saving} animate={!summary.attention.length} />
+      <BrandMark complete={summary.ready && !saving} animate={saving} />
       <div className="tinzel-upload__heading">
         <p className="tinzel-eyebrow">{ui('YOUR TINZEL MAGAZINE', 'JARIDA LAKO LA TINZEL')}</p>
         <h2>{title}</h2>

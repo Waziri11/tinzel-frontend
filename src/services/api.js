@@ -1,3 +1,5 @@
+import { uploadMultipart } from './uploadTransport';
+import { runTransfer, readDownload, saveDownload } from './fileTransfers';
 import { errorText } from '../i18n/errors';
 import { createCsrfTransport } from './csrf';
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -121,6 +123,36 @@ const handleBlob = async (res) => {
   }
   return res.blob();
 };
+
+// Preserve the same CSRF, step-up and error handling as ordinary API requests.
+async function uploadForm(url, token, body, options = {}, csrfRetried = false, verified = false) {
+  options.signal?.throwIfAborted();
+  if (!token || token === 'cookie') await ensureCsrfToken('staff', { signal: options.signal });
+  const response = await uploadMultipart(url, body, { ...options, headers: { ...getHeaders(token, true), ...securityHeaders('staff') } });
+  const data = await response.clone().json().catch(() => ({}));
+  if (response.status === 403 && data.errorCode === 'CSRF_TOKEN_INVALID' && !csrfRetried) {
+    await ensureCsrfToken('staff', { force: true, signal: options.signal });
+    return uploadForm(url, token, body, options, true, verified);
+  }
+  if (response.status === 403 && data.errorCode === 'OTP_REQUIRED' && !verified) {
+    options.progress?.({ stage: 'verifying', percent: null });
+    if (!pendingStepUp) pendingStepUp = otpFlow({ channel: 'sms' }, 'step-up').finally(() => { pendingStepUp = null; });
+    await pendingStepUp;
+    return uploadForm(url, token, body, options, csrfRetried, true);
+  }
+  const result = await handleResponse(response);
+  options.progress?.({ stage: 'complete', percent: 100 });
+  return result;
+}
+
+export function downloadFile(url, filename, { key = url, token } = {}) {
+  return runTransfer({ key, name: filename, kind: 'download' }, async context => {
+    const response = await fetchWithTimeout(url, { headers: getHeaders(token), signal: context.signal }, 300000);
+    const blob = await readDownload(response, context);
+    context.signal.throwIfAborted();
+    saveDownload(blob, filename);
+  });
+}
 
 export const api = {
   // Public Form Endpoints
@@ -511,16 +543,8 @@ export const api = {
         UPLOAD_API_TIMEOUT_MS,
       ).then(handleResponse),
 
-    uploadPrintDocument: (token, id, formData) =>
-      fetchWithTimeout(
-        `${API_BASE}/api/designer/orders/${id}/upload-print-document`,
-        {
-          method: 'POST',
-          headers: getHeaders(token, true),
-          body: formData,
-        },
-        UPLOAD_API_TIMEOUT_MS,
-      ).then(handleResponse),
+    uploadPrintDocument: (token, id, formData, options = {}) =>
+      uploadForm(`${API_BASE}/api/designer/orders/${id}/upload-print-document`, token, formData, options),
 
     flagIssue: (token, id, issue) =>
       fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/flag-issue`, {
@@ -584,20 +608,10 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
-    uploadCover: (token, file) => {
+    uploadCover: (token, file, options = {}) => {
       const formData = new FormData();
       formData.append('cover', file);
-      return fetchWithTimeout(
-        `${API_BASE}/api/admin/forms/upload-cover`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
-        UPLOAD_API_TIMEOUT_MS,
-      ).then(handleResponse);
+      return uploadForm(`${API_BASE}/api/admin/forms/upload-cover`, token, formData, options);
     },
 
     getStaff: (token) =>

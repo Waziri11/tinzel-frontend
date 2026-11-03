@@ -1,3 +1,4 @@
+import { runTransfer } from '../../services/fileTransfers';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -361,8 +362,11 @@ export default function FormBuilder({ token }) {
     setUploadingCover(true);
     setError(null);
     try {
-      const optimizedFile = await compressCoverFileIfNeeded(file);
-      const res = await api.admin.uploadCover(token, optimizedFile);
+      const res = await runTransfer({ key: 'edition-cover', name: file.name, kind: 'upload' }, async context => {
+        context.progress({ stage: 'checking' });
+        const optimizedFile = await compressCoverFileIfNeeded(file);
+        return api.admin.uploadCover(token, optimizedFile, context);
+      });
       setCoverImageUrl(res.coverUrl);
       setSuccessMsg('Cover artwork uploaded successfully!');
     } catch (err) {

@@ -1,3 +1,4 @@
+import TransferProgress from '../common/TransferProgress';
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, FileText, UploadCloud, X } from 'lucide-react';
 import { draftUploads, useDraftUploads } from '../../hooks/useDraftUploads';
@@ -42,7 +43,7 @@ export default function BackgroundUploads() {
             </div>
             {['uploading', 'error'].includes(job.status) && <DraftUploadProgress progress={job.progress} paused={job.status === 'error'} />}
             {job.status === 'queued' && <p role="status">{tx('Waiting for the current upload…', 'Inasubiri upakiaji unaoendelea…')}</p>}
-            {job.status === 'canceling' && <p role="status">{tx('Canceling upload…', 'Inaghairi upakiaji…')}</p>}
+            {job.status === 'canceling' && <TransferProgress progress={{ stage: 'finalizing' }} label={tx('Canceling upload…', 'Inaghairi upakiaji…')} />}
             {job.status === 'error' && <p className="background-upload-error" role="alert">{job.error}</p>}
             {job.status === 'ready' && <p role="status">{tx('Upload complete. Review corrections before submitting.', 'Upakiaji umekamilika. Kagua marekebisho kabla ya kuwasilisha.')}</p>}
             {job.status === 'complete' && <p role="status">{tx('Sent to manager review', 'Imetumwa kwa ukaguzi wa meneja')}</p>}

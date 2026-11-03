@@ -5,9 +5,12 @@ import {errorText} from '../../i18n/errors';
 import './security-controls.css';
 import {useDialogFocus} from '../../hooks/useDialogFocus';
 import React,{useState} from 'react';
-import {fetchWithTimeout,requestVerification} from '../../services/api';
+import {fetchWithTimeout,requestVerification,downloadFile} from '../../services/api';
 export async function securityRequest(path,body){const response=await fetchWithTimeout(`/api/${path}`,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=await response.json();if(!response.ok)throw new Error(errorText(data.message||'Request failed',response.status));return data;}
-export async function downloadMagazine(orderId,version){const response=await fetchWithTimeout(`/api/security/orders/${encodeURIComponent(orderId)}/download/${encodeURIComponent(version)}`,{},300000);if(!response.ok){const data=await response.json();throw new Error(data.message||'Download unavailable');}const url=URL.createObjectURL(await response.blob());const a=document.createElement('a');a.href=url;a.download=`tinzel-${version}.pdf`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
+export const downloadMagazine = (orderId, version) => downloadFile(
+ `/api/security/orders/${encodeURIComponent(orderId)}/download/${encodeURIComponent(version)}`,
+ `tinzel-${version}.pdf`, { key: `magazine:${orderId}:${version}` },
+);
 export default function SecurityCenter({user}){
  const {lang}=useLanguage(),t=(en,sw)=>lang==='sw'?sw:en;
  const [open,setOpen]=useState(false),[orderId,setOrderId]=useState(''),[version,setVersion]=useState('print'),[events,setEvents]=useState([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[destination,setDestination]=useState(''),[inviteUrl,setInviteUrl]=useState('');

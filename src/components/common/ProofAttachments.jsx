@@ -1,3 +1,4 @@
+import TransferProgress from './TransferProgress';
 import { InlineLoading } from './SoftFlutter';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useRef, useState } from 'react';
@@ -16,6 +17,7 @@ export function AttachmentEditor({ uploads, disabled }) {
       {uploads.items.map(item => <figure key={item.key}>
         <img src={item.preview} alt={item.file.name} />
         <figcaption>{item.state === 'uploading' ? <><InterfaceText>Uploading image</InterfaceText> {item.progress}%</> : item.file.name}</figcaption>
+        {item.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: item.progress }} label={item.file.name} />}
         {item.state === 'failed' && <><small role="alert">{tx(item.error)}</small><button type="button" disabled={disabled} onClick={() => uploads.retry(item)}><InterfaceText>Retry image</InterfaceText></button></>}
         <button type="button" disabled={disabled} aria-label={`${tx('Remove image')}: ${item.file.name}`} onClick={() => uploads.remove(item)}><InterfaceText>Remove image</InterfaceText></button>
       </figure>)}

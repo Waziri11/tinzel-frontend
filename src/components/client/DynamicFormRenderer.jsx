@@ -1238,7 +1238,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             >
               {submitting ? (
                 <>
-                  <BrandMark />
+                  <BrandMark animate={uploads.phase === 'saving'} />
                   {uploads.phase === 'saving'
                     ? ui('Saving your order…', 'Tunahifadhi oda yako…')
                     : ui('Waiting for your photos…', 'Tunasubiri picha zako…')}
