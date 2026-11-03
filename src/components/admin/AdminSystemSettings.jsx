@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+const verificationKey = 'staff_login_verification_hours';
+const verificationIntervals = [[0, 'Every login', 'Kila kuingia'], [1, '1 hour', 'Saa 1'], [6, '6 hours', 'Saa 6'], [12, '12 hours', 'Saa 12'], [24, '1 day', 'Siku 1'], [72, '3 days', 'Siku 3'], [168, '7 days', 'Siku 7'], [336, '14 days', 'Siku 14'], [720, '30 days', 'Siku 30']];
 const operationalFields = [
   ['printer_name', 'Printer name', 'Jina la mchapishaji'],
   ['printer_whatsapp_phone', 'Printer WhatsApp', 'WhatsApp ya mchapishaji'],
@@ -42,6 +44,7 @@ export default function AdminSystemSettings({ token }) {
     t = (en, sw) => (lang === 'sw' ? sw : en);
   const [providers, setProviders] = useState([]),
     [config, setConfig] = useState({}),
+    [configLoaded, setConfigLoaded] = useState(false),
     [drafts, setDrafts] = useState({}),
     [remove, setRemove] = useState({}),
     [busy, setBusy] = useState({}),
@@ -63,9 +66,11 @@ export default function AdminSystemSettings({ token }) {
   const loadConfig = () =>
     api.admin
       .getConfig(token)
-      .then((r) =>
-        setConfig(Object.fromEntries(r.configs.map((x) => [x.key, x.value]))),
-      )
+      .then((r) => {
+        setConfig(Object.fromEntries(r.configs.map((x) => [x.key, x.value])));
+        setConfigLoaded(true);
+        setError(x => ({ ...x, config: '' }));
+      })
       .catch(() =>
         setError((x) => ({
           ...x,
@@ -107,6 +112,31 @@ export default function AdminSystemSettings({ token }) {
         </button>
       )}
       <div className="system-settings-grid">
+        <article className="system-settings-card">
+          <h3>{t('Sign-in security', 'Usalama wa kuingia')}</h3>
+          <form onSubmit={event => {
+            event.preventDefault();
+            run(verificationKey, async () => {
+              const result = await api.admin.updateConfig(token, { key: verificationKey, value: Number(config[verificationKey] ?? 168) });
+              setConfig(current => ({ ...current, [verificationKey]: result.config.value }));
+              setNotice(current => ({ ...current, [verificationKey]: t('Verification interval saved.', 'Muda wa uthibitisho umehifadhiwa.') }));
+            });
+          }}>
+            <label htmlFor="staff-verification-interval">{t('Sign-in verification interval', 'Muda kati ya uthibitisho wa kuingia')}</label>
+            <select id="staff-verification-interval" aria-describedby="staff-verification-help" value={config[verificationKey] ?? 168}
+              disabled={!configLoaded || busy[verificationKey] || !!error.config}
+              onChange={event => setConfig(current => ({ ...current, [verificationKey]: Number(event.target.value) }))}>
+              {verificationIntervals.map(([value, en, sw]) => <option key={value} value={value}>{t(en, sw)}</option>)}
+            </select>
+            <p id="staff-verification-help">{t(
+              'Admins and managers verify once per interval on the same browser, including after signing out. A new browser or changed password requires a code. Passwords are still required at every sign-in.',
+              'Wasimamizi na meneja huthibitisha mara moja kwa muda huu kwenye kivinjari kilekile, hata baada ya kutoka. Kivinjari kipya au kubadilisha nenosiri kunahitaji msimbo. Nenosiri linahitajika kila unapoingia.'
+            )}</p>
+            <p>{t('The interval starts when a sign-in SMS code is verified. Sensitive actions still require recent verification.', 'Muda huanza msimbo wa SMS unapothibitishwa. Vitendo nyeti bado vinahitaji uthibitisho wa karibuni.')}</p>
+            {feedback(verificationKey)}
+            <button className="ui-button" disabled={!configLoaded || busy[verificationKey] || !!error.config}>{t('Save verification interval', 'Hifadhi muda wa uthibitisho')}</button>
+          </form>
+        </article>
         <article className="system-settings-card">
           <h3>{t('Operational settings', 'Mipangilio ya uendeshaji')}</h3>
           {operationalFields.map(([key, en, sw]) => (

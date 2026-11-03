@@ -283,3 +283,36 @@ test('manager Notifications keeps the inbox without admin configuration or test 
     page.getByRole('button', { name: 'Send Tri-Channel Notification' }),
   ).toHaveCount(0);
 });
+
+test('admin can save and reload the sign-in verification interval on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepare(page, { ...manager, id: 'admin-workspace', role: 'admin' });
+  let value = 168;
+  const writes = [];
+  await page.route('**/api/admin/audit-logs', route => route.fulfill({ json: { logs: [] } }));
+  await page.route('**/api/admin/providers', route => route.fulfill({ json: { providers: [] } }));
+  await page.route('**/api/admin/config', route => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON();
+      writes.push(body); value = body.value;
+      return route.fulfill({ json: { config: { key: body.key, value } } });
+    }
+    return route.fulfill({ json: { configs: [{ key: 'staff_login_verification_hours', value }] } });
+  });
+  await page.goto('/staff/system');
+  const interval = page.getByLabel('Sign-in verification interval', { exact: true });
+  await expect(interval).toHaveValue('168');
+  await interval.selectOption('24');
+  await page.getByRole('button', { name: 'Save verification interval', exact: true }).click();
+  await expect(page.getByText('Verification interval saved.', { exact: true })).toBeVisible();
+  expect(writes).toEqual([{ key: 'staff_login_verification_hours', value: 24 }]);
+  await page.reload();
+  await expect(interval).toHaveValue('24');
+  await interval.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/tmp/tinzel-verification-settings-mobile.png', fullPage: true });
+  await interval.selectOption('0');
+  await page.getByRole('button', { name: 'Save verification interval', exact: true }).click();
+  await expect(page.getByText('Verification interval saved.', { exact: true })).toBeVisible();
+  expect(writes.at(-1).value).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
