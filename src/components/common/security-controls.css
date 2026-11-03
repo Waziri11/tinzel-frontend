@@ -32,3 +32,10 @@
 .security-panel .auth-fields { display:grid; gap:12px; }
 .security-panel .auth-fields label { display:flex; margin:0; }
 .security-panel textarea { min-height:88px; width:100%; box-sizing:border-box; padding:12px; font:inherit; border:1px solid #9caaa0; border-radius:8px; }
+
+.staff-sign-in-card > .verification-link { display:block; margin:12px auto 0; padding:8px; border:0; background:transparent; color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }
+.staff-sign-in-card > .verification-link:hover { color:var(--accent-primary); text-decoration:underline; text-underline-offset:3px; }
+.staff-sign-in-card > .verification-link:disabled { cursor:not-allowed; opacity:.6; }
+.staff-sign-in-card [role="alert"] { margin:0; font-size:13px; line-height:1.5; color:#991b1b; }
+.staff-sign-in-card [role="alert"] button { padding:4px; border:0; background:transparent; color:inherit; font:inherit; text-decoration:underline; cursor:pointer; }
+.staff-sign-in-card :focus-visible { outline:2px solid var(--accent-primary); outline-offset:3px; }

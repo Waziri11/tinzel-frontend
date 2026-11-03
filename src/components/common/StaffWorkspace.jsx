@@ -579,9 +579,8 @@ export default function StaffWorkspace({ onExitToHome }) {
         }}
       >
         <div style={{ maxWidth: '440px', width: '100%' }}>
-          {/* Back to Client Store Link */}
           {onExitToHome && (
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: 16 }}>
               <button
                 type="button"
                 onClick={onExitToHome}
@@ -605,16 +604,17 @@ export default function StaffWorkspace({ onExitToHome }) {
           )}
 
           <div
+            className="staff-sign-in-card"
             style={{
               backgroundColor: '#FFFFFF',
               border: '1px solid var(--border-color)',
               borderRadius: '12px',
-              padding: '36px 32px',
+              padding: '28px 24px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
             }}
           >
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ marginBottom: '16px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ marginBottom: '12px' }}>
                 <TinzelLogo variant="full" height={42} />
               </div>
               <h1
@@ -652,9 +652,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
             )}
 
-            <LanguageSwitcher />
             {recovering && <PasswordRecovery initialEmail={email} onClose={()=>setRecovering(false)} />}
-            <p>{lang === 'sw' ? 'Msimbo wa uthibitishaji utatumwa kwa SMS kwenye simu ya akaunti yako.' : 'Verification codes are sent by SMS to your account phone number.'}</p>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
