@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
@@ -43,6 +44,7 @@ const fieldLabels = {
 export default function AdminSystemSettings({ token }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [providers, setProviders] = useState([]),
     [config, setConfig] = useState({}),
     [configLoaded, setConfigLoaded] = useState(false),
@@ -82,8 +84,10 @@ export default function AdminSystemSettings({ token }) {
         })),
       );
   useEffect(() => {
-    loadProviders();
-    loadConfig();
+    let active = true;
+    setInitialLoading(true);
+    Promise.allSettled([loadProviders(), loadConfig()]).finally(() => { if (active) setInitialLoading(false); });
+    return () => { active = false; };
   }, [token]);
   const run = async (key, action) => {
     setBusy((x) => ({ ...x, [key]: true }));
@@ -103,6 +107,7 @@ export default function AdminSystemSettings({ token }) {
       {notice[key] && <p role="status">{notice[key]}</p>}
     </>
   );
+  if (initialLoading) return <PageSkeleton variant="form" />;
   return (
     <section style={{ marginTop: 32 }}>
       <h2>{t('Configuration', 'Mipangilio')}</h2>

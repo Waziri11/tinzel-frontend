@@ -59,6 +59,7 @@ export default function FormBuilder({ token }) {
   const [editionFilter, setEditionFilter] = useState('current');
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -150,6 +151,7 @@ export default function FormBuilder({ token }) {
       setError(err.message || 'Failed to load magazine forms');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -750,7 +752,7 @@ export default function FormBuilder({ token }) {
           </div>
         )}
 
-        {loading ? (
+        {loading && !hasLoaded ? (
           <PageSkeleton variant="catalogue" compact />
         ) : forms.length === 0 ? (
           <div

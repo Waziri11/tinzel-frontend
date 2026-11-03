@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
@@ -9,6 +10,7 @@ export default function ClientNotifications({ token, onUnauthorized }) {
   const [items, setItems] = useState([]),
     [unread, setUnread] = useState(0),
     [error, setError] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
   const load = useCallback(async () => {
     try {
       const data = await api.client.getNotifications(token);
@@ -18,7 +20,7 @@ export default function ClientNotifications({ token, onUnauthorized }) {
     } catch (error) {
       if ([401, 403].includes(error.status)) onUnauthorized();
       else setError(sw ? 'Imeshindikana kupakia taarifa.' : 'Unable to load notifications.');
-    }
+    } finally { setInitialLoading(false); }
   }, [token, sw, onUnauthorized]);
   useEffect(() => {
     let active = true;
@@ -50,7 +52,8 @@ export default function ClientNotifications({ token, onUnauthorized }) {
           {error} <ActionButton onClick={load}>{sw ? 'Jaribu tena' : 'Retry'}</ActionButton>
         </p>
       )}
-      {!items.length && !error && <p>{sw ? 'Hakuna taarifa mpya.' : 'No notifications yet.'}</p>}
+      {initialLoading && <PageSkeleton compact variant="table" />}
+      {!initialLoading && !items.length && !error && <p>{sw ? 'Hakuna taarifa mpya.' : 'No notifications yet.'}</p>}
       {items.map((item) => (
         <article key={item._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
           <strong>{item.title}</strong>

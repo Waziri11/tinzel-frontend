@@ -43,6 +43,7 @@ export default function StaffWorkloadManager({
   const [simulatedNotifs, setSimulatedNotifs] = useState([]);
   const [activeTab, setActiveTab] = useState(initialTab); // 'staff' | 'logs' | 'notifs'
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -125,6 +126,7 @@ export default function StaffWorkloadManager({
       setError(err.message || 'Failed to fetch admin data');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -262,7 +264,7 @@ export default function StaffWorkloadManager({
     }
   };
 
-  if (loading) return <PageSkeleton variant="table" />;
+  if (loading && !hasLoaded) return <PageSkeleton variant="table" />;
 
   return (
     <div className="team-admin">

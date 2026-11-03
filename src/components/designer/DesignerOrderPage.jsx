@@ -221,7 +221,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     }
   };
 
-  if (loading)
+  if (loading && (!order || order._id !== orderId))
     return <PageSkeleton variant="detail" title={tx('Opening order')} description={tx('Loading its files, fixes and history.')} />;
   if (!order)
     return (

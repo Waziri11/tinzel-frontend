@@ -14,6 +14,7 @@ export const test = base.extend({
       const { pathname } = new URL(route.request().url());
       if (realApi) return route.continue();
       if (/^\/api\/csrf\/(staff|client|printer)$/.test(pathname)) return route.fulfill({ json: { csrf: 'a'.repeat(48) } });
+      if(pathname==='/api/staff/auth-config')return route.fulfill({json:{captcha:{enabled:false}}});
       if(pathname==='/api/staff/me')return route.fulfill({status:401,json:{message:'Sign in'}});
       if(pathname==='/api/client/logout')return route.fulfill({json:{success:true}});
       if(pathname==='/api/client/order')return route.fulfill({status:401,json:{message:'Sign in'}});

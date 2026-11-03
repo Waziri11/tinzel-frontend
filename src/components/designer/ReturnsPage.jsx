@@ -33,6 +33,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
     client: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState('');
 
   const loadReturns = useCallback(async () => {
@@ -50,6 +51,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
       setError(err.message || 'Unable to load returned magazines.');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [token, filter, sourceFilter, search]);
 
@@ -366,7 +368,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
 
       {error && <div className="designer-alert is-error">{error}</div>}
 
-      {loading ? (
+      {loading && !hasLoaded ? (
         <PageSkeleton variant="table" compact title={tx('Loading returned magazines')} />
       ) : (
         <div className="designer-table-card">

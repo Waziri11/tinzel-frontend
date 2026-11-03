@@ -1,3 +1,5 @@
+import PageSkeleton from './PageSkeleton';
+import { ActionButton, InlineLoading } from './SoftFlutter';
 import React, { useState, useEffect } from 'react';
 import AdminSystemSettings from '../admin/AdminSystemSettings';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
@@ -14,16 +16,18 @@ export default function SystemPage({ token, user }) {
   const [sections, setSections] = useState({}),
     [loading, setLoading] = useState({}),
     [errors, setErrors] = useState({});
-  const refresh = () => {
-    for (const name of ['runtime', 'storage', 'messaging']) {
+  const [initialLoading, setInitialLoading] = useState(true);
+  const refresh = async () => {
+    await Promise.all(['runtime', 'storage', 'messaging'].map(async name => {
       setLoading((x) => ({ ...x, [name]: true }));
       setErrors((x) => ({ ...x, [name]: false }));
-      api.system
+      await api.system
         .section(token, name)
         .then((data) => setSections((x) => ({ ...x, [name]: data })))
         .catch(() => setErrors((x) => ({ ...x, [name]: true })))
         .finally(() => setLoading((x) => ({ ...x, [name]: false })));
-    }
+    }));
+    setInitialLoading(false);
   };
   useEffect(() => {
     refresh();
@@ -45,6 +49,7 @@ export default function SystemPage({ token, user }) {
     );
   const configured = (x) =>
     x ? t('Configured', 'Imesanidiwa') : t('Not configured', 'Haijasanidiwa');
+  if (initialLoading) return <PageSkeleton variant="board" />;
   return (
     <section>
       <div
@@ -57,13 +62,13 @@ export default function SystemPage({ token, user }) {
         }}
       >
         <h1 className="ui-title">{t('System', 'Mfumo')}</h1>
-        <button
+        <ActionButton
           className="ui-button"
           onClick={refresh}
           disabled={Object.values(loading).some(Boolean)}
         >
           {t('Refresh', 'Onyesha upya')}
-        </button>
+        </ActionButton>
       </div>
       <div
         style={{
@@ -94,7 +99,7 @@ export default function SystemPage({ token, user }) {
                     : t('Messaging services', 'Huduma za ujumbe')}
               </h2>
               {loading[name] && (
-                <p role="status">{t('Loading…', 'Inapakia…')}</p>
+                <InlineLoading>{t('Refreshing…', 'Inasasisha…')}</InlineLoading>
               )}
               {errors[name] && (
                 <p role="alert">

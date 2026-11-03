@@ -27,6 +27,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'review' | 'completed' | 'all'
@@ -42,6 +43,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
       setError(err.message || 'Unable to load orders');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -89,7 +91,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
     return filteredOrders.slice(start, start + PAGE_SIZE);
   }, [filteredOrders, currentPage]);
 
-  if (loading) {
+  if (loading && !hasLoaded) {
     return <PageSkeleton variant="table" title={tx('Loading assigned orders')} description={tx('Getting your design queue ready.')} />;
   }
 

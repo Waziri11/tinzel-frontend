@@ -205,3 +205,20 @@ test('every phase keeps four summary cards in two mobile rows', async ({ page })
     }
   }
 });
+
+test('refresh keeps existing orders visible and uses flutter instead of page skeletons', async ({ page }) => {
+  await openManagerDashboard(page);
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route(url => url.pathname === '/api/manager/orders', async route => {
+    await gate;
+    await json(route, { orders, total: 3, pageCount: 1, summary: {}, statusCounts: {} });
+  });
+  try {
+    await page.getByRole('button', { name: 'Refresh orders', exact: true }).click();
+    await expect(page.getByText('TNZ-2026-0042', { exact: true })).toBeVisible();
+    await expect(page.locator('.page-skeleton')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Refresh orders', exact: true }).locator('.soft-flutter')).toHaveCount(1);
+  } finally { release(); }
+  await expect(page.getByRole('button', { name: 'Refresh orders', exact: true })).toBeEnabled();
+});

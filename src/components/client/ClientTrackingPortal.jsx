@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -230,6 +231,8 @@ export default function ClientTrackingPortal() {
         return 0;
     }
   };
+
+  if (clientToken && !order && !error) return <PageSkeleton variant="detail" />;
 
   // Login Gate View
   if (!clientToken || !order) {

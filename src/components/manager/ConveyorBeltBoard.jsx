@@ -261,6 +261,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [summary, setSummary] = useState({});
   const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
   const [view, setView] = useState('attention');
@@ -314,6 +315,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       setError(requestError.message || 'Orders could not be loaded.');
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   }, [page, phase, search, statusFilter, token]);
 
@@ -670,11 +672,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </ActionButton>
       </div>
 
-      {loading ? (
+      {loading && !hasLoaded ? (
         <PageSkeleton variant={view === 'board' ? 'board' : 'table'} compact />
       ) : null}
 
-      {!loading && view === 'attention' && (
+      {hasLoaded && view === 'attention' && (
         <div className="manager-attention-panel">
           <div className="manager-panel-heading">
             <h2>
@@ -757,7 +759,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </div>
       )}
 
-      {!loading && view === 'board' && (
+      {hasLoaded && view === 'board' && (
         <>
           <label className="manager-mobile-stage-picker">
             <InterfaceText>Stage</InterfaceText>

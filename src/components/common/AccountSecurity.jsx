@@ -1,3 +1,4 @@
+import PageSkeleton from './PageSkeleton';
 import { ActionButton } from './SoftFlutter';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -25,7 +26,7 @@ export default function AccountSecurity({ user }) {
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <ActionButton loading={busy} disabled={busy} onClick={() => run(reload)}>{t('Refresh activity', 'Sasisha shughuli')}</ActionButton>
     <ActionButton loading={busy} disabled={busy} onClick={() => run(async () => { await securityRequest('staff/security/revoke-all', {}); window.location.reload(); })}>{t('Sign out everywhere and forget devices', 'Toka kila mahali na uondoe vifaa')}</ActionButton>
-    {!data && <p role="status">{t('Loading account activity…', 'Inapakia shughuli za akaunti…')}</p>}
+    {!data && !error && <PageSkeleton variant="table" compact title={t('Loading account activity…', 'Inapakia shughuli za akaunti…')} />}
     {data && <><h4>{t('Active sessions', 'Vipindi hai')}</h4>{!data.sessions.length && <p>{t('No active sessions.', 'Hakuna vipindi hai.')}</p>}{data.sessions.map(s => <div className="auth-record" key={s.id}><strong>{s.current ? t('This session', 'Kipindi hiki') : t('Other session', 'Kipindi kingine')}</strong><small>{s.browser || t('Browser details unavailable', 'Taarifa za kivinjari hazipatikani')}</small><small>{s.ipAddress} · {t('Last active', 'Ilitumika mwisho')}: {date(s.lastSeenAt || s.createdAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('session', s.id)}>{t('Sign out session', 'Ondoa kipindi')}</ActionButton></div>)}
       <h4>{t('Trusted devices', 'Vifaa vinavyoaminika')}</h4>{!data.devices.length && <p>{t('No trusted devices.', 'Hakuna vifaa vinavyoaminika.')}</p>}{data.devices.map(d => <div className="auth-record" key={d.id}><strong>{d.current ? t('This device', 'Kifaa hiki') : t('Other device', 'Kifaa kingine')}</strong><small>{d.browser}</small><small>{t('Trusted until', 'Kinaaminika hadi')}: {date(d.expiresAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('device', d.id)}>{t('Forget device', 'Ondoa kifaa')}</ActionButton></div>)}
       <details><summary>{t('Recent security activity', 'Shughuli za hivi karibuni za usalama')}</summary>{!data.events.length && <p>{t('No activity yet.', 'Hakuna shughuli bado.')}</p>}{data.events.map(e => <div className="auth-record" key={e.eventId}><strong>{activity[e.action]?.[lang === 'sw' ? 1 : 0] || t('Security event', 'Tukio la usalama')}</strong><small>{date(e.createdAt)} · {e.ipAddress}</small></div>)}</details></>}

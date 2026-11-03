@@ -1,3 +1,4 @@
+import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useState } from 'react';
@@ -21,10 +22,13 @@ export default function PrinterNotificationSettings({ token }) {
       .finally(() => {
         if (active) setBusy(false);
       });
-    return () => {
+    if (!initialized) return <PageSkeleton variant="form" compact />;
+  return () => {
       active = false;
     };
   }, [token]);
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => { if (!busy) setInitialized(true); }, [busy]);
   const save = async () => {
     setBusy(true);
     setMessage('');
