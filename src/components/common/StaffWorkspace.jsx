@@ -1,3 +1,5 @@
+import TurnstileCheck from './TurnstileCheck';
+import PasswordRecovery from './PasswordRecovery';
 import { draftUploads } from '../../hooks/useDraftUploads';
 import SecurityCenter from './SecurityCenter';
 import InterfaceText from '../../i18n/InterfaceText';
@@ -131,6 +133,7 @@ const NAVIGATION_ITEMS = [
 
 export default function StaffWorkspace({ onExitToHome }) {
   const { lang } = useLanguage();
+  const [captchaToken,setCaptchaToken]=useState(''),[captchaReset,setCaptchaReset]=useState(0),[recovering,setRecovering]=useState(false);
   const ui = (en, sw) => (lang === 'sw' ? sw : en);
   const labels = {
     'Pre-Design': 'Kabla ya usanifu',
@@ -337,7 +340,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.staffAuth.login(loginEmail, loginPass);
+      const data = await api.staffAuth.login(loginEmail, loginPass, captchaToken);
       setToken(data.token);
       localStorage.removeItem('tinzel_staff_token');
       setCurrentUser(data.user);
@@ -348,6 +351,7 @@ export default function StaffWorkspace({ onExitToHome }) {
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
+      setCaptchaToken('');setCaptchaReset(x=>x+1);
       loginInFlight.current = false;
       setLoading(false);
     }
@@ -648,6 +652,8 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
             )}
 
+            <LanguageSwitcher />
+            {recovering && <PasswordRecovery initialEmail={email} onClose={()=>setRecovering(false)} />}
             <p>{lang === 'sw' ? 'Msimbo wa uthibitishaji utatumwa kwa SMS kwenye simu ya akaunti yako.' : 'Verification codes are sent by SMS to your account phone number.'}</p>
             <form
               onSubmit={(e) => {
@@ -755,9 +761,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                 </div>
               </div>
 
+              <TurnstileCheck action="login" onToken={setCaptchaToken} resetKey={captchaReset} />
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !captchaToken}
                 style={{
                   backgroundColor: 'var(--accent-primary)',
                   color: '#FFFFFF',
@@ -780,6 +787,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                 {ui('Sign in', 'Ingia')}
               </button>
             </form>
+            <button type="button" className="verification-link" disabled={loading} onClick={()=>{setPassword('');setRecovering(true);}}>{ui('Forgot password?', 'Umesahau nenosiri?')}</button>
           </div>
         </div>
       </div>

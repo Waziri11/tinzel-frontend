@@ -1,3 +1,4 @@
+import PasswordGuidance, { passwordReady } from './PasswordGuidance';
 import React, { useState } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -20,21 +21,7 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
       setError(text('New passwords do not match.', 'Manenosiri mapya hayalingani.'));
       return;
     }
-    if (
-      next.length < 8 ||
-      !/[A-Z]/.test(next) ||
-      !/[a-z]/.test(next) ||
-      !/[0-9]/.test(next) ||
-      !/[^A-Za-z0-9\s]/.test(next)
-    ) {
-      setError(
-        text(
-          'Use at least 8 characters, including uppercase, lowercase, a number and a special character.',
-          'Tumia angalau herufi 8: herufi kubwa, ndogo, namba na alama maalumu.',
-        ),
-      );
-      return;
-    }
+    if (!passwordReady(next)) { setError(text('Use at least 15 characters and at most 72 bytes.', 'Tumia angalau herufi 15 na hadi baiti 72.')); return; }
     setBusy(true);
     try {
       const result = await api.staffAuth.changePassword(token, current, next);
@@ -91,8 +78,8 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
         </p>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
           {text(
-            'Use at least 8 characters with uppercase, lowercase, a number and a special character.',
-            'Tumia angalau herufi 8 zenye herufi kubwa, ndogo, namba na alama maalumu.',
+            'Use at least 15 characters. Spaces and long passphrases are welcome.',
+            'Tumia angalau herufi 15. Nafasi na vifungu virefu vinaruhusiwa.',
           )}
         </p>
         {error && (
@@ -117,7 +104,7 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
             <input
               required
               type="password"
-              minLength={8}
+              minLength={15}
               autoComplete="new-password"
               value={next}
               onChange={(event) => setNext(event.target.value)}
@@ -129,13 +116,14 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
             <input
               required
               type="password"
-              minLength={8}
+              minLength={15}
               autoComplete="new-password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
               style={input}
             />
           </label>
+          <PasswordGuidance value={next} />
           <button
             disabled={busy}
             style={{ padding: 12, borderRadius: 6, background: 'var(--text-main)', color: 'white' }}

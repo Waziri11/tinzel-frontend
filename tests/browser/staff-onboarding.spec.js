@@ -7,6 +7,7 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
  let loggedIn=false,ready=false,changed,profileCalls=0,businessWhileSetup=[];
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
+  if(path==='/api/staff/auth-config')return json(route,{captcha:{enabled:false}});
   if(path==='/api/staff/login'){loggedIn=true;return json(route,{token:'cookie',user});}
   if(path==='/api/staff/me'){if(!loggedIn)return route.fulfill({status:401,json:{message:'Sign in'}});profileCalls++;return json(route,{user:{...user,mustChangePassword:!ready}});}
   if(path==='/api/staff/preferences')return json(route,{success:true});
@@ -24,14 +25,14 @@ for(const mobile of [false,true])test(`first login forces password setup and sur
  await expect(page.getByRole('heading',{name:'Set your own password'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Users',exact:true})).toHaveCount(0);
  await page.reload();await expect(page.getByRole('heading',{name:'Set your own password'})).toBeVisible();expect(profileCalls).toBeGreaterThan(0);expect(businessWhileSetup).toEqual([]);
- await page.getByLabel('Initial password',{exact:true}).fill('Abc!2345');await page.getByLabel('New password',{exact:true}).fill('ChosenPass!7');await page.getByLabel('Confirm new password',{exact:true}).fill('Different!7');
+ await page.getByLabel('Initial password',{exact:true}).fill('Abc!2345');await page.getByLabel('New password',{exact:true}).fill('Chosen meadow copper!7');await page.getByLabel('Confirm new password',{exact:true}).fill('Different meadow copper!7');
  await page.getByRole('button',{name:'Save password and continue'}).click();await expect(page.getByRole('alert')).toHaveText('New passwords do not match.');expect(changed).toBeUndefined();
- await page.getByLabel('Confirm new password',{exact:true}).fill('ChosenPass!7');
+ await page.getByLabel('Confirm new password',{exact:true}).fill('Chosen meadow copper!7');
  await page.screenshot({path:`/tmp/tinzel-first-login-${mobile?'mobile':'desktop'}.png`,fullPage:true});
  await page.getByRole('button',{name:'Save password and continue'}).click();
  await expect(page.getByRole('heading',{name:'Design orders',exact:true})).toBeVisible();await expect(page).toHaveURL(/\/staff\/design$/);
- expect(changed).toEqual({currentPassword:'Abc!2345',newPassword:'ChosenPass!7'});
- const storage=await page.evaluate(()=>JSON.stringify(localStorage));expect(storage).not.toContain('ChosenPass!7');expect(storage).not.toContain('Abc!2345');expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();
+ expect(changed).toEqual({currentPassword:'Abc!2345',newPassword:'Chosen meadow copper!7'});
+ const storage=await page.evaluate(()=>JSON.stringify(localStorage));expect(storage).not.toContain('Chosen meadow copper!7');expect(storage).not.toContain('Abc!2345');expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
 });
 

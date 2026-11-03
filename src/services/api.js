@@ -8,7 +8,7 @@ export const requestVerification=options=>new Promise((resolve,reject)=>window.d
 async function otpFlow(challenge,purpose='login'){
  let current=challenge;
  const call=async(path,body)=>{const response=await fetchWithTimeout(`${API_BASE}/api/staff/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return handleResponse(response);};
- return requestVerification({challengeId:current.challengeId,channel:current.channel,verify:code=>call(purpose==='login'?'otp/verify':'step-up/verify',{challengeId:current.challengeId,code}),resend:async channel=>{current=await call(purpose==='login'?'otp/resend':'step-up',{challengeId:current.challengeId,channel});return current;}});
+ return requestVerification({challengeId:current.challengeId,channel:current.channel,allowTrust:purpose==='login',verify:(code,trustDevice=false)=>call(purpose==='login'?'otp/verify':'step-up/verify',{challengeId:current.challengeId,code,trustDevice}),resend:async channel=>{current=await call(purpose==='login'?'otp/resend':'step-up',{challengeId:current.challengeId,channel});return current;}});
 }
 export const DEFAULT_API_TIMEOUT_MS = 25000;
 export const UPLOAD_API_TIMEOUT_MS = 60000;
@@ -69,7 +69,7 @@ const notifyUnauthorized = (res, message) => {
   } catch {
     return;
   }
-  if(/^\/api\/staff\/(?:otp|step-up|contact)(?:\/|$)/.test(path))return;
+  if(/^\/api\/staff\/(?:otp|step-up|contact|recovery)(?:\/|$)/.test(path))return;
   const client = /^\/api\/(?:client(?:\/|$)|proofs\/client(?:\/|$))/.test(path);
   const staff =
     /^\/api\/(?:staff|admin|manager|designer|notifications|proofs\/staff)(?:\/|$)/.test(
@@ -266,6 +266,8 @@ export const api = {
   },
   // Staff Auth Endpoints
   staffAuth: {
+    config: () => fetchWithTimeout(`${API_BASE}/api/staff/auth-config`).then(handleResponse),
+    recovery: (step, body) => fetchWithTimeout(`${API_BASE}/api/staff/recovery/${step}`, { method:'POST', headers:getHeaders(), body:JSON.stringify(body) }).then(handleResponse),
     updateProfile: (token, profile) =>
       fetchWithTimeout(`${API_BASE}/api/staff/profile`, {
         method: 'PATCH',
@@ -284,11 +286,11 @@ export const api = {
         headers: getHeaders(token),
         body: JSON.stringify({ preferredLanguage }),
       }).then(handleResponse),
-    login: (email, password, channel='sms') =>
+    login: (email, password, captchaToken='') =>
       fetchWithTimeout(`${API_BASE}/api/staff/login`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ email, password,channel }),
+        body: JSON.stringify({ email, password,captchaToken }),
       }).then(handleResponse).then(data=>data.otpRequired?otpFlow(data):data),
 
     getMe: (token) =>

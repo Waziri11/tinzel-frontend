@@ -1,3 +1,4 @@
+import PasswordGuidance, { passwordReady } from './PasswordGuidance';
 import React, { useState } from 'react';
 import { Dropdown, Modal } from 'antd';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -175,7 +176,7 @@ export default function StaffProfile({
                 {t('New password', 'Nenosiri jipya')}
                 <input
                   required
-                  minLength={8}
+                  minLength={15}
                   type="password"
                   autoComplete="new-password"
                   value={next}
@@ -194,6 +195,7 @@ export default function StaffProfile({
               </label>
             </>
           )}
+          {mode === 'password' && <PasswordGuidance value={next} />}
           <button className="ui-button is-primary" disabled={busy}>
             {busy ? t('Saving…', 'Inahifadhi…') : t('Save', 'Hifadhi')}
           </button>
