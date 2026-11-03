@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -46,7 +47,7 @@ export default function ClientNotifications({ token, onUnauthorized }) {
       </summary>
       {error && (
         <p role="alert">
-          {error} <button onClick={load}>{sw ? 'Jaribu tena' : 'Retry'}</button>
+          {error} <ActionButton onClick={load}>{sw ? 'Jaribu tena' : 'Retry'}</ActionButton>
         </p>
       )}
       {!items.length && !error && <p>{sw ? 'Hakuna taarifa mpya.' : 'No notifications yet.'}</p>}
@@ -56,12 +57,12 @@ export default function ClientNotifications({ token, onUnauthorized }) {
           <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13 }}>{item.message}</p>
           <small>{new Date(item.createdAt).toLocaleString(sw ? 'sw-TZ' : 'en-TZ')}</small>
           {!item.isRead && (
-            <button
+            <ActionButton
               onClick={() => read(item._id)}
               style={{ marginLeft: 12, color: 'var(--text-gold)', background: 'transparent' }}
             >
               {sw ? 'Weka imesomwa' : 'Mark as read'}
-            </button>
+            </ActionButton>
           )}
         </article>
       ))}

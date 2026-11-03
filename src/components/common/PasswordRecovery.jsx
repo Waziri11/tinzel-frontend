@@ -1,3 +1,4 @@
+import { ActionButton } from './SoftFlutter';
 import React, { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -25,16 +26,16 @@ export default function PasswordRecovery({ initialEmail, onClose }) {
       <p>{t('We will send a verification code to the phone registered to your account.', 'Tutatuma msimbo wa uthibitishaji kwenye simu iliyosajiliwa kwenye akaunti yako.')}</p>
       <label>{t('Work email', 'Barua pepe ya kazi')}<input type="email" autoComplete="username" required autoFocus value={email} onChange={e => setEmail(e.target.value)} /></label>
       <TurnstileCheck action="recovery" onToken={setCaptcha} resetKey={reset} />
-      <button className="verification-primary" disabled={busy || !captcha}>{t('Send recovery code', 'Tuma msimbo wa kurejesha')}</button>
+      <ActionButton loading={busy} className="verification-primary" disabled={busy || !captcha}>{t('Send recovery code', 'Tuma msimbo wa kurejesha')}</ActionButton>
     </form>}
     {stage === 'verify' && <><p>{t('If an eligible account exists, a code will arrive by SMS. Delivery can take a moment. Check your email spelling if it does not arrive.', 'Ikiwa akaunti inayostahili ipo, msimbo utatumwa kwa SMS. Unaweza kuchelewa kidogo. Hakiki barua pepe kama haujafika.')}</p>
       <form className="verification-form" onSubmit={e => { e.preventDefault(); run(async () => { const data = await api.staffAuth.recovery('verify', { challengeId: challenge, code }); setGrant(data.resetToken); setCode(''); setExpires(data.expiresIn); setStage('reset'); }); }}>
         <label>{t('Verification code', 'Msimbo wa uthibitishaji')}<input autoFocus inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>
         <p>{expires ? t(`Code expires in ${Math.ceil(expires / 60)} min.`, `Msimbo unaisha baada ya dakika ${Math.ceil(expires / 60)}.`) : t('Code expired. Request a new one.', 'Msimbo umeisha muda. Omba mpya.')}</p>
-        <button className="verification-primary" disabled={busy || !expires}>{t('Verify code', 'Thibitisha msimbo')}</button>
+        <ActionButton loading={busy} className="verification-primary" disabled={busy || !expires}>{t('Verify code', 'Thibitisha msimbo')}</ActionButton>
       </form>
       {!seconds && <TurnstileCheck action="recovery" onToken={setCaptcha} resetKey={reset} />}
-      <button type="button" disabled={busy || seconds > 0 || !captcha} onClick={request}>{seconds ? t(`Resend in ${seconds}s`, `Tuma tena baada ya sekunde ${seconds}`) : t('Send a new code', 'Tuma msimbo mpya')}</button>
+      <ActionButton loading={busy} type="button" disabled={busy || seconds > 0 || !captcha} onClick={request}>{seconds ? t(`Resend in ${seconds}s`, `Tuma tena baada ya sekunde ${seconds}`) : t('Send a new code', 'Tuma msimbo mpya')}</ActionButton>
       <button type="button" disabled={busy} onClick={() => { setStage('request'); setError(''); }}>{t('Change email', 'Badilisha barua pepe')}</button>
     </>}
     {stage === 'reset' && <form className="verification-form" onSubmit={e => { e.preventDefault(); if (password !== confirm) { setError(t('Passwords do not match.', 'Manenosiri hayalingani.')); return; } run(async () => { await api.staffAuth.recovery('reset', { resetToken: grant, newPassword: password }); setGrant(''); setPassword(''); setConfirm(''); setStage('done'); }); }}>
@@ -42,7 +43,7 @@ export default function PasswordRecovery({ initialEmail, onClose }) {
       <PasswordGuidance value={password} />
       <label>{t('Confirm new password', 'Thibitisha nenosiri jipya')}<input type="password" autoComplete="new-password" required value={confirm} onChange={e => setConfirm(e.target.value)} /></label>
       {!expires && <p role="alert">{t('Recovery expired. Start again.', 'Muda wa kurejesha umeisha. Anza tena.')}</p>}
-      <button className="verification-primary" disabled={busy || !passwordReady(password) || !expires}>{t('Reset password', 'Weka nenosiri upya')}</button>
+      <ActionButton loading={busy} className="verification-primary" disabled={busy || !passwordReady(password) || !expires}>{t('Reset password', 'Weka nenosiri upya')}</ActionButton>
       {!expires && <button type="button" onClick={() => { setStage('request'); setGrant(''); setError(''); }}>{t('Start again', 'Anza tena')}</button>}
     </form>}
     {stage === 'done' && <p role="status">{t('Your password has been reset and previous access revoked. Return to sign in with your new password.', 'Nenosiri limewekwa upya na ufikiaji wa awali umeondolewa. Rudi kuingia kwa nenosiri lako jipya.')}</p>}

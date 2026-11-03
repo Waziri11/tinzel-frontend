@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -716,7 +717,7 @@ export default function StaffWorkloadManager({
                         <td
                           style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}
                         >
-                          <button
+                          <ActionButton
                             type="button"
                             title={tx('View user')}
                             aria-label={`View ${s.name}`}
@@ -724,8 +725,8 @@ export default function StaffWorkloadManager({
                             style={{ padding: 6, marginRight: 4 }}
                           >
                             <Eye size={15} />
-                          </button>
-                          <button
+                          </ActionButton>
+                          <ActionButton
                             type="button"
                             title={tx('Edit user')}
                             aria-label={`Edit ${s.name}`}
@@ -733,9 +734,9 @@ export default function StaffWorkloadManager({
                             style={{ padding: 6, marginRight: 4 }}
                           >
                             <Pencil size={15} />
-                          </button>
+                          </ActionButton>
                           {!managerOnly && (
-                            <button
+                            <ActionButton
                               type="button"
                               title={tx('Delete user')}
                               aria-label={`Delete ${s.name}`}
@@ -743,7 +744,7 @@ export default function StaffWorkloadManager({
                               style={{ padding: 6, color: '#991B1B' }}
                             >
                               <Trash2 size={15} />
-                            </button>
+                            </ActionButton>
                           )}
                         </td>
                       </tr>
@@ -765,7 +766,7 @@ export default function StaffWorkloadManager({
             padding: '20px',
           }}
         >
-          <button
+          <ActionButton
             type="button"
             className="ui-button"
             disabled={checking}
@@ -787,7 +788,7 @@ export default function StaffWorkloadManager({
             {checking
               ? ui('Checking…', 'Inakagua…')
               : ui('Check connections', 'Kagua miunganisho')}
-          </button>
+          </ActionButton>
           {twilioDiagnostics && (
             <div
               style={{
@@ -941,7 +942,7 @@ export default function StaffWorkloadManager({
                 <Send size={13} />
                 <InterfaceText>Send Test Message</InterfaceText>
               </button>
-              <button
+              <ActionButton
                 type="button"
                 onClick={loadData}
                 title={tx('Refresh messages')}
@@ -958,9 +959,9 @@ export default function StaffWorkloadManager({
                   fontSize: '13px',
                 }}
               >
-                <RefreshCw size={13} className={loading ? 'spin' : ''} />
+                {loading ? <SoftFlutter size={13} /> : <RefreshCw size={13} />}
                 <InterfaceText>Refresh</InterfaceText>
-              </button>
+              </ActionButton>
             </div>
           </div>
 
@@ -1324,7 +1325,7 @@ export default function StaffWorkloadManager({
                       {/* Resend Action if failed */}
                       {isFailed && (n._id || n.id) && (
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
+                          <ActionButton loading={resendingId === (n._id || n.id)}
                             type="button"
                             disabled={resendingId === (n._id || n.id)}
                             onClick={() =>
@@ -1341,8 +1342,8 @@ export default function StaffWorkloadManager({
                             }}
                           >
                             <InterfaceText>Resend SMS</InterfaceText>
-                          </button>
-                          <button
+                          </ActionButton>
+                          <ActionButton loading={resendingId === (n._id || n.id)}
                             type="button"
                             disabled={resendingId === (n._id || n.id)}
                             onClick={() =>
@@ -1359,7 +1360,7 @@ export default function StaffWorkloadManager({
                             }}
                           >
                             <InterfaceText>Resend WhatsApp</InterfaceText>
-                          </button>
+                          </ActionButton>
                         </div>
                       )}
                     </div>
@@ -1670,7 +1671,7 @@ export default function StaffWorkloadManager({
                 >
                   <InterfaceText>Cancel</InterfaceText>
                 </button>
-                <button
+                <ActionButton loading={creating}
                   type="submit"
                   disabled={creating}
                   style={{
@@ -1684,7 +1685,7 @@ export default function StaffWorkloadManager({
                   }}
                 >
                   {creating ? 'Creating account…' : 'Create Account'}
-                </button>
+                </ActionButton>
               </div>
             </form>
           </div>
@@ -1834,7 +1835,7 @@ export default function StaffWorkloadManager({
                   <button type="button" onClick={() => setUserModal(null)}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
-                  <button
+                  <ActionButton loading={saving}
                     type="button"
                     disabled={saving}
                     onClick={deleteUser}
@@ -1847,7 +1848,7 @@ export default function StaffWorkloadManager({
                     }}
                   >
                     {saving ? 'Deleting…' : 'Delete User'}
-                  </button>
+                  </ActionButton>
                 </div>
               </>
             )}
@@ -1987,7 +1988,7 @@ export default function StaffWorkloadManager({
                   <button type="button" onClick={() => setUserModal(null)}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
-                  <button
+                  <ActionButton loading={saving}
                     type="submit"
                     disabled={saving}
                     style={{
@@ -1999,7 +2000,7 @@ export default function StaffWorkloadManager({
                     }}
                   >
                     {saving ? 'Saving…' : 'Save Changes'}
-                  </button>
+                  </ActionButton>
                 </div>
               </form>
             )}
@@ -2194,7 +2195,7 @@ export default function StaffWorkloadManager({
                 >
                   <InterfaceText>Cancel</InterfaceText>
                 </button>
-                <button
+                <ActionButton loading={testNotifSending}
                   type="submit"
                   disabled={testNotifSending}
                   style={{
@@ -2209,7 +2210,7 @@ export default function StaffWorkloadManager({
                   }}
                 >
                   {testNotifSending ? 'Sending…' : 'Send Test'}
-                </button>
+                </ActionButton>
               </div>
             </form>
           </div>

@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -107,9 +108,9 @@ export default function AdminSystemSettings({ token }) {
       <h2>{t('Configuration', 'Mipangilio')}</h2>
       {feedback('config')}
       {error.config && (
-        <button className="ui-button" onClick={loadConfig}>
+        <ActionButton className="ui-button" onClick={loadConfig}>
           {t('Retry', 'Jaribu tena')}
-        </button>
+        </ActionButton>
       )}
       <div className="system-settings-grid">
         <article className="system-settings-card">
@@ -134,7 +135,7 @@ export default function AdminSystemSettings({ token }) {
             )}</p>
             <p>{t('The interval starts when a sign-in SMS code is verified. Sensitive actions still require recent verification.', 'Muda huanza msimbo wa SMS unapothibitishwa. Vitendo nyeti bado vinahitaji uthibitisho wa karibuni.')}</p>
             {feedback(verificationKey)}
-            <button className="ui-button" disabled={!configLoaded || busy[verificationKey] || !!error.config}>{t('Save verification interval', 'Hifadhi muda wa uthibitisho')}</button>
+            <ActionButton loading={busy[verificationKey]} className="ui-button" disabled={!configLoaded || busy[verificationKey] || !!error.config}>{t('Save verification interval', 'Hifadhi muda wa uthibitisho')}</ActionButton>
           </form>
         </article>
         <article className="system-settings-card">
@@ -201,13 +202,13 @@ export default function AdminSystemSettings({ token }) {
                 )}
               </label>
               {feedback(key)}
-              <button
+              <ActionButton loading={busy[key]}
                 disabled={busy[key] || !!error.config}
                 className="ui-button"
                 style={{ marginTop: 8 }}
               >
                 {t('Save', 'Hifadhi')}
-              </button>
+              </ActionButton>
             </form>
           ))}
         </article>
@@ -366,13 +367,13 @@ export default function AdminSystemSettings({ token }) {
               ))}
               {feedback(provider.provider)}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
+                <ActionButton loading={busy[provider.provider]}
                   className="ui-button is-primary"
                   disabled={busy[provider.provider]}
                 >
                   {t('Save settings', 'Hifadhi mipangilio')}
-                </button>
-                <button
+                </ActionButton>
+                <ActionButton loading={busy[provider.provider]}
                   type="button"
                   className="ui-button"
                   disabled={busy[provider.provider]}
@@ -403,7 +404,7 @@ export default function AdminSystemSettings({ token }) {
                     'Check saved connection',
                     'Kagua muunganisho uliohifadhiwa',
                   )}
-                </button>
+                </ActionButton>
               </div>
               {error[provider.provider] && (
                 <button
@@ -427,9 +428,9 @@ export default function AdminSystemSettings({ token }) {
       </div>
       {feedback('providers')}
       {error.providers && (
-        <button className="ui-button" onClick={loadProviders}>
+        <ActionButton className="ui-button" onClick={loadProviders}>
           {t('Retry', 'Jaribu tena')}
-        </button>
+        </ActionButton>
       )}
       <p style={{ color: 'var(--text-muted)', marginTop: 16 }}>
         {t(

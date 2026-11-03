@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from './SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { geometryVersion, rectStyle, smallestImage, selectionAnchor } from '../../utils/proofAnnotations';
@@ -213,7 +214,7 @@ export default React.memo(function ProofPage({
     return (
       <div className="proof-page-message" role="alert">
         {error}
-        <button
+        <ActionButton
           onClick={async () => {
             try {
               await reader.retry();
@@ -225,13 +226,13 @@ export default React.memo(function ProofPage({
           }}
         >
           <InterfaceText>Retry preparation</InterfaceText>
-        </button>
+        </ActionButton>
       </div>
     );
   if (!value)
     return (
       <div className="proof-page-message" role="status">
-        <InterfaceText>Preparing page</InterfaceText> {number}…
+        <SoftFlutter size={32} /> <InterfaceText>Preparing page</InterfaceText> {number}…
       </div>
     );
   const { image, text } = value,
@@ -342,6 +343,7 @@ export default React.memo(function ProofPage({
       )}
       {['text', 'image'].includes(mode) && geometryState && (
         <div className="proof-geometry-status" role="status">
+          {geometryState !== 'failed' && <SoftFlutter />}
           {geometryState === 'failed' ? (
             <>
               {geometryError}{' '}
@@ -356,7 +358,7 @@ export default React.memo(function ProofPage({
       )}
       {mode === 'text' && ocrState && (
         <div className="proof-ocr-status" role="status">
-          {ocrState === 'preparing' ? tx('Recognizing text… You can keep reading.') : <>
+          {ocrState === 'preparing' ? <><SoftFlutter /> {tx('Recognizing text… You can keep reading.')}</> : <>
             <InterfaceText>Text recognition could not finish.</InterfaceText>{' '}
             <button onClick={() => setOcrAttempt(n => n + 1)}><InterfaceText>Retry text recognition</InterfaceText></button>{' '}
             <button onClick={onUseArea}><InterfaceText>Mark area</InterfaceText></button>

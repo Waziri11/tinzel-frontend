@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { savedDraftUpload, cancelDraftUpload, submitDraftUpload } from '../../services/draftUpload';
 import { tabListKeys } from '../common/UI';
@@ -252,9 +253,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         {canEdit && (
           <div style={{ display: 'flex', gap: 8 }}>
             {['assigned', 'revision_requested'].includes(order.status) && (
-              <button className="secondary-button" onClick={startDesign}>
+              <ActionButton className="secondary-button" onClick={startDesign}>
                 <InterfaceText>Start design</InterfaceText>
-              </button>
+              </ActionButton>
             )}
             <button className="primary-button" onClick={openUpload} disabled={Boolean(uploadInProgress)}>
               <UploadCloud size={16} />
@@ -367,9 +368,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                               value={responses[item._id] || ''}
                               onChange={(e) => setResponses({ ...responses, [item._id]: e.target.value })}
                             />
-                            <button className="secondary-button" disabled={Boolean(addressing) || !String(responses[item._id] || '').trim()}>
+                            <ActionButton loading={Boolean(addressing)} className="secondary-button" disabled={Boolean(addressing) || !String(responses[item._id] || '').trim()}>
                               <InterfaceText>Mark addressed</InterfaceText>
-                            </button>
+                            </ActionButton>
                           </form>
                         ) : (
                           <span className="return-progress done">

@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useState } from 'react';
 import { api } from '../../services/api';
@@ -101,14 +102,14 @@ export default function StaffOnboardingStatus({ user, token, onUpdate, role = 'a
             {user.mustChangePassword &&
               !expired &&
               ['failed', 'undelivered', 'unconfirmed', 'skipped'].includes(delivery?.status) && (
-                <button
+                <ActionButton loading={busy}
                   type="button"
                   disabled={busy}
                   onClick={() => retry(channel, delivery.status)}
                   style={{ ...controlStyle, marginLeft: 8 }}
                 >
                   <InterfaceText>Retry</InterfaceText> {channel.toUpperCase()}
-                </button>
+                </ActionButton>
               )}
           </div>
         );
@@ -125,17 +126,17 @@ export default function StaffOnboardingStatus({ user, token, onUpdate, role = 'a
       )}
       {notice && <p role="status">{notice}</p>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-        <button type="button" style={controlStyle} disabled={busy || !user.isActive} onClick={issue}>
+        <ActionButton loading={busy} type="button" style={controlStyle} disabled={busy || !user.isActive} onClick={issue}>
           <InterfaceText>Issue new initial password</InterfaceText>
-        </button>
-        <button
+        </ActionButton>
+        <ActionButton loading={busy}
           type="button"
           style={controlStyle}
           disabled={busy}
           onClick={() => refresh().catch(() => setError('Unable to refresh delivery status.'))}
         >
           <InterfaceText>Refresh delivery status</InterfaceText>
-        </button>
+        </ActionButton>
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -118,10 +119,10 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               {summary.resolved || 0})
             </button>
           </div>
-          <button type="button" className="secondary-button" onClick={loadReturns} disabled={loading}>
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
+          <ActionButton type="button" className="secondary-button" onClick={loadReturns} disabled={loading}>
+            {loading ? <SoftFlutter size={15} /> : <RefreshCw size={15} />}
             <InterfaceText>Refresh</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       </div>
 

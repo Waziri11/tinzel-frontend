@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import EditionPreview from './EditionPreview';
@@ -14,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
-  Loader2,
   Image as ImageIcon,
   FolderPlus,
   ChevronDown,
@@ -530,9 +530,9 @@ export default function FormBuilder({ token }) {
         style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}
       >
         {error && (
-          <button className="ui-button" onClick={loadForms}>
+          <ActionButton className="ui-button" onClick={loadForms}>
             {tx('Try again')}
-          </button>
+          </ActionButton>
         )}
         {/* Top Header */}
         <div
@@ -687,7 +687,7 @@ export default function FormBuilder({ token }) {
                   fontSize: '13px',
                 }}
               />
-              <button
+              <ActionButton
                 type="submit"
                 disabled={importing}
                 style={{
@@ -703,9 +703,9 @@ export default function FormBuilder({ token }) {
                   cursor: importing ? 'not-allowed' : 'pointer',
                 }}
               >
-                {importing ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
+                {importing ? <SoftFlutter size={15} /> : <Link2 size={15} />}
                 {importing ? 'Importing…' : 'Import as Draft'}
-              </button>
+              </ActionButton>
             </div>
           </form>
         )}
@@ -1051,7 +1051,7 @@ export default function FormBuilder({ token }) {
                           <FileText size={13} />
                           {tx(form.isArchived ? 'View' : 'Edit')}
                         </button>
-                        <button
+                        <ActionButton
                           type="button"
                           disabled={deletingFormId === form._id || form.isArchived}
                           onClick={(event) => handleDeleteForm(form, event)}
@@ -1069,9 +1069,9 @@ export default function FormBuilder({ token }) {
                             cursor: deletingFormId === form._id ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {deletingFormId === form._id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}{' '}
+                          {deletingFormId === form._id ? <SoftFlutter size={13} /> : <Trash2 size={13} />}{' '}
                           {lang === 'sw' ? 'Hifadhi kwenye kumbukumbu' : 'Archive'}
-                        </button>
+                        </ActionButton>
                       </div>
                     </div>
                   </div>
@@ -1178,7 +1178,7 @@ export default function FormBuilder({ token }) {
               boxShadow: '0 4px 12px rgba(197, 160, 89, 0.25)',
             }}
           >
-            {saving ? <Loader2 size={16} className="spin" /> : <Save size={16} />} <InterfaceText>Save</InterfaceText>{' '}
+            {saving ? <SoftFlutter size={16} /> : <Save size={16} />} <InterfaceText>Save</InterfaceText>{' '}
             {isActive ? 'Changes' : 'Draft'}
           </button>
           {!isActive && !isArchived && selectedFormId !== 'new' && (
@@ -1200,7 +1200,7 @@ export default function FormBuilder({ token }) {
                 cursor: publishing ? 'not-allowed' : 'pointer',
               }}
             >
-              {publishing ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}{' '}
+              {publishing ? <SoftFlutter size={16} /> : <CheckCircle2 size={16} />}{' '}
               <InterfaceText>Publish Edition</InterfaceText>
             </button>
           )}

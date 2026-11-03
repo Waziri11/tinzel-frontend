@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Children, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import './loading.css';
 
@@ -17,12 +17,16 @@ export function InlineLoading({ children, size = 28, className = '' }) {
 /** Preserves native button/form semantics and locks promise-returning actions. */
 export function ActionButton({ loading = false, disabled, children, onClick, loadingLabel, className = '', ...props }) {
   const [pending, setPending] = useState(false);
+  const [initiated, setInitiated] = useState(false);
   const lock = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const busy = loading || pending;
+  useEffect(() => { if (!loading && !pending) setInitiated(false); }, [loading, pending]);
+  const busy = pending || (loading && initiated);
+  const hasIndicator = Children.toArray(children).some(child => child?.type === SoftFlutter);
   const click = async event => {
-    if (lock.current || busy) { event.preventDefault(); return; }
+    if (lock.current || loading || pending) { event.preventDefault(); return; }
+    setInitiated(true);
     const result = onClick?.(event);
     if (result && typeof result.then === 'function') {
       lock.current = true;
@@ -33,7 +37,7 @@ export function ActionButton({ loading = false, disabled, children, onClick, loa
       }
     }
   };
-  return <button {...props} className={`action-button ${className}`} disabled={disabled || busy} aria-busy={busy || undefined} onClick={click}>
-    {busy && <SoftFlutter />}{busy && loadingLabel ? loadingLabel : children}
+  return <button {...props} className={`action-button ${className}`} disabled={disabled || loading || pending} aria-busy={busy || undefined} onClick={click}>
+    {busy && !hasIndicator && <SoftFlutter />}{busy && loadingLabel ? loadingLabel : children}
   </button>;
 }

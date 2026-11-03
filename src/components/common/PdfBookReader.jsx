@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from './SoftFlutter';
 import { useProofAttachments } from '../../hooks/useProofAttachments';
 import { AttachmentEditor } from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -620,7 +621,7 @@ export default function PdfBookReader({
       ) : metadata.state === 'failed' && !opened ? (
         <div className="proof-page-message">
           {metadata.message}
-          <button
+          <ActionButton
             onClick={async () => {
               try {
                 await reader.retry();
@@ -631,13 +632,13 @@ export default function PdfBookReader({
             }}
           >
             <InterfaceText>Retry preparation</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       ) : !opened ? (
         <div className="proof-page-message" role="status">
-          <InterfaceText>Preparing magazine cover…</InterfaceText>{' '}
+          <SoftFlutter size={32} /> <InterfaceText>Preparing magazine cover…</InterfaceText>{' '}
           {error && (
-            <button
+            <ActionButton
               onClick={async () => {
                 try {
                   await reader.retry();
@@ -648,7 +649,7 @@ export default function PdfBookReader({
               }}
             >
               <InterfaceText>Retry preparation</InterfaceText>
-            </button>
+            </ActionButton>
           )}
         </div>
       ) : (
@@ -744,9 +745,9 @@ export default function PdfBookReader({
                 />
                 <AttachmentEditor uploads={uploads} disabled={saving} />
                 <div className="proof-composer-actions">
-                  <button disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                  <ActionButton loading={saving} disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                     <InterfaceText>Save comment</InterfaceText>
-                  </button>
+                  </ActionButton>
                   <button
                     type="button"
                     disabled={saving}
@@ -765,9 +766,9 @@ export default function PdfBookReader({
                     <p>
                       <InterfaceText>Save or discard this comment before choosing another selection.</InterfaceText>
                     </p>
-                    <button type="submit" disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                    <ActionButton loading={saving} type="submit" disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                       <InterfaceText>Save current comment</InterfaceText>
-                    </button>
+                    </ActionButton>
                     <button
                       type="button"
                       disabled={saving}
@@ -848,7 +849,7 @@ export default function PdfBookReader({
               </button>
             </div>
             <span className="proof-sync" role="status">
-              {tx(navigating ? 'Preparing pages…' : sync)}
+              {(navigating || saving || discarding) && <SoftFlutter />} {tx(navigating ? 'Preparing pages…' : sync)}
             </span>
           </footer>
         </>

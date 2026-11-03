@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import ProofAttachments from '../common/ProofAttachments';
 import {downloadMagazine} from '../common/SecurityCenter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -87,7 +88,7 @@ function Confirmation({
           <button type="button" onClick={onCancel} disabled={busy}>
             {t('Cancel', 'Ghairi')}
           </button>
-          <button
+          <ActionButton loading={busy}
             type="button"
             className="is-primary"
             onClick={onConfirm}
@@ -101,7 +102,7 @@ function Confirmation({
                     'Idhinisha na tuma kwa mteja',
                   )
                 : t('Return to designer', 'Rudisha kwa msanifu')}
-          </button>
+          </ActionButton>
         </div>
       </section>
     </div>
@@ -301,13 +302,13 @@ export default function ManagerMagazineReview({
                     'Pakia toleo la sasa ili kukagua hali iliyohifadhiwa kabla ya kujaribu tena. Maelezo yako yatabaki hadi uchague kupakia upya.',
                   )}
                 </p>
-                <button type="button" disabled={busy} onClick={onReload}>
+                <ActionButton loading={busy} type="button" disabled={busy} onClick={onReload}>
                   {t('Reload current draft', 'Pakia toleo la sasa')}
-                </button>
+                </ActionButton>
               </div>
             ) : (
               <div className="manager-proof-buttons">
-                <button
+                <ActionButton loading={busy}
                   type="button"
                   className="is-primary"
                   disabled={
@@ -324,8 +325,8 @@ export default function ManagerMagazineReview({
                     'Approve and release to client',
                     'Idhinisha na tuma kwa mteja',
                   )}
-                </button>
-                <button
+                </ActionButton>
+                <ActionButton loading={busy}
                   type="button"
                   disabled={
                     !reader.ready ||
@@ -338,7 +339,7 @@ export default function ManagerMagazineReview({
                   onClick={() => setDecision('return_to_designer')}
                 >
                   {t('Return to designer', 'Rudisha kwa msanifu')}
-                </button>
+                </ActionButton>
               </div>
             )}
           </>

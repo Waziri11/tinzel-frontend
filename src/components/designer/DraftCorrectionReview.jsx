@@ -1,3 +1,4 @@
+import { ActionButton, InlineLoading } from '../common/SoftFlutter';
 import React, { lazy, Suspense, useState } from 'react';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -28,7 +29,7 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
             {item.text}
           </p>
           {request.draftVersionNumber > 0 && (item.annotationId || /^\d+$/.test(item.pageReference || '')) && (
-            <Suspense fallback={<p>{tx('Loading…')}</p>}>
+            <Suspense fallback={<InlineLoading />}>
               <PdfBookReader key={item._id} token={token} orderId={orderId} version={request.draftVersionNumber}
                 title={tx('Original correction reference')} focusAnnotation={item.annotationId}
                 focusPage={Number(item.pageReference) || undefined} hideCommentSubmit interactionDisabled />
@@ -47,9 +48,9 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
       ) : null}
       <footer>
         <button type="button" className="secondary-button" disabled={submitting} onClick={onCancel}><InterfaceText>Cancel upload</InterfaceText></button>
-        <button type="button" className="primary-button" disabled={submitting || !matchingRound || !allConfirmed} onClick={() => onSubmit(confirmed)}>
+        <ActionButton loading={submitting} type="button" className="primary-button" disabled={submitting || !matchingRound || !allConfirmed} onClick={() => onSubmit(confirmed)}>
           {tx(submitting ? 'Submitting…' : 'Send to manager review')}
-        </button>
+        </ActionButton>
       </footer>
     </div>
   );

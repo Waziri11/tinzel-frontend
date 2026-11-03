@@ -1,3 +1,4 @@
+import { ActionButton } from './SoftFlutter';
 import './security-controls.css';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -23,8 +24,8 @@ export default function SecurityVerification() {
       <label>{t('Verification code', 'Msimbo wa uthibitishaji')}<input autoFocus aria-label={t('Verification code', 'Msimbo wa uthibitishaji')} autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" required maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>
       {request.allowTrust && <label className="trust-choice"><input type="checkbox" checked={trust} onChange={e => setTrust(e.target.checked)} />{t('Trust this private device. Do not select on a shared computer.', 'Amini kifaa hiki binafsi. Usichague kwenye kompyuta ya pamoja.')}</label>}
       {request.challengeId && !expires && <p role="status">{t('Code expired. Request a new one.', 'Msimbo umeisha muda. Omba mpya.')}</p>}
-      <button className="verification-primary" disabled={busy || !request.challengeId || !expires} type="submit">{t('Verify code', 'Thibitisha msimbo')}</button>
+      <ActionButton loading={busy} className="verification-primary" disabled={busy || !request.challengeId || !expires} type="submit">{t('Verify code', 'Thibitisha msimbo')}</ActionButton>
     </form>
-    <div className="verification-links"><button className="verification-link" type="button" disabled={busy || cooldown > 0} onClick={async () => { setBusy(true); try { const next = await request.resend('sms'); setRequest({ ...request, ...next }); setCode(''); setCooldown(60); setExpires(300); setError(t('A new code was sent.', 'Msimbo mpya umetumwa.')); } catch (err) { setError(err.message); } finally { setBusy(false); } }}>{cooldown ? t(`Resend in ${cooldown}s`, `Tuma tena baada ya sekunde ${cooldown}`) : t('Request a new code', 'Omba msimbo mpya')}</button><button className="verification-link" type="button" disabled={busy} onClick={close}>{t('Cancel', 'Ghairi')}</button></div>
+    <div className="verification-links"><ActionButton loading={busy} className="verification-link" type="button" disabled={busy || cooldown > 0} onClick={async () => { setBusy(true); try { const next = await request.resend('sms'); setRequest({ ...request, ...next }); setCode(''); setCooldown(60); setExpires(300); setError(t('A new code was sent.', 'Msimbo mpya umetumwa.')); } catch (err) { setError(err.message); } finally { setBusy(false); } }}>{cooldown ? t(`Resend in ${cooldown}s`, `Tuma tena baada ya sekunde ${cooldown}`) : t('Request a new code', 'Omba msimbo mpya')}</ActionButton><button className="verification-link" type="button" disabled={busy} onClick={close}>{t('Cancel', 'Ghairi')}</button></div>
   </section></div>;
 }

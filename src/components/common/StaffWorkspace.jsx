@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from './SoftFlutter';
 import TurnstileCheck from './TurnstileCheck';
 import PasswordRecovery from './PasswordRecovery';
 import { draftUploads } from '../../hooks/useDraftUploads';
@@ -18,7 +19,6 @@ import {
   Users,
   LogOut,
   Lock,
-  Loader2,
   AlertCircle,
   ArrowLeft,
   Eye,
@@ -502,7 +502,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             }}
           >
             {error && (
-              <button
+              <ActionButton loading={loading}
                 type="button"
                 disabled={loading}
                 onClick={() => loadProfile(token)}
@@ -519,9 +519,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                 }}
               >
                 {loading ? 'Reconnecting…' : 'Retry connection'}
-              </button>
+              </ActionButton>
             )}
-            <button
+            <ActionButton
               type="button"
               onClick={handleLogout}
               style={{
@@ -539,7 +539,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               <InterfaceText>
                 Sign out / Sign in with another account
               </InterfaceText>
-            </button>
+            </ActionButton>
             {onExitToHome && (
               <button
                 type="button"
@@ -760,7 +760,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               </div>
 
               <TurnstileCheck action="login" onToken={setCaptchaToken} resetKey={captchaReset} />
-              <button
+              <ActionButton
                 type="submit"
                 disabled={loading || !captchaToken}
                 style={{
@@ -781,9 +781,9 @@ export default function StaffWorkspace({ onExitToHome }) {
                   marginTop: '4px',
                 }}
               >
-                {loading && <Loader2 size={16} className="spin" />}
+                {loading && <SoftFlutter size={16} />}
                 {ui('Sign in', 'Ingia')}
-              </button>
+              </ActionButton>
             </form>
             <button type="button" className="verification-link" disabled={loading} onClick={()=>{setPassword('');setRecovering(true);}}>{ui('Forgot password?', 'Umesahau nenosiri?')}</button>
           </div>

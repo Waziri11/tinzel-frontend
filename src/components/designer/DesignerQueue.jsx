@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, RefreshCw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -103,18 +104,18 @@ export default function DesignerQueue({ token, onOpenOrder }) {
             <InterfaceText>Open an order to work with its files, drafts and revision history.</InterfaceText>
           </p>
         </div>
-        <button type="button" className="secondary-button" onClick={() => load()}>
+        <ActionButton type="button" className="secondary-button" onClick={() => load()}>
           <RefreshCw size={16} />
           <InterfaceText>Refresh</InterfaceText>
-        </button>
+        </ActionButton>
       </div>
 
       {error && (
         <div className="designer-alert is-error" role="alert">
           {error}{' '}
-          <button className="secondary-button" onClick={() => load()}>
+          <ActionButton className="secondary-button" onClick={() => load()}>
             <InterfaceText>Retry</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       )}
 

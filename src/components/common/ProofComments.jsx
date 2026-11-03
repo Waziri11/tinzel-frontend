@@ -1,3 +1,4 @@
+import { ActionButton } from './SoftFlutter';
 import ProofAttachments from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useRef, useState } from 'react';
@@ -144,19 +145,19 @@ export default function ProofComments({
                   </div>
                 )}
                 {!a.submittedAt && canComment && (
-                  <button disabled={Boolean(discarding)} onClick={() => onDiscard(a._id)}>
+                  <ActionButton loading={Boolean(discarding)} disabled={Boolean(discarding)} onClick={() => onDiscard(a._id)}>
                     {tx(discarding === a._id ? 'Removing…' : 'Discard')}
-                  </button>
+                  </ActionButton>
                 )}
               </article>
             ))}
           </section>
         ))}
       {canComment && pending.length > 0 && onSubmit && (
-        <button disabled={saving} onClick={onSubmit}>
+        <ActionButton loading={saving} disabled={saving} onClick={onSubmit}>
           <InterfaceText>Return for corrections (</InterfaceText>
           {pending.length})
-        </button>
+        </ActionButton>
       )}
     </aside>
   );

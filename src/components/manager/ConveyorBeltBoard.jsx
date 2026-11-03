@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import {navigate} from '../../navigation/location';
 import MagazineDraftCards, {magazineReviewPath} from './MagazineDraftCards';
 import {downloadMagazine} from '../common/SecurityCenter';
@@ -657,7 +658,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             ))}
           </select>
         </label>
-        <button
+        <ActionButton
           type="button"
           className="manager-icon-action"
           aria-label={tx('Refresh orders')}
@@ -665,8 +666,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           onClick={loadOrders}
           disabled={loading}
         >
-          <RefreshCw size={17} className={loading ? 'spin' : ''} />
-        </button>
+          {loading ? <SoftFlutter size={17} /> : <RefreshCw size={17} />}
+        </ActionButton>
       </div>
 
       {loading ? (
@@ -1294,7 +1295,7 @@ function ActionModal({
             <button type="button" className="manager-secondary-action" onClick={onCancel}>
               <InterfaceText>Cancel</InterfaceText>
             </button>
-            <button
+            <ActionButton loading={submitting}
               type="submit"
               className="manager-primary-action"
               disabled={submitting || uncertain || (action === 'print' && !settings.printer?.configured)}
@@ -1304,7 +1305,7 @@ function ActionModal({
                   ? 'Saving…'
                     : titles[action],
               )}
-            </button>
+            </ActionButton>
           </div>
         </form>
       )}

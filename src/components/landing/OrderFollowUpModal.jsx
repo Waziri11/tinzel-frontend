@@ -1,3 +1,4 @@
+import SoftFlutter from '../common/SoftFlutter';
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Alert } from 'antd';
 import { SearchOutlined, LockOutlined, CheckCircleOutlined, ArrowRightOutlined } from '@ant-design/icons';
@@ -161,7 +162,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
               type="primary"
               size="large"
               block
-              loading={loading}
+              loading={loading ? { icon: <SoftFlutter /> } : false}
               onClick={handleRequestOtp}
               style={{
                 backgroundColor: '#991B1B',
@@ -235,7 +236,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
               type="primary"
               size="large"
               block
-              loading={loading}
+              loading={loading ? { icon: <SoftFlutter /> } : false}
               onClick={handleVerifyOtp}
               style={{
                 backgroundColor: '#991B1B',

@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
@@ -12,7 +13,6 @@ import {
   Printer,
   Sparkles,
   LogOut,
-  Loader2,
   CreditCard,
 } from 'lucide-react';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
@@ -281,7 +281,7 @@ export default function ClientTrackingPortal() {
                 <span>{error}</span>
               </div>
               {clientToken && (
-                <button
+                <ActionButton
                   type="button"
                   onClick={() => loadOrder(clientToken)}
                   style={{
@@ -298,7 +298,7 @@ export default function ClientTrackingPortal() {
                   }}
                 >
                   Retry Loading Order
-                </button>
+                </ActionButton>
               )}
             </div>
           )}
@@ -379,7 +379,7 @@ export default function ClientTrackingPortal() {
                 />
               </div>
 
-              <button
+              <ActionButton
                 type="submit"
                 disabled={loading}
                 style={{
@@ -396,9 +396,9 @@ export default function ClientTrackingPortal() {
                   gap: '8px',
                 }}
               >
-                {loading ? <Loader2 size={16} className="spin" /> : <Lock size={16} />}
+                {loading ? <SoftFlutter size={16} /> : <Lock size={16} />}
                 {t('track.login.sendCode')}
-              </button>
+              </ActionButton>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -440,7 +440,7 @@ export default function ClientTrackingPortal() {
                 )}
               </div>
 
-              <button
+              <ActionButton
                 type="submit"
                 disabled={loading}
                 style={{
@@ -456,9 +456,9 @@ export default function ClientTrackingPortal() {
                   gap: '8px',
                 }}
               >
-                {loading ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                {loading ? <SoftFlutter size={16} /> : <CheckCircle2 size={16} />}
                 {t('track.login.verify')}
-              </button>
+              </ActionButton>
 
               <button
                 type="button"
@@ -478,9 +478,9 @@ export default function ClientTrackingPortal() {
               >
                 {t('track.login.change')}
               </button>
-              <button type="button" className="ui-button" disabled={loading} onClick={handleRequestOtp}>
+              <ActionButton loading={loading} type="button" className="ui-button" disabled={loading} onClick={handleRequestOtp}>
                 {ui('Resend verification code', 'Tuma msimbo tena')}
-              </button>
+              </ActionButton>
             </form>
           )}
         </div>
@@ -534,7 +534,7 @@ export default function ClientTrackingPortal() {
           </p>
         </div>
 
-        <button
+        <ActionButton
           onClick={() => { if (allowProofLeave()) handleLogout(); }}
           style={{
             display: 'flex',
@@ -550,7 +550,7 @@ export default function ClientTrackingPortal() {
         >
           <LogOut size={13} />
           {t('track.signOut')}
-        </button>
+        </ActionButton>
       </div>
 
       {/* On-Hold Explanatory Banner */}
@@ -822,7 +822,7 @@ export default function ClientTrackingPortal() {
 
               {!showRevisionForm ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <button
+                  <ActionButton loading={submittingDecision}
                     onClick={handleApproveWholeMagazine}
                     disabled={submittingDecision || proofState.composing || proofState.saving}
                     style={{
@@ -840,7 +840,7 @@ export default function ClientTrackingPortal() {
                   >
                     <CheckCircle2 size={18} />
                     {t('track.decision.approve')}
-                  </button>
+                  </ActionButton>
 
                   <button
                     onClick={() => setShowRevisionForm(true)}
@@ -919,7 +919,7 @@ export default function ClientTrackingPortal() {
                     Add another fix
                   </button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button
+                    <ActionButton loading={submittingDecision}
                       type="submit"
                       disabled={submittingDecision || proofState.composing || proofState.saving}
                       style={{
@@ -937,7 +937,7 @@ export default function ClientTrackingPortal() {
                     >
                       <Send size={14} />
                       {t('track.decision.submit')}
-                    </button>
+                    </ActionButton>
                     <button
                       type="button"
                       onClick={() => setShowRevisionForm(false)}

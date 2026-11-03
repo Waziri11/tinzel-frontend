@@ -1,3 +1,4 @@
+import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
 import React, { useState } from 'react';
 import { Dropdown, Modal } from 'antd';
@@ -196,9 +197,9 @@ export default function StaffProfile({
             </>
           )}
           {mode === 'password' && <PasswordGuidance value={next} />}
-          <button className="ui-button is-primary" disabled={busy}>
+          <ActionButton loading={busy} className="ui-button is-primary" disabled={busy}>
             {busy ? t('Saving…', 'Inahifadhi…') : t('Save', 'Hifadhi')}
-          </button>
+          </ActionButton>
         </form>
       </Modal>
     </>

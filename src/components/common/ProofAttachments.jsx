@@ -1,3 +1,4 @@
+import { InlineLoading } from './SoftFlutter';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useRef, useState } from 'react';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -35,7 +36,7 @@ function PrivateImage({ reader, attachment, thumbnail = true }) {
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [reader, attachment.id, thumbnail, attempt]);
   if (error) return <span role="alert">{tx(error)} <button type="button" onClick={() => setAttempt(n => n + 1)}><InterfaceText>Retry image</InterfaceText></button></span>;
-  return url ? <img src={url} alt={attachment.name || 'Review image'} /> : <span role="status"><InterfaceText>Loading image…</InterfaceText></span>;
+  return url ? <img src={url} alt={attachment.name || 'Review image'} /> : <InlineLoading><InterfaceText>Loading image…</InterfaceText></InlineLoading>;
 }
 
 export default function ProofAttachments({ attachments = [], reader }) {

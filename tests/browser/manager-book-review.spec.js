@@ -515,7 +515,7 @@ test('pending decisions cannot be cancelled or submitted twice', async ({
     ).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(confirm).toBeVisible();
-    expect(state.decisions.length).toBe(1);
+    await expect.poll(() => state.decisions.length).toBe(1);
   } finally {
     release();
   }

@@ -1,3 +1,4 @@
+import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
 import React, { useState } from 'react';
 import { api } from '../../services/api';
@@ -124,20 +125,20 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
             />
           </label>
           <PasswordGuidance value={next} />
-          <button
+          <ActionButton loading={busy}
             disabled={busy}
             style={{ padding: 12, borderRadius: 6, background: 'var(--text-main)', color: 'white' }}
           >
             {busy ? text('Saving…', 'Inahifadhi…') : text('Save password and continue', 'Hifadhi nenosiri na uendelee')}
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton loading={busy}
             type="button"
             disabled={busy}
             onClick={onLogout}
             style={{ padding: 8, background: 'transparent', color: 'var(--text-muted)' }}
           >
             {text('Sign out', 'Ondoka')}
-          </button>
+          </ActionButton>
         </form>
       </section>
     </section>

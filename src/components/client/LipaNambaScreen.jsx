@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import React, { useState } from 'react';
 import { CreditCard, CheckCircle2, Copy, Clock, ArrowRight, ShieldAlert, Smartphone } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -137,7 +138,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
                 <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#8A6A30' }}>
                   {lipaNambaInstructions?.tillNumber || (isSwahili ? 'Haijapatikana' : 'Unavailable')}
                 </span>
-                <button
+                <ActionButton
                   disabled={!lipaNambaInstructions?.tillNumber}
                   onClick={copyTillNumber}
                   style={{
@@ -154,7 +155,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
                 >
                   <Copy size={12} />
                   {copied ? t('pay.copied') : t('pay.copy')}
-                </button>
+                </ActionButton>
               </div>
             </div>
 

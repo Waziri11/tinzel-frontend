@@ -1,3 +1,4 @@
+import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useState } from 'react';
 import { api } from '../../services/api';
@@ -64,9 +65,9 @@ export default function PrinterNotificationSettings({ token }) {
           </option>
         </select>
       </label>
-      <button disabled={busy} onClick={save}>
+      <ActionButton loading={busy} disabled={busy} onClick={save}>
         <InterfaceText>Save printer language</InterfaceText>
-      </button>
+      </ActionButton>
       {message && <span role="status">{message}</span>}
     </div>
   );

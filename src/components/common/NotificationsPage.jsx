@@ -1,3 +1,4 @@
+import SoftFlutter, { ActionButton } from './SoftFlutter';
 import PageSkeleton from './PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
@@ -845,7 +846,7 @@ export default function NotificationsPage({
           }}
         >
           {unreadCount > 0 && (
-            <button
+            <ActionButton
               type="button"
               onClick={handleMarkAllRead}
               style={{
@@ -865,7 +866,7 @@ export default function NotificationsPage({
               <CheckCheck size={15} color="#8A6825" />
               <InterfaceText>Mark All Read (</InterfaceText>
               {unreadCount})
-            </button>
+            </ActionButton>
           )}
 
           {canConfigure && (
@@ -891,7 +892,7 @@ export default function NotificationsPage({
             </button>
           )}
 
-          <button
+          <ActionButton
             type="button"
             onClick={loadNotifications}
             disabled={loading}
@@ -909,9 +910,9 @@ export default function NotificationsPage({
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} />
+            {loading ? <SoftFlutter size={15} /> : <RefreshCw size={15} />}
             <InterfaceText>Refresh</InterfaceText>
-          </button>
+          </ActionButton>
         </div>
       </div>
 
@@ -1317,7 +1318,7 @@ export default function NotificationsPage({
                   flexWrap: 'wrap',
                 }}
               >
-                <button
+                <ActionButton loading={savingSettings}
                   type="button"
                   onClick={handleResetSettings}
                   disabled={savingSettings}
@@ -1337,9 +1338,9 @@ export default function NotificationsPage({
                 >
                   <RotateCcw size={14} />
                   <InterfaceText>Reset Defaults</InterfaceText>
-                </button>
+                </ActionButton>
 
-                <button
+                <ActionButton loading={savingSettings}
                   type="button"
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
@@ -1359,7 +1360,7 @@ export default function NotificationsPage({
                 >
                   <Save size={14} />
                   {savingSettings ? 'Saving…' : 'Save Trigger Settings'}
-                </button>
+                </ActionButton>
               </div>
             </div>
 
@@ -1876,7 +1877,7 @@ export default function NotificationsPage({
                 </InterfaceText>
               </p>
             </div>
-            <button
+            <ActionButton
               type="button"
               onClick={handleRefreshDiagnostics}
               disabled={diagLoading}
@@ -1894,9 +1895,9 @@ export default function NotificationsPage({
                 cursor: 'pointer',
               }}
             >
-              <RefreshCw size={14} className={diagLoading ? 'spin' : ''} />
+              {diagLoading ? <SoftFlutter size={14} /> : <RefreshCw size={14} />}
               {diagLoading ? 'Checking Gateways…' : 'Run Gateway Health Check'}
-            </button>
+            </ActionButton>
           </div>
 
           <div
@@ -2189,7 +2190,7 @@ export default function NotificationsPage({
                   />
                 </div>
 
-                <button
+                <ActionButton loading={smsTesting}
                   type="submit"
                   disabled={smsTesting}
                   style={{
@@ -2211,7 +2212,7 @@ export default function NotificationsPage({
                   {smsTesting
                     ? 'Sending Test SMS via NextSMS…'
                     : 'Send Test SMS Now'}
-                </button>
+                </ActionButton>
               </form>
 
               {smsTestResult && (
@@ -2552,7 +2553,7 @@ export default function NotificationsPage({
                   />
                 </div>
 
-                <button
+                <ActionButton loading={emailTesting}
                   type="submit"
                   disabled={emailTesting}
                   style={{
@@ -2574,7 +2575,7 @@ export default function NotificationsPage({
                   {emailTesting
                     ? 'Dispatching Test Email…'
                     : 'Send Test Email Now'}
-                </button>
+                </ActionButton>
               </form>
 
               {emailTestResult && (
@@ -3151,7 +3152,7 @@ export default function NotificationsPage({
                         }}
                       >
                         {isUnread && (
-                          <button
+                          <ActionButton
                             type="button"
                             onClick={() => handleMarkRead(id)}
                             style={{
@@ -3166,7 +3167,7 @@ export default function NotificationsPage({
                             }}
                           >
                             <InterfaceText>Mark as read</InterfaceText>
-                          </button>
+                          </ActionButton>
                         )}
 
                         {['manager', 'admin'].includes(staffUser?.role) &&
@@ -3181,7 +3182,7 @@ export default function NotificationsPage({
                             .map((failedItem) => {
                               const fId = failedItem._id || failedItem.id;
                               return (
-                                <button
+                                <ActionButton loading={resendingId === fId}
                                   key={fId}
                                   type="button"
                                   disabled={resendingId === fId}
@@ -3209,12 +3210,12 @@ export default function NotificationsPage({
                                   <RotateCw size={12} />
                                   <InterfaceText>Retry</InterfaceText>{' '}
                                   {failedItem.channel.toUpperCase()}
-                                </button>
+                                </ActionButton>
                               );
                             })}
 
                         {orderTargetId && onOpenOrder && (
-                          <button
+                          <ActionButton
                             type="button"
                             onClick={() => {
                               if (isUnread) handleMarkRead(id);
@@ -3236,7 +3237,7 @@ export default function NotificationsPage({
                           >
                             <InterfaceText>Open Order</InterfaceText>
                             <ArrowRight size={13} />
-                          </button>
+                          </ActionButton>
                         )}
                       </div>
                     </div>
@@ -3530,7 +3531,7 @@ export default function NotificationsPage({
                 >
                   <InterfaceText>Cancel</InterfaceText>
                 </button>
-                <button
+                <ActionButton loading={sending}
                   type="submit"
                   disabled={sending}
                   style={{
@@ -3545,7 +3546,7 @@ export default function NotificationsPage({
                   }}
                 >
                   {sending ? 'Dispatching…' : 'Send to Email, Phone & System'}
-                </button>
+                </ActionButton>
               </div>
             </form>
           </div>
