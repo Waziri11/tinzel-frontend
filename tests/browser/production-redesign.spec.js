@@ -24,7 +24,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  let rows=await api(request,'/manager/orders?limit=50&scope=all',manager,undefined,'get'),order=rows.orders.find(row=>row.submissionId===submission.order.submissionId);expect(order).toBeTruthy();const id=order._id;
  // A real manager signs in and records payment through the redesigned action dialog.
  await staffSignIn(page,'manager',`/staff/pre-design?orderId=${id}`);
- await page.getByRole('button',{name:'Verify payment',exact:true}).last().click();
+ await page.locator('.manager-order-drawer').getByRole('button',{name:'Verify payment',exact:true}).click();
  const payment=page.getByRole('dialog',{name:'Verify Lipa Namba payment'});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify Lipa Namba payment',exact:true}).click();
  await expect(payment).toHaveCount(0);order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(order.status).toBe('assigned');
  const upload=async version=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests?.at(-1);const response=await request.post(`/api/designer/orders/${id}/upload-draft`,{headers:{Cookie:'',Authorization:`Bearer ${designer}`},multipart:{draftFile:{name:'isolated.pdf',mimeType:'application/pdf',buffer:proofPdf(2)},expectedVersion:String(version-1),...(revision?.status==='open'?{revisionRequestId:revision._id,verifyAll:'true'}:{})}});expect(response.ok(),await response.text()).toBe(true);};
@@ -47,7 +47,8 @@ test('real isolated ordering, manager return, customer revision, approval and de
  for(const [suffix,data] of [['authorise-print',{}],['printer-update',{stage:'in_progress',notes:'Isolated acknowledgement'}],['printer-update',{stage:'completed',notes:'Isolated verification'}],['authorise-dispatch',{carrier:'Fictional Courier',trackingReference:'ISOLATED-SHIP',deliveryAddress:'Fictional test address',notes:'Test only'}],['close-order',{recipientName:'Fictional Release Client',confirmationMethod:'phone_call',recipientFeedback:'Test fixture closure'}]])await api(request,`/manager/orders/${id}/${suffix}`,manager,data);
  await page.reload();await expect(page.getByText('closed',{exact:true})).toBeVisible();
  const final=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(final.status).toBe('closed');expect(final.approvedVersionNumber).toBe(3);
- const inbox=await api(request,'/notifications/history?limit=100',manager,undefined,'get');expect(inbox.notifications.length).toBeGreaterThan(0);expect(inbox.notifications.every(item=>['simulated','delivered','skipped'].includes(item.status))).toBe(true);
+ // Check this order's deliveries; account-security alerts use a separate worker.
+ await expect.poll(async()=>{const inbox=await api(request,`/notifications/history?limit=100&orderId=${id}`,manager,undefined,'get');return inbox.notifications.length>0 && inbox.notifications.every(item=>['simulated','delivered','skipped'].includes(item.status));},{timeout:15000}).toBe(true);
 });
 
 for(const lang of ['en','sw'])for(const width of [320,390,430,768,1440])test(`real pages reflow at ${width}px in ${lang}`,async({page},testInfo)=>{

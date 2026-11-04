@@ -27,6 +27,7 @@ export default function LanguageSwitcher() {
 
   return (
     <div
+      className="language-switcher"
       role="group"
       aria-label={t('lang.change')}
       style={{ display: 'inline-flex', border: '1px solid #C5A059', borderRadius: '6px', overflow: 'hidden' }}

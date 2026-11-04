@@ -3272,6 +3272,8 @@ export default function NotificationsPage({
             aria-label={tx('Send Tri-Channel Notification')}
             style={{
               width: 'min(520px, 100%)',
+              maxHeight: 'calc(100dvh - 40px)',
+              overflowY: 'auto',
               backgroundColor: '#FFFFFF',
               border: '1px solid var(--border-color)',
               borderRadius: '12px',
@@ -3312,6 +3314,7 @@ export default function NotificationsPage({
               </div>
               <button
                 type="button"
+                aria-label={tx('Close')}
                 onClick={() => setComposeOpen(false)}
                 style={{
                   border: 'none',

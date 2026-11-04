@@ -2,22 +2,6 @@
   color: var(--text-main);
   min-width: 0;
 }
-.staff-main {
-  min-width: 0;
-  height: 100dvh !important;
-}
-.staff-menu-toggle {
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text-main);
-}
 .manager-fix-editor {
   display: grid;
   grid-template-columns: 100px 1fr auto;
@@ -869,23 +853,6 @@
 }
 
 @media (max-width: 991px) {
-  .staff-content {
-    min-width: 0;
-    padding: 20px 16px 28px !important;
-  }
-  .staff-header {
-    height: auto !important;
-    min-height: 72px;
-    padding: 10px 16px !important;
-    justify-content: flex-start !important;
-    gap: 12px;
-  }
-  .ant-drawer .staff-sidebar {
-    width: 100% !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    border: 0 !important;
-  }
   .manager-stage-filter--board {
     display: none;
   }

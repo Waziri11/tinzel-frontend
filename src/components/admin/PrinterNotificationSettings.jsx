@@ -22,8 +22,7 @@ export default function PrinterNotificationSettings({ token }) {
       .finally(() => {
         if (active) setBusy(false);
       });
-    if (!initialized) return <PageSkeleton variant="form" compact />;
-  return () => {
+    return () => {
       active = false;
     };
   }, [token]);
@@ -41,6 +40,7 @@ export default function PrinterNotificationSettings({ token }) {
       setBusy(false);
     }
   };
+  if (!initialized) return <PageSkeleton variant="form" compact />;
   return (
     <div
       style={{

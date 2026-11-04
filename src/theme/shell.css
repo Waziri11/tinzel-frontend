@@ -191,3 +191,50 @@ button.staff-password-toggle {
 .staff-sidebar { min-height: 0; }
 .staff-sidebar > div:first-child { min-height: 0; overflow-y: auto; }
 .staff-sidebar > div:last-child { flex-shrink: 0; }
+
+/* Shell layout must also be present on direct links to non-manager pages. */
+.staff-main {
+  min-width: 0;
+  height: 100dvh !important;
+}
+.staff-menu-toggle {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-main);
+}
+
+@media (max-width: 991px) {
+  .staff-content {
+    min-width: 0;
+    padding: 20px 16px 28px !important;
+  }
+  .staff-header {
+    height: auto !important;
+    min-height: 72px;
+    padding: 10px 16px !important;
+    justify-content: flex-start !important;
+    gap: 12px;
+  }
+  .ant-drawer .staff-sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    border: 0 !important;
+  }
+}
+
+.staff-content { padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+.staff-sidebar { height: 100dvh !important; }
+.staff-header-profile > button { min-width: 44px; min-height: 44px; }
+.language-switcher { flex-shrink: 0; }
+.language-switcher button { min-width: 44px; min-height: 44px; }
+@media (max-width: 760px) {
+  .public-header-inner { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+}

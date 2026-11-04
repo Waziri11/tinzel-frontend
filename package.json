@@ -8,6 +8,7 @@
     "build": "vite build",
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
+    "test:responsive": "playwright test --config=playwright.responsive.config.js",
     "preview": "vite preview"
   },
   "dependencies": {

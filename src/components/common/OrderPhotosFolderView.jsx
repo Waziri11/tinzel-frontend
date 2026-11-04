@@ -187,7 +187,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 140px), 1fr))',
                     gap: '12px',
                   }}
                 >

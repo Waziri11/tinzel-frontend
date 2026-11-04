@@ -1134,4 +1134,17 @@
 .proof-composer-actions { position: sticky; bottom: -14px; z-index: 2; background: white; display: flex; gap: 8px; padding: 10px 0; border-top: 1px solid #e3ded4; }
 
 .proof-selection-image { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 3; }
+
+@media (pointer: coarse) {
+  .pdf-book .proof-tools button,
+  .pdf-book .proof-zoom button,
+  .pdf-book .proof-pagination button,
+  .pdf-book .proof-modes button,
+  .pdf-book .proof-pagination input { min-height: 44px; min-width: 44px; }
+  .pdf-book .proof-modes { flex-wrap: wrap; }
+}
+@media (max-width: 400px) {
+  .pdf-book .proof-footer { display: flex; flex-wrap: wrap; justify-content: center; }
+  .pdf-book .proof-modes { flex-wrap: wrap; }
+}
 .proof-selection-image polygon { fill: #ffd17133; stroke: #b28a30; stroke-width: 2; vector-effect: non-scaling-stroke; }

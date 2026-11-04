@@ -39,3 +39,4 @@
 .staff-sign-in-card [role="alert"] { margin:0; font-size:13px; line-height:1.5; color:#991b1b; }
 .staff-sign-in-card [role="alert"] button { padding:4px; border:0; background:transparent; color:inherit; font:inherit; text-decoration:underline; cursor:pointer; }
 .staff-sign-in-card :focus-visible { outline:2px solid var(--accent-primary); outline-offset:3px; }
+.security-launcher { bottom: max(18px, env(safe-area-inset-bottom)) !important; }

@@ -46,6 +46,6 @@ test('customer sees a private mobile inbox, marks messages read, saves language 
  await page.screenshot({path:'/tmp/tinzel-workflow-customer-mobile.png',fullPage:true});
  const beforeTimer=historyCalls;await page.clock.fastForward(30000);await expect.poll(()=>historyCalls).toBeGreaterThan(beforeTimer);
  const before=historyCalls;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>historyCalls).toBeGreaterThan(before);
- await page.getByRole('button',{name:/Sign out|Logout|Log out/i}).click();const afterLogout=historyCalls;
+ await page.getByRole('button',{name:/Sign out|Logout|Log out/i}).click();await expect(page.locator('#track-login-id')).toBeVisible();const afterLogout=historyCalls;
  await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(afterLogout);
 });

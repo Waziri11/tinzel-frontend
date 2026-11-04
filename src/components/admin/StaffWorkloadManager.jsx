@@ -479,7 +479,7 @@ export default function StaffWorkloadManager({
             aria-label={tx('Users')}
             style={{ overflowX: 'auto' }}
           >
-            <table
+            <table className="staff-users-table"
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
@@ -541,7 +541,7 @@ export default function StaffWorkloadManager({
                           borderBottom: '1px solid var(--border-color)',
                         }}
                       >
-                        <td style={{ padding: '12px 8px', minWidth: 200 }}>
+                        <td data-label={tx('User')} style={{ padding: '12px 8px', minWidth: 200 }}>
                           <strong style={{ display: 'block' }}>{s.name}</strong>
                           <span
                             style={{
@@ -564,7 +564,7 @@ export default function StaffWorkloadManager({
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 8px' }}>
+                        <td data-label={tx('Role')} style={{ padding: '12px 8px' }}>
                           <span
                             style={{
                               padding: '2px 8px',
@@ -589,7 +589,7 @@ export default function StaffWorkloadManager({
                             {s.role}
                           </span>
                         </td>
-                        <td
+                        <td data-label={tx('Status')}
                           style={{
                             padding: '12px 8px',
                             color: s.isActive ? '#166534' : '#991B1B',
@@ -605,7 +605,7 @@ export default function StaffWorkloadManager({
                             {onboardingLabel(s)}
                           </small>
                         </td>
-                        <td style={{ padding: '12px 8px', width: '180px' }}>
+                        <td data-label={tx('Workload')} style={{ padding: '12px 8px', width: '180px' }}>
                           {s.role === 'designer' ? (
                             <div>
                               <div
@@ -686,7 +686,7 @@ export default function StaffWorkloadManager({
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 8px' }}>
+                        <td data-label={tx('Auto-assign')} style={{ padding: '12px 8px' }}>
                           {s.role === 'designer' ? (
                             <label
                               style={{
@@ -716,7 +716,7 @@ export default function StaffWorkloadManager({
                             </span>
                           )}
                         </td>
-                        <td
+                        <td data-label={tx('Actions')}
                           style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}
                         >
                           <ActionButton
@@ -977,7 +977,7 @@ export default function StaffWorkloadManager({
               alignItems: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <span
                 style={{
                   fontSize: '12px',
@@ -1015,7 +1015,7 @@ export default function StaffWorkloadManager({
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <span
                 style={{
                   fontSize: '12px',
@@ -1716,7 +1716,7 @@ export default function StaffWorkloadManager({
               borderRadius: 8,
               padding: 24,
               width: 'min(100%, 460px)',
-              maxHeight: '90vh',
+              maxHeight: '90dvh',
               overflowY: 'auto',
             }}
           >
@@ -2033,7 +2033,7 @@ export default function StaffWorkloadManager({
               borderRadius: '8px',
               padding: '24px',
               width: 'min(100%, 460px)',
-              maxHeight: '90vh',
+              maxHeight: '90dvh',
               overflowY: 'auto',
             }}
           >

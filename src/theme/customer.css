@@ -472,3 +472,13 @@
     font-size: 30px;
   }
 }
+
+.client-revision-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 8px; margin-bottom: 10px; }
+.client-revision-row > * { min-width: 0; }
+.client-decision-actions { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+.client-decision-actions button { flex: 1 1 180px; min-width: 0; justify-content: center; overflow-wrap: anywhere; }
+.tracking-order { overflow-wrap: anywhere; }
+.client-delivery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .client-revision-row, .client-delivery-grid { grid-template-columns: minmax(0, 1fr); }
+}

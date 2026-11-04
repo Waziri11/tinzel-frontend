@@ -205,7 +205,7 @@
 }
 .upload-dialog {
   width: min(560px, 100%);
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow: auto;
   background: #fff;
   border-radius: 12px;

@@ -824,7 +824,7 @@ export default function ClientTrackingPortal() {
               </p>
 
               {!showRevisionForm ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="client-decision-actions">
                   <ActionButton loading={submittingDecision}
                     onClick={handleApproveWholeMagazine}
                     disabled={submittingDecision || proofState.composing || proofState.saving}
@@ -872,7 +872,7 @@ export default function ClientTrackingPortal() {
                   {revisionItems.map((item, index) => (
                     <div
                       key={index}
-                      style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: 8, marginBottom: 10 }}
+                      className="client-revision-row"
                     >
                       <input
                         aria-label={`Page reference ${index + 1}`}
@@ -1046,7 +1046,7 @@ export default function ClientTrackingPortal() {
             <Printer size={18} color="var(--accent-primary)" />
             <h3 style={{ fontSize: '16px', fontWeight: '700' }}>{t('track.print.title')}</h3>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
+          <div className="client-delivery-grid">
             <div>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
                 {t('track.print.partner')}

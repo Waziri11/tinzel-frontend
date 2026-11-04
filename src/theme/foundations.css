@@ -53,6 +53,8 @@ progress {
   accent-color: var(--accent-primary);
 }
 .ui-button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -134,6 +136,23 @@ progress {
 }
 .ui-feedback p {
   margin-top: 4px;
+}
+.ui-feedback > svg { flex-shrink: 0; }
+.ui-feedback > div, .ui-field { min-width: 0; overflow-wrap: anywhere; }
+
+/* Touch controls stay readable without triggering automatic form zoom. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']), select, textarea {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+  button, .ui-button, summary { min-height: 44px; }
+  button[aria-label]:not(:has(input)) { min-width: 44px; }
+  :is(.manager-dashboard, .designer-page, .team-admin, .communications-admin,
+    .edition-admin, .tracking-order, .client-inbox, .tinzel-upload,
+    .transfer-activity, .background-uploads) button { min-height: 44px; }
+  .communications-admin button.notification-switch { min-height: 44px; }
+  .communications-admin button.notification-switch > span { top: 50%; transform: translateY(-50%); }
 }
 .ui-empty {
   text-align: center;

@@ -238,6 +238,40 @@
 .edition-admin fieldset:disabled {
   opacity: 0.8;
 }
+@media (max-width: 1100px) {
+  .staff-users-table, .staff-users-table tbody { display: block; }
+  .staff-users-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .staff-users-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 0;
+  }
+  .team-admin .staff-users-table td {
+    display: block;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 8px !important;
+    overflow-wrap: anywhere;
+    white-space: normal !important;
+  }
+  .staff-users-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .staff-users-table td:first-child, .staff-users-table td:last-child { grid-column: 1 / -1; }
+  .staff-users-table td:last-child button { min-width: 44px; min-height: 44px; }
+  .staff-users-table td label { min-height: 44px; }
+}
 @media (max-width: 600px) {
   .edition-list-controls {
     align-items: stretch;

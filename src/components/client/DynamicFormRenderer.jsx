@@ -519,7 +519,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
                 gap: '16px',
                 marginBottom: '16px',
               }}

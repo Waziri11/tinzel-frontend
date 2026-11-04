@@ -341,7 +341,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           )}
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#78716C' }}>
             <InterfaceText>Source:</InterfaceText>
           </span>
