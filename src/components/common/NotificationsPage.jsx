@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 
+const DEFAULT_SMS_SENDER = 'TINZELGIFTS';
+
 const TEMPLATE_LABELS = {
   order_submitted: 'Order Submitted',
   order_submitted_staff: 'New Order Alert',
@@ -270,7 +272,7 @@ export default function NotificationsPage({
   // Notification Settings State
   const [settings, setSettings] = useState({
     channels: { in_system: true, email: true, sms: true },
-    smsSenderId: 'ORDER',
+    smsSenderId: DEFAULT_SMS_SENDER,
     triggers: Object.fromEntries(
       DEFAULT_TRIGGER_CATALOG.map((t) => [t.key, { ...t.defaults }]),
     ),
@@ -281,7 +283,7 @@ export default function NotificationsPage({
   // Health Test State (SMS & Email)
   const [smsTestForm, setSmsTestForm] = useState({
     to: '',
-    from: 'ORDER',
+    from: DEFAULT_SMS_SENDER,
     message:
       'Tinzel Health Test: NextSMS gateway is active and ready to deliver order status updates.',
   });
@@ -519,7 +521,7 @@ export default function NotificationsPage({
     try {
       const res = await api.notifications.testSmsHealth(token, {
         to: smsTestForm.to.trim(),
-        from: smsTestForm.from.trim() || settings.smsSenderId || 'ORDER',
+        from: smsTestForm.from.trim() || settings.smsSenderId || DEFAULT_SMS_SENDER,
         message: smsTestForm.message.trim(),
       });
       setSmsTestResult(res.report || res);
@@ -1204,7 +1206,7 @@ export default function NotificationsPage({
               style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
             >
               <InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText>{' '}
-              {settings.smsSenderId || 'ORDER'})
+              {settings.smsSenderId || DEFAULT_SMS_SENDER})
             </span>
           </div>
         </div>
@@ -1547,7 +1549,7 @@ export default function NotificationsPage({
                       smsSenderId: e.target.value.toUpperCase(),
                     }))
                   }
-                  placeholder={tx('ORDER')}
+                  placeholder={DEFAULT_SMS_SENDER}
                   style={{
                     padding: '6px 10px',
                     borderRadius: '6px',
@@ -2043,7 +2045,7 @@ export default function NotificationsPage({
                   >
                     {diagnostics?.sms?.configuredSenderId ||
                       settings.smsSenderId ||
-                      'ORDER'}
+                      DEFAULT_SMS_SENDER}
                   </strong>
                 </div>
                 <div>
@@ -2141,7 +2143,7 @@ export default function NotificationsPage({
                           from: e.target.value.toUpperCase(),
                         })
                       }
-                      placeholder={tx('ORDER')}
+                      placeholder={DEFAULT_SMS_SENDER}
                       style={{
                         width: '100%',
                         padding: '8px 10px',
