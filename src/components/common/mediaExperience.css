@@ -5,7 +5,7 @@
 .tinzel-loading__title, .tinzel-upload h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; line-height: 1.25; margin: 0 0 8px; }
 .tinzel-loading__description, .tinzel-upload__hint { color: #655b4d; font-size: 13px; line-height: 1.6; margin: 6px 0; }
 .tinzel-mark { display: inline-flex; flex: 0 0 52px; position: relative; align-items: center; justify-content: center; }
-.tinzel-mark img { object-fit: contain; mix-blend-mode: multiply; }
+.tinzel-mark img { object-fit: contain; }
 .tinzel-mark--waiting img { animation: tinzel-breathe 2.8s ease-in-out infinite; }
 .tinzel-mark--complete { animation: tinzel-arrive .35s ease-out; }
 .tinzel-mark__check { position: absolute; bottom: 0; right: 0; background: #f8f4e9; color: #356148; border-radius: 50%; }

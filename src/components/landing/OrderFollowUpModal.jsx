@@ -1,3 +1,4 @@
+import TinzelLogo from '../common/TinzelLogo';
 import SoftFlutter from '../common/SoftFlutter';
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Alert } from 'antd';
@@ -77,7 +78,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
       width={460}
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1C1917' }}>
-          <img src="/brand/tinzel-butterfly.png" alt="Tinzel" style={{ height: '24px', width: 'auto' }} />
+          <TinzelLogo variant="icon" alt="Tinzel" height={24} />
           <span style={{ fontFamily: 'var(--font-brand, "Cormorant Garamond", Georgia, serif)', fontStyle: 'italic', fontSize: '24px', fontWeight: '600' }}>
             {t('follow.title')}
           </span>

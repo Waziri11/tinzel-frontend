@@ -469,7 +469,7 @@ export default function StaffWorkspace({ onExitToHome }) {
             gap: '16px',
           }}
         >
-          <TinzelLogo variant="mark" height={40} />
+          <TinzelLogo variant="icon" height={40} />
           <h2
             style={{
               fontFamily:

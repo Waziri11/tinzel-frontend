@@ -1,4 +1,9 @@
 import React from 'react';
+import fullLogo from '../../assets/brand/tinzel-logo.svg';
+import butterfly from '../../assets/brand/tinzel-butterfly.svg';
+import wordmark from '../../assets/brand/tinzel-wordmark.svg';
+
+const logoSources = { full: fullLogo, icon: butterfly, wordmark };
 
 /**
  * TinzelLogo component supports three variations:
@@ -13,12 +18,6 @@ export default function TinzelLogo({
   className = '',
   alt = 'Tinzel Logo',
 }) {
-  const logoSources = {
-    full: '/brand/tinzel-logo-full.png',
-    icon: '/brand/tinzel-butterfly.png',
-    wordmark: '/brand/tinzel-wordmark.png',
-  };
-
   const src = logoSources[variant] || logoSources.full;
 
   return (

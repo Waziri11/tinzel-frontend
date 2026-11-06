@@ -1,3 +1,4 @@
+import butterfly from '../../assets/brand/tinzel-butterfly.svg';
 import { useInterfaceText } from '../../i18n/InterfaceText';
 import React from 'react';
 import SoftFlutter from './SoftFlutter';
@@ -10,7 +11,7 @@ export function BrandMark({ complete = false, animate = true }) {
       className={`tinzel-mark ${complete ? 'tinzel-mark--complete' : animate ? 'tinzel-mark--waiting' : ''}`}
       aria-hidden="true"
     >
-      {animate && !complete ? <SoftFlutter size={48} /> : <img src="/brand/tinzel-butterfly.png" alt="" width="48" height="45" />}
+      {animate && !complete ? <SoftFlutter size={48} /> : <img src={butterfly} alt="" width="48" height="45" />}
       {complete && <Check className="tinzel-mark__check" size={16} />}
     </span>
   );
