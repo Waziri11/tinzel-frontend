@@ -32,7 +32,7 @@ html.tinzel-intro-active { overflow: hidden; }
 @keyframes intro-flutter { to { background-position: right; } }
 
 .intro-name {
-  width: min(232px, 56vw, 52svh);
+  width: min(218px, 54vw, 50svh);
   height: auto;
   animation: intro-name-in 800ms 200ms ease-out both;
 }
