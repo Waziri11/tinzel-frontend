@@ -177,7 +177,7 @@ export default function StaffProfile({
                 {t('New password', 'Nenosiri jipya')}
                 <input
                   required
-                  minLength={15}
+                  minLength={8}
                   type="password"
                   autoComplete="new-password"
                   value={next}

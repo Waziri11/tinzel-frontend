@@ -10,7 +10,7 @@ export function errorText(message, status) {
   if (/security check|security verification is unavailable/i.test(message)) return 'Ukaguzi wa usalama haujakamilika. Jaribu tena.';
   if (/data breach/i.test(message)) return 'Nenosiri hili limeonekana kwenye uvujaji wa taarifa. Chagua kifungu tofauti.';
   if (/password safety check/i.test(message)) return 'Ukaguzi wa usalama wa nenosiri haupatikani. Jaribu tena baadaye.';
-  if (/15 characters|72 bytes|less common passphrase/i.test(message)) return 'Tumia angalau herufi 15 na hadi baiti 72. Chagua maneno yasiyo ya kawaida.';
+  if (/8 characters|72 bytes|less common passphrase/i.test(message)) return 'Tumia angalau herufi 8 na hadi baiti 72. Chagua maneno yasiyo ya kawaida.';
   if (/Recovery has expired|Recovery.*expired/i.test(message)) return 'Urejeshaji umeisha muda. Omba msimbo mpya.';
   if (/different password/i.test(message)) return 'Chagua nenosiri tofauti na la sasa.';
   if (/verification reference|Confirm identity/i.test(message)) return 'Thibitisha utambulisho, andika rejea, na uweke simu mpya sahihi.';

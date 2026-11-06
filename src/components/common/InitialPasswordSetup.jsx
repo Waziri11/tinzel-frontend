@@ -22,7 +22,7 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
       setError(text('New passwords do not match.', 'Manenosiri mapya hayalingani.'));
       return;
     }
-    if (!passwordReady(next)) { setError(text('Use at least 15 characters and at most 72 bytes.', 'Tumia angalau herufi 15 na hadi baiti 72.')); return; }
+    if (!passwordReady(next)) { setError(text('Use at least 8 characters and at most 72 bytes.', 'Tumia angalau herufi 8 na hadi baiti 72.')); return; }
     setBusy(true);
     try {
       const result = await api.staffAuth.changePassword(token, current, next);
@@ -79,8 +79,8 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
         </p>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
           {text(
-            'Use at least 15 characters. Spaces and long passphrases are welcome.',
-            'Tumia angalau herufi 15. Nafasi na vifungu virefu vinaruhusiwa.',
+            'Use at least 8 characters. Spaces and long passphrases are welcome.',
+            'Tumia angalau herufi 8. Nafasi na vifungu virefu vinaruhusiwa.',
           )}
         </p>
         {error && (
@@ -105,7 +105,7 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
             <input
               required
               type="password"
-              minLength={15}
+              minLength={8}
               autoComplete="new-password"
               value={next}
               onChange={(event) => setNext(event.target.value)}
@@ -117,7 +117,7 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
             <input
               required
               type="password"
-              minLength={15}
+              minLength={8}
               autoComplete="new-password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
