@@ -1,0 +1,59 @@
+#tinzel-intro[hidden] { display: none; }
+html.tinzel-intro-active { overflow: hidden; }
+
+#tinzel-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: #faf8f4;
+  transition: opacity 300ms ease;
+}
+#tinzel-intro.is-leaving { opacity: 0; pointer-events: none; }
+
+.intro-brand {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.intro-butterfly {
+  width: min(128px, 28vw, 26svh);
+  aspect-ratio: 1;
+  background: url('/brand/soft-flutter-poster.webp') center / contain no-repeat;
+}
+#tinzel-intro.is-playing .intro-butterfly {
+  background-image: url('/brand/soft-flutter-atlas.webp');
+  background-position: left;
+  background-size: 9600% 100%;
+  animation: intro-flutter 4.04s steps(95, end) forwards;
+}
+/* Move across the 96 frames once, resting on the final pose. */
+@keyframes intro-flutter { to { background-position: right; } }
+
+.intro-name {
+  width: min(232px, 56vw, 52svh);
+  height: auto;
+  animation: intro-name-in 800ms 200ms ease-out both;
+}
+@keyframes intro-name-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#tinzel-intro button {
+  position: absolute;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  padding: 12px 20px;
+  border: 1px solid #cfc7b7;
+  border-radius: 32px;
+  background: transparent;
+  color: #494537;
+  font: 500 14px/20px 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+}
+#tinzel-intro button:focus-visible { outline: 2px solid #78571e; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  #tinzel-intro { display: none; }
+}

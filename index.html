@@ -4,10 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/src/assets/brand/tinzel-butterfly.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/startup-intro.css" />
+    <script src="/startup-intro.js" defer></script>
     <title>TINZEL | Your story in print</title>
     <link rel="stylesheet" href="/fonts/fonts.css" />
   </head>
   <body>
+    <section id="tinzel-intro" aria-label="Tinzel" hidden>
+      <div class="intro-brand">
+        <span class="intro-butterfly" aria-hidden="true"></span>
+        <img class="intro-name" src="/src/assets/brand/tinzel-wordmark.svg" alt="Tinzel" width="412" height="160" />
+      </div>
+      <button type="button">Skip intro</button>
+    </section>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
