@@ -120,7 +120,7 @@ const NAVIGATION_ITEMS = [
     path: '/staff/forms',
     section: 'Administration',
     icon: FileText,
-    roles: ['admin'],
+    roles: ['admin', 'manager'],
   },
   {
     id: 'staff_roster',
@@ -1151,8 +1151,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   />
                 )}
 
-              {effectiveActivePage === 'form_builder' &&
-                currentUser.role === 'admin' && <FormBuilder token={token} />}
+              {effectiveActivePage === 'form_builder' && <FormBuilder token={token} />}
 
               {effectiveActivePage === 'designer_queue' && (
                 <DesignerQueue

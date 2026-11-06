@@ -76,8 +76,8 @@ test('all sixteen question types keep stored values when language and steps chan
  await page.screenshot({path:testInfo.outputPath('question-types-sw.png'),fullPage:true});
 });
 
-test('admin opens all field editors, previews an edition and preserves unsaved work',async({page},testInfo)=>{
- await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));await staffSignIn(page,'admin','/staff/forms');
+for (const role of ['admin', 'manager']) test(`${role} opens all field editors, previews an edition and preserves unsaved work`,async({page},testInfo)=>{
+ await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));await staffSignIn(page,role,'/staff/forms');
  await page.getByText('Acceptance magazine',{exact:true}).click();await expect(page.getByLabel('Response Type',{exact:true})).toHaveCount(16);
  const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();expect(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,html:n.html,reason:n.failureSummary}))}))).toEqual([]);
  await page.getByRole('button',{name:'Preview',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Edition preview'});await expect(dialog).toBeVisible();await expect(dialog.getByText('Test grid_radio',{exact:true})).toBeVisible();
