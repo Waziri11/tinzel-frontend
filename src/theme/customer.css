@@ -205,30 +205,15 @@
   font-size: 11px;
 }
 .edition-info {
+  display: grid;
+  gap: 8px;
   padding: 24px;
 }
 .edition-info h2 {
   font: 500 32px/1.15 var(--font-brand);
 }
-.edition-info > p {
+.edition-info > strong {
   font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.8;
-  margin: 10px 0 24px;
-}
-.edition-info > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-}
-.edition-info > div span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--accent-primary);
 }
 .order-page {
   max-width: 960px;

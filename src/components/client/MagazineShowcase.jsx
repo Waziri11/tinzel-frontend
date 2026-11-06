@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Search } from 'lucide-react';
+import { ArrowLeft, BookOpen, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
 import { navigate, editionSlug } from '../../navigation/location';
@@ -156,18 +156,10 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
                 >
                   <Cover form={form} lang={lang} />
                   <div className="edition-info">
-                    <span className="ui-eyebrow">{localized(form, 'magazineType', lang) || 'Tinzel'}</span>
                     <h2>{localized(form, 'title', lang)}</h2>
-                    <p>{localized(form, 'description', lang)}</p>
-                    <div>
-                      <strong>
-                        {form.price?.toLocaleString()} {form.currency}
-                      </strong>
-                      <span>
-                        {sw ? 'Chagua toleo' : 'Choose edition'}
-                        <ArrowRight size={15} />
-                      </span>
-                    </div>
+                    <strong>
+                      {form.price?.toLocaleString()} {form.currency}
+                    </strong>
                   </div>
                 </button>
               </article>
