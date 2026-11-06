@@ -192,13 +192,15 @@ test('real book return, designer checklist, corrected upload and manager approva
     await upload
       .getByLabel('Version summary', { exact: true })
       .fill('Replaced photograph and corrected spacing.');
-    await upload
-      .getByLabel('I verified every requested fix', { exact: true })
-      .check();
-    await upload
-      .getByRole('button', { name: 'Send to manager review', exact: true })
-      .click();
-    await expect(upload).toHaveCount(0, { timeout: 45000 });
+    await upload.getByRole('button', { name: 'Upload updated PDF' }).click();
+    await d.getByRole('button', { name: 'Review corrections', exact: true }).click();
+    const correctionReview = d.getByRole('dialog', { name: 'Review corrections before submitting' });
+    for (let index = 0; index < round.items.length; index++) {
+      await correctionReview.getByLabel('I reviewed this correction and confirmed it is fixed in my updated PDF').check();
+      if (index < round.items.length - 1) await correctionReview.getByRole('button', { name: 'Next correction' }).click();
+    }
+    await correctionReview.getByRole('button', { name: 'Send to manager review' }).click();
+    await expect(correctionReview).toHaveCount(0, { timeout: 45000 });
     saved = (
       await api(request, `/manager/orders/${id}`, manager, undefined, 'get')
     ).order;
@@ -240,6 +242,7 @@ test('real book return, designer checklist, corrected upload and manager approva
       localStorage.setItem('tinzel_language', 'en'),
     );
     await page.goto('/track');
+    await expect(page.locator('#tinzel-intro')).toBeHidden({ timeout: 15000 });
     await page.locator('#track-login-id').fill(saved.trackingId);
     await page.locator('#track-login-whatsapp').fill('0712000088');
     const otpResponse = page.waitForResponse((r) =>

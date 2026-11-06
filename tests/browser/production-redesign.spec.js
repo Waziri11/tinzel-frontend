@@ -30,10 +30,16 @@ test('real isolated ordering, manager return, customer revision, approval and de
  await expect(alert).toContainText(edition.title);
  await alert.getByRole('button',{name:'Open order'}).click();
  await expect(page).toHaveURL(new RegExp('orderId='+id));
- await expect(alert).toHaveCount(0);
+ await expect(alert.filter({hasText:edition.title})).toHaveCount(0);
  await page.locator('.manager-order-drawer').getByRole('button',{name:'Verify payment',exact:true}).click();
  const payment=page.getByRole('dialog',{name:'Verify Lipa Namba payment'});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify Lipa Namba payment',exact:true}).click();
  await expect(payment).toHaveCount(0);order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(order.status).toBe('assigned');
+ // Other journeys can change the workload-based assignment in this shared fixture.
+ const testDesigner=(await api(request,'/staff/me',designer,undefined,'get')).user;
+ const designerId=testDesigner._id || testDesigner.id;
+ if ((order.assignedDesigner?._id || order.assignedDesigner)!==designerId) {
+  await api(request,`/manager/orders/${id}/reassign`,manager,{designerId,reason:'Assign the designer used by this isolated test.'});
+ }
  const upload=async version=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests?.at(-1);const response=await request.post(`/api/designer/orders/${id}/upload-draft`,{headers:{Cookie:'',Authorization:`Bearer ${designer}`},multipart:{draftFile:{name:'isolated.pdf',mimeType:'application/pdf',buffer:proofPdf(2)},expectedVersion:String(version-1),...(revision?.status==='open'?{revisionRequestId:revision._id,verifyAll:'true'}:{})}});expect(response.ok(),await response.text()).toBe(true);};
  const address=async()=>{const current=(await api(request,`/designer/orders/${id}`,designer,undefined,'get')).order,revision=current.revisionRequests.at(-1);for(const item of revision.items)await api(request,`/designer/orders/${id}/returns/${revision._id}/items/${item._id}`,designer,{response:'Corrected in the isolated fixture.'},'patch');};
  await upload(1);await api(request,`/manager/orders/${id}/review-draft`,manager,{expectedVersion:1,action:'return_to_designer',items:[{text:'Fictional manager correction',pageReference:'1'}]});await address();await upload(2);
