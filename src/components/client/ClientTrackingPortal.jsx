@@ -61,17 +61,31 @@ export default function ClientTrackingPortal() {
 
 
   useEffect(() => {
-    if (clientToken) {
-      loadOrder(clientToken);
-    }
-  }, [clientToken]);
+    loadOrder('cookie', true);
+  }, []);
 
-  const loadOrder = async (token) => {
+  const loadOrder = async (token, restore = false) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.client.getOrder(token);
+      let data;
+      try {
+        data = await api.client.getOrder(token);
+      } catch (err) {
+        const lastSubmission = localStorage.getItem('tinzel_tracking_reference');
+        if (!restore || !lastSubmission || err.status !== 401) throw err;
+        const resumed = await api.client.resumeTracking(lastSubmission);
+        if (!resumed.clientToken) {
+          localStorage.removeItem('tinzel_tracking_reference');
+          throw err;
+        }
+        data = await api.client.getOrder(resumed.clientToken);
+      }
+      setError(null);
+      setClientToken(token);
       setOrder(data.order);
+      const reference = data.order.submissionId || data.order.trackingId;
+      if (reference) localStorage.setItem('tinzel_tracking_reference', reference);
     } catch (err) {
       setError(err.message || t('track.err.sessionExpired'));
       // Only clear credentials if access is rejected by the server (401/403)
@@ -96,6 +110,10 @@ export default function ClientTrackingPortal() {
     setError(null);
     try {
       const res = await api.client.requestOtp(trackingId.trim(), clientWhatsApp.trim());
+      if (res.clientToken) {
+        await loadOrder(res.clientToken);
+        return;
+      }
       setOtpSent(true);
       if (res.devOtp) setDevOtp(res.devOtp);
       setSuccessMsg(t('track.ok.otpSent'));
@@ -144,11 +162,23 @@ export default function ClientTrackingPortal() {
     return () => window.removeEventListener('tinzel:client:unauthorized', expired);
   }, [clearSession, t]);
 
-  const handleLogout = async () => {
-    try { await api.client.logout(); clearSession(); }
-    catch (err) {
-      if (err.status === 401) clearSession();
-      else setError(err.message);
+  const handleLogout = async (forgetDevice = false) => {
+    try {
+      try {
+        await api.client.logout(forgetDevice);
+      } catch (err) {
+        if (err.status !== 401) throw err;
+        // An idle session can expire while the order is still on screen.
+        const reference = order?.submissionId || order?.trackingId;
+        if (forgetDevice && reference) {
+          const restored = await api.client.resumeTracking(reference);
+          if (restored.clientToken) await api.client.logout(true);
+        }
+      }
+      localStorage.removeItem('tinzel_tracking_reference');
+      clearSession();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -537,23 +567,14 @@ export default function ClientTrackingPortal() {
           </p>
         </div>
 
-        <ActionButton
-          onClick={() => { if (allowProofLeave()) handleLogout(); }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            fontSize: '12px',
-          }}
-        >
-          <LogOut size={13} />
-          {t('track.signOut')}
-        </ActionButton>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button type="button" className="ui-button" onClick={() => { if (allowProofLeave()) handleLogout(true); }}>
+            {ui('Forget this order on this device', 'Ondoa oda hii kwenye kifaa hiki')}
+          </button>
+          <ActionButton onClick={() => { if (allowProofLeave()) handleLogout(); }}>
+            <LogOut size={13} /> {t('track.signOut')}
+          </ActionButton>
+        </div>
       </div>
 
       {/* On-Hold Explanatory Banner */}
@@ -631,7 +652,7 @@ export default function ClientTrackingPortal() {
         </div>
       )}
 
-      <ClientNotifications token={clientToken} onUnauthorized={handleLogout} />
+      <ClientNotifications token={clientToken} onUnauthorized={clearSession} />
       {/* Visual Conveyor Belt Progress Bar */}
       <div
         style={{

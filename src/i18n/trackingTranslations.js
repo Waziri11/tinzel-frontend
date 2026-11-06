@@ -29,8 +29,8 @@ export const trackingTranslations = {
 
   // Messages
   'track.err.sessionExpired': { en: 'Session expired. Please log in again.', sw: 'Muda wa kikao umeisha. Tafadhali ingia tena.' },
-  'track.err.enterBoth': { en: 'Please enter both Tracking ID and WhatsApp number', sw: 'Tafadhali weka Namba ya Ufuatiliaji na namba ya WhatsApp' },
-  'track.ok.otpSent': { en: 'A 6-digit OTP code was sent to your WhatsApp number.', sw: 'Namba ya siri ya tarakimu 6 (OTP) imetumwa kwenye namba yako ya WhatsApp.' },
+  'track.err.enterBoth': { en: 'Enter your order ID and phone number.', sw: 'Weka namba ya oda na ya simu.' },
+  'track.ok.otpSent': { en: 'We sent a six-digit code by SMS.', sw: 'Tumetuma msimbo wa tarakimu sita kwa SMS.' },
   'track.err.requestOtp': { en: 'Failed to request OTP', sw: 'Imeshindwa kuomba OTP' },
   'track.err.enterOtp': { en: 'Please enter the 6-digit OTP code', sw: 'Tafadhali weka OTP ya tarakimu 6' },
   'track.err.invalidOtp': { en: 'Invalid or expired OTP', sw: 'OTP si sahihi au muda wake umeisha' },
@@ -44,16 +44,16 @@ export const trackingTranslations = {
 
   // Login
   'track.login.title': { en: 'Client Tracking & Review Portal', sw: 'Tovuti ya Ufuatiliaji na Mapitio ya Mteja' },
-  'track.login.subtitle': { en: 'Enter your Tracking ID and WhatsApp number to securely review your magazine.', sw: 'Weka Namba yako ya Ufuatiliaji na namba ya WhatsApp ili kupitia jarida lako kwa usalama.' },
+  'track.login.subtitle': { en: 'Use your tracking or submission ID and registered phone number. After SMS verification, this browser remembers this order for 30 days.', sw: 'Weka namba ya ufuatiliaji au ya oda na simu uliyosajili. Baada ya uthibitisho kwa SMS, kivinjari hiki kitakumbuka oda hii kwa siku 30.' },
   'track.login.trackingId': { en: 'Magazine Tracking ID', sw: 'Namba ya Ufuatiliaji wa Jarida' },
   'track.login.trackingIdPh': { en: 'e.g. TNZ-2026-0001', sw: 'mfano TNZ-2026-0001' },
-  'track.login.whatsapp': { en: 'WhatsApp Phone Number', sw: 'Namba ya Simu ya WhatsApp' },
+  'track.login.whatsapp': { en: 'Registered phone number', sw: 'Namba ya simu iliyosajiliwa' },
   'track.login.whatsappPh': { en: 'e.g. +255712345678', sw: 'mfano +255712345678' },
-  'track.login.sendCode': { en: 'Send WhatsApp Verification Code', sw: 'Tuma Namba ya Uthibitisho kwa WhatsApp' },
-  'track.login.enterOtp': { en: 'Enter 6-Digit WhatsApp OTP', sw: 'Weka OTP ya Tarakimu 6 ya WhatsApp' },
+  'track.login.sendCode': { en: 'Continue to tracking', sw: 'Endelea kufuatilia oda' },
+  'track.login.enterOtp': { en: 'Enter the six-digit SMS code', sw: 'Weka msimbo wa SMS wa tarakimu sita' },
   'track.login.devOtp': { en: '[Dev Mode] Generated OTP:', sw: '[Hali ya Uundaji] OTP iliyozalishwa:' },
   'track.login.verify': { en: 'Verify & Enter Portal', sw: 'Thibitisha na Ingia' },
-  'track.login.change': { en: 'Change Tracking ID or WhatsApp Number', sw: 'Badilisha Namba ya Ufuatiliaji au Namba ya WhatsApp' },
+  'track.login.change': { en: 'Change order ID or phone number', sw: 'Badilisha namba ya oda au ya simu' },
 
   // Order view
   'track.client': { en: 'Client:', sw: 'Mteja:' },
@@ -79,7 +79,7 @@ export const trackingTranslations = {
   'track.approved.title': { en: 'Whole Magazine Approved (Version {version})', sw: 'Jarida Zima Limeidhinishwa (Toleo {version})' },
   'track.approved.body': { en: 'Your designer is preparing the high-res print-ready package.', sw: 'Mbunifu wako anaandaa kifurushi chenye ubora wa juu kilicho tayari kuchapishwa.' },
   'track.revreq.title': { en: 'Revision Requested', sw: 'Marekebisho Yameombwa' },
-  'track.revreq.body': { en: 'Your designer is updating the layout based on your feedback. You will receive a WhatsApp message when the revised draft is released.', sw: 'Mbunifu wako anasasisha mpangilio kulingana na maoni yako. Utapokea ujumbe wa WhatsApp rasimu iliyorekebishwa itakapotolewa.' },
+  'track.revreq.body': { en: 'Your draft is being updated. You will receive a notification when it is ready.', sw: 'Rasimu yako inarekebishwa. Utapata taarifa ikiwa tayari.' },
   'track.wait.title': { en: 'Magazine Layout In Progress', sw: 'Mpangilio wa Jarida Unaendelea' },
   'track.wait.body': { en: 'Your magazine is currently in production with your assigned designer. Once the first complete proof is reviewed by our production manager, it will appear here for your review and approval.', sw: 'Jarida lako liko katika uzalishaji kwa mbunifu aliyepangiwa. Rasimu kamili ya kwanza itakapokaguliwa na meneja wetu wa uzalishaji, itaonekana hapa ili uipitie na kuidhinisha.' },
   'track.print.title': { en: 'Print & Dispatch Status', sw: 'Hali ya Uchapishaji na Usafirishaji' },

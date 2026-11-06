@@ -198,7 +198,7 @@ export const api = {
 
   // Client Tracking Endpoints
   client: {
-    logout: () => fetchWithTimeout(`${API_BASE}/api/client/logout`, { method: 'POST' }).then(handleResponse),
+    logout: (forgetDevice = false) => fetchWithTimeout(`${API_BASE}/api/client/logout`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ forgetDevice }) }).then(handleResponse),
     setPreferences: (token, preferredLanguage) =>
       fetchWithTimeout(`${API_BASE}/api/client/preferences`, {
         method: 'PATCH',
@@ -219,6 +219,13 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ trackingId, clientWhatsApp }),
+      }).then(handleResponse),
+
+    resumeTracking: (trackingId) =>
+      fetchWithTimeout(`${API_BASE}/api/client/request-otp`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ trackingId, resumeOnly: true }),
       }).then(handleResponse),
 
     verifyOtp: (trackingId, otp) =>

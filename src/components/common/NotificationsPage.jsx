@@ -177,7 +177,7 @@ const DEFAULT_TRIGGER_CATALOG = [
       'Triggered when a client requests a one-time password to access the tracking portal.',
     category: 'Security',
     recipient: 'Client',
-    defaults: { enabled: true, in_system: true, email: true, sms: true },
+    defaults: { enabled: true, in_system: false, email: false, sms: true },
   },
 ];
 
@@ -1740,11 +1740,11 @@ export default function NotificationsPage({
                             <input
                               type="checkbox"
                               disabled={
-                                !isEnabled ||
+                                item.key === 'client_otp' || !isEnabled ||
                                 settings.channels?.in_system === false
                               }
                               checked={Boolean(
-                                cfg.in_system &&
+                                item.key !== 'client_otp' && cfg.in_system &&
                                   settings.channels?.in_system !== false,
                               )}
                               onChange={(e) =>
@@ -1777,7 +1777,7 @@ export default function NotificationsPage({
                                 !isEnabled || settings.channels?.email === false
                               }
                               checked={Boolean(
-                                cfg.email && settings.channels?.email !== false,
+                                item.key !== 'client_otp' && cfg.email && settings.channels?.email !== false,
                               )}
                               onChange={(e) =>
                                 handleToggleTriggerField(

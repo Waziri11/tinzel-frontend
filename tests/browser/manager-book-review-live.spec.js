@@ -246,7 +246,7 @@ test('real book return, designer checklist, corrected upload and manager approva
       r.url().endsWith('/client/request-otp'),
     );
     await page
-      .getByRole('button', { name: 'Send WhatsApp Verification Code' })
+      .getByRole('button', { name: 'Continue to tracking' })
       .click();
     const otp = await (await otpResponse).json();
     expect(otp.devOtp).toBeTruthy();

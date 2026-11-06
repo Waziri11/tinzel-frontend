@@ -26,6 +26,11 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
     setError(null);
     try {
       const res = await api.client.requestOtp(orderNumber.trim(), whatsappPhone.trim());
+      if (res.clientToken) {
+        onSuccess(res.clientToken);
+        resetState();
+        return;
+      }
       if (res.devOtp) setDevOtp(res.devOtp);
       setStep('enter_otp');
     } catch (err) {
