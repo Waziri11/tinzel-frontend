@@ -3219,7 +3219,7 @@ export default function NotificationsPage({
                             type="button"
                             onClick={() => {
                               if (isUnread) handleMarkRead(id);
-                              onOpenOrder(orderTargetId);
+                              onOpenOrder(orderTargetId, primary.template);
                             }}
                             style={{
                               display: 'inline-flex',

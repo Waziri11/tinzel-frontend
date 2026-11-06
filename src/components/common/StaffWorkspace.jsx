@@ -166,6 +166,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   }, [currentUser?._id, currentUser?.id]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [submissionAlert, setSubmissionAlert] = useState(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   useAccountLanguage(
     'staff',
@@ -223,10 +224,11 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [reviewVersion,setReviewVersion]=useState(initialRoute.version);
   const [routeOrderId, setRouteOrderId] = useState(initialRoute.orderId);
   const navigateStaff = (path, page, orderId = null) => {
-    if (!navigateLocation(path)) return;
+    if (!navigateLocation(path)) return false;
     setActivePage(page);
     setRouteOrderId(orderId);
     setMenuOpen(false);
+    return true;
   };
   useEffect(() => {
     const pop = (event) => {
@@ -251,8 +253,9 @@ export default function StaffWorkspace({ onExitToHome }) {
       if (!authToken) return;
       try {
         const data = await api.notifications.getHistory(authToken, {
-          limit: 100,
+          view: 'badge',
         });
+        setSubmissionAlert(data.submissionAlert || null);
         if (typeof data.unreadCount === 'number') {
           setUnreadNotifications(data.unreadCount);
         } else {
@@ -1092,6 +1095,24 @@ export default function StaffWorkspace({ onExitToHome }) {
           </div>
         </header>
 
+        {submissionAlert?.orderId && submissionAlert.recipientUser === (currentUser._id || currentUser.id)
+          && ['manager', 'admin'].includes(currentUser.role) && effectiveActivePage !== 'notifications' && (
+          <aside className="submission-alert">
+            <Bell size={18} aria-hidden="true" />
+            <div role="status">
+              <strong>{ui('New magazine submission', 'Oda mpya ya jarida')}</strong>
+              <div>{[submissionAlert.orderId.clientName, submissionAlert.orderId.formTitle].filter(Boolean).join(' · ')}</div>
+            </div>
+            <button className="ui-button" onClick={async () => {
+              if (!navigateStaff(`/staff/pre-design?orderId=${encodeURIComponent(submissionAlert.orderId._id)}`, 'pre_design')) return;
+              try {
+                await api.notifications.markRead(token, submissionAlert._id);
+                await refreshUnreadCount(token);
+              } catch { /* Keep the alert available if marking it read fails. */ }
+            }}>{ui('Open order', 'Fungua oda')}</button>
+          </aside>
+        )}
+
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
           <SecurityCenter user={currentUser} /><div className="staff-content" style={{ padding: '32px', flex: 1 }}>
@@ -1201,8 +1222,10 @@ export default function StaffWorkspace({ onExitToHome }) {
                 <NotificationsPage
                   token={token}
                   staffUser={currentUser}
-                  onOpenOrder={(id) =>
-                    navigateStaff(
+                  onOpenOrder={(id, template) =>
+                    ['manager', 'admin'].includes(currentUser.role) && ['order_submitted', 'order_submitted_staff'].includes(template)
+                      ? navigateStaff(`/staff/pre-design?orderId=${encodeURIComponent(id)}`, 'pre_design')
+                      : navigateStaff(
                       `/staff/design/orders/${id}`,
                       'designer_order',
                       id,

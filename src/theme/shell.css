@@ -238,3 +238,16 @@ button.staff-password-toggle {
 @media (max-width: 760px) {
   .public-header-inner { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
 }
+
+.submission-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px clamp(16px, 3vw, 32px);
+  background: #fff8e8;
+  border-bottom: 1px solid #e5d8b7;
+  color: #473718;
+}
+.submission-alert [role="status"] { flex: 1 1 180px; overflow-wrap: anywhere; }
+.submission-alert button { cursor: pointer; }
