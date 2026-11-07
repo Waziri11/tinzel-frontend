@@ -1,3 +1,4 @@
+import PhoneInput from '../common/PhoneInput';
 import TinzelLogo from '../common/TinzelLogo';
 import SoftFlutter from '../common/SoftFlutter';
 import React, { useState } from 'react';
@@ -150,7 +151,7 @@ export default function OrderFollowUpModal({ open, onCancel, onSuccess }) {
               >
                 {t('follow.whatsapp')}
               </label>
-              <Input
+              <PhoneInput as={Input}
                 id="follow-up-whatsapp"
                 size="large"
                 placeholder="e.g. +255712345678"

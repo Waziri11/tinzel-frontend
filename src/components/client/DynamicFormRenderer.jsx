@@ -1,3 +1,6 @@
+import { requirePhone } from '../../utils/phone';
+import { errorText } from '../../i18n/errors';
+import PhoneInput from '../common/PhoneInput';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -143,7 +146,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         if (active) setForm(data.form);
       })
       .catch((err) => {
-        if (active) setError(err.message || t('form.loadFailed'));
+        if (active) setError(errorText(err.message, err.status) || t('form.loadFailed'));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -188,14 +191,14 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       setError(null);
       await uploads.add(fieldId, files);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err.message, err.status));
     }
   };
   const removeFieldPhoto = async (fieldId, index) => {
     try {
       await uploads.remove(fieldPhotos[fieldId][index].id);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err.message, err.status));
     }
   };
 
@@ -230,7 +233,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     try {
       const result = await uploads.submit({
         clientName: clientName.trim(),
-        clientWhatsApp: clientWhatsApp.trim(),
+        clientWhatsApp: requirePhone(clientWhatsApp),
         clientEmail: clientEmail.trim(),
         clientPreferredLanguage: lang || 'sw',
         answers,
@@ -243,7 +246,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         /* optional recovery */
       }
     } catch (err) {
-      setError(err.message || t('form.errSubmit'));
+      setError(errorText(err.message, err.status) || t('form.errSubmit'));
     } finally {
       setSubmitting(false);
     }
@@ -472,7 +475,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               try {
                 await uploads.remove(id);
               } catch (err) {
-                setError(err.message);
+                setError(errorText(err.message, err.status));
               }
             }}
             onContinue={() => {
@@ -571,7 +574,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 >
                   {t('form.whatsapp')}
                 </label>
-                <input
+                <PhoneInput
                   id="magazine-client-whatsapp"
                   type="tel"
                   autoComplete="tel"

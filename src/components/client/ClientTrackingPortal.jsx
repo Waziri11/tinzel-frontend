@@ -1,3 +1,4 @@
+import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import React, { lazy, useState, useEffect, useCallback, useRef } from 'react';
@@ -392,7 +393,7 @@ export default function ClientTrackingPortal() {
                 >
                   {t('track.login.whatsapp')}
                 </label>
-                <input
+                <PhoneInput
                   id="track-login-whatsapp"
                   type="tel"
                   autoComplete="tel"

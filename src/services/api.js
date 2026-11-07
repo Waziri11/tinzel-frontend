@@ -1,3 +1,4 @@
+import { normalizePhonePayload } from './phonePayload';
 import { uploadMultipart } from './uploadTransport';
 import { runTransfer, readDownload, saveDownload } from './fileTransfers';
 import { errorText } from '../i18n/errors';
@@ -26,7 +27,14 @@ export const fetchWithTimeout = async (
     ? AbortSignal.any([options.signal, timeoutSignal])
     : timeoutSignal;
   try {
-    const response=await csrf.send(url, { ...options, signal });
+    let body = options.body;
+    if (typeof body === 'string' && new Headers(options.headers).get('content-type')?.includes('application/json')) {
+      body = JSON.stringify(normalizePhonePayload(JSON.parse(body)));
+    } else if (typeof FormData !== 'undefined' && body instanceof FormData && body.has('clientWhatsApp')) {
+      const canonical = normalizePhonePayload({ clientWhatsApp: body.get('clientWhatsApp') });
+      body.set('clientWhatsApp', canonical.clientWhatsApp);
+    }
+    const response=await csrf.send(url, { ...options, body, signal });
     const data=response.headers.get('content-type')?.includes('application/json')?await response.clone().json().catch(()=>({})):{};
     if(response.status===403 && data.errorCode==='OTP_REQUIRED' && !options._verifiedRetry){
       if(!pendingStepUp)pendingStepUp=otpFlow({channel:'sms'},'step-up').finally(()=>{pendingStepUp=null;});
@@ -49,6 +57,7 @@ export const fetchWithTimeout = async (
       timeoutErr.retryable = true;
       throw timeoutErr;
     }
+    if (err?.status === 400) err.message = errorText(err.message, 400);
     throw err;
   }
 };
@@ -73,6 +82,7 @@ const notifyUnauthorized = (res, message) => {
     return;
   }
   if(/^\/api\/staff\/(?:otp|step-up|contact|recovery)(?:\/|$)/.test(path))return;
+  if (/^\/api\/client\/(?:request-otp|verify-otp)$/.test(path)) return;
   const client = /^\/api\/(?:client(?:\/|$)|proofs\/client(?:\/|$))/.test(path);
   const staff =
     /^\/api\/(?:staff|admin|manager|designer|notifications|proofs\/staff)(?:\/|$)/.test(

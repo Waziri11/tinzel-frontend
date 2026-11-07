@@ -1,3 +1,4 @@
+import PhoneInput from './PhoneInput';
 import PageSkeleton from './PageSkeleton';
 import { ActionButton } from './SoftFlutter';
 import React, { useEffect, useState } from 'react';
@@ -39,7 +40,7 @@ export default function AccountSecurity({ user }) {
         setMessage(t('Phone verified. The account owner can now use Forgot password.', 'Simu imethibitishwa. Mwenye akaunti anaweza kutumia Umesahau nenosiri.')); setEmail(''); setPhone(''); setEvidence(''); setConfirmed(false);
       }); }}>
         <label>{t('Staff email', 'Barua pepe ya mfanyakazi')}<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>
-        <label>{t('Replacement phone', 'Simu mpya')}<input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} /></label>
+        <label>{t('Replacement phone', 'Simu mpya')}<PhoneInput type="tel" required value={phone} onChange={e => setPhone(e.target.value)} /></label>
         <label>{t('Verification method and case reference', 'Njia ya uthibitishaji na rejea ya tukio')}<textarea minLength={20} maxLength={500} required value={evidence} onChange={e => setEvidence(e.target.value)} /></label>
         <label className="trust-choice"><input type="checkbox" required checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />{t('I independently verified this person’s identity.', 'Nimethibitisha utambulisho wa mtu huyu kwa njia huru.')}</label>
         <ActionButton loading={busy} disabled={busy}>{t('Verify replacement phone by SMS', 'Thibitisha simu mpya kwa SMS')}</ActionButton>

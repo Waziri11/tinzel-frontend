@@ -1,3 +1,4 @@
+import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect } from 'react';
@@ -204,6 +205,8 @@ export default function AdminSystemSettings({ token }) {
                     <option value="en">English</option>
                     <option value="sw">Kiswahili</option>
                   </select>
+                ) : key.includes('phone') ? (
+                  <PhoneInput value={config[key] || ''} onChange={e => setConfig(x => ({ ...x, [key]: e.target.value }))} />
                 ) : key === 'payment_instructions' ? (
                   <textarea
                     maxLength={2000}
@@ -327,6 +330,9 @@ export default function AdminSystemSettings({ token }) {
                           </option>
                         ))}
                       </select>
+                    ) : ['TWILIO_PHONE_NUMBER', 'TWILIO_WHATSAPP_NUMBER'].includes(field.name) ? (
+                      <PhoneInput value={drafts[provider.provider]?.[field.name] ?? field.value ?? ''}
+                        onChange={e => setDrafts(x => ({ ...x, [provider.provider]: { ...x[provider.provider], [field.name]: e.target.value } }))} />
                     ) : (
                       <input
                         type={field.secret ? 'password' : 'text'}

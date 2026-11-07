@@ -1,3 +1,4 @@
+import PhoneInput from './PhoneInput';
 import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
 import React, { useState } from 'react';
@@ -145,7 +146,7 @@ export default function StaffProfile({
               </label>
               <label>
                 {t('Phone', 'Simu')}
-                <input
+                <PhoneInput
                   required
                   type="tel"
                   value={phone}

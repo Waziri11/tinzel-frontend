@@ -1,3 +1,4 @@
+import PhoneInput from './PhoneInput';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import PageSkeleton from './PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -3424,9 +3425,9 @@ export default function NotificationsPage({
                       Phone Number (NextSMS / WhatsApp)
                     </InterfaceText>
                   </label>
-                  <input
+                  <PhoneInput
                     id={`control-102285`}
-                    type="text"
+                    type="tel"
                     placeholder="+255762022730"
                     value={composeForm.phone}
                     onChange={(e) =>

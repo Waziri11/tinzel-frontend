@@ -1,3 +1,4 @@
+import PhoneInput from '../common/PhoneInput';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -1571,7 +1572,7 @@ export default function StaffWorkloadManager({
                 >
                   <InterfaceText>Phone</InterfaceText>
                 </label>
-                <input
+                <PhoneInput
                   aria-label={tx('Phone')}
                   required
                   type="tel"
@@ -1881,7 +1882,7 @@ export default function StaffWorkloadManager({
                 </label>
                 <label>
                   <InterfaceText>Phone</InterfaceText>
-                  <input
+                  <PhoneInput
                     type="tel"
                     value={userForm.phone}
                     onChange={(e) =>

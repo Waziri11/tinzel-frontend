@@ -5,6 +5,8 @@ export function errorText(message, status) {
     lang = localStorage.getItem('tinzel_language') || 'en';
   } catch {}
   if (lang !== 'sw') return message;
+  if (/Local numbers use \+255/i.test(message)) return 'Weka namba sahihi ya simu. Namba za Tanzania hutumia +255; za nchi nyingine zinahitaji msimbo wa nchi.';
+  if (/SMS verification is currently available only/i.test(message)) return 'Uthibitishaji wa SMS unapatikana kwa namba za Tanzania (+255) pekee kwa sasa.';
   const translated = translateUI(message, lang);
   if (translated !== message) return translated;
   if (/security check|security verification is unavailable/i.test(message)) return 'Ukaguzi wa usalama haujakamilika. Jaribu tena.';
