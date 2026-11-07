@@ -28,7 +28,7 @@ export const trackingTranslations = {
   'track.status.closed': { en: 'closed', sw: 'imefungwa' },
 
   // Messages
-  'track.err.sessionExpired': { en: 'Session expired. Please log in again.', sw: 'Muda wa kikao umeisha. Tafadhali ingia tena.' },
+  'track.err.sessionExpired': { en: 'Please enter your tracking details to verify access again.', sw: 'Tafadhali weka taarifa za ufuatiliaji ili kuthibitisha ufikiaji tena.' },
   'track.err.enterBoth': { en: 'Enter your order ID and phone number.', sw: 'Weka namba ya oda na ya simu.' },
   'track.ok.otpSent': { en: 'We sent a six-digit code by SMS.', sw: 'Tumetuma msimbo wa tarakimu sita kwa SMS.' },
   'track.err.requestOtp': { en: 'Failed to request OTP', sw: 'Imeshindwa kuomba OTP' },

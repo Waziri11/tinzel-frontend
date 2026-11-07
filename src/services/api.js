@@ -104,10 +104,10 @@ const notifyUnauthorized = (res, message) => {
     );
 };
 
-const handleResponse = async (res) => {
+const handleResponse = async (res, { silentUnauthorized = false } = {}) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    notifyUnauthorized(res, data.message);
+    if (!silentUnauthorized) notifyUnauthorized(res, data.message);
     const defaultMsg =
       res.status === 413
         ? 'Upload is too large for a single request. Please try fewer or smaller photos.'
@@ -250,10 +250,10 @@ export const api = {
         body: JSON.stringify({ trackingId, otp }),
       }).then(handleResponse),
 
-    getOrder: (clientToken) =>
+    getOrder: (clientToken, { silentUnauthorized = false } = {}) =>
       fetchWithTimeout(`${API_BASE}/api/client/order`, {
         headers: getHeaders(clientToken),
-      }).then(handleResponse),
+      }).then(res => handleResponse(res, { silentUnauthorized })),
 
     approveDraft: (clientToken, feedback, expectedVersion) =>
       fetchWithTimeout(`${API_BASE}/api/client/approve-draft`, {

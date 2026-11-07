@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 for (const [index, lang] of ['en', 'sw'].entries()) {
-  test(`local phone and padded ID complete tracking in ${lang}`, async ({ page }, info) => {
+  test(`local phone and padded ID complete tracking in ${lang}`, async ({ page, context }, info) => {
     await page.setViewportSize({ width: lang === 'sw' ? 390 : 1280, height: 900 });
     await page.addInitScript(language => localStorage.setItem('tinzel_language', language), lang);
     await page.goto('/track');
     await expect(page.locator('#tinzel-intro')).toBeHidden({ timeout: 15000 });
     await page.locator('#track-login-id').fill(`TNZ-2026-0${9998 + index}`);
+    await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(page.locator('#track-login-id')).toHaveValue(`TNZ-2026-0${9998 + index}`);
     const phone = page.locator('#track-login-whatsapp');
     await phone.fill('+254 712 345 678'); await phone.blur(); await expect(phone).toHaveValue('+254712345678');
@@ -33,5 +34,10 @@ for (const [index, lang] of ['en', 'sw'].entries()) {
     await page.screenshot({ path: info.outputPath(`tracking-${lang}.png`), fullPage: true });
     await page.reload();
     await expect(page.getByText(`TNZ-2026-${9998 + index}`, { exact: true })).toBeVisible();
+    // An expired short session can still resume through the remembered device.
+    await context.clearCookies({ name: 'tinzel_client' });
+    await page.reload();
+    await expect(page.getByText(`TNZ-2026-${9998 + index}`, { exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }

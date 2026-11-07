@@ -75,7 +75,8 @@ export default function ClientTrackingPortal() {
     try {
       let data;
       try {
-        data = await api.client.getOrder(token);
+        // Missing access is expected when a customer first opens tracking.
+        data = await api.client.getOrder(token, { silentUnauthorized: restore });
       } catch (err) {
         const lastSubmission = localStorage.getItem('tinzel_tracking_reference');
         if (!restore || !lastSubmission || err.status !== 401) throw err;
@@ -84,7 +85,7 @@ export default function ClientTrackingPortal() {
           localStorage.removeItem('tinzel_tracking_reference');
           throw err;
         }
-        data = await api.client.getOrder(resumed.clientToken);
+        data = await api.client.getOrder(resumed.clientToken, { silentUnauthorized: restore });
       }
       setError(null);
       setClientToken(token);
@@ -92,10 +93,13 @@ export default function ClientTrackingPortal() {
       const reference = data.order.submissionId || data.order.trackingId;
       if (reference) localStorage.setItem('tinzel_tracking_reference', reference);
     } catch (err) {
-      setError(err.message || t('track.err.sessionExpired'));
+      const accessRejected = err.status === 401 || err.status === 403;
+      setError(accessRejected
+        ? (restore ? null : t('track.err.sessionExpired'))
+        : (err.message || t('track.err.sessionExpired')));
       // Only clear credentials if access is rejected by the server (401/403)
       // Preserve session and allow retry on 5xx server issues or network drops
-      if (err.status === 401 || err.status === 403) {
+      if (accessRejected) {
         setClientToken('');
         sessionStorage.removeItem('tinzel_client_token');
       }
@@ -162,9 +166,9 @@ export default function ClientTrackingPortal() {
     setSuccessMsg(null);
   }, []);
   useEffect(() => {
-    const expired = (event) => {
+    const expired = () => {
       clearSession();
-      setError(event.detail?.message || t('track.err.sessionExpired'));
+      setError(t('track.err.sessionExpired'));
     };
     window.addEventListener('tinzel:client:unauthorized', expired);
     return () => window.removeEventListener('tinzel:client:unauthorized', expired);
