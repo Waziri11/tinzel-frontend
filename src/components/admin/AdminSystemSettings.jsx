@@ -1,3 +1,4 @@
+import PaymentOptionsSettings from './PaymentOptionsSettings';
 import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
@@ -14,7 +15,6 @@ const operationalFields = [
   ['printer_preferred_language', 'Printer language', 'Lugha ya mchapishaji'],
   ['support_phone', 'Support phone', 'Simu ya msaada'],
   ['support_email', 'Support email', 'Barua pepe ya msaada'],
-  ['payment_instructions', 'Payment instructions', 'Maelekezo ya malipo'],
   [
     'default_max_workload',
     'Default designer capacity',
@@ -120,6 +120,14 @@ export default function AdminSystemSettings({ token }) {
         </ActionButton>
       )}
       <div className="system-settings-grid">
+        <PaymentOptionsSettings value={config.payment_options}
+          onChange={value => setConfig(current => ({ ...current, payment_options: value }))}
+          disabled={!configLoaded || !!error.config} busy={busy.payment_options} feedback={feedback('payment_options')}
+          onSave={() => run('payment_options', async () => {
+            const result = await api.admin.updateConfig(token, { key: 'payment_options', value: config.payment_options || [] });
+            setConfig(current => ({ ...current, payment_options: result.config.value }));
+            setNotice(current => ({ ...current, payment_options: t('Payment options saved.', 'Njia za malipo zimehifadhiwa.') }));
+          })} />
         <article className="system-settings-card">
           <h3>{t('Magazine history retention', 'Muda wa kuhifadhi historia ya magazeti')}</h3>
           <form onSubmit={event => {
@@ -207,14 +215,6 @@ export default function AdminSystemSettings({ token }) {
                   </select>
                 ) : key.includes('phone') ? (
                   <PhoneInput value={config[key] || ''} onChange={e => setConfig(x => ({ ...x, [key]: e.target.value }))} />
-                ) : key === 'payment_instructions' ? (
-                  <textarea
-                    maxLength={2000}
-                    value={config[key] || ''}
-                    onChange={(e) =>
-                      setConfig((x) => ({ ...x, [key]: e.target.value }))
-                    }
-                  />
                 ) : (
                   <input
                     type={

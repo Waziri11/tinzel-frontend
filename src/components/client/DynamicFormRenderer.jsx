@@ -307,6 +307,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         </div>
         <LipaNambaScreen
           order={{ ...submissionResult.order, formTitle: L(form, 'title') || submissionResult.order?.formTitle }}
+          paymentOptions={submissionResult.paymentOptions}
           lipaNambaInstructions={submissionResult.lipaNambaInstructions}
           onNavigateToTracking={onNavigateToTracking}
         />

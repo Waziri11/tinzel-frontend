@@ -134,8 +134,8 @@ export const translations = {
   'form.durationPh': { en: 'e.g. 1 hour 30 minutes', sw: 'mf. saa 1 dakika 30' },
   'form.readyTitle': { en: 'Ready to immortalize your story?', sw: 'Uko tayari kuifanya hadithi yako idumu?' },
   'form.readyDesc': {
-    en: 'Submit your magazine details to continue to Lipa Namba payment.',
-    sw: 'Wasilisha taarifa za jarida lako ili kuendelea kwenye malipo ya Lipa Namba.',
+    en: 'Submit your magazine details to continue to payment.',
+    sw: 'Wasilisha taarifa za jarida lako ili kuendelea kwenye malipo.',
   },
   'form.submitting': { en: 'Submitting Order...', sw: 'Inawasilisha Oda...' },
   'form.continuePay': { en: 'Continue to Payment', sw: 'Endelea kwenye Malipo' },
@@ -159,10 +159,6 @@ export const translations = {
   'pay.copied': { en: 'Copied', sw: 'Imenakiliwa' },
   'pay.amount': { en: 'Amount to Pay:', sw: 'Kiasi cha Kulipa:' },
   'pay.account': { en: 'Account Name:', sw: 'Jina la Akaunti:' },
-  'pay.defaultInstr': {
-    en: '1. Dial *150*00# (M-Pesa) or *150*01# (Tigo Pesa).\n2. Choose Pay by Phone -> Lipa Namba.\n3. Enter Lipa Namba 55667788 and your name as reference.',
-    sw: '1. Piga *150*00# (M-Pesa) au *150*01# (Tigo Pesa).\n2. Chagua Lipa kwa Simu -> Lipa Namba.\n3. Weka Lipa Namba 55667788 na jina lako kama kumbukumbu.',
-  },
   'pay.verify': { en: 'Verifications typically take 5-15 minutes', sw: 'Uthibitisho kwa kawaida huchukua dakika 5-15' },
   'pay.goTracking': { en: 'Go to Tracking Portal', sw: 'Nenda kwenye Ufuatiliaji' },
 };

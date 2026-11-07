@@ -88,9 +88,6 @@ export default function FormBuilder({ token }) {
   const [price, setPrice] = useState(75000);
   const [currency, setCurrency] = useState('TZS');
   const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [tillNumber, setTillNumber] = useState('55667788');
-  const [accountName, setAccountName] = useState('Tinzel Media Ltd');
-  const [instructions, setInstructions] = useState('Lipa kupitia Lipa Namba 55667788.');
   const [sections, setSections] = useState([
     { sectionId: 'sec_1', title: 'The Celebrants', description: 'Personal details and names', order: 1 },
   ]);
@@ -109,9 +106,6 @@ export default function FormBuilder({ token }) {
     price,
     currency,
     coverImageUrl,
-    tillNumber,
-    accountName,
-    instructions,
     sections,
     fields,
   });
@@ -169,9 +163,6 @@ export default function FormBuilder({ token }) {
     setPrice(form.price ?? 75000);
     setCurrency(form.currency || 'TZS');
     setCoverImageUrl(form.coverImageUrl || '');
-    setTillNumber(form.lipaNambaInstructions?.tillNumber || '55667788');
-    setAccountName(form.lipaNambaInstructions?.accountName || 'Tinzel Media Ltd');
-    setInstructions(form.lipaNambaInstructions?.instructions || '');
 
     if (form.sections && form.sections.length > 0) {
       setSections(form.sections);
@@ -210,9 +201,6 @@ export default function FormBuilder({ token }) {
     setPrice(75000);
     setCurrency('TZS');
     setCoverImageUrl(''); // Empty - user is REQUIRED to upload a cover
-    setTillNumber('55667788');
-    setAccountName('Tinzel Media Ltd');
-    setInstructions('Lipa kupitia Lipa Namba 55667788.');
     setSections([
       {
         sectionId: 'sec_1',
@@ -408,11 +396,6 @@ export default function FormBuilder({ token }) {
       price: Number(price),
       currency,
       coverImageUrl: coverImageUrl.trim(),
-      lipaNambaInstructions: {
-        tillNumber,
-        accountName,
-        instructions,
-      },
       sections,
       fields,
     };

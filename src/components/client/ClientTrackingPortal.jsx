@@ -1,3 +1,4 @@
+import PaymentOptions from './PaymentOptions';
 import RevisionAudioInput from '../common/RevisionAudioInput';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import PhoneInput from '../common/PhoneInput';
@@ -646,23 +647,7 @@ export default function ClientTrackingPortal() {
           <p style={{ fontSize: '13px', color: '#1E3A8A', marginBottom: '12px', lineHeight: '1.5' }}>
             {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
           </p>
-          {order.lipaNambaInstructions?.tillNumber && (
-            <div
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #93C5FD',
-                borderRadius: '6px',
-                padding: '8px 14px',
-                fontSize: '13px',
-                color: '#1E3A8A',
-                fontWeight: '600',
-              }}
-            >
-              Till: {order.lipaNambaInstructions.tillNumber} (
-              {order.lipaNambaInstructions.accountName || 'Tinzel Media Ltd'})
-            </div>
-          )}
+          <PaymentOptions paymentOptions={order.paymentOptions} lipaNambaInstructions={order.lipaNambaInstructions} />
         </div>
       )}
 

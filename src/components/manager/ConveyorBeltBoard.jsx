@@ -1076,7 +1076,7 @@ function ActionModal({
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const titles = {
-    payment: 'Verify Lipa Namba payment',
+    payment: 'Verify payment',
     print: 'Authorize printing',
     printer: 'Record printer progress',
     dispatch: 'Authorize courier dispatch',
@@ -1131,7 +1131,7 @@ function ActionModal({
                   required
                   value={form.paymentRef}
                   onChange={update('paymentRef')}
-                  placeholder={tx('Recorded Lipa Namba reference')}
+                  placeholder={tx('Payment reference')}
                 />
               </label>
               <label>

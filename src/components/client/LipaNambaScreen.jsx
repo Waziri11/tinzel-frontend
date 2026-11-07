@@ -1,25 +1,10 @@
-import { ActionButton } from '../common/SoftFlutter';
-import React, { useState } from 'react';
-import { CreditCard, CheckCircle2, Copy, Clock, ArrowRight, ShieldAlert, Smartphone } from 'lucide-react';
+import PaymentOptions from './PaymentOptions';
+import React from 'react';
+import { CreditCard, Clock, ArrowRight, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 
-export default function LipaNambaScreen({ order, lipaNambaInstructions, onNavigateToTracking }) {
-  const { t, isSwahili } = useLanguage();
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
-
-  const copyTillNumber = async () => {
-    if (!lipaNambaInstructions?.tillNumber) return;
-    try {
-      await navigator.clipboard.writeText(lipaNambaInstructions.tillNumber);
-      setCopied(true);
-      setCopyError(false);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopyError(true);
-    }
-  };
-
+export default function LipaNambaScreen({ order, paymentOptions, lipaNambaInstructions, onNavigateToTracking }) {
+  const { t } = useLanguage();
   return (
     <div className="payment-page" style={{ maxWidth: '680px', margin: '0 auto', overflowWrap: 'anywhere' }}>
       <div
@@ -107,93 +92,10 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           </div>
         </div>
 
-        {/* Lipa Namba Details Box */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-primary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '24px',
-            marginBottom: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Smartphone size={18} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '16px', fontWeight: '600' }}>{t('pay.instrTitle')}</h2>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
-              gap: '16px',
-              marginBottom: '20px',
-            }}
-          >
-            <div>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                {t('pay.till')}
-              </span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '1px', color: '#8A6A30' }}>
-                  {lipaNambaInstructions?.tillNumber || (isSwahili ? 'Haijapatikana' : 'Unavailable')}
-                </span>
-                <ActionButton
-                  disabled={!lipaNambaInstructions?.tillNumber}
-                  onClick={copyTillNumber}
-                  style={{
-                    backgroundColor: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-main)',
-                    borderRadius: '4px',
-                    padding: '4px 8px',
-                    fontSize: '11px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Copy size={12} />
-                  {copied ? t('pay.copied') : t('pay.copy')}
-                </ActionButton>
-              </div>
-            </div>
-
-            <div>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                {t('pay.amount')}
-              </span>
-              <span style={{ fontSize: '22px', fontWeight: '800', color: '#356148' }}>
-                {order?.price?.toLocaleString()} {order?.currency || 'TZS'}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
-            <span style={{ display: 'block', fontWeight: '600', color: 'var(--text-main)', marginBottom: '4px' }}>
-              {t('pay.account')}
-            </span>
-            {lipaNambaInstructions?.accountName || '—'}
-          </div>
-
-          <div
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '6px',
-              padding: '12px 14px',
-              fontSize: '13px',
-              lineHeight: '1.5',
-            }}
-          >
-            {isSwahili
-              ? lipaNambaInstructions?.instructionsSw || lipaNambaInstructions?.instructions || t('pay.defaultInstr')
-              : lipaNambaInstructions?.instructions || t('pay.defaultInstr')}
-          </div>
+        <div style={{ marginBottom: 24 }}>
+          <p><strong>{t('pay.amount')}</strong> {order?.price?.toLocaleString()} {order?.currency || 'TZS'}</p>
+          <PaymentOptions paymentOptions={paymentOptions} lipaNambaInstructions={lipaNambaInstructions} />
         </div>
-
-        {copyError && (
-          <p role="alert">{isSwahili ? 'Nakili namba iliyo juu kwa mkono.' : 'Copy the till number above manually.'}</p>
-        )}
         {/* Bottom Actions */}
         <div
           style={{
