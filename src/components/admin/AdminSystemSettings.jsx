@@ -3,6 +3,7 @@ import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+const retentionKey = 'magazine_retention_days';
 const verificationKey = 'staff_login_verification_hours';
 const verificationIntervals = [[0, 'Every login', 'Kila kuingia'], [1, '1 hour', 'Saa 1'], [6, '6 hours', 'Saa 6'], [12, '12 hours', 'Saa 12'], [24, '1 day', 'Siku 1'], [72, '3 days', 'Siku 3'], [168, '7 days', 'Siku 7'], [336, '14 days', 'Siku 14'], [720, '30 days', 'Siku 30']];
 const operationalFields = [
@@ -118,6 +119,31 @@ export default function AdminSystemSettings({ token }) {
         </ActionButton>
       )}
       <div className="system-settings-grid">
+        <article className="system-settings-card">
+          <h3>{t('Magazine history retention', 'Muda wa kuhifadhi historia ya magazeti')}</h3>
+          <form onSubmit={event => {
+            event.preventDefault();
+            run(retentionKey, async () => {
+              const result = await api.admin.updateConfig(token, { key: retentionKey, value: Number(config[retentionKey] ?? 7) });
+              setConfig(current => ({ ...current, [retentionKey]: result.config.value }));
+              setNotice(current => ({ ...current, [retentionKey]: t('Retention period saved.', 'Muda wa kuhifadhi umehifadhiwa.') }));
+            });
+          }}>
+            <label htmlFor="magazine-retention-days">{t('Keep completed submissions for (days)', 'Hifadhi mawasilisho yaliyokamilika kwa (siku)')}</label>
+            <input id="magazine-retention-days" type="number" min="1" max="3650" step="1" required
+              aria-describedby="magazine-retention-help" value={config[retentionKey] ?? 7}
+              disabled={!configLoaded || busy[retentionKey] || !!error.config}
+              onChange={event => setConfig(current => ({ ...current, [retentionKey]: event.target.value }))} />
+            <p id="magazine-retention-help">{t(
+              'Default: 7 days after delivery or closure. Active orders stay available. After this period, the magazine, photos, drafts, submission details and related history are permanently deleted.',
+              'Kwa kawaida: siku 7 baada ya kuwasilishwa au kufungwa. Oda zinazoendelea zinabaki. Baada ya muda huu, gazeti, picha, rasimu, maelezo ya uwasilishaji na historia husika hufutwa kabisa.'
+            )}</p>
+            <p>{t('Applies to existing and future completed orders. Shortening this period can delete older submissions on the next cleanup. Deletion cannot be undone.', 'Inatumika kwa oda zilizokamilika sasa na zijazo. Kupunguza muda kunaweza kufuta mawasilisho ya zamani wakati wa usafishaji unaofuata. Ufutaji hauwezi kutenguliwa.')}</p>
+            {feedback(retentionKey)}
+            <ActionButton loading={busy[retentionKey]} className="ui-button" disabled={!configLoaded || busy[retentionKey] || !!error.config}>{t('Save retention period', 'Hifadhi muda wa kuhifadhi')}</ActionButton>
+          </form>
+        </article>
+
         <article className="system-settings-card">
           <h3>{t('Sign-in security', 'Usalama wa kuingia')}</h3>
           <form onSubmit={event => {

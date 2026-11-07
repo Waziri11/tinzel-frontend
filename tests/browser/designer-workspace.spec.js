@@ -11,7 +11,7 @@ async function setup(page) {
   await page.route('**/api/staff/preferences',route=>json(route,{success:true}));
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'designer-test'));
   await page.route('**/api/staff/me', (route) => json(route, { user: designer }));
-  await page.route((url) => url.pathname === '/api/designer/orders', (route) => json(route, { orders: [order] }));
+  await page.route((url) => url.pathname === '/api/designer/orders', (route) => { const orders = new URL(route.request().url()).searchParams.get('column') === 'client' ? [order] : []; return json(route, { orders, total: orders.length, pageCount: 1 }); });
   await page.route('**/api/designer/orders/order-1', (route) => json(route, { order, auditLogs: [{ _id: 'log-1', action: 'CLIENT_REVISION_REQUESTED', actor: { name: 'Asha Client' }, details: { feedback: 'Correct the date' }, createdAt: '2026-10-18T10:00:00Z' }] }));
   await page.route('**/api/designer/returns*', (route) => json(route, { returns: [{ orderId: order._id, trackingId: order.trackingId, clientName: order.clientName, ...request }], total: 1, page: 1, pageCount: 1 }));
   await page.route('**/api/designer/orders/order-1/returns/return-1/items/fix-1', (route) => json(route, { success: true }));

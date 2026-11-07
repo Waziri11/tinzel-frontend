@@ -1,5 +1,18 @@
 // Interface text only. User-authored stories, correction text and saved option values are never translated here.
 export const uiText = {
+  'New design orders': 'Oda mpya za usanifu',
+  'Returned by managers': 'Zimerudishwa na wasimamizi',
+  'Returned by client': 'Zimerudishwa na mteja',
+  'Assigned orders and designs awaiting review.': 'Oda ulizokabidhiwa na miundo inayosubiri ukaguzi.',
+  'Changes requested during manager review.': 'Marekebisho yaliyoombwa na msimamizi.',
+  'Changes requested by the client.': 'Marekebisho yaliyoombwa na mteja.',
+  'Approved designs, printing and delivered orders.': 'Miundo iliyoidhinishwa, uchapishaji na oda zilizowasilishwa.',
+  'No matching orders.': 'Hakuna oda zinazolingana.',
+  'No orders in this column.': 'Hakuna oda katika safu hii.',
+  'Previous page': 'Ukurasa uliotangulia',
+  'Next page': 'Ukurasa unaofuata',
+  'Pages': 'Kurasa',
+
   'You can continue working while your magazine uploads. Progress will appear at the bottom right.': 'Unaweza kuendelea kufanya kazi wakati jarida linapakiwa. Maendeleo yataonekana chini kulia.',
   'This order already has an upload in the upload panel.': 'Oda hii tayari ina upakiaji kwenye paneli ya upakiaji.',
   'Upload interrupted': 'Upakiaji umekatizwa',
