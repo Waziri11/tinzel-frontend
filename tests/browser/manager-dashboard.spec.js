@@ -38,6 +38,7 @@ async function openManagerDashboard(page) {
   await page.goto('/staff/design-phase');
   await chooseEnglish(page);
   await expect(page.getByText('Drafts to review')).toBeVisible();
+  await expect(page.locator('main')).not.toContainText(/TNZ-|SUB-/);
 }
 
 test('manager gets an action-first dashboard and complete draft review context', async ({ page }) => {
@@ -46,8 +47,8 @@ test('manager gets an action-first dashboard and complete draft review context',
   await expect(page.getByText('Drafts to review')).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Designer' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Review magazine', exact:true }).first()).toBeVisible();
-  await expect(page.getByText('TNZ-2026-0042', { exact: true })).toBeVisible();
-  await page.getByText('TNZ-2026-0042', { exact: true }).click();
+  await expect(page.getByText('Asha Mushi', { exact: true })).toBeVisible();
+  await page.getByText('Asha Mushi', { exact: true }).click();
   await expect(page.getByText('Review the entire magazine before deciding.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Review magazine', exact:true }).last()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open complete draft' })).toHaveCount(0);
@@ -61,7 +62,7 @@ test('manager gets an action-first dashboard and complete draft review context',
   await page.getByRole('button', {name:'Review magazine version 2',exact:true}).click();
   await expect(page).toHaveURL(/staff\/review\//);
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Forms', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Forms', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Design', exact: true })).toHaveCount(0);
 });
 
@@ -90,7 +91,7 @@ test('manager dashboard remains readable and actionable on a phone', async ({ pa
   await page.getByLabel('Board stage').selectOption('draft_manager_review');
   await expect(page.locator('.manager-board-column')).toHaveCount(6);
   await expect(page.locator('.manager-board-column:visible')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Open TNZ-2026-0042/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Open Asha Mushi/ })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   expect(overflow).toBe(false);
 });
@@ -101,8 +102,8 @@ test('board uses compact stage rows and supports keyboard detail access', async 
   await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
   await expect(page.locator('.manager-board-column')).toHaveCount(6);
   await expect(page.locator('.manager-stage-row')).toHaveCount(2);
-  const draftRow = page.getByRole('button', { name: /Open TNZ-2026-0042/ });
-  await expect(draftRow).toContainText('TNZ-2026-0042');
+  const draftRow = page.getByRole('button', { name: /Open Asha Mushi/ });
+  await expect(draftRow).toContainText('Asha Mushi');
   await expect(draftRow).toContainText('Asha Mushi');
   await expect(draftRow).toContainText('Juma Designer');
   await expect(draftRow).not.toContainText('Photos');
@@ -168,7 +169,7 @@ test('assignment conflicts retain instructions and require checking the saved or
  await openManagerDashboard(page);const assigned={...baseOrder,status:'assigned'};
  await page.route('**/api/manager/orders/order-1',route=>json(route,{order:assigned,auditLogs:[]}));
  await page.route('**/api/manager/orders/order-1/reassign',route=>route.fulfill({status:409,json:{message:'Designer capacity changed. Choose another designer.'}}));
- await page.getByText('TNZ-2026-0042',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Reassign',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Assign designer'});
+ await page.getByText('Asha Mushi',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Reassign',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Assign designer'});
  await dialog.getByLabel('Reason for assignment').fill('Preserve this instruction after a conflict.');await dialog.getByRole('button',{name:'Assign designer',exact:true}).click();
  await expect(dialog.getByRole('alert')).toContainText('capacity');await expect(dialog.getByLabel('Reason for assignment')).toHaveValue('Preserve this instruction after a conflict.');await expect(dialog.getByRole('button',{name:'Assign designer',exact:true})).toBeDisabled();await dialog.getByRole('button',{name:'Check saved order'}).click();await expect(dialog).toHaveCount(0);
 });
@@ -177,7 +178,7 @@ test('unconfigured printing remains blocked in the manager action dialog',async(
  await openManagerDashboard(page);
  await page.route('**/api/manager/settings',route=>json(route,{printer:{configured:false}}));
  await page.route('**/api/manager/orders/order-1',route=>json(route,{order:{...baseOrder,status:'print_manager_review'},auditLogs:[]}));
- await page.reload();await page.getByText('TNZ-2026-0042',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Authorize printing',exact:true}).click();
+ await page.reload();await page.getByText('Asha Mushi',{exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'Authorize printing',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Authorize printing'});await expect(dialog.getByText('No verified printer is configured. Ask an administrator to configure it first.')).toBeVisible();await expect(dialog.getByRole('button',{name:'Authorize printing',exact:true})).toBeDisabled();
 });
 
@@ -218,7 +219,7 @@ test('refresh keeps existing orders visible and uses flutter instead of page ske
   });
   try {
     await page.getByRole('button', { name: 'Refresh orders', exact: true }).click();
-    await expect(page.getByText('TNZ-2026-0042', { exact: true })).toBeVisible();
+    await expect(page.getByText('Asha Mushi', { exact: true })).toBeVisible();
     await expect(page.locator('.page-skeleton')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Refresh orders', exact: true }).locator('.soft-flutter')).toHaveCount(1);
   } finally { release(); }

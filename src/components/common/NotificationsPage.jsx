@@ -1,4 +1,4 @@
-import { hideSubmissionReference } from '../../utils/orderDisplay';
+import { staffOrderText, orderSenderName } from '../../utils/orderDisplay';
 import PhoneInput from './PhoneInput';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import PageSkeleton from './PageSkeleton';
@@ -68,9 +68,9 @@ const DEFAULT_TRIGGER_CATALOG = [
   },
   {
     key: 'payment_verified',
-    label: 'Payment Verified & Tracking ID Issued',
+    label: 'Payment verified',
     description:
-      'Triggered when a manager verifies Lipa Namba payment and generates a Tracking ID.',
+      'Triggered when a manager verifies payment.',
     category: 'Pre-Design',
     recipient: 'Client',
     defaults: { enabled: true, in_system: true, email: true, sms: true },
@@ -2864,11 +2864,8 @@ export default function NotificationsPage({
                   primary.orderId && typeof primary.orderId === 'object'
                     ? primary.orderId
                     : null;
-                const orderTracking =
-                  orderObj?.trackingId ||
-                  primary.metadata?.trackingId ||
-                  orderObj?.clientName ||
-                  null;
+                const displayOrder = orderObj || { clientName: primary.metadata?.clientName };
+                const orderName = orderSenderName(displayOrder, '');
                 const orderTargetId =
                   orderObj?._id ||
                   (typeof primary.orderId === 'string'
@@ -2940,7 +2937,7 @@ export default function NotificationsPage({
                             color: 'var(--text-main)',
                           }}
                         >
-                          {hideSubmissionReference(primary.title || primary.subject) || formatTemplate(primary.template)}
+                          {staffOrderText(primary.title || primary.subject, displayOrder) || formatTemplate(primary.template)}
                         </strong>
 
                         <span
@@ -2956,7 +2953,7 @@ export default function NotificationsPage({
                           {formatTemplate(primary.template)}
                         </span>
 
-                        {orderTracking && (
+                        {orderName && (
                           <span
                             style={{
                               padding: '2px 8px',
@@ -2967,7 +2964,7 @@ export default function NotificationsPage({
                               fontWeight: 800,
                             }}
                           >
-                            {hideSubmissionReference(orderTracking)}
+                            {orderName}
                           </span>
                         )}
                       </div>
@@ -2999,7 +2996,7 @@ export default function NotificationsPage({
                         padding: '10px 12px',
                       }}
                     >
-                      {hideSubmissionReference(primary.message)}
+                      {staffOrderText(primary.message, displayOrder)}
                     </div>
 
                     {/* Tri-Channel Synchronization Badges (In-System + Email + Phone) */}
@@ -3134,7 +3131,7 @@ export default function NotificationsPage({
                               · {item.attempts || 0}{' '}
                               <InterfaceText>/5 attempts</InterfaceText>{' '}
                               {item.errorMessage
-                                ? ` — ${item.errorMessage}`
+                                ? ` — ${staffOrderText(item.errorMessage, displayOrder)}`
                                 : ''}
                               {item.nextAttemptAt && item.retryable
                                 ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}`

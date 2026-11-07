@@ -1,3 +1,4 @@
+import { orderSenderName } from '../../utils/orderDisplay';
 import { ActionButton } from '../common/SoftFlutter';
 import { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useRef, useState } from 'react';
@@ -51,10 +52,10 @@ function BoardColumn({ column, token, search, refresh, onOpenOrder }) {
           : data.orders.length === 0 ? <p className="designer-kanban-empty">{tx(search ? 'No matching orders.' : 'No orders in this column.')}</p>
           : data.orders.map(order => (
             <article className="designer-kanban-card" key={order._id}>
-              <div className="designer-kanban-card-top"><strong>{order.trackingId || order.clientName}</strong><span className="designer-status" data-status={order.status}>{tx(order.status.replaceAll('_', ' '))}</span></div>
-              <h3>{order.clientName}</h3><p>{order.formTitle}</p>
+              <div className="designer-kanban-card-top"><strong>{orderSenderName(order, tx('Unnamed customer'))}</strong><span className="designer-status" data-status={order.status}>{tx(order.status.replaceAll('_', ' '))}</span></div>
+              <h3>{order.formTitle}</h3>
               <div className="designer-kanban-card-bottom"><small>{tx('Updated')} {new Date(order.updatedAt).toLocaleDateString()}</small>
-                <button type="button" onClick={() => onOpenOrder(order._id)} aria-label={`${tx('Open')} ${order.trackingId || order.clientName}`}>{tx('Open')}<ArrowRight size={15} /></button>
+                <button type="button" onClick={() => onOpenOrder(order._id)} aria-label={`${tx('Open')} ${orderSenderName(order, tx('Unnamed customer'))}`}>{tx('Open')}<ArrowRight size={15} /></button>
               </div>
             </article>
           ))}
@@ -88,7 +89,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
       <div className="designer-page-title"><div><h1>{tx('Design orders')}</h1><p>{tx('Open an order to work with its files, drafts and revision history.')}</p></div>
         <ActionButton type="button" className="secondary-button" onClick={() => setRefresh(n => n + 1)}><RefreshCw size={16} />{tx('Refresh')}</ActionButton>
       </div>
-      <div className="designer-kanban-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label={tx('Search orders')} placeholder={tx('Search order ID or client...')} value={search} onChange={event => setSearch(event.target.value)} /></div>
+      <div className="designer-kanban-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label={tx('Search orders')} placeholder={tx('Search by client name')} value={search} onChange={event => setSearch(event.target.value)} /></div>
       <div className="designer-kanban">{COLUMNS.map(column => <BoardColumn key={column.id} column={column} token={token} search={debouncedSearch} refresh={refresh} onOpenOrder={onOpenOrder} />)}</div>
     </section>
   );

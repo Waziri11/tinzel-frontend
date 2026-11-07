@@ -577,6 +577,12 @@ Object.assign(uiText, {
   'Save printer language': 'Hifadhi lugha ya mchapishaji',
   'Scale maximum': 'Kiwango cha juu',
   'Scale minimum': 'Kiwango cha chini',
+  'Verification confirms payment and starts designer assignment. Compare the amount with the expected price before confirming.': 'Uthibitishaji unathibitisha malipo na kuanza kumpangia mbunifu. Linganisha kiasi na bei inayotarajiwa kabla ya kuthibitisha.',
+  'Payment verified': 'Malipo yamethibitishwa',
+  'Triggered when a manager verifies payment.': 'Hutumwa meneja anapothibitisha malipo.',
+  'Unnamed customer': 'Mteja asiye na jina',
+  'Search by client name, magazine title, designer, or requested fix...': 'Tafuta kwa jina la mteja, jarida, mbunifu au marekebisho yaliyoombwa...',
+  'Payment verification and initial designer capacity assignment.': 'Uthibitishaji wa malipo na kumpangia mbunifu wa kuanza kazi.',
   'Search by client name': 'Tafuta kwa jina la mteja',
   'Search by Tracking ID or Client': 'Tafuta kwa namba ya oda au mteja',
   'Search by Tracking ID, client, magazine title, designer, or requested fix...':

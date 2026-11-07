@@ -1,3 +1,4 @@
+import { orderSenderName } from '../../utils/orderDisplay';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import {navigate} from '../../navigation/location';
 import MagazineDraftCards, {magazineReviewPath} from './MagazineDraftCards';
@@ -53,7 +54,7 @@ const ALL_STAGES = [
 const PHASE_CONFIGS = {
   pre_design: {
     title: 'Pre-Design Phase',
-    description: 'Payment verification, Tracking ID issuance, and initial designer capacity assignment.',
+    description: 'Payment verification and initial designer capacity assignment.',
     stages: [
       { id: 'awaiting_payment', title: 'Awaiting Payment', statuses: ['awaiting_payment'] },
       { id: 'payment_verified', title: 'Payment Verified', statuses: ['payment_verified'] },
@@ -219,7 +220,6 @@ const NEXT_TASK = {
 };
 
 const labelStatus = (status) => STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
-const orderId = (order) => order?.trackingId || order?.clientName || 'Order';
 const daysWaiting = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000));
 const compactWait = (date) => {
   const age = daysWaiting(date);
@@ -621,7 +621,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           <Search size={16} />
           <input
             aria-label={tx('Search orders')}
-            placeholder={tx(phase === 'pre_design' ? 'Search by client name' : 'Search by Tracking ID or Client')}
+            placeholder={tx('Search by client name')}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
           />
@@ -698,9 +698,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
               <table className="manager-attention-table">
                 <thead>
                   <tr>
-                    {phase !== 'pre_design' && <th>
-                      <InterfaceText>Order</InterfaceText>
-                    </th>}
+
                     <th>
                       <InterfaceText>Client</InterfaceText>
                     </th>
@@ -726,7 +724,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                         key={order._id}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Open ${phase === 'pre_design' ? order.clientName : `${orderId(order)} for ${order.clientName}`}`}
+                        aria-label={`Open ${orderSenderName(order)}`}
                         onClick={() => openOrder(order)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
@@ -735,10 +733,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                           }
                         }}
                       >
-                        {phase !== 'pre_design' && <td data-label={tx('Order')}>
-                          <strong>{orderId(order)}</strong>
-                        </td>}
-                        <td data-label={tx('Client')}>{order.clientName}</td>
+
+                        <td data-label={tx('Client')}>{orderSenderName(order, tx('Unnamed customer'))}</td>
                         <td data-label={tx('Edition')}>{order.formTitle || order.formId?.title || 'Magazine'}</td>
                         <td data-label={tx('Required action')}>
                           <span className={`manager-status is-${order.status}`}>
@@ -809,7 +805,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                           role="button"
                           tabIndex={0}
                           className="manager-stage-row"
-                          aria-label={`Open ${phase === 'pre_design' ? order.clientName : `${orderId(order)} for ${order.clientName}`}, waiting ${compactWait(order.updatedAt)}`}
+                          aria-label={`Open ${orderSenderName(order)}, waiting ${compactWait(order.updatedAt)}`}
                           onClick={() => openOrder(order)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -818,7 +814,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                             }
                           }}
                         >
-                          {phase !== 'pre_design' && order.trackingId && <span className="manager-stage-row__id">{order.trackingId}</span>}
+
                           <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
                           <strong>{order.clientName}</strong>
                           <span className="manager-stage-row__subtitle">
@@ -869,7 +865,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       </div>
 
       <Drawer
-        title={selectedOrder ? [phase !== 'pre_design' && selectedOrder.trackingId, selectedOrder.clientName].filter(Boolean).join(' · ') : 'Order details'}
+        title={selectedOrder ? orderSenderName(selectedOrder, tx('Unnamed customer')) : 'Order details'}
         width={720}
         open={Boolean(selectedOrder)}
         onClose={closeDetail}
@@ -891,7 +887,6 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       </Drawer>
 
       <ActionModal
-        hideOrderId={phase === 'pre_design'}
         notice={notice}
         uncertain={uncertain}
         onCheckSaved={async () => {
@@ -1058,7 +1053,6 @@ function Detail({ label, value, wide = false }) {
 }
 
 function ActionModal({
-  hideOrderId,
   notice,
   uncertain,
   onCheckSaved,
@@ -1115,13 +1109,13 @@ function ActionModal({
       {action && (
         <form onSubmit={onSubmit} className="manager-action-form">
           <p className="manager-action-context">
-            <strong>{[!hideOrderId && order?.trackingId, order?.clientName].filter(Boolean).join(' · ')}</strong>
+            <strong>{orderSenderName(order, tx('Unnamed customer'))}</strong>
           </p>
           {action === 'payment' && (
             <>
               <p>
                 <InterfaceText>
-                  Verification issues the client’s official tracking ID and starts designer assignment. Compare the
+                  Verification confirms payment and starts designer assignment. Compare the
                   amount with the expected price before confirming.
                 </InterfaceText>
               </p>

@@ -20,13 +20,13 @@ async function setup(page) {
 test('designer order uses its own URL, history, checklist and PDF-only top action', async ({ page }) => {
   await setup(page); await page.goto('/staff/design'); await chooseEnglish(page);
   await expect(page.getByRole('heading', { name: 'Design orders', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Open TNZ-2026-0099' }).click();
+  await page.getByRole('button', { name: 'Open Asha Client' }).click();
   await expect(page).toHaveURL(/\/staff\/design\/orders\/order-1$/);
   await page.getByRole('tab', { name: 'Version history' }).click();
   await expect(page.getByRole('heading', { name: 'Submission history' })).toBeVisible();
   await page.getByRole('tab', { name: 'Corrections', exact: true }).click();
   await expect(page.getByText('Correct the anniversary date')).toBeVisible();
-  await page.reload(); await chooseEnglish(page); await expect(page.getByRole('heading', { name: 'TNZ-2026-0099' })).toBeVisible();
+  await page.reload(); await chooseEnglish(page); await expect(page.getByRole('heading', { name: 'Asha Client' })).toBeVisible();
   await page.getByRole('button', { name: 'Upload new draft' }).click();
   await expect(page.getByLabel('Magazine PDF · up to 500 MB')).toHaveAttribute('accept', 'application/pdf,.pdf');
   await expect(page.getByRole('button', { name: 'Upload updated PDF' })).toBeDisabled();
@@ -299,13 +299,13 @@ test('temporary profile failure preserves sign-in and retries without showing pr
  await setup(page);let unavailable=true;
  await page.route('**/api/staff/me',route=>unavailable?route.fulfill({status:503,contentType:'application/json',body:'{}'}):json(route,{user:designer}));
  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('button',{name:'Retry connection'})).toBeVisible();
- await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBe('designer-test');
- unavailable=false;await page.getByRole('button',{name:'Retry connection'}).click();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Asha Client'})).toHaveCount(0);expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBe('designer-test');
+ unavailable=false;await page.getByRole('button',{name:'Retry connection'}).click();await expect(page.getByRole('heading',{name:'Asha Client'})).toBeVisible();
 });
 
 test('invalid staff session is cleared and requires sign-in',async({page})=>{
  await setup(page);await page.route('**/api/staff/me',route=>route.fulfill({status:401,contentType:'application/json',body:'{}'}));
- await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('heading',{name:'Sign in'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'TNZ-2026-0099'})).toHaveCount(0);
+ await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByRole('heading',{name:'Sign in'})).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();await expect(page.getByRole('heading',{name:'Asha Client'})).toHaveCount(0);
 });
 
 test('cover transfer overlaps metadata and a compatible image response is downloaded only once',async({page})=>{

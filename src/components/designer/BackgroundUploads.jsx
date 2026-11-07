@@ -1,3 +1,4 @@
+import { staffOrderText } from '../../utils/orderDisplay';
 import TransferProgress from '../common/TransferProgress';
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, FileText, UploadCloud, X } from 'lucide-react';
@@ -38,7 +39,7 @@ export default function BackgroundUploads() {
           {jobs.map(job => <li key={job.id}>
             <div className="background-upload-file">
               {job.status === 'complete' ? <CheckCircle2 className="background-upload-done" size={22} aria-hidden="true" /> : <FileText size={22} aria-hidden="true" />}
-              <div><strong title={job.name}>{job.name}</strong><small>{job.label}</small></div>
+              <div><strong title={job.name}>{job.name}</strong><small>{staffOrderText(job.label)}</small></div>
               {['ready', 'complete', 'error'].includes(job.status) && <button type="button" aria-label={`${tx('Dismiss', 'Funga')} ${job.name}`} onClick={() => draftUploads.dismiss(job.id)}><X size={16} /></button>}
             </div>
             {['uploading', 'error'].includes(job.status) && <DraftUploadProgress progress={job.progress} paused={job.status === 'error'} />}

@@ -1,3 +1,4 @@
+import { orderSenderName } from '../../utils/orderDisplay';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../services/api";
 import { navigate } from "../../navigation/location";
@@ -68,7 +69,7 @@ export default function MagazineReviewPage({ token, orderId, version }) {
           </button>
           <h1>{t("Magazine review", "Ukaguzi wa jarida")}</h1>
           <p>
-            {[order.trackingId, order.clientName].filter(Boolean).join(' · ')}
+            {orderSenderName(order, t('Unnamed customer', 'Mteja asiye na jina'))}
           </p>
         </div>
         <label>

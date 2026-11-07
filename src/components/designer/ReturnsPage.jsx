@@ -1,3 +1,4 @@
+import { orderSenderName } from '../../utils/orderDisplay';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -310,7 +311,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           <Search size={15} color="#78716C" />
           <input
             aria-label={tx('Search returned magazines')}
-            placeholder={tx('Search by Tracking ID, client, magazine title, designer, or requested fix...')}
+            placeholder={tx('Search by client name, magazine title, designer, or requested fix...')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             style={{
@@ -409,7 +410,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                 return (
                   <tr key={row._id || `${row.orderId}-${row.roundNumber}`}>
                     <td>
-                      <strong style={{ display: 'block', color: '#1C1917' }}>{row.trackingId}</strong>
+                      <strong style={{ display: 'block', color: '#1C1917' }}>{orderSenderName(row, tx('Unnamed customer'))}</strong>
                       <span style={{ fontSize: '12px', color: '#78716C' }}>{row.formTitle || 'Tinzel Magazine'}</span>
                     </td>
                     <td>

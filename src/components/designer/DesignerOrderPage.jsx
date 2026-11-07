@@ -1,3 +1,4 @@
+import { orderSenderName } from '../../utils/orderDisplay';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import { runTransfer } from '../../services/fileTransfers';
 import { ActionButton } from '../common/SoftFlutter';
@@ -130,7 +131,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     try {
       draftUploads.enqueue({
         token, staffId: staffUser?._id, orderId, file,
-        label: order.trackingId,
+        label: orderSenderName(order, tx('Unnamed customer')),
         metadata: {
           designerNotes: notes,
           expectedVersion: order.currentDraftVersion,
@@ -255,9 +256,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           <button className="text-back" onClick={onBack}>
             <ArrowLeft size={15} /> {staffUser?.role === 'manager' ? 'Returns' : 'Design orders'}
           </button>
-          <h1>{order.trackingId || order.clientName}</h1>
+          <h1>{orderSenderName(order, tx('Unnamed customer'))}</h1>
           <p>
-            {order.clientName} · {order.formTitle} ·{' '}
+            {order.formTitle} ·{' '}
             <span className="designer-status" data-status={order.status}>
               {tx(order.status.replaceAll('_', ' '))}
             </span>
