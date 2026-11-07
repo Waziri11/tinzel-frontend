@@ -1,7 +1,7 @@
 import { requirePhone } from '../../utils/phone';
 import { errorText } from '../../i18n/errors';
 import PhoneInput from '../common/PhoneInput';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   CheckCircle2,
   AlertCircle,
@@ -44,9 +44,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     window.addEventListener('popstate', update);
     return () => window.removeEventListener('popstate', update);
   }, []);
-  useEffect(() => {
-    stepHeading.current?.focus({ preventScroll: true });
-  }, [step]);
 
   // Localized helpers: Swahili falls back to English when no translation was entered
   const L = (obj, key) => localized(obj, key, lang);
@@ -54,6 +51,13 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useLayoutEffect(() => {
+    if (loading || !stepHeading.current) return;
+    stepHeading.current.focus({ preventScroll: true });
+    // A long photo form must not carry its scroll position into the review.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [step, loading]);
 
   const [clientName, setClientName] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
