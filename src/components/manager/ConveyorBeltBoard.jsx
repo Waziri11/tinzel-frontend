@@ -219,7 +219,7 @@ const NEXT_TASK = {
 };
 
 const labelStatus = (status) => STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
-const orderId = (order) => order?.trackingId || order?.submissionId || 'Order';
+const orderId = (order) => order?.trackingId || order?.clientName || 'Order';
 const daysWaiting = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000));
 const compactWait = (date) => {
   const age = daysWaiting(date);
@@ -621,7 +621,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           <Search size={16} />
           <input
             aria-label={tx('Search orders')}
-            placeholder={tx('Search by Tracking ID, Submission ID, or Client')}
+            placeholder={tx(phase === 'pre_design' ? 'Search by client name' : 'Search by Tracking ID or Client')}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
           />
@@ -698,9 +698,9 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
               <table className="manager-attention-table">
                 <thead>
                   <tr>
-                    <th>
+                    {phase !== 'pre_design' && <th>
                       <InterfaceText>Order</InterfaceText>
-                    </th>
+                    </th>}
                     <th>
                       <InterfaceText>Client</InterfaceText>
                     </th>
@@ -726,7 +726,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                         key={order._id}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Open ${orderId(order)} for ${order.clientName}`}
+                        aria-label={`Open ${phase === 'pre_design' ? order.clientName : `${orderId(order)} for ${order.clientName}`}`}
                         onClick={() => openOrder(order)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
@@ -735,9 +735,9 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                           }
                         }}
                       >
-                        <td data-label={tx('Order')}>
+                        {phase !== 'pre_design' && <td data-label={tx('Order')}>
                           <strong>{orderId(order)}</strong>
-                        </td>
+                        </td>}
                         <td data-label={tx('Client')}>{order.clientName}</td>
                         <td data-label={tx('Edition')}>{order.formTitle || order.formId?.title || 'Magazine'}</td>
                         <td data-label={tx('Required action')}>
@@ -809,7 +809,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                           role="button"
                           tabIndex={0}
                           className="manager-stage-row"
-                          aria-label={`Open ${orderId(order)} for ${order.clientName}, waiting ${compactWait(order.updatedAt)}`}
+                          aria-label={`Open ${phase === 'pre_design' ? order.clientName : `${orderId(order)} for ${order.clientName}`}, waiting ${compactWait(order.updatedAt)}`}
                           onClick={() => openOrder(order)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -818,7 +818,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                             }
                           }}
                         >
-                          <span className="manager-stage-row__id">{orderId(order)}</span>
+                          {phase !== 'pre_design' && order.trackingId && <span className="manager-stage-row__id">{order.trackingId}</span>}
                           <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
                           <strong>{order.clientName}</strong>
                           <span className="manager-stage-row__subtitle">
@@ -869,7 +869,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       </div>
 
       <Drawer
-        title={selectedOrder ? `${orderId(selectedOrder)} · ${selectedOrder.clientName}` : 'Order details'}
+        title={selectedOrder ? [phase !== 'pre_design' && selectedOrder.trackingId, selectedOrder.clientName].filter(Boolean).join(' · ') : 'Order details'}
         width={720}
         open={Boolean(selectedOrder)}
         onClose={closeDetail}
@@ -891,6 +891,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       </Drawer>
 
       <ActionModal
+        hideOrderId={phase === 'pre_design'}
         notice={notice}
         uncertain={uncertain}
         onCheckSaved={async () => {
@@ -1057,6 +1058,7 @@ function Detail({ label, value, wide = false }) {
 }
 
 function ActionModal({
+  hideOrderId,
   notice,
   uncertain,
   onCheckSaved,
@@ -1113,7 +1115,7 @@ function ActionModal({
       {action && (
         <form onSubmit={onSubmit} className="manager-action-form">
           <p className="manager-action-context">
-            <strong>{orderId(order)}</strong> · {order?.clientName}
+            <strong>{[!hideOrderId && order?.trackingId, order?.clientName].filter(Boolean).join(' · ')}</strong>
           </p>
           {action === 'payment' && (
             <>

@@ -224,3 +224,27 @@ test('refresh keeps existing orders visible and uses flutter instead of page ske
   } finally { release(); }
   await expect(page.getByRole('button', { name: 'Refresh orders', exact: true })).toBeEnabled();
 });
+
+test('pre-design identifies submissions by name in lists, board, details and payment dialog', async ({ page }) => {
+  await openManagerDashboard(page);
+  const submission = { ...baseOrder, trackingId: '', submissionId: 'SUB-2026-6AEF293E66CFE393BBD48910', status: 'awaiting_payment', draftVersions: [] };
+  await page.route((url) => url.pathname === '/api/manager/orders', route => json(route, {
+    orders: [submission], total: 1, page: 1, pageCount: 1,
+    summary: { active: 1, payment: 1 }, statusCounts: { awaiting_payment: 1 },
+  }));
+  await page.route('**/api/manager/orders/order-1', route => json(route, { order: submission, auditLogs: [] }));
+  await page.goto('/staff/pre-design');
+  await expect(page.getByText('Asha Mushi', { exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('SUB-');
+  await expect(page.getByPlaceholder('Search by client name')).toBeVisible();
+  await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
+  await expect(page.getByText('Asha Mushi', { exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('SUB-');
+  await page.getByRole('button', { name: /Priority Queue/ }).click();
+  await page.getByText('Asha Mushi', { exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('SUB-');
+  await page.getByRole('dialog').getByRole('button', { name: 'Verify payment', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Verify Lipa Namba payment' })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('SUB-');
+});

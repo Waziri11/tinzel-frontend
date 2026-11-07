@@ -565,7 +565,8 @@ Object.assign(uiText, {
   'Save printer language': 'Hifadhi lugha ya mchapishaji',
   'Scale maximum': 'Kiwango cha juu',
   'Scale minimum': 'Kiwango cha chini',
-  'Search by Tracking ID, Submission ID, or Client': 'Tafuta kwa namba ya oda, uwasilishaji au mteja',
+  'Search by client name': 'Tafuta kwa jina la mteja',
+  'Search by Tracking ID or Client': 'Tafuta kwa namba ya oda au mteja',
   'Search by Tracking ID, client, magazine title, designer, or requested fix...':
     'Tafuta kwa namba ya oda, mteja, jarida, msanifu au rekebisho...',
   'Search notifications': 'Tafuta taarifa',
