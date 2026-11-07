@@ -1,5 +1,17 @@
 // Interface text only. User-authored stories, correction text and saved option values are never translated here.
 export const uiText = {
+  "You have requested several SMS codes. Please wait a few minutes before trying again.": "Umeomba misimbo kadhaa ya SMS. Tafadhali subiri dakika chache kabla ya kujaribu tena.",
+  "You have tried several codes. Please wait a few minutes before trying again.": "Umejaribu misimbo kadhaa. Tafadhali subiri dakika chache kabla ya kujaribu tena.",
+  "Enter your order number and the code from your SMS.": "Weka namba ya oda yako na msimbo uliotumwa kwa SMS.",
+  "Please request a new SMS code to view your order.": "Tafadhali omba msimbo mpya wa SMS ili kuona oda yako.",
+  "Too many incorrect codes. Please request a new SMS code.": "Umejaribu misimbo isiyo sahihi mara nyingi. Tafadhali omba msimbo mpya wa SMS.",
+  "Your SMS code has expired. Please request a new code.": "Muda wa msimbo wako wa SMS umeisha. Tafadhali omba msimbo mpya.",
+  "That SMS code is incorrect. Please check it and try again.": "Msimbo huo wa SMS si sahihi. Tafadhali uhakiki na ujaribu tena.",
+  "Your magazine preview is not ready yet. Please check back later.": "Jarida lako bado haliko tayari kulipitia. Tafadhali rudi tena baadaye.",
+  "There is no magazine preview waiting for your approval. Please refresh to see the latest update.": "Hakuna jarida linalosubiri idhini yako kwa sasa. Tafadhali pakia ukurasa upya kuona taarifa za sasa.",
+  "Your magazine is not currently waiting for your review. Please refresh to see the latest update.": "Jarida lako halisubiri mapitio yako kwa sasa. Tafadhali pakia ukurasa upya kuona taarifa za sasa.",
+  "Thank you! We will now prepare your magazine for printing.": "Asante! Sasa tutaandaa jarida lako kwa uchapishaji.",
+  "We have received your changes. We will let you know when your updated magazine is ready to review.": "Tumepokea marekebisho yako. Tutakujulisha jarida lililorekebishwa likiwa tayari kwa mapitio yako.",
   'New design orders': 'Oda mpya za usanifu',
   'Returned by managers': 'Zimerudishwa na wasimamizi',
   'Returned by client': 'Zimerudishwa na mteja',

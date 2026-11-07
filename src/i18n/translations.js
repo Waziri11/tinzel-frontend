@@ -93,18 +93,18 @@ export const translations = {
   'follow.change': { en: 'Change Order Number or Phone Number', sw: 'Badilisha Namba ya Oda au Simu' },
 
   // Form renderer
-  'form.loading': { en: 'Loading magazine submission form...', sw: 'Inapakia fomu ya jarida...' },
-  'form.loadFailed': { en: 'Failed to load form definition', sw: 'Imeshindwa kupakia fomu' },
+  'form.loading': { en: 'Loading your magazine details...', sw: 'Inapakia fomu ya jarida...' },
+  'form.loadFailed': { en: 'We could not load this form. Please try again.', sw: 'Imeshindwa kupakia fomu' },
   'form.notFound': { en: 'Form Not Found', sw: 'Fomu Haipatikani' },
-  'form.notFoundSlug': { en: 'No active form configured for slug "{slug}".', sw: 'Hakuna fomu inayotumika ya "{slug}".' },
+  'form.notFoundSlug': { en: 'This magazine is currently unavailable. Please choose another magazine or contact Tinzel.', sw: 'Jarida hili halipatikani kwa sasa. Tafadhali chagua jarida jingine au wasiliana na Tinzel.' },
   'form.defaultSection': { en: 'Magazine Details & Content', sw: 'Maelezo na Maudhui ya Jarida' },
   'form.defaultType': { en: 'Keepsake Edition', sw: 'Toleo la Kumbukumbu' },
   'form.badges': {
-    en: 'Account-Free Submission • SMS-Verified Order Tracking • Lipa Namba Verified',
-    sw: 'Hakuna Akaunti • Ufuatiliaji wa Oda kwa Uthibitisho wa SMS • Lipa Namba Imethibitishwa',
+    en: 'No account needed • Order updates by SMS',
+    sw: 'Huhitaji akaunti • Taarifa za oda kwa SMS',
   },
   'form.step': { en: 'Step {n} of {total}', sw: 'Hatua {n} ya {total}' },
-  'form.contactTitle': { en: 'Client Contact Information', sw: 'Taarifa za Mawasiliano' },
+  'form.contactTitle': { en: 'Your contact details', sw: 'Taarifa za Mawasiliano' },
   'form.contactDesc': {
     en: 'Use a phone number that can receive your tracking code by SMS.',
     sw: 'Weka namba ya simu inayoweza kupokea msimbo wa ufuatiliaji kwa SMS.',
@@ -121,13 +121,13 @@ export const translations = {
   'form.errRequired': { en: 'Please complete required question: {label}', sw: 'Tafadhali jibu swali linalohitajika: {label}' },
   'form.errSubmit': { en: 'Failed to submit magazine order', sw: 'Imeshindwa kuwasilisha oda ya jarida' },
   'form.pickGroup': { en: 'Click to select multiple photos for this spread', sw: 'Bofya kuchagua picha nyingi kwa ukurasa huu' },
-  'form.pickSingle': { en: 'Click to select photo asset', sw: 'Bofya kuchagua picha' },
+  'form.pickSingle': { en: 'Choose a photo', sw: 'Bofya kuchagua picha' },
   'form.groupHint': {
-    en: 'High-resolution images will be organised in this edition folder',
-    sw: 'Picha za ubora wa juu zitapangwa kwenye folda ya toleo hili',
+    en: 'Choose clear, high-quality photos for your magazine.',
+    sw: 'Chagua picha zilizo wazi na zenye ubora mzuri kwa jarida lako.',
   },
   'form.singleHint': { en: 'JPEG, PNG, WEBP files up to 25MB each', sw: 'Faili za JPEG, PNG, WEBP hadi 25MB kila moja' },
-  'form.folderAssets': { en: 'Folder Assets ({count} {unit}):', sw: 'Picha za Folda ({count} {unit}):' },
+  'form.folderAssets': { en: 'Your photos ({count} {unit}):', sw: 'Picha zako ({count} {unit}):' },
   'form.photo': { en: 'photo', sw: 'picha' },
   'form.photos': { en: 'photos', sw: 'picha' },
   'form.chooseOption': { en: '-- Choose an option --', sw: '-- Chagua chaguo --' },
@@ -141,14 +141,14 @@ export const translations = {
   'form.continuePay': { en: 'Continue to Payment', sw: 'Endelea kwenye Malipo' },
 
   // Lipa Namba screen
-  'pay.title': { en: 'Submission Received — Complete Payment', sw: 'Uwasilishaji Umepokelewa — Kamilisha Malipo' },
+  'pay.title': { en: 'Order received · Complete your payment', sw: 'Oda imepokelewa · Kamilisha malipo' },
   'pay.uploaded': {
     en: 'Your photos and responses for {title} are safely uploaded.',
     sw: 'Picha na majibu yako kwa {title} yamepakiwa salama.',
   },
-  'pay.submitter': { en: 'Submitted by:', sw: 'Imewasilishwa na:' },
+  'pay.submitter': { en: 'Your name:', sw: 'Jina lako:' },
   'pay.awaiting': { en: 'Awaiting Payment', sw: 'Inasubiri Malipo' },
-  'pay.noticeTitle': { en: 'Tracking ID Notice', sw: 'Taarifa ya Namba ya Ufuatiliaji' },
+  'pay.noticeTitle': { en: 'Your order number', sw: 'Namba ya oda yako' },
   'pay.notice': {
     en: 'Once payment is confirmed, we’ll text your tracking ID to {phone}.',
     sw: 'Malipo yakithibitishwa, tutatuma namba yako ya ufuatiliaji kwa SMS kwenye {phone}.',
@@ -159,6 +159,6 @@ export const translations = {
   'pay.copied': { en: 'Copied', sw: 'Imenakiliwa' },
   'pay.amount': { en: 'Amount to Pay:', sw: 'Kiasi cha Kulipa:' },
   'pay.account': { en: 'Account Name:', sw: 'Jina la Akaunti:' },
-  'pay.verify': { en: 'Verifications typically take 5-15 minutes', sw: 'Uthibitisho kwa kawaida huchukua dakika 5-15' },
-  'pay.goTracking': { en: 'Go to Tracking Portal', sw: 'Nenda kwenye Ufuatiliaji' },
+  'pay.verify': { en: 'We will let you know when your payment is confirmed.', sw: 'Tutakujulisha malipo yako yakithibitishwa.' },
+  'pay.goTracking': { en: 'Track my order', sw: 'Fuatilia oda yangu' },
 };

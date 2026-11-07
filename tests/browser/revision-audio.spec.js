@@ -16,7 +16,7 @@ async function setup(page, lang = 'en') {
   await page.route('**/api/client/order', route => route.fulfill({ json: { order } }));
   await page.route('**/api/proofs/client/**', route => route.fulfill({ json: { state: 'ready', pageCount: 0, pages: [], annotations: [], canComment: true } }));
   await page.goto('/track');
-  await page.getByRole('button', { name: lang === 'en' ? 'Request Changes / Revisions' : 'Omba Mabadiliko / Marekebisho' }).click();
+  await page.getByRole('button', { name: lang === 'en' ? 'Request changes' : 'Omba marekebisho' }).click();
   return order;
 }
 const file = { name: 'changes.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF0000WAVEaudio') };
@@ -37,10 +37,10 @@ test('audio-only submission previews, retains audio after failure, and plays fro
   await page.getByLabel('Attach audio', { exact: true }).setInputFiles(file);
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
   await expect(page.getByLabel('Written feedback 1')).toBeEmpty();
-  await page.getByRole('button', { name: 'Submit Revision Request' }).click();
+  await page.getByRole('button', { name: 'Send my changes' }).click();
   await expect(page.getByText('Please retry your request')).toBeVisible();
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
-  await page.getByRole('button', { name: 'Submit Revision Request' }).click();
+  await page.getByRole('button', { name: 'Send my changes' }).click();
   await page.route('**/api/client/revisions/round/items/item/audio', route => route.fulfill({ contentType: 'audio/wav', body: file.buffer }));
   await page.getByRole('button', { name: 'Listen to audio feedback' }).click();
   await expect(page.getByLabel('Audio feedback', { exact: true })).toBeVisible();
@@ -55,7 +55,7 @@ test('mobile Swahili form supports removing audio, empty validation, and size li
   await page.screenshot({ path: info.outputPath('audio-mobile-sw.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Ondoa sauti' }).click();
-  await page.getByRole('button', { name: 'Tuma Ombi la Marekebisho' }).click();
+  await page.getByRole('button', { name: 'Tuma marekebisho yangu' }).click();
   await expect(page.getByText('Eleza marekebisho au ongeza ujumbe wa sauti.')).toBeVisible();
   await attach.setInputFiles({ ...file, buffer: Buffer.alloc(3 * 1024 * 1024 + 1) });
   await expect(page.getByRole('alert')).toHaveText('Chagua faili la sauti lisilozidi MB 3.');
@@ -69,7 +69,7 @@ test('microphone denial keeps file upload available', async ({ page }) => {
   await page.getByRole('button', { name: 'Record voice note' }).click();
   await expect(page.getByRole('alert')).toContainText('Microphone unavailable');
   await expect(page.getByLabel('Attach audio', { exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Submit Revision Request' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
 });
 
 test('recording stops and releases the microphone before audio-only submission', async ({ page, context }) => {
@@ -81,13 +81,13 @@ test('recording stops and releases the microphone before audio-only submission',
   await setup(page);
   await page.getByRole('button', { name: 'Record voice note' }).click();
   await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Submit Revision Request' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeDisabled();
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: 'Stop recording' }).click();
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
   await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.recordedStream.getTracks().every(track => track.readyState === 'ended'))).toBe(true);
-  await expect(page.getByRole('button', { name: 'Submit Revision Request' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
 });
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });

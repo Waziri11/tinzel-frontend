@@ -48,7 +48,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  const stale=await request.post(`/api/manager/orders/${id}/review-draft`,{headers:{Cookie:'',Authorization:`Bearer ${manager}`},data:{expectedVersion:1,action:'release_to_client'}});expect(stale.status()).toBe(409);
  await api(request,`/manager/orders/${id}/review-draft`,manager,{expectedVersion:2,action:'release_to_client'});order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;
  await page.goto('/track');await page.locator('#track-login-id').fill(order.trackingId);await page.locator('#track-login-whatsapp').fill('0712000088');
- const otp=page.waitForResponse(response=>response.url().endsWith('/client/request-otp'));await page.getByRole('button',{name:'Continue to tracking'}).click();const otpBody=await (await otp).json();expect(otpBody.devOtp).toBeTruthy();await page.locator('#track-login-otp').fill(otpBody.devOtp);await page.getByRole('button',{name:'Verify & Enter Portal'}).click();
+ const otp=page.waitForResponse(response=>response.url().endsWith('/client/request-otp'));await page.getByRole('button',{name:'Continue to tracking'}).click();const otpBody=await (await otp).json();expect(otpBody.devOtp).toBeTruthy();await page.locator('#track-login-otp').fill(otpBody.devOtp);await page.getByRole('button',{name:'View my order'}).click();
  await expect(page.getByAltText('Magazine page 1')).toBeVisible({timeout:30000});
  // Reopen in the same browser after the short-lived session is gone.
  await page.context().clearCookies({name:'tinzel_client'});

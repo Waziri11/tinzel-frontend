@@ -300,8 +300,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             compact
             title={ui('Your order has been saved', 'Oda yako imehifadhiwa')}
             description={ui(
-              'Next: follow the payment instructions below. Your magazine has not entered production yet.',
-              'Hatua inayofuata: fuata maelekezo ya malipo hapa chini. Uzalishaji wa jarida lako bado haujaanza.',
+              'Next, follow the payment instructions below so we can start your magazine.',
+              'Hatua inayofuata: fuata maelekezo ya malipo hapa chini ili tuanze kubuni jarida lako.',
             )}
           />
         </div>

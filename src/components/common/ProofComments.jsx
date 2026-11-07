@@ -1,9 +1,12 @@
+import { customerChangeStatusKey } from '../../utils/customerJourney';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { ActionButton } from './SoftFlutter';
 import ProofAttachments from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useRef, useState } from 'react';
 import { annotationStatus } from '../../utils/proofAnnotations';
 export default function ProofComments({
+  client = false,
   reader,
   annotations,
   focused,
@@ -19,6 +22,9 @@ export default function ProofComments({
   currentPages,
 }) {
   const tx = useInterfaceText();
+  const { t, lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const statusLabel = status => client ? t(`track.comment.${['private', 'submitted', 'open', 'addressed'].includes(status) ? status : 'submitted'}`) : tx(status);
   const [filter, setFilter] = useState('all'),
     root = useRef(null);
   const matches = (a) =>
@@ -64,7 +70,7 @@ export default function ProofComments({
               ['addressed', 'Addressed'],
             ].map(([value, label]) => (
               <option key={value} value={value}>
-                {tx(label)}
+                {client && ['private', 'open', 'addressed'].includes(value) ? statusLabel(value) : tx(label)}
               </option>
             ))}
           </select>
@@ -115,8 +121,8 @@ export default function ProofComments({
                   <span className="proof-comment-title">
                     #{a.displayNumber} · {a.authorName}
                   </span>
-                  <span className={`proof-comment-status status-${tx(annotationStatus(a))}`}>
-                    {tx(annotationStatus(a))}
+                  <span className={`proof-comment-status status-${annotationStatus(a)}`}>
+                    {statusLabel(annotationStatus(a))}
                   </span>
                   {a.selectedText && <blockquote>{a.selectedText}</blockquote>}
                   <span className="proof-comment-body">{a.text}</span>
@@ -126,20 +132,20 @@ export default function ProofComments({
                 {a.correction && (
                   <div className="proof-comment-response">
                     <small>
-                      <InterfaceText>Round</InterfaceText> {a.correction.roundNumber} ·{' '}
-                      {a.correction.roundStatus.replaceAll('_', ' ')}
+                      {client ? ui('Request', 'Ombi') : tx('Round')} {a.correction.roundNumber} ·{' '}
+                      {client ? t(customerChangeStatusKey(a.correction.roundStatus)) : a.correction.roundStatus.replaceAll('_', ' ')}
                     </small>
                     {a.correction.designerResponse && (
                       <>
                         <strong>
-                          <InterfaceText>Designer response</InterfaceText>
+                          {client ? ui('Update from our team', 'Taarifa kutoka kwa timu yetu') : tx('Designer response')}
                         </strong>
                         <p>{a.correction.designerResponse}</p>
                       </>
                     )}
                     {a.correction.addressedAt && (
                       <small>
-                        <InterfaceText>Addressed</InterfaceText> {new Date(a.correction.addressedAt).toLocaleString()}
+                        {client ? ui('Updated', 'Yamerekebishwa') : tx('Addressed')} {new Date(a.correction.addressedAt).toLocaleString()}
                       </small>
                     )}
                   </div>
@@ -155,7 +161,7 @@ export default function ProofComments({
         ))}
       {canComment && pending.length > 0 && onSubmit && (
         <ActionButton loading={saving} disabled={saving} onClick={onSubmit}>
-          <InterfaceText>Return for corrections (</InterfaceText>
+          {client ? ui('Send my changes (', 'Tuma marekebisho yangu (') : tx('Return for corrections (')}
           {pending.length})
         </ActionButton>
       )}

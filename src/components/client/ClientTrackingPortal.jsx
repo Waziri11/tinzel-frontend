@@ -1,3 +1,4 @@
+import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
 import PaymentOptions from './PaymentOptions';
 import RevisionAudioInput from '../common/RevisionAudioInput';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
@@ -91,6 +92,7 @@ export default function ClientTrackingPortal() {
       setError(null);
       setClientToken(token);
       setOrder(data.order);
+      setSuccessMsg(null);
       const reference = data.order.submissionId || data.order.trackingId;
       if (reference) localStorage.setItem('tinzel_tracking_reference', reference);
     } catch (err) {
@@ -240,40 +242,6 @@ export default function ClientTrackingPortal() {
       setError(err.message || t('track.err.revision'));
     } finally {
       setSubmittingDecision(false);
-    }
-  };
-
-  // Determine stage progression
-  const getStageIndex = (status) => {
-    // If order is placed on hold, preserve its actual workflow stage
-    const effectiveStatus =
-      status === 'on_hold' && order?.previousStatusBeforeHold ? order.previousStatusBeforeHold : status;
-    switch (effectiveStatus) {
-      case 'awaiting_payment':
-        return 0;
-      case 'payment_verified':
-      case 'queued_for_assignment':
-        return 1;
-      case 'assigned':
-      case 'in_design':
-      case 'draft_manager_review':
-        return 2;
-      case 'client_review':
-      case 'revision_requested':
-        return 3;
-      case 'client_approved':
-      case 'print_document_prep':
-      case 'print_manager_review':
-      case 'printing_sent':
-      case 'printing_in_progress':
-      case 'printing_completed':
-        return 4;
-      case 'dispatched':
-      case 'delivered':
-      case 'closed':
-        return 5;
-      default:
-        return 0;
     }
   };
 
@@ -537,7 +505,8 @@ export default function ClientTrackingPortal() {
   }
 
   // Active Order & Whole-Magazine Review Portal View
-  const currentStageIdx = getStageIndex(order.status);
+  const journey = customerJourney(order);
+  const currentStageIdx = journey.stage;
   const releasedDraft =
     (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) ||
     (order.draftVersions || []).at(-1);
@@ -558,7 +527,7 @@ export default function ClientTrackingPortal() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
               {order.trackingId || order.clientName}
             </span>
@@ -573,19 +542,20 @@ export default function ClientTrackingPortal() {
                 textTransform: 'uppercase',
               }}
             >
-              {t('track.status.' + order.status) || order.status.replace(/_/g, ' ')}
+              {t(journey.statusKey)}
             </span>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
             {t('track.client')} <strong>{order.clientName}</strong> • {t('track.magazine')}{' '}
             <strong>{order.formTitle}</strong>
           </p>
+          <p className="customer-status-description" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 600 }}>{t(journey.detailKey)}</p>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <ClientNotifications token={clientToken} onUnauthorized={clearSession} />
           <button type="button" className="ui-button" onClick={() => { if (allowProofLeave()) handleLogout(true); }}>
-            {ui('Forget this order on this device', 'Ondoa oda hii kwenye kifaa hiki')}
+            {ui('Stop remembering this order', 'Usikumbuke oda hii tena')}
           </button>
           <ActionButton onClick={() => { if (allowProofLeave()) handleLogout(); }}>
             <LogOut size={13} /> {t('track.signOut')}
@@ -610,11 +580,11 @@ export default function ClientTrackingPortal() {
           <Clock size={20} color="#B45309" style={{ marginTop: '2px', flexShrink: 0 }} />
           <div>
             <div style={{ color: '#B45309', fontWeight: '700', fontSize: '14px', marginBottom: '4px' }}>
-              {t('track.status.on_hold') || 'Order Placed On Hold'}
+              {t('track.status.on_hold')}
             </div>
             <p style={{ color: '#78350F', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
               {order.holdReason ||
-                'Your magazine order is temporarily on hold pending review. Our team will notify you immediately once production resumes.'}
+                t('track.detail.on_hold')}
             </p>
           </div>
         </div>
@@ -673,11 +643,12 @@ export default function ClientTrackingPortal() {
           }}
         >
           {STAGES.map((stg, i) => {
-            const isCompleted = i < currentStageIdx;
-            const isCurrent = i === currentStageIdx;
+            const isCompleted = journey.complete || i < currentStageIdx;
+            const isCurrent = !journey.complete && i === currentStageIdx;
             return (
               <div
                 key={stg.key}
+                aria-current={isCurrent ? 'step' : undefined}
                 style={{
                   backgroundColor: isCompleted ? '#F0FDF4' : isCurrent ? '#EFF6FF' : 'var(--bg-primary)',
                   border: `1px solid ${isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : 'var(--border-color)'}`,
@@ -691,9 +662,8 @@ export default function ClientTrackingPortal() {
                     fontSize: '11px',
                     fontWeight: '700',
                     color: isCompleted ? '#15803D' : isCurrent ? '#1D4ED8' : 'var(--text-muted)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    whiteSpace: 'normal',
+                    overflowWrap: 'anywhere',
                   }}
                 >
                   {t(stg.labelKey)}
@@ -754,20 +724,20 @@ export default function ClientTrackingPortal() {
             marginBottom: 24,
           }}
         >
-          <h2 style={{ fontSize: 16, marginBottom: 12 }}>{ui('Your requested fixes', 'Marekebisho uliyoomba')}</h2>
+          <h2 style={{ fontSize: 16, marginBottom: 12 }}>{ui('Your requested changes', 'Marekebisho uliyoomba')}</h2>
           {(order.revisionRequests || [])
             .slice()
             .reverse()
             .map((request) => (
               <div key={request._id} style={{ borderTop: '1px solid var(--border-color)', padding: '12px 0' }}>
                 <strong style={{ fontSize: 13 }}>
-                  {ui('Round', 'Awamu')} {request.roundNumber} · {String(request.status).replaceAll('_', ' ')}
+                  {ui('Request', 'Ombi')} {request.roundNumber} · {t(customerChangeStatusKey(request.status))}
                 </strong>
                 <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
                   {request.items.map((item) => (
                     <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>
-                      {item.pageReference ? `Page ${item.pageReference}: ` : ''}
-                      {item.text}
+                      {item.pageReference ? `${ui('Page', 'Ukurasa')} ${item.pageReference}: ` : ''}
+                      {item.audio && item.text === 'Audio feedback' ? ui('Voice message', 'Ujumbe wa sauti') : item.text}
                       <RevisionAudioPlayer client token={clientToken} requestId={request._id} item={item} />
                     </li>
                   ))}
@@ -807,15 +777,15 @@ export default function ClientTrackingPortal() {
           </div>
 
           <label>
-            Magazine version{' '}
+            {ui('Magazine version', 'Toleo la jarida')}{' '}
             <select
-              aria-label="Magazine version"
+              aria-label={ui('Magazine version', 'Toleo la jarida')}
               value={readerVersion || releasedDraft?.versionNumber}
               onChange={(e) => { if (allowProofLeave()) setReaderVersion(Number(e.target.value)); }}
             >
               {(order.draftVersions || []).map((v) => (
                 <option key={v.versionNumber} value={v.versionNumber}>
-                  Version {v.versionNumber}
+                  {ui('Version', 'Toleo')} {v.versionNumber}
                 </option>
               ))}
             </select>
@@ -897,8 +867,8 @@ export default function ClientTrackingPortal() {
                       className="client-revision-row"
                     >
                       <input
-                        aria-label={`Page reference ${index + 1}`}
-                        placeholder="Page (optional)"
+                        aria-label={ui(`Page number ${index + 1}`, `Namba ya ukurasa ${index + 1}`)}
+                        placeholder={ui('Page (optional)', 'Ukurasa (si lazima)')}
                         value={item.pageReference}
                         onChange={(e) =>
                           setRevisionItems((rows) =>
@@ -926,7 +896,7 @@ export default function ClientTrackingPortal() {
                           onClick={() => setRevisionItems((rows) => rows.filter((_, i) => i !== index))}
                           style={{ border: 0, background: 'transparent', color: '#991B1B' }}
                         >
-                          Remove
+                          {ui('Remove', 'Ondoa')}
                         </button>
                       )}
                     </div>
@@ -942,7 +912,7 @@ export default function ClientTrackingPortal() {
                       marginBottom: 16,
                     }}
                   >
-                    Add another fix
+                    {ui('Add another change', 'Ongeza marekebisho mengine')}
                   </button>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <ActionButton loading={submittingDecision}
@@ -1022,40 +992,10 @@ export default function ClientTrackingPortal() {
             </div>
           ) : null}
         </div>
-      ) : (
-        /* Status Card when Draft is Not Yet Released */
-        <div
-          style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '36px',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              backgroundColor: 'var(--bg-primary)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto',
-            }}
-          >
-            <Clock size={28} color="var(--accent-primary)" />
-          </div>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>{t('track.wait.title')}</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto' }}>
-            {t('track.wait.body')}
-          </p>
-        </div>
-      )}
+      ) : null}
 
       {/* Printing & Delivery Tracking Details */}
-      {['printing_sent', 'printing_in_progress', 'printing_completed', 'dispatched', 'delivered'].includes(
+      {['printing_sent', 'printing_in_progress', 'printing_completed', 'dispatched', 'delivered', 'closed'].includes(
         order.status,
       ) && (
         <div
@@ -1073,9 +1013,9 @@ export default function ClientTrackingPortal() {
           <div className="client-delivery-grid">
             <div>
               <span style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
-                {t('track.print.partner')}
+                {ui('Current step:', 'Hatua ya sasa:')}
               </span>
-              <span>{t('track.print.partnerName')}</span>
+              <span>{t(journey.statusKey)}</span>
             </div>
             {order.dispatchDetails?.trackingReference && (
               <div>

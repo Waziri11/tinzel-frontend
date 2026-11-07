@@ -684,6 +684,7 @@ export default function PdfBookReader({
             />
             {showComments && (
               <ProofComments
+                client={client}
                 reader={reader}
                 annotations={annotations}
                 focused={focused}
