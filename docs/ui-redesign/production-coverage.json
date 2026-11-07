@@ -685,7 +685,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--ready",
       "screen": "photo-upload",
@@ -705,7 +705,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--uploading",
       "screen": "photo-upload",
@@ -725,7 +725,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--confirming",
       "screen": "photo-upload",
@@ -745,7 +745,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--partial-failure",
       "screen": "photo-upload",
@@ -765,7 +765,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--offline",
       "screen": "photo-upload",
@@ -785,7 +785,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--resume",
       "screen": "photo-upload",
@@ -805,7 +805,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--invalid-file",
       "screen": "photo-upload",
@@ -825,7 +825,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--storage-unavailable",
       "screen": "photo-upload",
@@ -845,7 +845,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-upload--success",
       "screen": "photo-upload",
@@ -865,7 +865,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-gallery--ready",
       "screen": "photo-gallery",
@@ -885,7 +885,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-gallery--empty",
       "screen": "photo-gallery",
@@ -905,7 +905,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-gallery--preview-pending",
       "screen": "photo-gallery",
@@ -925,7 +925,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-gallery--error",
       "screen": "photo-gallery",
@@ -945,7 +945,7 @@
     },
     {
       "route": "/catalogue/:slug?step=photos",
-      "component": "src/components/client/UploadJourney.jsx",
+      "component": "src/components/client/PhotoUploadField.jsx",
       "interaction": "",
       "id": "photo-gallery--remove",
       "screen": "photo-gallery",

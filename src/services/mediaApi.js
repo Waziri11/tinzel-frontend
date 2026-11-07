@@ -43,6 +43,13 @@ export async function mediaRequest(path, session, { method = 'GET', body, signal
 
 export const createUploadSession = (session, slug) => mediaRequest('/sessions', session, { method: 'POST', body: { id: session.id, slug } });
 export const readUploadSession = (session) => mediaRequest(`/sessions/${session.id}`, session);
+export async function readUploadPreview(session, assetId, signal) {
+  const response = await fetch(`${root}/sessions/${session.id}/assets/${assetId}/preview`, {
+    headers: { 'X-Upload-Token': session.token }, signal, cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Preview unavailable');
+  return response.blob();
+}
 export const removeUpload = (session, assetId) => mediaRequest(`/sessions/${session.id}/assets/${assetId}`, session, { method: 'DELETE' });
 export const cancelUpload = (session, clientId) => mediaRequest(`/sessions/${session.id}/selections/${clientId}`, session, { method: 'DELETE' });
 export const submitUploadSession = (session, body) => mediaRequest(`/sessions/${session.id}/submit`, session, { method: 'POST', body });

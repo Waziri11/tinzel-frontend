@@ -4,7 +4,7 @@ const map={};
 const set=(names,route,component,interaction='')=>names.split(' ').forEach(name=>map[name]={route,component:`src/components/${component}.jsx`,interaction});
 set('language','/','landing/LanguageSelect','First visit without a stored language');set('home','/','landing/LandingHero');set('catalogue','/catalogue','client/MagazineShowcase');
 set('order-details','/catalogue/:slug?step=details','client/DynamicFormRenderer');set('order-story','/catalogue/:slug?step=story','client/DynamicFormRenderer');
-set('photo-upload photo-gallery','/catalogue/:slug?step=photos','client/UploadJourney');set('order-review','/catalogue/:slug?step=review','client/DynamicFormRenderer');set('payment','/catalogue/:slug?step=review','client/LipaNambaScreen','After confirmed submission, use the returned payment configuration');
+set('photo-upload photo-gallery','/catalogue/:slug?step=photos','client/PhotoUploadField');set('order-review','/catalogue/:slug?step=review','client/DynamicFormRenderer');set('payment','/catalogue/:slug?step=review','client/LipaNambaScreen','After confirmed submission, use the returned payment configuration');
 for(const type of ['text','textarea','date','number','photo_group','photo_upload','dropdown','radio','checkbox','linear_scale','rating','grid_radio','grid_checkbox','time','datetime','duration']){
  set(`question-${type}`,`/catalogue/:slug?step=${type.startsWith('photo')?'photos':'story'}`,'client/DynamicFormRenderer',`Published question type ${type}; stored values stay unchanged across languages`);
  set(`editor-${type}`,'/staff/forms','admin/FormBuilder',`Select an edition; field type ${type}`);

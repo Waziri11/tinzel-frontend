@@ -1,0 +1,27 @@
+.photo-field { min-width: 0; }
+.photo-field__label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.photo-field__hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 6px 0 12px; }
+.photo-field__picker { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 22px 12px; border: 2px dashed var(--accent-primary); border-radius: 10px; background: #faf5ea; color: var(--text-main); font: inherit; cursor: pointer; }
+.photo-field__picker > svg { color: var(--accent-primary); }
+.photo-field__picker span { font-size: 12px; color: var(--text-muted); }
+.photo-field button:disabled { cursor: wait; opacity: .65; }
+.photo-field button:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 3px; }
+.photo-field__status { margin: 14px 0; }
+.photo-field__status > p:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; margin: 0 0 8px; }
+.photo-field__status > p:first-child > span { flex-basis: 100%; font-size: 12px; color: var(--text-muted); }
+.photo-field .photo-field__success { color: #2f6847; }
+.photo-field progress { display: block; width: 100%; height: 7px; accent-color: #9b752e; margin: 8px 0; }
+.photo-field__error { color: #991b1b; font-size: 13px; }
+.photo-field__notice { display: flex; gap: 8px; font-size: 12px; color: #674b18; background: #fff4dc; padding: 10px; border-radius: 6px; }
+.photo-field__notice svg { flex-shrink: 0; }
+.photo-field__photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 12px; list-style: none; margin: 12px 0 0; padding: 0; }
+.photo-field__photo { min-width: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: 8px; background: #fff; }
+.photo-field__preview { aspect-ratio: 4 / 3; background: #f5f1e9; }
+.photo-field__preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.photo-field__placeholder { height: 100%; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 11px; text-align: center; color: var(--text-muted); }
+.photo-field__photo-copy { padding: 10px; font-size: 12px; }
+.photo-field__photo-copy > strong { display: block; overflow-wrap: anywhere; margin-bottom: 6px; }
+.photo-field__photo-copy > span { display: flex; align-items: center; gap: 4px; overflow-wrap: anywhere; }
+.photo-field__photo-copy svg { flex-shrink: 0; }
+.photo-field__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.photo-field__actions button, .photo-field__placeholder button { font: inherit; padding: 7px 9px; border: 1px solid #c9b892; border-radius: 5px; background: #fffdf8; color: #674b18; cursor: pointer; }

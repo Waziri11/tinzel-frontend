@@ -26,7 +26,7 @@ test('catalogue skeleton appears during navigation and respects reduced motion',
   await expect(page.locator('.page-skeleton')).toHaveCount(0);
 });
 
-test('upload stays interactive, confirms before 100%, collapses successes and shows real save stages', async ({ page }, testInfo) => {
+test('upload stays interactive, confirms before 100%, shows inline previews and shows real save stages', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let releaseComplete, releaseSubmit;
   const completionGate = new Promise((resolve) => { releaseComplete = resolve; });
@@ -39,25 +39,24 @@ test('upload stays interactive, confirms before 100%, collapses successes and sh
     await page.locator('#upload-first').setInputFiles(photo('story.jpg', 2200000));
     await expect.poll(() => completionHeld).toBe(true);
     await expect(page.getByText('Confirming your photo…')).toBeVisible();
-    await expect(page.getByRole('progressbar', { name: 'Overall photo upload' })).toHaveAttribute('value', '99');
-    await expect(page.getByText('Your photos are ready', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('progressbar', { name: /^Photo upload progress:/ })).toHaveAttribute('value', '99');
+    await expect(page.getByText('Photos uploaded successfully', { exact: true })).toHaveCount(0);
     await page.getByRole('button',{name:'1 Your details'}).click();
     await page.locator('#magazine-client-name').fill('My Tinzel Story');
     await page.getByPlaceholder('e.g. +255712345678').fill('+255700000007');
     await page.getByRole('button',{name:'3 Photographs'}).click();
-    await page.locator('#photo-progress').scrollIntoViewIfNeeded();
+    await page.locator('[data-field-id=first]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('uploading-mobile.png') });
     releaseComplete();
     await expect(page.getByText('Photos ready: 1/1', { exact: true })).toBeVisible();
-    await expect(page.getByText('Your photos are ready', { exact: true })).toBeVisible();
-    await expect.poll(() => page.locator('.tinzel-upload__completed').evaluate((element) => element.open)).toBe(false);
-    await expect(page.getByText('Upload recovery saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Photos uploaded successfully', { exact: true })).toBeVisible();
+    await expect(page.locator('[data-field-id=first] .photo-field__preview')).toBeVisible();
+    await expect(page.locator('[data-field-id=second] .photo-field__status')).toHaveCount(0);
+    await expect(page.locator('.tinzel-upload')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Return to upload progress' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Continue with your details' }).click();
-    await expect(page.locator('#magazine-client-name')).toBeFocused();
     await page.getByRole('button',{name:'4 Review',exact:true}).click();
     await page.getByRole('button', { name: /Continue.*Pay/i }).click();
-    await expect(page.getByRole('heading', { name: 'Saving your order' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Saving your order/ })).toBeVisible();
     await expect(page.getByText('Your order has been saved', { exact: true })).toHaveCount(0);
     releaseSubmit();
     await expect(page.getByText('Your order has been saved', { exact: true })).toBeVisible();
@@ -101,8 +100,8 @@ test('unavailable browser storage does not claim recovery was saved', async ({ p
 test('upload milestones are localized in Kiswahili', async ({ page }) => {
   await openForm(page, true);
   await page.locator('#upload-first').setInputFiles(photo('hadithi.jpg'));
-  await expect(page.getByText('Picha zako ziko tayari', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Endelea na taarifa zako' })).toBeVisible();
+  await expect(page.getByText('Picha zimepakiwa kikamilifu', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-field-id=first] .photo-field__preview')).toBeVisible();
 });
 
 test('staff can refresh pending previews and browse while an archive prepares', async ({ page }, testInfo) => {

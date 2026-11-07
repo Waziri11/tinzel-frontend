@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PhotoUploadQueue, checkSelection } from '../utils/photoUploadQueue';
-import { createUploadSession, readUploadSession, cancelUpload, transferPhoto, submitUploadSession } from '../services/mediaApi';
+import { createUploadSession, readUploadSession, readUploadPreview, cancelUpload, transferPhoto, submitUploadSession } from '../services/mediaApi';
 
 const defaults = { maxFileBytes: 25 * 1024 * 1024, maxFiles: 100, maxTotalBytes: 1024 * 1024 * 1024 };
 const keyFor = (slug) => `tinzel:uploads:v2:${slug}`;
@@ -13,7 +13,11 @@ export function usePhotoUploads(slug, form) {
   const [notice, setNotice] = useState('');
   const [recoveryStatus, setRecoveryStatus] = useState('saving');
   const [phase, setPhase] = useState('idle');
-  const state = useMemo(() => ({ ...load(slug), limits: defaults, init: null }), [slug]);
+  const state = useMemo(() => ({ ...load(slug), limits: defaults, init: null, files: new Map() }), [slug]);
+  const preview = useCallback((item, signal, { remote = false } = {}) => {
+    const file = !remote && state.files.get(item.id);
+    return file ? Promise.resolve(file) : readUploadPreview(state.session, item.photo.assetId, signal);
+  }, [state]);
   const alive = useRef(true);
   const queue = useMemo(() => new PhotoUploadQueue(async (item, signal, progress) => {
     await initialize();
@@ -61,7 +65,9 @@ export function usePhotoUploads(slug, form) {
     checkSelection(snapshot, field, fresh, state.limits);
     for (const file of files) {
       const resumed = queue.snapshot().find((i) => i.fieldId === fieldId && i.name === file.name && i.size === file.size && i.state === 'needs_file');
-      queue.add({ id: resumed?.id || crypto.randomUUID(), assetId: resumed?.assetId, name: file.name,
+      const id = resumed?.id || crypto.randomUUID();
+      state.files.set(id, file);
+      queue.add({ id, assetId: resumed?.assetId, name: file.name,
         size: file.size, lastModified: file.lastModified, fieldId, folderName: field?.label || 'General Photos' }, file);
     }
   }
@@ -74,6 +80,7 @@ export function usePhotoUploads(slug, form) {
     await initialize();
     await cancelUpload(state.session, id);
     queue.remove(id);
+    state.files.delete(id);
   }
   async function submit(body) {
     setPhase('waiting');
@@ -90,5 +97,5 @@ export function usePhotoUploads(slug, form) {
       return result;
     } catch (error) { setPhase('idle'); throw error; }
   }
-  return { items, notice, recoveryStatus, phase, add, remove, retry: (id) => queue.retry(id), submit };
+  return { items, notice, recoveryStatus, phase, preview, add, remove, retry: (id) => queue.retry(id), submit };
 }

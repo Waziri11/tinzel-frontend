@@ -1,11 +1,8 @@
 import { requirePhone } from '../../utils/phone';
 import { errorText } from '../../i18n/errors';
 import PhoneInput from '../common/PhoneInput';
-import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  FileText,
-  UploadCloud,
   CheckCircle2,
   AlertCircle,
   Trash2,
@@ -25,7 +22,7 @@ import { navigate } from '../../navigation/location';
 import OrderAnswersView from '../common/OrderAnswersView';
 import { Button } from '../common/UI';
 import LipaNambaScreen from './LipaNambaScreen';
-import UploadJourney from './UploadJourney';
+import PhotoUploadField from './PhotoUploadField';
 import PageSkeleton from '../common/PageSkeleton';
 import BrandLoading, { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
@@ -184,24 +181,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, submissionResult]);
 
   const handleFieldChange = (fieldId, value) => setAnswers((prev) => ({ ...prev, [fieldId]: value }));
-  const handleFieldPhotoSelect = async (fieldId, event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = '';
-    try {
-      setError(null);
-      await uploads.add(fieldId, files);
-    } catch (err) {
-      setError(errorText(err.message, err.status));
-    }
-  };
-  const removeFieldPhoto = async (fieldId, index) => {
-    try {
-      await uploads.remove(fieldPhotos[fieldId][index].id);
-    } catch (err) {
-      setError(errorText(err.message, err.status));
-    }
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (step !== 'review') {
@@ -466,24 +445,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       {/* Main Form Fields */}
       <form noValidate onSubmit={handleSubmit}>
         {uploads.notice && <p role="status">{uploads.notice}</p>}
-        <div id="photo-progress" hidden={step !== 'photos' && !submitting}>
-          <UploadJourney
-            uploads={uploads}
-            lang={lang}
-            disabled={submitting}
-            onRemove={async (id) => {
-              try {
-                await uploads.remove(id);
-              } catch (err) {
-                setError(errorText(err.message, err.status));
-              }
-            }}
-            onContinue={() => {
-              goStep('details');
-              setTimeout(() => document.getElementById('magazine-client-name')?.focus(), 0);
-            }}
-          />
-        </div>
         <fieldset
           disabled={submitting}
           aria-label={ui('Magazine order details', 'Taarifa za oda ya jarida')}
@@ -702,143 +663,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {sectionFields.map((field) => {
                     if (field.type === 'photo_group' || field.type === 'photo_upload') {
-                      const photosForThisField = fieldPhotos[field.fieldId] || [];
-                      const isGroup = field.type === 'photo_group';
-
-                      return (
-                        <div key={field.fieldId}>
-                          <label
-                            style={{
-                              display: 'block',
-                              fontSize: '13px',
-                              fontWeight: '700',
-                              color: 'var(--text-main)',
-                              marginBottom: '4px',
-                            }}
-                          >
-                            {L(field, 'label')} {field.required ? '*' : ''}
-                          </label>
-                          {L(field, 'helperText') && (
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                              {L(field, 'helperText')}
-                            </p>
-                          )}
-
-                          <div
-                            style={{
-                              border: '2px dashed var(--accent-primary)',
-                              borderRadius: '8px',
-                              padding: '24px',
-                              textAlign: 'center',
-                              backgroundColor: '#FAF5EA',
-                              cursor: 'pointer',
-                              marginBottom: '14px',
-                              transition: 'all 0.2s ease',
-                            }}
-                            onClick={() => document.getElementById(`upload-${field.fieldId}`).click()}
-                          >
-                            <UploadCloud
-                              size={30}
-                              color="var(--accent-primary)"
-                              style={{ margin: '0 auto 8px auto' }}
-                            />
-                            <p
-                              style={{
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                color: 'var(--text-main)',
-                                marginBottom: '4px',
-                              }}
-                            >
-                              {isGroup ? t('form.pickGroup') : t('form.pickSingle')}
-                            </p>
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                              {isGroup ? t('form.groupHint') : t('form.singleHint')}
-                            </p>
-                            <input
-                              id={`upload-${field.fieldId}`}
-                              type="file"
-                              multiple={isGroup}
-                              disabled={submitting}
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={(e) => handleFieldPhotoSelect(field.fieldId, e)}
-                            />
-                          </div>
-
-                          {photosForThisField.length > 0 && (
-                            <details className="tinzel-photo-list">
-                              <summary>
-                                {photosForThisField.length}{' '}
-                                {ui('selected photos · View or remove', 'picha zimechaguliwa · Ona au ondoa')}
-                              </summary>
-                              <div
-                                style={{
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  color: 'var(--text-muted)',
-                                  marginBottom: '8px',
-                                }}
-                              >
-                                {t('form.folderAssets', {
-                                  count: photosForThisField.length,
-                                  unit: photosForThisField.length === 1 ? t('form.photo') : t('form.photos'),
-                                })}
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {photosForThisField.map((photo, idx) => (
-                                  <div
-                                    key={idx}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      backgroundColor: '#FFFFFF',
-                                      border: '1px solid var(--border-color)',
-                                      borderRadius: '6px',
-                                      padding: '6px 10px',
-                                      fontSize: '12px',
-                                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                                    }}
-                                  >
-                                    <FileText size={14} color="var(--accent-primary)" />
-                                    <span
-                                      style={{
-                                        maxWidth: '140px',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        fontWeight: '600',
-                                      }}
-                                    >
-                                      {photo.name}
-                                    </span>
-                                    <span style={{ fontSize: '10px', color: '#A8A29E' }}>
-                                      {(photo.size / (1024 * 1024)).toFixed(1)}MB
-                                    </span>
-                                    <ActionButton
-                                      type="button"
-                                      aria-label={`${ui('Remove', 'Ondoa')} ${photo.name}`}
-                                      onClick={() => removeFieldPhoto(field.fieldId, idx)}
-                                      disabled={submitting}
-                                      style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#DC2626',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        padding: '2px',
-                                      }}
-                                    >
-                                      <Trash2 size={13} />
-                                    </ActionButton>
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                        </div>
-                      );
+                      return <PhotoUploadField key={field.fieldId} field={field}
+                        label={L(field, 'label')} helperText={L(field, 'helperText')}
+                        items={fieldPhotos[field.fieldId] || []} uploads={uploads}
+                        lang={lang} disabled={submitting} />;
                     }
 
                     if (field.type === 'textarea') {
