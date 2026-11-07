@@ -1,3 +1,4 @@
+import { hideSubmissionReference } from '../../utils/orderDisplay';
 import PageSkeleton from '../common/PageSkeleton';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -56,8 +57,8 @@ export default function ClientNotifications({ token, onUnauthorized }) {
       {!initialLoading && !items.length && !error && <p>{sw ? 'Hakuna taarifa mpya.' : 'No notifications yet.'}</p>}
       {items.map((item) => (
         <article key={item._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
-          <strong>{item.title}</strong>
-          <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13 }}>{item.message}</p>
+          <strong>{hideSubmissionReference(item.title)}</strong>
+          <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13 }}>{hideSubmissionReference(item.message)}</p>
           <small>{new Date(item.createdAt).toLocaleString(sw ? 'sw-TZ' : 'en-TZ')}</small>
           {!item.isRead && (
             <ActionButton

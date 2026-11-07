@@ -255,7 +255,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           <button className="text-back" onClick={onBack}>
             <ArrowLeft size={15} /> {staffUser?.role === 'manager' ? 'Returns' : 'Design orders'}
           </button>
-          <h1>{order.trackingId || order.submissionId}</h1>
+          <h1>{order.trackingId || order.clientName}</h1>
           <p>
             {order.clientName} · {order.formTitle} ·{' '}
             <span className="designer-status" data-status={order.status}>

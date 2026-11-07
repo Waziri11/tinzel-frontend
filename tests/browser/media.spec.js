@@ -36,8 +36,13 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   await expect(page.locator('#magazine-client-name')).toHaveValue('Browser Upload Test');
   expect(chunkRequests).toBe(previousRequests);
   await page.getByRole('button',{name:'4 Review'}).click();
+  await expect(page.locator('body')).not.toContainText(/SUB-|Submission ID|Namba.*Uwasilishaji/);
   await page.getByRole('button', { name: /Continue.*Pay/i }).click();
   await expect(page.getByText('Do not pay this test order.')).toBeVisible();
+  await expect(page.locator('.payment-page')).toContainText('Browser Upload Test');
+  await expect(page.locator('body')).not.toContainText(/SUB-|Submission ID|Namba.*Uwasilishaji/);
+  await page.getByRole('button', { name: 'SW', exact: true }).click();
+  await expect(page.locator('body')).not.toContainText(/SUB-|Submission ID|Namba.*Uwasilishaji/);
   expect(submitBytes).toBeLessThan(5000);
   expect(errors).toEqual([]);
 });

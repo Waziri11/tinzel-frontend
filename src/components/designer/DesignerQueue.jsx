@@ -51,10 +51,10 @@ function BoardColumn({ column, token, search, refresh, onOpenOrder }) {
           : data.orders.length === 0 ? <p className="designer-kanban-empty">{tx(search ? 'No matching orders.' : 'No orders in this column.')}</p>
           : data.orders.map(order => (
             <article className="designer-kanban-card" key={order._id}>
-              <div className="designer-kanban-card-top"><strong>{order.trackingId || order.submissionId}</strong><span className="designer-status" data-status={order.status}>{tx(order.status.replaceAll('_', ' '))}</span></div>
+              <div className="designer-kanban-card-top"><strong>{order.trackingId || order.clientName}</strong><span className="designer-status" data-status={order.status}>{tx(order.status.replaceAll('_', ' '))}</span></div>
               <h3>{order.clientName}</h3><p>{order.formTitle}</p>
               <div className="designer-kanban-card-bottom"><small>{tx('Updated')} {new Date(order.updatedAt).toLocaleDateString()}</small>
-                <button type="button" onClick={() => onOpenOrder(order._id)} aria-label={`${tx('Open')} ${order.trackingId || order.submissionId}`}>{tx('Open')}<ArrowRight size={15} /></button>
+                <button type="button" onClick={() => onOpenOrder(order._id)} aria-label={`${tx('Open')} ${order.trackingId || order.clientName}`}>{tx('Open')}<ArrowRight size={15} /></button>
               </div>
             </article>
           ))}

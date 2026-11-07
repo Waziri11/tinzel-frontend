@@ -68,7 +68,7 @@ export default function MagazineReviewPage({ token, orderId, version }) {
           </button>
           <h1>{t("Magazine review", "Ukaguzi wa jarida")}</h1>
           <p>
-            {order.trackingId || order.submissionId} · {order.clientName}
+            {[order.trackingId, order.clientName].filter(Boolean).join(' · ')}
           </p>
         </div>
         <label>

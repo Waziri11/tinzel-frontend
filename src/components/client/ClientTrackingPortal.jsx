@@ -555,7 +555,7 @@ export default function ClientTrackingPortal() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
-              {order.trackingId || order.submissionId}
+              {order.trackingId || order.clientName}
             </span>
             <span
               style={{

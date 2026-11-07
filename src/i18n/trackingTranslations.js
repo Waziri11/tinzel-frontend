@@ -44,7 +44,7 @@ export const trackingTranslations = {
 
   // Login
   'track.login.title': { en: 'Client Tracking & Review Portal', sw: 'Tovuti ya Ufuatiliaji na Mapitio ya Mteja' },
-  'track.login.subtitle': { en: 'Use your tracking or submission ID and registered phone number. After SMS verification, this browser remembers this order for 30 days.', sw: 'Weka namba ya ufuatiliaji au ya oda na simu uliyosajili. Baada ya uthibitisho kwa SMS, kivinjari hiki kitakumbuka oda hii kwa siku 30.' },
+  'track.login.subtitle': { en: 'Use your tracking ID and registered phone number. After SMS verification, this browser remembers this order for 30 days.', sw: 'Weka namba ya ufuatiliaji na simu uliyosajili. Baada ya uthibitisho kwa SMS, kivinjari hiki kitakumbuka oda hii kwa siku 30.' },
   'track.login.trackingId': { en: 'Magazine Tracking ID', sw: 'Namba ya Ufuatiliaji wa Jarida' },
   'track.login.trackingIdPh': { en: 'e.g. TNZ-2026-0001', sw: 'mfano TNZ-2026-0001' },
   'track.login.whatsapp': { en: 'Registered phone number', sw: 'Namba ya simu iliyosajiliwa' },

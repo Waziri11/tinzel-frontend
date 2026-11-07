@@ -1,3 +1,4 @@
+import { hideSubmissionReference } from '../../utils/orderDisplay';
 import PhoneInput from './PhoneInput';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import PageSkeleton from './PageSkeleton';
@@ -2865,9 +2866,8 @@ export default function NotificationsPage({
                     : null;
                 const orderTracking =
                   orderObj?.trackingId ||
-                  orderObj?.submissionId ||
                   primary.metadata?.trackingId ||
-                  primary.metadata?.submissionId ||
+                  orderObj?.clientName ||
                   null;
                 const orderTargetId =
                   orderObj?._id ||
@@ -2940,9 +2940,7 @@ export default function NotificationsPage({
                             color: 'var(--text-main)',
                           }}
                         >
-                          {primary.title ||
-                            primary.subject ||
-                            formatTemplate(primary.template)}
+                          {hideSubmissionReference(primary.title || primary.subject) || formatTemplate(primary.template)}
                         </strong>
 
                         <span
@@ -2969,7 +2967,7 @@ export default function NotificationsPage({
                               fontWeight: 800,
                             }}
                           >
-                            {orderTracking}
+                            {hideSubmissionReference(orderTracking)}
                           </span>
                         )}
                       </div>
@@ -3001,7 +2999,7 @@ export default function NotificationsPage({
                         padding: '10px 12px',
                       }}
                     >
-                      {primary.message}
+                      {hideSubmissionReference(primary.message)}
                     </div>
 
                     {/* Tri-Channel Synchronization Badges (In-System + Email + Phone) */}

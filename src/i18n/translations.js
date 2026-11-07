@@ -59,10 +59,10 @@ export const translations = {
     sw: 'Fuatilia maendeleo ya jarida lako, kagua rasimu za mbunifu, na idhinisha toleo lako la kuchapishwa.',
   },
   'follow.orderNumber': { en: 'Magazine Order Number *', sw: 'Namba ya Oda ya Jarida *' },
-  'follow.orderPlaceholder': { en: 'e.g. TNZ-2026-0001 or SUB-2026-XXXXX', sw: 'mf. TNZ-2026-0001 au SUB-2026-XXXXX' },
+  'follow.orderPlaceholder': { en: 'e.g. TNZ-2026-0001', sw: 'mf. TNZ-2026-0001' },
   'follow.orderHint': {
-    en: 'Issued upon payment verification (TNZ-...) or initial submission (SUB-...).',
-    sw: 'Hutolewa baada ya malipo kuthibitishwa (TNZ-...) au baada ya kuwasilisha (SUB-...).',
+    en: 'Sent to your phone after payment verification.',
+    sw: 'Hutumwa kwenye simu yako baada ya malipo kuthibitishwa.',
   },
   'follow.whatsapp': { en: 'Mobile Phone Number *', sw: 'Namba ya simu *' },
   'follow.whatsappHint': {
@@ -134,8 +134,8 @@ export const translations = {
   'form.durationPh': { en: 'e.g. 1 hour 30 minutes', sw: 'mf. saa 1 dakika 30' },
   'form.readyTitle': { en: 'Ready to immortalize your story?', sw: 'Uko tayari kuifanya hadithi yako idumu?' },
   'form.readyDesc': {
-    en: 'Submitting generates your preliminary Submission ID and takes you to the Lipa Namba payment screen.',
-    sw: 'Kuwasilisha kunatoa Namba yako ya awali ya Uwasilishaji na kukupeleka kwenye skrini ya malipo ya Lipa Namba.',
+    en: 'Submit your magazine details to continue to Lipa Namba payment.',
+    sw: 'Wasilisha taarifa za jarida lako ili kuendelea kwenye malipo ya Lipa Namba.',
   },
   'form.submitting': { en: 'Submitting Order...', sw: 'Inawasilisha Oda...' },
   'form.continuePay': { en: 'Continue to Payment', sw: 'Endelea kwenye Malipo' },
@@ -146,7 +146,7 @@ export const translations = {
     en: 'Your photos and responses for {title} are safely uploaded.',
     sw: 'Picha na majibu yako kwa {title} yamepakiwa salama.',
   },
-  'pay.tempId': { en: 'Temporary Submission ID:', sw: 'Namba ya Muda ya Uwasilishaji:' },
+  'pay.submitter': { en: 'Submitted by:', sw: 'Imewasilishwa na:' },
   'pay.awaiting': { en: 'Awaiting Payment', sw: 'Inasubiri Malipo' },
   'pay.noticeTitle': { en: 'Tracking ID Notice', sw: 'Taarifa ya Namba ya Ufuatiliaji' },
   'pay.notice': {

@@ -52,7 +52,7 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           </p>
         </div>
 
-        {/* Temporary Submission ID Banner */}
+        {/* Submission status */}
         <div
           style={{
             backgroundColor: 'var(--bg-primary)',
@@ -68,8 +68,8 @@ export default function LipaNambaScreen({ order, lipaNambaInstructions, onNaviga
           }}
         >
           <div style={{ minWidth: 0, flex: '1 1 180px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>{t('pay.tempId')}</span>
-            <span style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '0.5px' }}>{order?.submissionId}</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block' }}>{t('pay.submitter')}</span>
+            <span style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '0.5px' }}>{order?.clientName}</span>
           </div>
           <span
             style={{

@@ -8,15 +8,15 @@ test('staff language persists, actual channel outcomes are shown, and unconfirme
  await page.addInitScript(()=>{localStorage.setItem('tinzel_language','en');localStorage.setItem('tinzel_staff_token','test-staff');});
  await page.route('**/api/staff/me',route=>json(route,{user:{...staff,preferredLanguage:preference}}));
  await page.route('**/api/staff/preferences',route=>{preference=route.request().postDataJSON().preferredLanguage;writes.push(preference);return json(route,{success:true,preferredLanguage:preference});});
- const items=[{_id:'inapp',channel:'in_system',status:'delivered',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.',isRead:false,attempts:1},
-  {_id:'sms',channel:'sms',status:'unconfirmed',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.',errorMessage:'Provider acceptance is unconfirmed.',attempts:1},
-  {_id:'email',channel:'email',status:'sent',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.',attempts:1}];
+ const items=[{_id:'inapp',channel:'in_system',status:'delivered',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.\nSUB-2026-ABC123',isRead:false,attempts:1},
+  {_id:'sms',channel:'sms',status:'unconfirmed',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.\nSUB-2026-ABC123',errorMessage:'Provider acceptance is unconfirmed.',attempts:1},
+  {_id:'email',channel:'email',status:'sent',eventGroupId:'event-1',workflowEventKey:'key-1',title:'Verify payment',message:'New order awaits payment verification.\nSUB-2026-ABC123',attempts:1}];
  await page.route('**/api/notifications/history?*',route=>json(route,{notifications:items,unreadCount:1,channelCounts:{all:3,in_system:1,email:1,sms:1}}));
  await page.route('**/api/notifications/diagnostics',route=>json(route,{diagnostics:{}}));
  await page.route('**/api/notifications/settings',route=>json(route,{settings:{channels:{in_system:true,email:true,sms:true},triggers:{},catalog:[]}}));
  await page.route('**/api/notifications/resend/sms',route=>{retryBody=route.request().postDataJSON();return json(route,{success:true});});
  await page.route('**/api/admin/config',route=>route.request().method()==='PUT'?json(route,{success:true}):json(route,{configs:[{key:'printer_preferred_language',value:'sw'}]}));
- await page.goto('/staff/notifications');await expect(page.getByText('Verify payment',{exact:true})).toBeVisible();
+ await page.goto('/staff/notifications');await expect(page.getByText('Verify payment',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
  await expect(page.getByText(/EMAIL: provider accepted/)).toBeVisible();await expect(page.getByText(/SMS: unconfirmed/)).toBeVisible();
  await page.getByRole('button',{name:'SW',exact:true}).click();await expect.poll(()=>writes).toEqual(['sw']);
  await page.reload();await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');expect(writes).toEqual(['sw']);
@@ -35,10 +35,10 @@ test('customer sees a private mobile inbox, marks messages read, saves language 
  let language='sw',read=false,historyCalls=0;
  await page.route('**/api/client/order',route=>json(route,{order:{...order,clientPreferredLanguage:language}}));
  await page.route('**/api/client/preferences',route=>{language=route.request().postDataJSON().preferredLanguage;return json(route,{success:true});});
- await page.route('**/api/client/notifications',route=>{historyCalls++;return json(route,{notifications:[{_id:'client-note',title:'Malipo yamethibitishwa',message:'Malipo ya jarida lako yamethibitishwa.',isRead:read,createdAt:'2026-10-31T10:00:00Z'}],unreadCount:read?0:1});});
+ await page.route('**/api/client/notifications',route=>{historyCalls++;return json(route,{notifications:[{_id:'client-note',title:'Malipo yamethibitishwa',message:'Malipo ya jarida lako yamethibitishwa.\nSUB-2026-ABC123',isRead:read,createdAt:'2026-10-31T10:00:00Z'}],unreadCount:read?0:1});});
  await page.route('**/api/client/notifications/client-note/read',route=>{read=true;return json(route,{success:true});});
  await page.goto('/track');await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');
- await page.getByText('Taarifa (1)',{exact:true}).click();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();
+ await page.getByText('Taarifa (1)',{exact:true}).click();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
  await page.getByRole('button',{name:'Weka imesomwa'}).click();await expect.poll(()=>read).toBe(true);await expect(page.locator('summary')).toHaveText('Taarifa');
  await page.getByRole('button',{name:'EN',exact:true}).click();await expect.poll(()=>language).toBe('en');
  await expect(page.locator('summary')).toHaveText('Notifications');
@@ -48,4 +48,14 @@ test('customer sees a private mobile inbox, marks messages read, saves language 
  const before=historyCalls;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>historyCalls).toBeGreaterThan(before);
  await page.getByRole('button',{name:/Sign out|Logout|Log out/i}).click();await expect(page.locator('#track-login-id')).toBeVisible();const afterLogout=historyCalls;
  await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(afterLogout);
+});
+
+for (const lang of ['en', 'sw']) test(`unpaid client order shows customer name without a temporary ID in ${lang}`, async ({ page }) => {
+ await page.addInitScript(language => localStorage.setItem('tinzel_language', language), lang);
+ await page.route('**/api/client/order', route => json(route, {order: {...order, trackingId: '', status: 'awaiting_payment', clientPreferredLanguage: lang}}));
+ await page.route('**/api/client/notifications', route => json(route, {notifications: [], unreadCount: 0}));
+ await page.goto('/track');
+ await expect(page.locator('.tracking-order')).toBeVisible();
+ await expect(page.locator('.tracking-order')).toContainText('Asha');
+ await expect(page.locator('body')).not.toContainText(/SUB-|Submission ID/);
 });
