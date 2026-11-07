@@ -1,3 +1,4 @@
+import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import { ActionButton, InlineLoading } from '../common/SoftFlutter';
 import React, { lazy, Suspense, useState } from 'react';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -28,6 +29,7 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
             {item.pageReference && <strong>{tx('Page')} {item.pageReference}: </strong>}
             {item.text}
           </p>
+          <RevisionAudioPlayer key={item._id} token={token} orderId={orderId} requestId={request._id} item={item} />
           {request.draftVersionNumber > 0 && (item.annotationId || /^\d+$/.test(item.pageReference || '')) && (
             <Suspense fallback={<InlineLoading />}>
               <PdfBookReader key={item._id} token={token} orderId={orderId} version={request.draftVersionNumber}

@@ -1,3 +1,4 @@
+import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import { runTransfer } from '../../services/fileTransfers';
 import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
@@ -349,6 +350,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                             <strong>{item.pageReference && `Page ${item.pageReference}: `}</strong>
                             {item.text}
                           </p>
+                          <RevisionAudioPlayer token={token} orderId={orderId} requestId={request._id} item={item} />
                           {item.annotationId && (
                             <button
                               className="secondary-button"

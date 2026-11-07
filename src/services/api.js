@@ -207,6 +207,11 @@ export const api = {
   },
 
   // Client Tracking Endpoints
+  revisionAudio: (token, { client, orderId, requestId, itemId, signal }) =>
+    fetchWithTimeout(`${API_BASE}${client ? '/api/client' : `/api/designer/orders/${orderId}`}/revisions/${requestId}/items/${itemId}/audio`, {
+      headers: getHeaders(token), signal,
+    }).then(handleBlob),
+
   client: {
     logout: (forgetDevice = false) => fetchWithTimeout(`${API_BASE}/api/client/logout`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ forgetDevice }) }).then(handleResponse),
     setPreferences: (token, preferredLanguage) =>
@@ -257,12 +262,17 @@ export const api = {
         body: JSON.stringify({ feedback, expectedVersion }),
       }).then(handleResponse),
 
-    requestRevision: (clientToken, items, expectedVersion) =>
-      fetchWithTimeout(`${API_BASE}/api/client/request-revision`, {
-        method: 'POST',
-        headers: getHeaders(clientToken),
-        body: JSON.stringify({ items, expectedVersion }),
-      }).then(handleResponse),
+    requestRevision: (clientToken, items, expectedVersion, audio = null) => {
+      const body = audio ? new FormData() : JSON.stringify({ items, expectedVersion });
+      if (audio) {
+        body.append('items', JSON.stringify(items));
+        body.append('expectedVersion', String(expectedVersion));
+        body.append('audio', audio);
+      }
+      return fetchWithTimeout(`${API_BASE}/api/client/request-revision`, {
+        method: 'POST', headers: getHeaders(clientToken, Boolean(audio)), body,
+      }, audio ? UPLOAD_API_TIMEOUT_MS : DEFAULT_API_TIMEOUT_MS).then(handleResponse);
+    },
     viewDraft: (clientToken) =>
       fetchWithTimeout(`${API_BASE}/api/client/draft/view`, {
         headers: getHeaders(clientToken),

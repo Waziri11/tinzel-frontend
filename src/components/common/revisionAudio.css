@@ -1,0 +1,17 @@
+.revision-audio button,
+.revision-audio input::file-selector-button {
+  border: 1px solid var(--border-color, #ddd6c9);
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-height: 44px;
+  background: var(--card-bg, #fff);
+  color: var(--text-primary, #292524);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.revision-audio input::file-selector-button { margin-right: 8px; }
+.revision-audio button:disabled { opacity: .6; cursor: default; }
+.revision-audio button:focus-visible,
+.revision-audio input:focus-visible { outline: 2px solid var(--accent-primary, #956b28); outline-offset: 3px; }

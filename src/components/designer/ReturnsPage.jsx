@@ -1,3 +1,4 @@
+import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -456,6 +457,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                           <li key={item._id || idx} style={{ marginBottom: '2px' }}>
                             {item.pageReference ? <strong>[P.{item.pageReference}] </strong> : null}
                             {item.text}
+                            <RevisionAudioPlayer token={token} orderId={row.orderId} requestId={row._id} item={item} />
                           </li>
                         ))}
                         {items.length > 3 && (

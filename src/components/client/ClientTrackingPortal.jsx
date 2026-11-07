@@ -1,3 +1,5 @@
+import RevisionAudioInput from '../common/RevisionAudioInput';
+import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
@@ -55,6 +57,8 @@ export default function ClientTrackingPortal() {
   // Reader state
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [revisionItems, setRevisionItems] = useState([{ text: '', pageReference: '' }]);
+  const [revisionAudio, setRevisionAudio] = useState(null);
+  const [audioBusy, setAudioBusy] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
   const [proofState, setProofState] = useState({ composing: false, saving: false });
@@ -150,6 +154,9 @@ export default function ClientTrackingPortal() {
     setClientToken('');
     sessionStorage.removeItem('tinzel_client_token');
     setOrder(null);
+    setRevisionAudio(null);
+    setRevisionItems([{ text: '', pageReference: '' }]);
+    setShowRevisionForm(false);
     setOtpSent(false);
     setOtpCode('');
     setSuccessMsg(null);
@@ -209,17 +216,19 @@ export default function ClientTrackingPortal() {
     const items = revisionItems
       .map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() }))
       .filter((item) => item.text);
-    if (!items.length) {
-      setError(t('track.err.describeChanges'));
+    if (audioBusy) return;
+    if (!items.length && !revisionAudio) {
+      setError(ui('Describe the changes or add an audio message.', 'Eleza marekebisho au ongeza ujumbe wa sauti.'));
       return;
     }
 
     setSubmittingDecision(true);
     setError(null);
     try {
-      const res = await api.client.requestRevision(clientToken, items, order.currentDraftVersion);
+      const res = await api.client.requestRevision(clientToken, items, order.currentDraftVersion, revisionAudio);
       setOrder(res.order);
       setShowRevisionForm(false);
+      setRevisionAudio(null);
       setRevisionItems([{ text: '', pageReference: '' }]);
       setSuccessMsg(t('track.ok.revisionSent'));
     } catch (err) {
@@ -770,6 +779,7 @@ export default function ClientTrackingPortal() {
                     <li key={item._id} style={{ fontSize: 13, marginBottom: 4 }}>
                       {item.pageReference ? `Page ${item.pageReference}: ` : ''}
                       {item.text}
+                      <RevisionAudioPlayer client token={clientToken} requestId={request._id} item={item} />
                     </li>
                   ))}
                 </ul>
@@ -849,7 +859,7 @@ export default function ClientTrackingPortal() {
                 <div className="client-decision-actions">
                   <ActionButton loading={submittingDecision}
                     onClick={handleApproveWholeMagazine}
-                    disabled={submittingDecision || proofState.composing || proofState.saving}
+                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -869,7 +879,7 @@ export default function ClientTrackingPortal() {
 
                   <button
                     onClick={() => setShowRevisionForm(true)}
-                    disabled={submittingDecision || proofState.composing || proofState.saving}
+                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -889,8 +899,9 @@ export default function ClientTrackingPortal() {
               ) : (
                 <form onSubmit={handleRequestRevision}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                    {t('track.decision.describe')}
+                    {ui('Describe your changes in writing or with audio', 'Eleza marekebisho kwa maandishi au sauti')}
                   </label>
+                  <RevisionAudioInput file={revisionAudio} onChange={setRevisionAudio} disabled={submittingDecision} onBusyChange={setAudioBusy} />
                   {revisionItems.map((item, index) => (
                     <div
                       key={index}
@@ -909,7 +920,8 @@ export default function ClientTrackingPortal() {
                       />
                       <textarea
                         rows={2}
-                        required
+                        aria-label={ui(`Written feedback ${index + 1}`, `Maoni ya maandishi ${index + 1}`)}
+                        disabled={submittingDecision}
                         placeholder={t('track.decision.describePh')}
                         value={item.text}
                         onChange={(e) =>
@@ -946,7 +958,7 @@ export default function ClientTrackingPortal() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <ActionButton loading={submittingDecision}
                       type="submit"
-                      disabled={submittingDecision || proofState.composing || proofState.saving}
+                      disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -965,7 +977,8 @@ export default function ClientTrackingPortal() {
                     </ActionButton>
                     <button
                       type="button"
-                      onClick={() => setShowRevisionForm(false)}
+                      disabled={submittingDecision}
+                      onClick={() => { setShowRevisionForm(false); setRevisionAudio(null); }}
                       style={{
                         backgroundColor: 'transparent',
                         color: 'var(--text-muted)',
