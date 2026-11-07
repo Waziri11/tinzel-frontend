@@ -22,7 +22,7 @@ import { navigate } from '../../navigation/location';
 import OrderAnswersView from '../common/OrderAnswersView';
 import { Button } from '../common/UI';
 import LipaNambaScreen from './LipaNambaScreen';
-import PhotoUploadField from './PhotoUploadField';
+import PhotoUploadField, { PhotoPreview } from './PhotoUploadField';
 import PageSkeleton from '../common/PageSkeleton';
 import BrandLoading, { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
@@ -1010,6 +1010,26 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 <p>
                   {ui('Selected photographs:', 'Picha zilizochaguliwa:')} {uploads.items.length}
                 </p>
+                {(form.fields || []).filter(field => ['photo_upload', 'photo_group'].includes(field.type)).map(field => {
+                  const photos = fieldPhotos[field.fieldId] || [];
+                  return <section key={field.fieldId} className="photo-field photo-review-question" aria-labelledby={`review-photo-${field.fieldId}`}>
+                    <h3 id={`review-photo-${field.fieldId}`}>{L(field, 'label')}</h3>
+                    {photos.length === 0 ? <p className="photo-field__hint">{ui('No photos added.', 'Hakuna picha zilizoongezwa.')}</p>
+                      : <ul className="photo-field__photos">
+                        {photos.map(photo => <li key={photo.id} className="photo-field__photo">
+                          {photo.state === 'complete' && <PhotoPreview item={photo} preview={uploads.preview} ui={ui} />}
+                          <div className="photo-field__photo-copy">
+                            <strong>{photo.name}</strong>
+                            <span className={photo.state === 'complete' ? 'photo-field__success' : ''}>
+                              {photo.state === 'complete' ? <><CheckCircle2 size={14} aria-hidden="true" />{ui('Uploaded', 'Imepakiwa')}</>
+                                : ['failed', 'needs_file'].includes(photo.state) ? ui('Needs attention — return to Photographs to retry.', 'Inahitaji msaada — rudi kwenye Picha ujaribu tena.')
+                                  : ui('Upload in progress…', 'Picha inapakiwa…')}
+                            </span>
+                          </div>
+                        </li>)}
+                      </ul>}
+                  </section>;
+                })}
                 <p className="ui-description">
                   {ui(
                     'Transfers finish before your order is confirmed. Payment instructions appear after your order has been saved.',

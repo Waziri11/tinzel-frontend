@@ -1,4 +1,6 @@
 .photo-field { min-width: 0; }
+.photo-review-question { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.photo-review-question h3 { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.5; }
 .photo-field__label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
 .photo-field__hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 6px 0 12px; }
 .photo-field__picker { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 22px 12px; border: 2px dashed var(--accent-primary); border-radius: 10px; background: #faf5ea; color: var(--text-main); font: inherit; cursor: pointer; }

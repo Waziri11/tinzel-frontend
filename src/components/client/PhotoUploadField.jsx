@@ -5,7 +5,7 @@ import { errorText } from '../../i18n/errors';
 import { uploadSummary, uploadIsStalled } from '../../utils/uploadProgress';
 import './photoUploadField.css';
 
-function PhotoPreview({ item, preview, ui }) {
+export function PhotoPreview({ item, preview, ui }) {
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);

@@ -126,9 +126,30 @@ test('each field owns its progress and confirmed previews survive refresh and re
   await expect.poll(() => second.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   await first.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath('inline-photo-success-mobile.png'), fullPage: true });
+  await page.getByRole('button', { name: '4 Review', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Upload Performance Test', exact: true })).toBeInViewport();
+  const reviewFirst = page.locator('.order-review').getByRole('region', { name: 'first photos', exact: true });
+  const reviewSecond = page.locator('.order-review').getByRole('region', { name: 'second photos', exact: true });
+  for (const [question, name] of [[reviewFirst, 'first.png'], [reviewSecond, 'second.png']]) {
+    await question.scrollIntoViewIfNeeded();
+    await expect(question.getByRole('img')).toHaveCount(1);
+    await expect(question.getByRole('img')).toHaveAttribute('alt', name);
+    await expect.poll(() => question.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  }
+  await page.reload();
+  await reviewSecond.scrollIntoViewIfNeeded();
+  await expect.poll(() => reviewSecond.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  await reviewFirst.scrollIntoViewIfNeeded();
+  await expect.poll(() => reviewFirst.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('review-question-photos-mobile.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await first.getByRole('button', { name: 'Remove first.png', exact: true }).click();
   await expect(first.getByRole('img')).toHaveCount(0);
   await expect(first.locator('.photo-field__status')).toHaveCount(0);
   await expect(second.getByRole('img')).toBeVisible();
+  await page.getByRole('button', { name: '4 Review', exact: true }).click();
+  await expect(reviewFirst.getByText('No photos added.')).toBeVisible();
+  await expect(reviewFirst.getByRole('img')).toHaveCount(0);
+  await expect(reviewSecond.getByText('second.png', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
