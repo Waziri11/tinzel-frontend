@@ -583,6 +583,7 @@ export default function ClientTrackingPortal() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <ClientNotifications token={clientToken} onUnauthorized={clearSession} />
           <button type="button" className="ui-button" onClick={() => { if (allowProofLeave()) handleLogout(true); }}>
             {ui('Forget this order on this device', 'Ondoa oda hii kwenye kifaa hiki')}
           </button>
@@ -651,7 +652,6 @@ export default function ClientTrackingPortal() {
         </div>
       )}
 
-      <ClientNotifications token={clientToken} onUnauthorized={clearSession} />
       {/* Visual Conveyor Belt Progress Bar */}
       <div
         style={{

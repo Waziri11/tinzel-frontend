@@ -28,7 +28,7 @@ test('staff language persists, actual channel outcomes are shown, and unconfirme
  await page.getByLabel('Printer notification language').selectOption('en');await page.getByRole('button',{name:'Save printer language'}).click();await expect(page.getByText('Printer notification language saved.')).toBeVisible();
 });
 
-test('customer sees a private mobile inbox, marks messages read, saves language and polls only while signed in',async({page})=>{
+test('customer opens a separate mobile inbox, marks messages read, and polls only while it is open',async({page})=>{
  await page.clock.install();
  await page.setViewportSize({width:390,height:844});
  await page.addInitScript(()=>{localStorage.setItem('tinzel_language','en');sessionStorage.setItem('tinzel_client_token','test-client');});
@@ -38,14 +38,20 @@ test('customer sees a private mobile inbox, marks messages read, saves language 
  await page.route('**/api/client/notifications',route=>{historyCalls++;return json(route,{notifications:[{_id:'client-note',title:'Malipo yamethibitishwa',message:'Malipo ya jarida lako yamethibitishwa.\nSUB-2026-ABC123',isRead:read,createdAt:'2026-10-31T10:00:00Z'}],unreadCount:read?0:1});});
  await page.route('**/api/client/notifications/client-note/read',route=>{read=true;return json(route,{success:true});});
  await page.goto('/track');await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');
- await page.getByText('Taarifa (1)',{exact:true}).click();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
- await page.getByRole('button',{name:'Weka imesomwa'}).click();await expect.poll(()=>read).toBe(true);await expect(page.locator('summary')).toHaveText('Taarifa');
+ await expect(page.locator('.client-inbox')).toHaveCount(0);expect(historyCalls).toBe(0);
+ await page.getByRole('button',{name:'Taarifa',exact:true}).click();await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
+ await page.getByRole('button',{name:'Weka imesomwa'}).click();await expect.poll(()=>read).toBe(true);await expect(page.locator('.client-inbox h3')).toHaveText('Taarifa za oda yako');
+ await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
+ await expect(page.getByRole('button',{name:'Taarifa',exact:true})).toBeFocused();
+ const closedCalls=historyCalls;await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(closedCalls);
  await page.getByRole('button',{name:'EN',exact:true}).click();await expect.poll(()=>language).toBe('en');
- await expect(page.locator('summary')).toHaveText('Notifications');
+ await page.getByRole('button',{name:'Notifications',exact:true}).click();
+ await expect(page.locator('.client-inbox h3')).toHaveText('Order updates');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
  await page.screenshot({path:'/tmp/tinzel-workflow-customer-mobile.png',fullPage:true});
  const beforeTimer=historyCalls;await page.clock.fastForward(30000);await expect.poll(()=>historyCalls).toBeGreaterThan(beforeTimer);
  const before=historyCalls;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>historyCalls).toBeGreaterThan(before);
+ await page.getByRole('button',{name:'Close',exact:true}).click();await expect(page.getByRole('dialog')).toBeHidden();
  await page.getByRole('button',{name:/Sign out|Logout|Log out/i}).click();await expect(page.locator('#track-login-id')).toBeVisible();const afterLogout=historyCalls;
  await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(afterLogout);
 });

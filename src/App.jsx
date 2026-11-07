@@ -165,15 +165,6 @@ export default function App() {
         <footer className="public-footer">
           <TinzelLogo variant="wordmark" height={24} />
           <span>{sw ? 'Hadithi zako. Kumbukumbu za kudumu.' : 'Your stories. Lasting memories.'}</span>
-          <a
-            href="/track"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/track');
-            }}
-          >
-            {sw ? 'Fuatilia oda' : 'Track an order'}
-          </a>
         </footer>
       )}
     </div>

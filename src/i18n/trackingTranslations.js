@@ -59,7 +59,7 @@ export const trackingTranslations = {
   'track.client': { en: 'Client:', sw: 'Mteja:' },
   'track.magazine': { en: 'Magazine:', sw: 'Jarida:' },
   'track.signOut': { en: 'Sign Out', sw: 'Toka' },
-  'track.progress': { en: 'CONVEYOR BELT PRODUCTION PROGRESS', sw: 'MAENDELEO YA UZALISHAJI' },
+  "track.progress": { en: "Your Magazine production progress", sw: "Maendeleo ya utengenezaji wa jarida lako" },
   'track.proof.title': { en: 'Complete Magazine Proof (Version {version})', sw: 'Rasimu Kamili ya Jarida (Toleo {version})' },
   'track.proof.hint': { en: 'Flip through each page carefully to inspect all layouts, titles, and photos.', sw: 'Pitia kila ukurasa kwa makini ili kukagua mpangilio, vichwa vya habari na picha zote.' },
   'track.page.of': { en: 'Page {current} of {total}', sw: 'Ukurasa {current} kati ya {total}' },
