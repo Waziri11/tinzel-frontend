@@ -525,7 +525,7 @@ export const api = {
         {
           method: 'POST',
           headers: getHeaders(token),
-          body: JSON.stringify({ folder }),
+          body: JSON.stringify(folder === null ? { scope: 'all' } : { folder }),
           signal: requestSignal(),
         },
       ).then(handleResponse);
@@ -550,7 +550,7 @@ export const api = {
         ).then(handleResponse);
       }
       onStatus?.('ready');
-      return { url: `${API_BASE}${result.url}` };
+      return { url: `${API_BASE}${result.url}`, fileName: result.fileName };
     },
 
     startDesign: (token, id) =>

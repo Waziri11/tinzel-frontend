@@ -60,7 +60,7 @@ for (const [width, height] of [[320, 740], [390, 844], [768, 1024], [820, 1180],
     await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
     await fits(page, 'fullscreen reader');
     await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click();
-    for (const name of ['Corrections', 'Client content', 'Version history']) {
+    for (const name of ['Corrections', 'Text responses', 'Images', 'Version history']) {
       await page.getByRole('tab', { name, exact: true }).click();
       await fits(page, name);
     }

@@ -14,15 +14,9 @@ async function login(request, role) {
   }
 }
 
-async function staffWrite(request, path, data, method = 'POST') {
-  const { csrf } = await (await request.get('/api/csrf/staff')).json();
-  const response = await request.fetch(path, { method, headers: { 'X-CSRF-Token': csrf, Origin: new URL(request._baseURL || 'http://127.0.0.1:5177').origin }, data });
-  expect(response.ok(), await response.text()).toBe(true);
-  return response.json();
-}
-
 test('list response flows from form settings through review and saved admin/designer answers', async ({ page, baseURL }) => {
   test.setTimeout(120000);
+  page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));

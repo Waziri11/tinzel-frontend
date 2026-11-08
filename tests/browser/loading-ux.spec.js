@@ -141,13 +141,13 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   await page.route('**/ux-download.zip', (route) => route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename="ux-test.zip"' }, body: 'Synthetic UI download' }));
   await page.goto('/staff/design'); await chooseEnglish(page);
   await page.getByRole('button', { name: 'Open UX Test', exact: true }).click();
-  await page.getByRole('tab',{name:'Client content'}).click();
-  await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole('tab',{name:'Images'}).click();
+  await page.getByRole('button', { name: 'Download all images ZIP', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByText('Preview pending', { exact: true })).toBeVisible();
   previewReady = true;
   await page.getByRole('button', { name: 'Refresh preview: story.jpg', exact: true }).click();
   await expect(page.locator('.tinzel-preview-placeholder')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).click();
+  await page.getByRole('button', { name: 'Download all images ZIP', exact: true }).click();
   await page.getByRole('button', { name: 'Design Orders', exact: true }).click();
   await page.getByRole('button', { name: 'Open Other UX Test', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Other UX Test', exact: true })).toBeVisible();

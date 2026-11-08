@@ -459,6 +459,28 @@
   gap: 4px;
   border-bottom: 1px solid var(--border-color);
 }
+.designer-images-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.designer-images-heading > div {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.designer-images-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.designer-images-heading button {
+  max-width: 100%;
+  white-space: normal;
+}
 .designer-tabs button {
   padding: 12px 16px;
   background: transparent;

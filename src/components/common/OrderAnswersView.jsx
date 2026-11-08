@@ -29,7 +29,7 @@ const displayValue = (value, lang = 'en') => {
   return String(value);
 };
 
-export default function OrderAnswersView({ submittedData, submittedFields = [], formFields = [], collapseLongAnswers = false }) {
+export default function OrderAnswersView({ submittedData, submittedFields = [], formFields = [], collapseLongAnswers = false, textOnly = false, imageFieldIds = [] }) {
   const { lang } = useLanguage();
   const [expandedField, setExpandedField] = useState(null);
   const answerId = useId();
@@ -41,7 +41,9 @@ export default function OrderAnswersView({ submittedData, submittedFields = [], 
 
   const definitions = submittedFields.length ? submittedFields : formFields;
   const labels = new Map(definitions.map((field) => [field.fieldId, field]));
-  const entries = Object.entries(answers).sort(([first], [second]) => {
+  const entries = Object.entries(answers).filter(([fieldId]) => !textOnly ||
+    (!['photo_upload', 'photo_group'].includes(labels.get(fieldId)?.type) && !imageFieldIds.includes(fieldId))
+  ).sort(([first], [second]) => {
     const firstOrder = labels.get(first)?.order ?? Number.MAX_SAFE_INTEGER;
     const secondOrder = labels.get(second)?.order ?? Number.MAX_SAFE_INTEGER;
     return firstOrder - secondOrder;

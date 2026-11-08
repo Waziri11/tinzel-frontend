@@ -18,29 +18,31 @@ import {
  * Displays client-submitted photos grouped by folder/spread categories.
  * Used by both Production Managers and Editorial Designers.
  */
-export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadFolder, downloadingFolder }) {
+export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadFolder, downloadingFolder, groupByQuestion = false, submittedFields = [], formFields = [] }) {
   const tx = useInterfaceText();
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
 
-  // Group photos by folderName
-  const grouped = {};
+  const definitions = new Map((submittedFields.length ? submittedFields : formFields).map(field => [field.fieldId, field]));
+  const grouped = new Map();
 
   (uploadedPhotos || []).forEach((photo, idx) => {
     const folder = photo.folderName && photo.folderName.trim() ? photo.folderName.trim() : 'General Photos';
-    if (!grouped[folder]) {
-      grouped[folder] = [];
+    const key = groupByQuestion && photo.fieldId ? `field:${photo.fieldId}` : `folder:${folder}`;
+    if (!grouped.has(key)) {
+      const field = groupByQuestion ? definitions.get(photo.fieldId) : null;
+      grouped.set(key, { key, name: field?.label || folder, order: field?.order ?? Number.MAX_SAFE_INTEGER, photos: [] });
     }
-    grouped[folder].push({ ...photo, index: idx + 1 });
+    grouped.get(key).photos.push({ ...photo, index: idx + 1 });
   });
 
-  const folderNames = Object.keys(grouped);
+  const folders = [...grouped.values()].sort((a, b) => a.order - b.order);
 
   // By default, open the first folder, collapse others if many
   const [openFolders, setOpenFolders] = useState(() => {
     const initial = {};
-    folderNames.forEach((name, i) => {
-      initial[name] = i === 0;
+    folders.forEach(({ key }, i) => {
+      initial[key] = i === 0;
     });
     return initial;
   });
@@ -69,18 +71,18 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
           }}
         >
           <InterfaceText>Client Photo Folders (</InterfaceText>
-          {uploadedPhotos.length} <InterfaceText>Total Assets across</InterfaceText> {folderNames.length}{' '}
-          {ui(folderNames.length === 1 ? 'Folder' : 'Folders', 'Folda')})
+          {uploadedPhotos.length} <InterfaceText>Total Assets across</InterfaceText> {folders.length}{' '}
+          {ui(folders.length === 1 ? 'Folder' : 'Folders', 'Folda')})
         </span>
       </div>
 
-      {folderNames.map((folderName) => {
-        const photos = grouped[folderName];
-        const isOpen = openFolders[folderName] === true;
+      {folders.map(({ key, name: folderName, photos }) => {
+        const isOpen = openFolders[key] === true;
 
         return (
           <div
-            key={folderName}
+            key={key}
+            className="order-photo-folder"
             style={{
               backgroundColor: '#FFFFFF',
               border: '1px solid #E7E5E4',
@@ -95,6 +97,8 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
                 padding: '8px 16px',
                 backgroundColor: isOpen ? '#FAF5EA' : '#FAFAF9',
                 borderBottom: isOpen ? '1px solid rgba(197, 160, 89, 0.25)' : 'none',
@@ -103,7 +107,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
             >
               <button
                 type="button"
-                onClick={() => toggleFolder(folderName)}
+                onClick={() => toggleFolder(key)}
                 aria-expanded={isOpen}
                 style={{
                   display: 'flex',
@@ -114,10 +118,12 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                   cursor: 'pointer',
                   padding: '4px 0',
                   textAlign: 'left',
+                  minWidth: 0,
+                  flex: '1 1 180px',
                 }}
               >
                 {isOpen ? <FolderOpen size={18} color="#C5A059" /> : <Folder size={18} color="#C5A059" />}
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>{tx(folderName)}</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917', overflowWrap: 'anywhere' }}>{tx(folderName)}</span>
                 <span
                   style={{
                     fontSize: '11px',
@@ -127,6 +133,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                     padding: '2px 8px',
                     borderRadius: '12px',
                     letterSpacing: '0.4px',
+                    flexShrink: 0,
                   }}
                 >
                   {photos.length} {ui(photos.length === 1 ? 'photo' : 'photos', 'picha')}

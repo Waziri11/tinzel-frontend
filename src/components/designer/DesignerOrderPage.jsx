@@ -10,7 +10,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { draftUploads, useDraftUploads } from '../../hooks/useDraftUploads';
 import DraftCorrectionReview from './DraftCorrectionReview';
 import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, UploadCloud } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
 import StatePanel, { StateError } from '../common/StatePanel';
@@ -39,7 +39,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const [printUncertain, setPrintUncertain] = useState(false);
   const [uploadUncertain, setUploadUncertain] = useState(false);
   const [checkingSaved, setCheckingSaved] = useState(false);
-  const [downloadingFolder, setDownloadingFolder] = useState(null);
+  const [downloadingImages, setDownloadingImages] = useState(false);
   const [printValidation, setPrintValidation] = useState('');
   const [printErrors, setPrintErrors] = useState({});
   const [printDirty, setPrintDirty] = useState(false);
@@ -120,6 +120,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const canUploadDraft = canEdit && ['assigned', 'in_design', 'revision_requested'].includes(order?.status);
   const canPreparePrint = canEdit && order?.approvedVersionNumber && ['client_approved', 'print_document_prep'].includes(order?.status);
   const [tab, setTab] = useState(null);
+  const activeTab = tab || (currentDraft ? 'magazine' : 'text');
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [focusAnnotation, setFocusAnnotation] = useState(null);
 
@@ -304,25 +305,27 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setUploading(false);
     }
   };
-  const downloadFolder = async (folder) => {
-    if (downloadingFolder) return;
-    setDownloadingFolder(folder);
+  const downloadImages = async () => {
+    if (downloadingImages || !order.uploadedPhotos?.length) return;
+    setDownloadingImages(true);
+    setError('');
+    const fallbackName = `${orderSenderName(order, 'Unnamed customer')}.zip`;
     try {
-      await runTransfer({ key: `folder:${orderId}:${folder}`, name: `${folder}.zip`, kind: 'download' }, async context => {
-        const { url } = await api.designer.downloadPhotoFolder(token, orderId, folder, {
+      await runTransfer({ key: `photos:${orderId}`, name: fallbackName, kind: 'download' }, async context => {
+        const { url, fileName } = await api.designer.downloadPhotoFolder(token, orderId, null, {
           signal: context.signal,
           onStatus: stage => context.progress({ stage: stage === 'ready' ? 'transferring' : 'preparing', percent: null }),
         });
         // ZIP archives can be very large. The browser streams them to disk without buffering them in app memory.
         context.signal.throwIfAborted();
         const link = document.createElement('a');
-        link.href = url; link.download = `${folder}.zip`;
+        link.href = url; link.download = fileName || fallbackName;
         document.body.appendChild(link); link.click(); link.remove();
         context.progress({ stage: 'handed-off', percent: null });
       });
     } catch (err) {
       setError(err);
-    } finally { setDownloadingFolder(null); }
+    } finally { setDownloadingImages(false); }
   };
   const checkSaved = async (kind) => {
     setCheckingSaved(true);
@@ -393,22 +396,24 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         {[
           ['magazine', 'Magazine'],
           ['corrections', 'Corrections'],
-          ['content', 'Client content'],
+          ['text', ui('Text responses', 'Majibu ya maandishi')],
+          ['images', ui('Images', 'Picha')],
           ['history', 'Version history'],
         ].map(([id, label]) => (
           <button
             key={id}
             id={`designer-${orderId}-${id}-tab`}
             role="tab"
-            tabIndex={(tab || (currentDraft ? 'magazine' : 'content')) === id ? 0 : -1}
-            aria-selected={(tab || (currentDraft ? 'magazine' : 'content')) === id}
+            tabIndex={activeTab === id ? 0 : -1}
+            aria-selected={activeTab === id}
+            aria-controls={['text', 'images'].includes(id) ? `designer-${orderId}-${id}-panel` : undefined}
             onClick={() => setTab(id)}
           >
             {tx(label)}
           </button>
         ))}
       </nav>
-      <div hidden={(tab || (currentDraft ? 'magazine' : 'content')) !== 'magazine'}>
+      <div hidden={activeTab !== 'magazine'}>
         {currentDraft ? (
           <PdfBookReader
             token={token}
@@ -498,18 +503,28 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 ))
             )}
           </div>
-          <div hidden={(tab || (currentDraft ? 'magazine' : 'content')) !== 'content'} className="designer-card">
-            <h2>
-              <InterfaceText>Client submission</InterfaceText>
-            </h2>
+          <div hidden={activeTab !== 'text'} className="designer-card" role="tabpanel" id={`designer-${orderId}-text-panel`} aria-labelledby={`designer-${orderId}-text-tab`}>
+            <h2>{ui('Text responses', 'Majibu ya maandishi')}</h2>
             <OrderAnswersView
               submittedData={order.submittedData}
               submittedFields={order.submittedFields}
               formFields={order.formId?.fields}
+              textOnly
+              imageFieldIds={(order.uploadedPhotos || []).map(photo => photo.fieldId).filter(Boolean)}
             />
-            <div style={{ marginTop: 18 }}>
-              <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} onDownloadFolder={downloadFolder} downloadingFolder={downloadingFolder} />
+          </div>
+          <div hidden={activeTab !== 'images'} className="designer-card" role="tabpanel" id={`designer-${orderId}-images-panel`} aria-labelledby={`designer-${orderId}-images-tab`}>
+            <div className="designer-images-heading">
+              <div>
+                <h2>{ui('Images', 'Picha')}</h2>
+                <p>{ui('Download all images in one ZIP, with a folder named after the customer and a subfolder for each image question.', 'Pakua picha zote katika ZIP moja, yenye folda ya jina la mteja na folda ndogo kwa kila swali la picha.')}</p>
+              </div>
+              <ActionButton className="secondary-button" loading={downloadingImages} disabled={downloadingImages || !order.uploadedPhotos?.length} onClick={downloadImages}>
+                <Download size={16} aria-hidden="true" />
+                {downloadingImages ? ui('Preparing ZIP…', 'Inaandaa ZIP…') : ui('Download all images ZIP', 'Pakua picha zote kama ZIP')}
+              </ActionButton>
             </div>
+            <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} submittedFields={order.submittedFields} formFields={order.formId?.fields} groupByQuestion />
           </div>
           <div hidden={tab !== 'history'} className="designer-card">
             <h2>
@@ -540,7 +555,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 </div>
               ))}
           </div>
-          <div hidden={(tab || (currentDraft ? 'magazine' : 'content')) !== 'magazine'} className="designer-card">
+          <div hidden={activeTab !== 'magazine'} className="designer-card">
             <h2>
               <InterfaceText>Production details</InterfaceText>
             </h2>
