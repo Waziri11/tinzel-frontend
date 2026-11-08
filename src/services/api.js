@@ -583,6 +583,12 @@ export const api = {
 
   // Admin Endpoints
   admin: {
+    deleteSubmission: (token, id) =>
+      fetchWithTimeout(`${API_BASE}/api/admin/submissions/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(token),
+        body: JSON.stringify({ confirmation: 'DELETE' }),
+      }).then(handleResponse),
     issueInitialPassword: (token, id) =>
       fetchWithTimeout(`${API_BASE}/api/admin/staff/${id}/initial-password`, {
         method: 'POST',

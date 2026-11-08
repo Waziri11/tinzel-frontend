@@ -37,6 +37,7 @@ import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
+import DeleteSubmissionAction from '../admin/DeleteSubmissionAction';
 import './managerDashboard.css';
 
 
@@ -258,7 +259,7 @@ const emptyForm = {
   holdReason: '',
 };
 
-export default function ConveyorBeltBoard({ token, phase = null, onNavigateToReturns = null }) {
+export default function ConveyorBeltBoard({ token, phase = null, onNavigateToReturns = null, staffUser }) {
   const tx = useInterfaceText();
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
@@ -303,6 +304,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [action, setAction] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingSubmission, setDeletingSubmission] = useState(false);
 
   // Reset stage/filter when switching between Pre-Design, Design Phase, and Post-Design Phase
   useEffect(() => {
@@ -409,7 +411,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     loadOrders(),
     selectedOrder && detailSnapshot.current?._id === selectedOrder._id && !detailLoading
       ? openOrder(detailSnapshot.current, false) : null,
-  ]), !loading && !submitting && !action);
+  ]), !loading && !submitting && !action && !deletingSubmission);
 
   useEffect(() => {
     const restore = () => {
@@ -930,7 +932,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         title={selectedOrder ? orderSenderName(selectedOrder, tx('Unnamed customer')) : 'Order details'}
         width={720}
         open={Boolean(selectedOrder)}
-        onClose={closeDetail}
+        onClose={() => { if (!deletingSubmission) closeDetail(); }}
         className="manager-order-drawer"
       >
         {detailError && <StateError compact error={detailError} onRetry={() => openOrder(selectedOrder, false)}><button type="button" className="manager-secondary-action" onClick={closeDetail}>{ui('Close order', 'Funga oda')}</button></StateError>}
@@ -945,6 +947,15 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             auditLogs={auditLogs}
             beginAction={beginAction}
             nextActionButton={nextActionButton}
+            deleteAction={staffUser?.role === 'admin' ? <DeleteSubmissionAction key={orderDetail._id} token={token} order={orderDetail}
+              onBusyChange={setDeletingSubmission} onDeleted={id => {
+                listRequest.current++;
+                setOrders(current => current.filter(order => order._id !== id));
+                closeDetail();
+                setNotice({ type: 'success', text: ui('Submission removed. Its files are scheduled for permanent cleanup.', 'Wasilisho limeondolewa. Faili zake zimepangwa kufutwa kabisa.') });
+                loadOrders();
+                loadDesigners();
+              }} /> : null}
           />
         ) : null}
       </Drawer>
@@ -975,7 +986,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   );
 }
 
-function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton }) {
+function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton, deleteAction }) {
   const tx = useInterfaceText();
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
@@ -1083,6 +1094,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
           <p>{order.formTitle || order.formId?.title}</p>
         </div>
         <div className="manager-order-detail__actions">
+          {deleteAction}
           {(activeTab!=='drafts'||order.status!=='draft_manager_review')&&nextActionButton(order)}
           {order.status !== 'closed' && order.status !== 'on_hold' && (
             <button type="button" className="manager-secondary-action" onClick={() => beginAction('hold', order)}>
