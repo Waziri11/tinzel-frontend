@@ -23,6 +23,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  await expect(page.getByText('Do not pay this test order.')).toBeVisible();
  let rows=await api(request,'/manager/orders?limit=50&scope=all',manager,undefined,'get'),order=rows.orders.find(row=>row.submissionId===submission.order.submissionId);expect(order).toBeTruthy();const id=order._id;
  // A real manager signs in and records payment through the redesigned action dialog.
+ await page.clock.install();await page.clock.pauseAt(new Date());
  await staffSignIn(page,'manager','/staff/pre-design');
  const alert=page.locator('.submission-alert');
  await expect(alert).toContainText('New magazine submission');
@@ -31,6 +32,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  await alert.getByRole('button',{name:'Open order'}).click();
  await expect(page).toHaveURL(new RegExp('orderId='+id));
  await expect(alert.filter({hasText:edition.title})).toHaveCount(0);
+ await page.clock.resume();
  await page.locator('.manager-order-drawer').getByRole('button',{name:'Verify payment',exact:true}).click();
  const payment=page.getByRole('dialog',{name:'Verify Lipa Namba payment'});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify Lipa Namba payment',exact:true}).click();
  await expect(payment).toHaveCount(0);order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(order.status).toBe('assigned');

@@ -240,14 +240,33 @@ button.staff-password-toggle {
 }
 
 .submission-alert {
+  position: relative;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 14px;
   padding: 14px clamp(16px, 3vw, 32px);
+  padding-right: 60px;
   background: #fff8e8;
   border-bottom: 1px solid #e5d8b7;
   color: #473718;
 }
 .submission-alert [role="status"] { flex: 1 1 180px; overflow-wrap: anywhere; }
 .submission-alert button { cursor: pointer; }
+.submission-alert-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.submission-alert-dismiss:hover { background: #4737180d; }
+.submission-alert-dismiss:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }

@@ -30,6 +30,7 @@ import {
   ClipboardList,
   Printer,
   Bell,
+  X,
 } from 'lucide-react';
 import { navigate as navigateLocation } from '../../navigation/location';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -167,6 +168,10 @@ export default function StaffWorkspace({ onExitToHome }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [submissionAlert, setSubmissionAlert] = useState(null);
+  const [dismissedSubmissionAlerts, setDismissedSubmissionAlerts] = useState(() => new Set());
+  const dismissSubmissionAlert = useCallback((id) => {
+    setDismissedSubmissionAlerts((dismissed) => new Set(dismissed).add(id));
+  }, []);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   useAccountLanguage(
     'staff',
@@ -394,6 +399,20 @@ export default function StaffWorkspace({ onExitToHome }) {
           allowedMenuItems.some((item) => item.id === activePage)
         ? activePage
         : 'denied';
+
+  const submissionAlertId = submissionAlert?._id;
+  const showSubmissionAlert = Boolean(
+    token && !currentUser?.mustChangePassword && submissionAlertId && submissionAlert.orderId &&
+    submissionAlert.recipientUser === (currentUser?._id || currentUser?.id) &&
+    ['manager', 'admin'].includes(currentUser?.role) && effectiveActivePage !== 'notifications' &&
+    !dismissedSubmissionAlerts.has(submissionAlertId),
+  );
+  useEffect(() => {
+    if (!showSubmissionAlert) return;
+    // Use the ID so badge refreshes neither restart the timer nor revive a dismissed banner.
+    const timer = window.setTimeout(() => dismissSubmissionAlert(submissionAlertId), 1000);
+    return () => window.clearTimeout(timer);
+  }, [showSubmissionAlert, submissionAlertId, dismissSubmissionAlert]);
 
   // -------------------------------------------------------------
   if (token && currentUser?.mustChangePassword)
@@ -1095,8 +1114,7 @@ export default function StaffWorkspace({ onExitToHome }) {
           </div>
         </header>
 
-        {submissionAlert?.orderId && submissionAlert.recipientUser === (currentUser._id || currentUser.id)
-          && ['manager', 'admin'].includes(currentUser.role) && effectiveActivePage !== 'notifications' && (
+        {showSubmissionAlert && (
           <aside className="submission-alert">
             <Bell size={18} aria-hidden="true" />
             <div role="status">
@@ -1105,11 +1123,20 @@ export default function StaffWorkspace({ onExitToHome }) {
             </div>
             <button className="ui-button" onClick={async () => {
               if (!navigateStaff(`/staff/pre-design?orderId=${encodeURIComponent(submissionAlert.orderId._id)}`, 'pre_design')) return;
+              dismissSubmissionAlert(submissionAlertId);
               try {
                 await api.notifications.markRead(token, submissionAlert._id);
                 await refreshUnreadCount(token);
-              } catch { /* Keep the alert available if marking it read fails. */ }
+              } catch { /* Unread notifications remain available in the inbox. */ }
             }}>{ui('Open order', 'Fungua oda')}</button>
+            <button
+              type="button"
+              className="submission-alert-dismiss"
+              aria-label={ui('Dismiss notification', 'Funga taarifa')}
+              onClick={() => dismissSubmissionAlert(submissionAlertId)}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
           </aside>
         )}
 
