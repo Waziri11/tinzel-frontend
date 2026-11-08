@@ -133,6 +133,18 @@ const NAVIGATION_ITEMS = [
   },
 ];
 
+function staffEntryPath(user) {
+  const { pathname, search, hash } = window.location;
+  const isEntry = /^\/staff(?:\/login)?\/?$/.test(pathname);
+  const isDesignerLanding = user.role === 'designer' &&
+    /^\/staff\/pre-design\/?$/.test(pathname);
+  if (isEntry || isDesignerLanding) {
+    const home = NAVIGATION_ITEMS.find((item) => item.roles.includes(user.role));
+    if (home) return home.path;
+  }
+  return `${pathname}${search}${hash}`;
+}
+
 export default function StaffWorkspace({ onExitToHome }) {
   const { lang } = useLanguage();
   const [captchaToken,setCaptchaToken]=useState(''),[captchaReset,setCaptchaReset]=useState(0),[recovering,setRecovering]=useState(false);
@@ -303,14 +315,10 @@ export default function StaffWorkspace({ onExitToHome }) {
   }, [token, refreshUnreadCount]);
 
   const restoreStaffRoute = (user) => {
-    const pathname = window.location.pathname;
-    const isEntry = /^\/staff(?:\/login)?\/?$/.test(pathname);
     // A saved/shared manager landing URL must not strand a designer at sign-in.
-    const isDesignerLanding = user.role === 'designer' &&
-      /^\/staff\/pre-design\/?$/.test(pathname);
-    if (isEntry || isDesignerLanding) {
-      const home = NAVIGATION_ITEMS.find((item) => item.roles.includes(user.role));
-      if (home) navigateLocation(home.path, { replace: true });
+    const destination = staffEntryPath(user);
+    if (destination !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      navigateLocation(destination, { replace: true });
     }
     const route = readRoute();
     setActivePage(route.page);
@@ -350,16 +358,15 @@ export default function StaffWorkspace({ onExitToHome }) {
     setError(null);
     try {
       const data = await api.staffAuth.login(loginEmail, loginPass, captchaToken);
-      setToken(data.token);
       localStorage.removeItem('tinzel_staff_token');
-      setCurrentUser(data.user);
       setPassword('');
-      if (!data.user.mustChangePassword) refreshUnreadCount(data.token);
-
-      restoreStaffRoute(data.user);
+      // Login (including SMS verification) has already set the HttpOnly session
+      // cookie. Start the workspace from that session in a fresh document, so a
+      // long-lived sign-in page cannot carry stale chunks or verification UI
+      // state into the authenticated workspace. Keep sign-in locked until we leave.
+      window.location.replace(staffEntryPath(data.user));
     } catch (err) {
       setError(err.message || 'Login failed. Please verify your credentials.');
-    } finally {
       setCaptchaToken('');setCaptchaReset(x=>x+1);
       loginInFlight.current = false;
       setLoading(false);
