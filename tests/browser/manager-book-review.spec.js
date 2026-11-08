@@ -564,7 +564,7 @@ const referenceFile = { name: 'reference.png', mimeType: 'image/png', buffer: re
 test('image-only comments retain failed uploads and saves, reopen privately, and appear in return confirmation', async ({ page }, testInfo) => {
   const state = await setup(page, { failComment: true, failUpload: true });
   await mark(page, '');
-  await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await page.locator('.proof-attachment-editor input[accept^="image/"]').setInputFiles(referenceFile);
   await expect(page.getByText('Image upload interrupted')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Retry image', exact: true }).click();
@@ -586,7 +586,7 @@ test('image-only comments retain failed uploads and saves, reopen privately, and
 });
 test('mobile attachment-only drafts guard navigation and accept paste/drop with a five image limit', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 }); await setup(page);
-  await mark(page, ''); await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await mark(page, ''); await page.locator('.proof-attachment-editor input[accept^="image/"]').setInputFiles(referenceFile);
   await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
   await page.getByLabel('Magazine version', { exact: true }).selectOption('1');
   await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
@@ -600,10 +600,10 @@ test('mobile attachment-only drafts guard navigation and accept paste/drop with 
     element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: drop }));
   }, referencePng.toString('base64'));
   await expect(page.locator('.proof-attachment-editor img')).toHaveCount(3);
-  await page.locator('.proof-attachment-editor input').setInputFiles([referenceFile, referenceFile]);
+  await page.locator('.proof-attachment-editor input[accept^="image/"]').setInputFiles([referenceFile, referenceFile]);
   await expect(page.locator('.proof-attachment-editor img')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Attach images', exact: true })).toBeDisabled();
-  await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
+  await page.locator('.proof-attachment-editor input[accept^="image/"]').setInputFiles(referenceFile);
   await expect(page.getByText('Choose up to five images per comment.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath('mobile-image-composer.png'), fullPage: true });

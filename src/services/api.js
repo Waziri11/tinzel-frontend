@@ -855,7 +855,9 @@ export function proofApi(token, orderId, version, client = false) {
     },
     text: (page) => request(`/pages/${page}?text=1`),
     uploadAttachment: async (file, clientId, { signal, onProgress, onReserve } = {}) => {
-      const session = await request('/attachments', 'POST', { clientId, name: file.name, size: file.size, contentType: file.type }, signal);
+      const audioType = { mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', webm: 'audio/webm', aac: 'audio/aac' }[file.name.split('.').pop().toLowerCase()];
+      const contentType = (!file.type || file.type === 'application/octet-stream') && audioType ? audioType : file.type.split(';')[0];
+      const session = await request('/attachments', 'POST', { clientId, name: file.name, size: file.size, contentType }, signal);
       onReserve?.(session.id);
       if (session.state === 'ready') return session.attachment;
       const received = new Set(session.received.map(p => p.n));
@@ -871,7 +873,7 @@ export function proofApi(token, orderId, version, client = false) {
       return request(`/attachments/${session.id}/complete`, 'POST', {}, signal);
     },
     removeAttachment: id => request(`/attachments/${id}`, 'DELETE'),
-    attachmentImage: (id, thumbnail = true, signal) => fetchWithTimeout(`${base}/attachments/${id}${thumbnail ? '?thumbnail=1' : ''}`, {
+    attachmentFile: (id, thumbnail = true, signal) => fetchWithTimeout(`${base}/attachments/${id}${thumbnail ? '?thumbnail=1' : ''}`, {
       headers: getHeaders(token), cache: 'no-store', signal,
     }).then(handleBlob),
     save: (body) => request('/annotations', 'POST', body),

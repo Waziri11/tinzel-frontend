@@ -4,17 +4,27 @@ import { createPortal } from 'react-dom';
 import React, { useEffect, useRef, useState } from 'react';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
+import RevisionAudioInput from './RevisionAudioInput';
+import { useLanguage } from '../../i18n/LanguageContext';
 
-export function AttachmentEditor({ uploads, disabled }) {
+export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
   const input = useRef(null), tx = useInterfaceText();
-  return <section className="proof-attachment-editor" aria-label={tx('Comment images')}>
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const images = uploads.items.filter(item => item.kind !== 'audio');
+  const audio = uploads.items.find(item => item.kind === 'audio');
+  return <section className="proof-attachment-editor" aria-label={ui('Comment attachments', 'Viambatisho vya maoni')}>
     <input ref={input} type="file" multiple accept="image/jpeg,image/png,image/webp" hidden disabled={disabled}
       onChange={e => { uploads.add(e.target.files); e.target.value = ''; }} />
-    <button type="button" disabled={disabled || uploads.items.length >= 5} onClick={() => input.current.click()}><InterfaceText>Attach images</InterfaceText></button>
+    <button type="button" disabled={disabled || images.length >= 5} onClick={() => input.current.click()}><InterfaceText>Attach images</InterfaceText></button>
     <small><InterfaceText>Up to 5 images · 10 MiB each. You can also paste or drop images.</InterfaceText></small>
     {uploads.error && <p role="alert">{tx(uploads.error)}</p>}
+    <RevisionAudioInput compact file={audio?.file || null} disabled={disabled} onBusyChange={onAudioBusyChange}
+      onChange={file => { if (audio) uploads.remove(audio); if (file) uploads.addAudio(file); }} />
+    {audio?.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: audio.progress }} label={ui('Uploading audio', 'Inapakia sauti')} />}
+    {audio?.state === 'failed' && <div role="alert"><p>{tx(audio.error)}</p><button type="button" disabled={disabled} onClick={() => uploads.retry(audio)}>{ui('Retry audio upload', 'Jaribu kupakia sauti tena')}</button></div>}
     <div className="proof-attachment-thumbnails">
-      {uploads.items.map(item => <figure key={item.key}>
+      {images.map(item => <figure key={item.key}>
         <img src={item.preview} alt={item.file.name} />
         <figcaption>{item.state === 'uploading' ? <><InterfaceText>Uploading image</InterfaceText> {item.progress}%</> : item.file.name}</figcaption>
         {item.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: item.progress }} label={item.file.name} />}
@@ -31,7 +41,7 @@ function PrivateImage({ reader, attachment, thumbnail = true }) {
   useEffect(() => {
     const controller = new AbortController(); let objectUrl;
     setUrl(''); setError('');
-    reader.attachmentImage(attachment.id, thumbnail, controller.signal).then(blob => {
+    reader.attachmentFile(attachment.id, thumbnail, controller.signal).then(blob => {
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(blob); setUrl(objectUrl);
     }).catch(e => { if (!controller.signal.aborted) setError(e.message); });
@@ -41,12 +51,38 @@ function PrivateImage({ reader, attachment, thumbnail = true }) {
   return url ? <img src={url} alt={attachment.name || 'Review image'} /> : <InlineLoading><InterfaceText>Loading image…</InterfaceText></InlineLoading>;
 }
 
+function PrivateAudio({ reader, attachment }) {
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const [url, setUrl] = useState(''), [error, setError] = useState(false), [attempt, setAttempt] = useState(0), [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!attempt) return;
+    const controller = new AbortController(); let objectUrl;
+    setLoading(true); setError(false); setUrl('');
+    reader.attachmentFile(attachment.id, false, controller.signal).then(blob => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(blob); setUrl(objectUrl);
+    }).catch(() => { if (!controller.signal.aborted) setError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [reader, attachment.id, attempt]);
+  return <div className="proof-attached-audio">
+    {url && !error ? <audio controls src={url} aria-label={ui('Audio comment', 'Maoni ya sauti')} onError={() => setError(true)} /> : <>
+      {error && <p role="alert">{ui('Audio could not open. Please try again.', 'Sauti haikuweza kufunguka. Tafadhali jaribu tena.')}</p>}
+      <button type="button" disabled={loading} onClick={() => setAttempt(value => value + 1)}>
+        {loading ? ui('Loading audio…', 'Inapakia sauti…') : error ? ui('Retry audio', 'Jaribu sauti tena') : ui('Listen to audio comment', 'Sikiliza maoni ya sauti')}
+      </button>
+    </>}
+  </div>;
+}
+
 export default function ProofAttachments({ attachments = [], reader }) {
   const [opened, setOpened] = useState(null), tx = useInterfaceText();
   useDialogFocus(Boolean(opened), () => setOpened(null));
   if (!attachments.length) return null;
   return <div className="proof-attachments">
-    <div className="proof-attachment-thumbnails">{attachments.map(a => <div key={a.id} className="proof-attached-image">
+    {attachments.filter(a => a.contentType?.startsWith('audio/')).map(a => <PrivateAudio key={a.id} reader={reader} attachment={a} />)}
+    <div className="proof-attachment-thumbnails">{attachments.filter(a => !a.contentType?.startsWith('audio/')).map(a => <div key={a.id} className="proof-attached-image">
       <PrivateImage reader={reader} attachment={a} />
       <button type="button" onClick={() => setOpened(a)} aria-label={`${tx('Open image')}: ${a.name}`}><InterfaceText>Open image</InterfaceText></button>
     </div>)}</div>

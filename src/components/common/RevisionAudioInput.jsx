@@ -8,7 +8,7 @@ const recordingType = () => {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') return '';
   return ['audio/mp4', 'audio/webm;codecs=opus', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type)) || '';
 };
-export default function RevisionAudioInput({ file, onChange, disabled, onBusyChange }) {
+export default function RevisionAudioInput({ file, onChange, disabled, onBusyChange, compact = false }) {
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
   const [preview, setPreview] = useState('');
@@ -18,6 +18,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
   const [limitReached, setLimitReached] = useState(false);
   const [error, setError] = useState('');
   const session = useRef(null);
+  const input = useRef(null);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -101,17 +102,19 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
   };
   const canRecord = Boolean(recordingType() && navigator.mediaDevices?.getUserMedia);
   return (
-    <section className="revision-audio" aria-label={ui('Audio feedback', 'Maoni ya sauti')} style={{ padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
-      <strong>{ui('Send a voice note', 'Tuma ujumbe wa sauti')}</strong>
-      <p style={{ fontSize: 13, margin: '8px 0' }}>{ui('Use audio instead of text, or include both. Files up to 3 MB; recordings up to 3 minutes.', 'Tumia sauti badala ya maandishi, au tumia vyote. Faili hadi MB 3; rekodi hadi dakika 3.')}</p>
+    <section className={`revision-audio${compact ? ' revision-audio-compact' : ''}`} aria-label={ui('Audio feedback', 'Maoni ya sauti')} style={compact ? undefined : { padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
+      {!compact && <><strong>{ui('Send a voice note', 'Tuma ujumbe wa sauti')}</strong>
+      <p style={{ fontSize: 13, margin: '8px 0' }}>{ui('Use audio instead of text, or include both. Files up to 3 MB; recordings up to 3 minutes.', 'Tumia sauti badala ya maandishi, au tumia vyote. Faili hadi MB 3; rekodi hadi dakika 3.')}</p></>}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="file" accept="audio/*,.m4a,.opus" aria-label={ui('Attach audio', 'Ambatisha sauti')} disabled={disabled || recording || pending}
+        <input ref={input} hidden={compact} type="file" accept="audio/*,.m4a,.opus" aria-label={ui('Attach audio', 'Ambatisha sauti')} disabled={disabled || recording || pending}
           onChange={event => { choose(event.target.files?.[0]); event.target.value = ''; }} style={{ maxWidth: '100%', minWidth: 0 }} />
+        {compact && <button type="button" disabled={disabled || recording || pending} onClick={() => input.current.click()}>{ui('Attach audio', 'Ambatisha sauti')}</button>}
         {canRecord && <button type="button" className="secondary-button" disabled={disabled || pending} onClick={recording ? stop : start}>
           {recording ? ui('Stop recording', 'Simamisha kurekodi') : pending ? ui('Opening microphone…', 'Inafungua maikrofoni…') : ui('Record voice note', 'Rekodi ujumbe wa sauti')}
         </button>}
         {recording && <span role="status">{ui('Recording', 'Inarekodi')} {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>}
       </div>
+      {compact && <small>{ui('One audio file up to 3 MB · Record up to 3 minutes.', 'Faili moja la sauti hadi MB 3 · Rekodi hadi dakika 3.')}</small>}
       {!canRecord && <Feedback kind="info" title={ui('Recording is not supported here', 'Kurekodi hakupatikani hapa')}>{ui('Attach an audio file, or type your feedback instead.', 'Ambatisha faili la sauti, au andika maoni yako.')}</Feedback>}
       {limitReached && <Feedback kind="info" title={ui('Three-minute recording limit reached', 'Kikomo cha dakika tatu kimefikiwa')}>{ui('Review your recording before sending it.', 'Sikiliza rekodi yako kabla ya kuituma.')}</Feedback>}
       {file && <div style={{ marginTop: 12 }}>

@@ -104,7 +104,7 @@ export default function PdfBookReader({
       setError('Wait for the current comment to finish saving.');
       return;
     }
-    if (draftRef.current?.selection && (draftRef.current.comment.trim() || draftRef.current.hasImages)) {
+    if (draftRef.current?.selection && (draftRef.current.comment.trim() || draftRef.current.hasAttachments)) {
       setReplacement(value);
       return;
     }
@@ -118,10 +118,11 @@ export default function PdfBookReader({
     setShowComments(true);
   }, []);
   const [saving, setSaving] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(false);
   const [sync, setSync] = useState('');
   const [focused, setFocused] = useState(null);
   const [showComments, setShowComments] = useState(false);
-  draftRef.current = { selection, comment, saving, hasImages: uploads.items.length > 0 };
+  draftRef.current = { selection, comment, saving: saving || audioBusy, hasAttachments: uploads.items.length > 0 };
   useEffect(() => {
     if (selection) commentInput.current?.focus({ preventScroll: true });
   }, [selection]);
@@ -433,15 +434,15 @@ export default function PdfBookReader({
     ready: opened,
     canComment: Boolean(metadata?.canComment),
     pendingAnnotations: pending,
-    saving: saving || Boolean(discarding),
+    saving: saving || audioBusy || Boolean(discarding),
     composing: Boolean(selection),
   };
   useEffect(() => {
-    onReviewStateChange?.({ready:opened,canComment:Boolean(metadata?.canComment),pendingAnnotations:(metadata?.annotations||[]).filter(a=>!a.submittedAt),saving:saving||Boolean(discarding),composing:Boolean(selection)});
-  }, [opened, metadata, saving, discarding, selection, onReviewStateChange]);
+    onReviewStateChange?.({ready:opened,canComment:Boolean(metadata?.canComment),pendingAnnotations:(metadata?.annotations||[]).filter(a=>!a.submittedAt),saving:saving||audioBusy||Boolean(discarding),composing:Boolean(selection)});
+  }, [opened, metadata, saving, audioBusy, discarding, selection, onReviewStateChange]);
   const save = async (e) => {
     e.preventDefault();
-    if (!selection || (!comment.trim() && !uploads.items.length) || !uploads.ready || saving || interactionDisabled) return;
+    if (!selection || (!comment.trim() && !uploads.items.length) || !uploads.ready || saving || audioBusy || interactionDisabled) return;
     const { anchor, ...fields } = selection;
     const generation = reviewGeneration.current,
       submitted = { selection, comment },
@@ -700,20 +701,22 @@ export default function PdfBookReader({
                 style={
                   !mobile && selection.anchor
                     ? {
+                        position: 'fixed',
+                        zIndex: 2300,
+                        maxHeight: 'calc(100dvh - 32px)',
+                        bottom: 16,
                         left: Math.max(
-                          8,
+                          16,
                           Math.min(
-                            selection.anchor.x - (root.current?.getBoundingClientRect().left || 0) + 8,
-                            (root.current?.clientWidth || 600) - 310,
+                            selection.anchor.x + 8,
+                            window.innerWidth - 316,
                           ),
                         ),
                         top: Math.max(
-                          8,
+                          16,
                           Math.min(
-                            selection.anchor.y -
-                              (root.current?.querySelector('.proof-layout')?.getBoundingClientRect().top || 0) +
-                              8,
-                            (root.current?.querySelector('.proof-layout')?.clientHeight || 500) - 275,
+                            selection.anchor.y + 8,
+                            window.innerHeight - 600,
                           ),
                         ),
                       }
@@ -733,9 +736,9 @@ export default function PdfBookReader({
                   onChange={(e) => setComment(e.target.value)}
                   maxLength={4000}
                 />
-                <AttachmentEditor uploads={uploads} disabled={saving} />
+                <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
                 <div className="proof-composer-actions">
-                  <ActionButton loading={saving} disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                  <ActionButton loading={saving} disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                     <InterfaceText>Save comment</InterfaceText>
                   </ActionButton>
                   <button
@@ -756,7 +759,7 @@ export default function PdfBookReader({
                     <p>
                       <InterfaceText>Save or discard this comment before choosing another selection.</InterfaceText>
                     </p>
-                    <ActionButton loading={saving} type="submit" disabled={saving || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                    <ActionButton loading={saving} type="submit" disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                       <InterfaceText>Save current comment</InterfaceText>
                     </ActionButton>
                     <button

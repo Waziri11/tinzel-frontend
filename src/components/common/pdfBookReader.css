@@ -1006,6 +1006,12 @@
   scroll-margin-block-start: 140px;
 }
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .proof-comments-controls {
+    position: static;
+  }
+  .proof-comment-group article {
+    scroll-margin-block-start: 12px;
+  }
   .proof-composer {
     position: fixed;
     left: 0;
@@ -1115,6 +1121,9 @@
 
 /* Review images remain private, fetched through the authenticated reader. */
 .proof-attachment-editor { margin: 12px 0; display: grid; gap: 8px; }
+.proof-attachment-editor .revision-audio { min-width: 0; margin-bottom: 0 !important; }
+.proof-attached-audio { margin: 10px 0; }
+.proof-attached-audio audio { display: block; width: 100%; max-width: 360px; }
 .proof-attachment-editor > small { color: #706b61; }
 .proof-attachment-thumbnails { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .proof-attachment-thumbnails figure, .proof-attached-image { margin: 0; width: 116px; display: grid; gap: 4px; align-content: start; }
