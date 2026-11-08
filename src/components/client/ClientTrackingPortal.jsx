@@ -1,3 +1,6 @@
+import StatePanel from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
+import { normalizePhone } from '../../utils/phone';
 import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
 import { orderSenderName } from '../../utils/orderDisplay';
 import PaymentOptions from './PaymentOptions';
@@ -40,6 +43,7 @@ const STAGES = [
 
 export default function ClientTrackingPortal() {
   const { t, lang } = useLanguage();
+  const confirm = useConfirm();
   const ui = (en, sw) => (lang === 'sw' ? sw : en);
   const otpInput = useRef(null);
   const [trackingId, setTrackingId] = useState('');
@@ -56,6 +60,22 @@ export default function ClientTrackingPortal() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [devOtp, setDevOtp] = useState(null);
+  const [resendAt, setResendAt] = useState(0), [codeUntil, setCodeUntil] = useState(0), [now, setNow] = useState(Date.now());
+  const [entryErrors, setEntryErrors] = useState({});
+  const [lastLoaded, setLastLoaded] = useState(null), [loadFailed, setLoadFailed] = useState(false);
+  const [decisionUncertain, setDecisionUncertain] = useState(false);
+  const [errorStatus, setErrorStatus] = useState(null);
+  const resendWait = Math.max(0, Math.ceil((resendAt - now) / 1000));
+  const codeExpired = otpSent && codeUntil > 0 && codeUntil <= now;
+  useEffect(() => {
+    if (!otpSent && !resendAt) return;
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (!otpSent && current >= resendAt) setResendAt(0);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpSent, resendAt]);
 
   // Reader state
   const [showRevisionForm, setShowRevisionForm] = useState(false);
@@ -65,16 +85,33 @@ export default function ClientTrackingPortal() {
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
   const [proofState, setProofState] = useState({ composing: false, saving: false });
-  const allowProofLeave = () => !proofState.saving && (!proofState.composing || window.confirm(ui('Discard the unfinished comment? Saved comments will remain.', 'Ungependa kufuta maoni ambayo hayajakamilika? Maoni yaliyohifadhiwa yatabaki.')));
+  const retainedFeedbackFor = useRef(null);
+  const handleUnauthorized = useCallback(() => window.dispatchEvent(new Event('tinzel:client:unauthorized')), []);
+  const allowProofLeave = async () => !proofState.saving && (!proofState.composing || await confirm({ title: ui('Discard the unfinished comment?', 'Ufute maoni ambayo hayajakamilika?'), description: ui('Saved comments will remain.', 'Maoni yaliyohifadhiwa yatabaki.'), confirmLabel: ui('Discard comment', 'Futa maoni'), danger: true }));
+  const hasFeedback = Boolean(revisionAudio || revisionItems.some(item => item.text.trim() || item.pageReference.trim()));
+  const allowFeedbackLeave = async () => !submittingDecision && (!hasFeedback || await confirm({ title: ui('Leave unsent feedback?', 'Uache maoni ambayo hayajatumwa?'), description: ui('Your unsent written and audio feedback will be lost.', 'Maoni yako ya maandishi na sauti ambayo hayajatumwa yatapotea.'), confirmLabel: ui('Discard feedback', 'Futa maoni'), danger: true }));
+  useEffect(() => {
+    if (!hasFeedback) return;
+    const leave = event => event.detail?.waitUntil?.(allowFeedbackLeave());
+    const unload = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('tinzel:before-navigate', leave); window.addEventListener('beforeunload', unload);
+    return () => { window.removeEventListener('tinzel:before-navigate', leave); window.removeEventListener('beforeunload', unload); };
+  }, [hasFeedback, submittingDecision, lang, confirm]);
 
 
   useEffect(() => {
     loadOrder('cookie', true);
   }, []);
+  useEffect(() => {
+    if (!order || !clientToken) return;
+    const refresh = () => { if (!loading && !submittingDecision) loadOrder(clientToken); };
+    window.addEventListener('tinzel:refresh-order', refresh);
+    return () => window.removeEventListener('tinzel:refresh-order', refresh);
+  }, [order, clientToken, loading, submittingDecision]);
 
   const loadOrder = async (token, restore = false) => {
     setLoading(true);
-    setError(null);
+    setError(null); setErrorStatus(null);
     try {
       let data;
       try {
@@ -93,10 +130,17 @@ export default function ClientTrackingPortal() {
       setError(null);
       setClientToken(token);
       setOrder(data.order);
+      if (retainedFeedbackFor.current && retainedFeedbackFor.current !== data.order._id) {
+        setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); setShowRevisionForm(false);
+      }
+      retainedFeedbackFor.current = null;
+      setOtpSent(false); setOtpCode(''); setResendAt(0); setCodeUntil(0);
+      setLastLoaded(Date.now()); setLoadFailed(false); setDecisionUncertain(false);
       setSuccessMsg(null);
       const reference = data.order.submissionId || data.order.trackingId;
       if (reference) localStorage.setItem('tinzel_tracking_reference', reference);
     } catch (err) {
+      setLoadFailed(true); setErrorStatus(err.status);
       const accessRejected = err.status === 401 || err.status === 403;
       setError(accessRejected
         ? (restore ? null : t('track.err.sessionExpired'))
@@ -113,11 +157,13 @@ export default function ClientTrackingPortal() {
   };
 
   const handleRequestOtp = async (e) => {
-    e.preventDefault();
-    if (!trackingId.trim() || !clientWhatsApp.trim()) {
-      setError(t('track.err.enterBoth'));
-      return;
-    }
+    e?.preventDefault();
+    if (loading || resendWait) return;
+    const invalid = {};
+    if (!trackingId.trim()) invalid.reference = ui('Enter your order number.', 'Weka namba ya oda yako.');
+    if (!normalizePhone(clientWhatsApp)) invalid.phone = ui('Enter the phone number used for this order.', 'Weka namba ya simu iliyotumika kwa oda hii.');
+    setEntryErrors(invalid);
+    if (Object.keys(invalid).length) { setError(t('track.err.enterBoth')); document.getElementById(invalid.reference ? 'track-login-id' : 'track-login-whatsapp')?.focus(); return; }
 
     setLoading(true);
     setError(null);
@@ -127,11 +173,12 @@ export default function ClientTrackingPortal() {
         await loadOrder(res.clientToken);
         return;
       }
-      setOtpSent(true);
+      setOtpSent(true); setOtpCode(''); setCodeUntil(Date.now() + 600000); setResendAt(Date.now() + 60000); otpInput.current?.focus();
       if (res.devOtp) setDevOtp(res.devOtp);
       setSuccessMsg(t('track.ok.otpSent'));
     } catch (err) {
-      setError(err.message || t('track.err.requestOtp'));
+      setError(err.message || t('track.err.requestOtp')); setErrorStatus(err.status);
+      if (err.status === 429) setResendAt(Date.now() + 60000);
     } finally {
       setLoading(false);
     }
@@ -139,7 +186,9 @@ export default function ClientTrackingPortal() {
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (!otpCode.trim()) {
+    if (loading || codeExpired) return;
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setEntryErrors({ code: ui('Enter the six-digit SMS code.', 'Weka msimbo wa SMS wa tarakimu sita.') }); otpInput.current?.focus();
       setError(t('track.err.enterOtp'));
       return;
     }
@@ -152,31 +201,39 @@ export default function ClientTrackingPortal() {
       sessionStorage.removeItem('tinzel_client_token');
       await loadOrder(res.clientToken);
     } catch (err) {
-      setError(err.message || t('track.err.invalidOtp'));
+      setError(err.message || t('track.err.invalidOtp')); setErrorStatus(err.status);
+      if (err.status === 429) setResendAt(Date.now() + 60000);
     } finally {
       setLoading(false);
     }
   };
 
-  const clearSession = useCallback(() => {
+  const clearSession = useCallback((preserveFeedback = false) => {
     setClientToken('');
     sessionStorage.removeItem('tinzel_client_token');
     setOrder(null);
-    setRevisionAudio(null);
-    setRevisionItems([{ text: '', pageReference: '' }]);
-    setShowRevisionForm(false);
+    if (!preserveFeedback) {
+      retainedFeedbackFor.current = null;
+      setRevisionAudio(null);
+      setRevisionItems([{ text: '', pageReference: '' }]);
+      setShowRevisionForm(false);
+    }
     setOtpSent(false);
     setOtpCode('');
+    setResendAt(0); setCodeUntil(0);
     setSuccessMsg(null);
   }, []);
   useEffect(() => {
     const expired = () => {
-      clearSession();
+      // Parallel requests may report expiry again after the order was cleared.
+      // Keep the original binding until the same order is verified or the draft is discarded.
+      if (hasFeedback && order?._id) retainedFeedbackFor.current = order._id;
+      clearSession(hasFeedback);
       setError(t('track.err.sessionExpired'));
     };
     window.addEventListener('tinzel:client:unauthorized', expired);
     return () => window.removeEventListener('tinzel:client:unauthorized', expired);
-  }, [clearSession, t]);
+  }, [clearSession, t, hasFeedback, order?._id]);
 
   const handleLogout = async (forgetDevice = false) => {
     try {
@@ -200,7 +257,8 @@ export default function ClientTrackingPortal() {
 
   const handleApproveWholeMagazine = async () => {
     if (proofState.composing || proofState.saving) return;
-    if (!confirm(t('track.confirm.approve'))) return;
+    if (decisionUncertain || (readerVersion && readerVersion !== order.currentDraftVersion)) return;
+    if (!(await confirm({ title: ui('Approve this magazine for printing?', 'Uidhinishe jarida hili kwa uchapishaji?'), description: t('track.confirm.approve'), confirmLabel: t('track.decision.approve') }))) return;
     setSubmittingDecision(true);
     setError(null);
     try {
@@ -212,7 +270,8 @@ export default function ClientTrackingPortal() {
       setOrder(res.order);
       setSuccessMsg(t('track.ok.approved'));
     } catch (err) {
-      setError(err.message || t('track.err.approve'));
+      setError(err.message || t('track.err.approve')); setErrorStatus(err.status);
+      if (!err.status || err.status >= 500 || [408, 409].includes(err.status)) setDecisionUncertain(true);
     } finally {
       setSubmittingDecision(false);
     }
@@ -220,7 +279,7 @@ export default function ClientTrackingPortal() {
 
   const handleRequestRevision = async (e) => {
     e.preventDefault();
-    if (proofState.composing || proofState.saving) return;
+    if (proofState.composing || proofState.saving || decisionUncertain || (readerVersion && readerVersion !== order.currentDraftVersion)) return;
     const items = revisionItems
       .map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() }))
       .filter((item) => item.text);
@@ -240,7 +299,8 @@ export default function ClientTrackingPortal() {
       setRevisionItems([{ text: '', pageReference: '' }]);
       setSuccessMsg(t('track.ok.revisionSent'));
     } catch (err) {
-      setError(err.message || t('track.err.revision'));
+      setError(err.message || t('track.err.revision')); setErrorStatus(err.status);
+      if (!err.status || err.status >= 500 || [408, 409].includes(err.status)) setDecisionUncertain(true);
     } finally {
       setSubmittingDecision(false);
     }
@@ -279,69 +339,15 @@ export default function ClientTrackingPortal() {
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('track.login.subtitle')}</p>
           </div>
 
-          {error && (
-            <div role="alert" style={{ marginBottom: '18px' }}>
-              <div
-                style={{
-                  backgroundColor: '#450a0a',
-                  border: '1px solid var(--accent-danger)',
-                  borderRadius: '6px',
-                  padding: '12px 14px',
-                  fontSize: '13px',
-                  color: '#fca5a5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </div>
-              {clientToken && (
-                <ActionButton
-                  type="button"
-                  onClick={() => loadOrder(clientToken)}
-                  style={{
-                    marginTop: '8px',
-                    width: '100%',
-                    padding: '8px',
-                    backgroundColor: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    color: 'var(--text-main)',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Retry Loading Order
-                </ActionButton>
-              )}
-            </div>
-          )}
-
-          {successMsg && (
-            <div
-              style={{
-                backgroundColor: '#064e3b',
-                border: '1px solid var(--accent-success)',
-                borderRadius: '6px',
-                padding: '12px 14px',
-                marginBottom: '18px',
-                fontSize: '13px',
-                color: '#6ee7b7',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <CheckCircle2 size={16} />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
+          {error && <StatePanel kind="error" title={ui('We could not continue', 'Hatukuweza kuendelea')} description={error}>
+            {clientToken && <ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Retry Loading Order', 'Jaribu kupakia oda tena')}</ActionButton>}
+          </StatePanel>}
+          {resendWait > 0 && !otpSent && <p role="status">{ui(`Please wait ${resendWait}s before requesting another code.`, `Subiri sekunde ${resendWait} kabla ya kuomba msimbo mwingine.`)}</p>}
+          {successMsg && <StatePanel compact kind="success" title={successMsg} />}
+          {retainedFeedbackFor.current && <StatePanel compact kind="info" title={ui('Your unsent feedback is still on this page', 'Maoni yako ambayo hayajatumwa bado yapo kwenye ukurasa huu')} description={ui('Verify access to the same order to continue. Keep this page open; feedback has not been submitted.', 'Thibitisha ufikiaji wa oda hii hiyo ili kuendelea. Usifunge ukurasa huu; maoni hayajawasilishwa.')} />}
+          {codeExpired && <StatePanel compact kind="warning" title={ui('Your SMS code has expired', 'Msimbo wako wa SMS umeisha')} description={ui('Request a new code to continue.', 'Omba msimbo mpya ili kuendelea.')} />}
           {!otpSent ? (
-            <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form noValidate onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label
                   htmlFor="track-login-id"
@@ -350,12 +356,12 @@ export default function ClientTrackingPortal() {
                   {t('track.login.trackingId')}
                 </label>
                 <input
-                  id="track-login-id"
+                  id="track-login-id" aria-invalid={Boolean(entryErrors.reference)} aria-describedby={entryErrors.reference ? 'track-login-id-error' : undefined}
                   type="text"
                   placeholder={t('track.login.trackingIdPh')}
                   required
                   value={trackingId}
-                  onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                  onChange={(e) => { setTrackingId(e.target.value.toUpperCase()); setEntryErrors(previous => ({ ...previous, reference: null })); }}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -367,6 +373,7 @@ export default function ClientTrackingPortal() {
                     letterSpacing: '0.5px',
                   }}
                 />
+                {entryErrors.reference && <p id="track-login-id-error" style={{ color: 'var(--accent-danger)' }}>{entryErrors.reference}</p>}
               </div>
 
               <div>
@@ -377,13 +384,13 @@ export default function ClientTrackingPortal() {
                   {t('track.login.whatsapp')}
                 </label>
                 <PhoneInput
-                  id="track-login-whatsapp"
+                  id="track-login-whatsapp" aria-invalid={Boolean(entryErrors.phone)} aria-describedby={entryErrors.phone ? 'track-login-whatsapp-error' : undefined}
                   type="tel"
                   autoComplete="tel"
                   placeholder={t('track.login.whatsappPh')}
                   required
                   value={clientWhatsApp}
-                  onChange={(e) => setClientWhatsApp(e.target.value)}
+                  onChange={(e) => { setClientWhatsApp(e.target.value); setEntryErrors(previous => ({ ...previous, phone: null })); }}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -394,11 +401,12 @@ export default function ClientTrackingPortal() {
                     fontSize: '14px',
                   }}
                 />
+                {entryErrors.phone && <p id="track-login-whatsapp-error" style={{ color: 'var(--accent-danger)' }}>{entryErrors.phone}</p>}
               </div>
 
               <ActionButton
                 type="submit"
-                disabled={loading}
+                disabled={loading || (!otpSent && resendWait > 0)}
                 style={{
                   backgroundColor: 'var(--accent-primary)',
                   color: '#ffffff',
@@ -414,11 +422,11 @@ export default function ClientTrackingPortal() {
                 }}
               >
                 {loading ? <SoftFlutter size={16} /> : <Lock size={16} />}
-                {t('track.login.sendCode')}
+                {loading ? ui('Sending SMS code…', 'Tunatuma msimbo wa SMS…') : t('track.login.sendCode')}
               </ActionButton>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form noValidate onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label
                   htmlFor="track-login-otp"
@@ -428,6 +436,8 @@ export default function ClientTrackingPortal() {
                 </label>
                 <input
                   id="track-login-otp"
+                  aria-invalid={Boolean(entryErrors.code)}
+                  aria-describedby={entryErrors.code ? 'track-code-error' : undefined}
                   ref={otpInput}
                   type="text"
                   inputMode="numeric"
@@ -437,7 +447,7 @@ export default function ClientTrackingPortal() {
                   placeholder="123456"
                   required
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setEntryErrors(previous => ({ ...previous, code: null })); }}
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -450,6 +460,7 @@ export default function ClientTrackingPortal() {
                     color: 'var(--text-main)',
                   }}
                 />
+                {entryErrors.code && <p id="track-code-error" style={{ color: 'var(--accent-danger)' }}>{entryErrors.code}</p>}
                 {devOtp && (
                   <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--info)' }}>
                     {t('track.login.devOtp')} <strong>{devOtp}</strong>
@@ -459,7 +470,7 @@ export default function ClientTrackingPortal() {
 
               <ActionButton
                 type="submit"
-                disabled={loading}
+                disabled={loading || codeExpired}
                 style={{
                   backgroundColor: 'var(--accent-primary)',
                   color: '#ffffff',
@@ -474,7 +485,7 @@ export default function ClientTrackingPortal() {
                 }}
               >
                 {loading ? <SoftFlutter size={16} /> : <CheckCircle2 size={16} />}
-                {t('track.login.verify')}
+                {loading ? ui('Verifying access…', 'Tunathibitisha ufikiaji…') : t('track.login.verify')}
               </ActionButton>
 
               <button
@@ -495,8 +506,8 @@ export default function ClientTrackingPortal() {
               >
                 {t('track.login.change')}
               </button>
-              <ActionButton loading={loading} type="button" className="ui-button" disabled={loading} onClick={handleRequestOtp}>
-                {ui('Resend verification code', 'Tuma msimbo tena')}
+              <ActionButton loading={loading} type="button" className="ui-button" disabled={loading || resendWait > 0} onClick={handleRequestOtp}>
+                {resendWait > 0 ? ui(`Resend available in ${resendWait}s`, `Tuma tena baada ya sekunde ${resendWait}`) : ui('Resend verification code', 'Tuma msimbo tena')}
               </ActionButton>
             </form>
           )}
@@ -554,49 +565,27 @@ export default function ClientTrackingPortal() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <ClientNotifications token={clientToken} onUnauthorized={clearSession} />
-          <button type="button" className="ui-button" onClick={() => { if (allowProofLeave()) handleLogout(true); }}>
+          <ClientNotifications token={clientToken} onUnauthorized={handleUnauthorized} />
+          <button type="button" className="ui-button" onClick={async () => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(true); }}>
             {ui('Stop remembering this order', 'Usikumbuke oda hii tena')}
           </button>
-          <ActionButton onClick={() => { if (allowProofLeave()) handleLogout(); }}>
+          <ActionButton onClick={async () => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(); }}>
             <LogOut size={13} /> {t('track.signOut')}
           </ActionButton>
         </div>
       </div>
 
-      {/* On-Hold Explanatory Banner */}
-      {order.status === 'on_hold' && (
-        <div
-          style={{
-            backgroundColor: '#FFFBEB',
-            border: '1px solid #FCD34D',
-            borderRadius: '8px',
-            padding: '16px 20px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '12px',
-          }}
-        >
-          <Clock size={20} color="#B45309" style={{ marginTop: '2px', flexShrink: 0 }} />
-          <div>
-            <div style={{ color: '#B45309', fontWeight: '700', fontSize: '14px', marginBottom: '4px' }}>
-              {t('track.status.on_hold')}
-            </div>
-            <p style={{ color: '#78350F', fontSize: '13px', margin: 0, lineHeight: '1.5' }}>
-              {order.holdReason ||
-                t('track.detail.on_hold')}
-            </p>
-          </div>
-        </div>
-      )}
-
+      <StatePanel compact kind={journey.complete ? 'success' : order.status === 'on_hold' || order.status === 'awaiting_payment' ? 'warning' : 'info'} title={t(journey.statusKey)} description={order.status === 'on_hold' ? order.holdReason || t(journey.detailKey) : t(journey.detailKey)}>
+        <ActionButton className="ui-button" loading={loading} disabled={loading || submittingDecision} onClick={() => loadOrder(clientToken)}>{ui('Refresh order', 'Sasisha oda')}</ActionButton>
+        {lastLoaded && <small>{ui('Last checked: ', 'Ilihakikiwa mwisho: ')}{new Date(lastLoaded).toLocaleTimeString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>}
+      </StatePanel>
+      {loadFailed && <StatePanel compact kind="warning" title={ui('These details may be out of date', 'Taarifa hizi huenda si za sasa')} description={ui('We could not refresh your order. Your previously loaded details remain visible.', 'Hatukuweza kusasisha oda yako. Taarifa zilizopakiwa awali bado zinaonekana.')} />}
       {/* Awaiting Payment Guidance Banner */}
       {order.status === 'awaiting_payment' && (
         <div
           style={{
-            backgroundColor: '#EFF6FF',
-            border: '1px solid #BFDBFE',
+            backgroundColor: 'var(--accent-gold-light)',
+            border: '1px solid var(--border-color)',
             borderRadius: '8px',
             padding: '20px 24px',
             marginBottom: '24px',
@@ -608,7 +597,7 @@ export default function ClientTrackingPortal() {
               alignItems: 'center',
               gap: '8px',
               marginBottom: '8px',
-              color: '#1E40AF',
+              color: 'var(--text-gold)',
               fontWeight: '700',
               fontSize: '15px',
             }}
@@ -616,7 +605,7 @@ export default function ClientTrackingPortal() {
             <CreditCard size={18} />
             <span>{t('pay.title')}</span>
           </div>
-          <p style={{ fontSize: '13px', color: '#1E3A8A', marginBottom: '12px', lineHeight: '1.5' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '12px', lineHeight: '1.5' }}>
             {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
           </p>
           <PaymentOptions paymentOptions={order.paymentOptions} lipaNambaInstructions={order.lipaNambaInstructions} />
@@ -675,46 +664,9 @@ export default function ClientTrackingPortal() {
         </div>
       </div>
 
-      {successMsg && (
-        <div
-          style={{
-            backgroundColor: '#064e3b',
-            border: '1px solid var(--accent-success)',
-            borderRadius: '6px',
-            padding: '14px 16px',
-            marginBottom: '24px',
-            fontSize: '14px',
-            color: '#6ee7b7',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <CheckCircle2 size={18} />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#450a0a',
-            border: '1px solid var(--accent-danger)',
-            borderRadius: '6px',
-            padding: '14px 16px',
-            marginBottom: '24px',
-            fontSize: '14px',
-            color: '#fca5a5',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
-      )}
-
+      {successMsg && <StatePanel kind="success" title={successMsg} />}
+      {error && <StatePanel kind="error" title={errorStatus === 409 ? ui('This order has changed', 'Oda hii imebadilika') : ui('The action could not finish', 'Hatua haikukamilika')} description={error}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check latest order', 'Hakiki oda ya sasa')}</ActionButton></StatePanel>}
+      {decisionUncertain && <StatePanel kind="warning" title={ui('Check the result before trying again', 'Hakiki matokeo kabla ya kujaribu tena')} description={ui('We could not confirm your decision. Refresh the order to check its current status. Your unsent feedback is still here.', 'Hatukuweza kuthibitisha uamuzi wako. Sasisha oda uhakiki hali yake. Maoni yako ambayo hayajatumwa bado yapo.')}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check decision status', 'Hakiki hali ya uamuzi')}</ActionButton></StatePanel>}
       {(order.revisionRequests || []).length > 0 && (
         <section
           style={{
@@ -782,7 +734,7 @@ export default function ClientTrackingPortal() {
             <select
               aria-label={ui('Magazine version', 'Toleo la jarida')}
               value={readerVersion || releasedDraft?.versionNumber}
-              onChange={(e) => { if (allowProofLeave()) setReaderVersion(Number(e.target.value)); }}
+              onChange={async (e) => { const next = Number(e.target.value); if (await allowProofLeave()) setReaderVersion(next); }}
             >
               {(order.draftVersions || []).map((v) => (
                 <option key={v.versionNumber} value={v.versionNumber}>
@@ -791,6 +743,7 @@ export default function ClientTrackingPortal() {
               ))}
             </select>
           </label>
+          {readerVersion && readerVersion !== order.currentDraftVersion && <StatePanel compact kind="info" title={ui('You are viewing an earlier version', 'Unaangalia toleo la awali')} description={ui('Open the current version before approving or requesting changes.', 'Fungua toleo la sasa kabla ya kuidhinisha au kuomba marekebisho.')}><ActionButton className="ui-button" onClick={async () => { if (await allowProofLeave()) setReaderVersion(order.currentDraftVersion); }}>{ui('Open current version', 'Fungua toleo la sasa')}</ActionButton></StatePanel>}
           <PdfBookReader
             onReviewStateChange={setProofState}
             token={clientToken}
@@ -819,7 +772,7 @@ export default function ClientTrackingPortal() {
                 <div className="client-decision-actions">
                   <ActionButton loading={submittingDecision}
                     onClick={handleApproveWholeMagazine}
-                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
+                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -839,7 +792,7 @@ export default function ClientTrackingPortal() {
 
                   <button
                     onClick={() => setShowRevisionForm(true)}
-                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
+                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -918,7 +871,7 @@ export default function ClientTrackingPortal() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <ActionButton loading={submittingDecision}
                       type="submit"
-                      disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving}
+                      disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -938,7 +891,7 @@ export default function ClientTrackingPortal() {
                     <button
                       type="button"
                       disabled={submittingDecision}
-                      onClick={() => { setShowRevisionForm(false); setRevisionAudio(null); }}
+                      onClick={async () => { if (await allowFeedbackLeave()) { setShowRevisionForm(false); setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); } }}
                       style={{
                         backgroundColor: 'transparent',
                         color: 'var(--text-muted)',
@@ -953,47 +906,12 @@ export default function ClientTrackingPortal() {
               )}
             </div>
           ) : order.status === 'client_approved' ? (
-            <div
-              style={{
-                backgroundColor: '#064e3b',
-                border: '1px solid var(--accent-success)',
-                borderRadius: '6px',
-                padding: '16px',
-                color: '#6ee7b7',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <CheckCircle2 size={20} />
-              <div>
-                <strong>{t('track.approved.title', { version: order.approvedVersionNumber })}</strong>!{' '}
-                {t('track.approved.body')}
-              </div>
-            </div>
+            <StatePanel compact kind="success" title={t('track.approved.title', { version: order.approvedVersionNumber })} description={t('track.approved.body')} />
           ) : order.status === 'revision_requested' ? (
-            <div
-              style={{
-                backgroundColor: '#451a03',
-                border: '1px solid var(--accent-warning)',
-                borderRadius: '6px',
-                padding: '16px',
-                color: '#fcd34d',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <Clock size={20} />
-              <div>
-                <strong>{t('track.revreq.title')}</strong>: {t('track.revreq.body')}
-              </div>
-            </div>
+            <StatePanel compact kind="info" title={t('track.revreq.title')} description={t('track.revreq.body')} />
           ) : null}
         </div>
-      ) : null}
+      ) : <StatePanel kind="info" title={journey.complete ? ui('No magazine preview is available', 'Hakuna hakikisho la jarida linalopatikana') : ui('Your magazine preview is not ready yet', 'Hakikisho la jarida lako bado halijawa tayari')} description={journey.complete ? ui('This order is complete. A preview is no longer available here; contact Tinzel if you need help with this order.', 'Oda hii imekamilika. Hakikisho halipatikani hapa; wasiliana na Tinzel ukihitaji msaada wa oda hii.') : order.status === 'awaiting_payment' ? ui('Follow the payment instructions above. Your preview will appear here when it is ready for review.', 'Fuata maelekezo ya malipo hapo juu. Hakikisho litaonekana hapa likiwa tayari kukaguliwa.') : ui('Your order is still in progress. The preview will appear here when it is released for you to review.', 'Oda yako bado inaendelea. Hakikisho litaonekana hapa likitolewa kwa ajili yako kukagua.')} />}
 
       {/* Printing & Delivery Tracking Details */}
       {['printing_sent', 'printing_in_progress', 'printing_completed', 'dispatched', 'delivered', 'closed'].includes(

@@ -11,10 +11,11 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: url('/brand/soft-flutter-atlas.webp') 0 0 / calc(var(--flutter-size, 24px) * 96) 100% no-repeat;
-  animation: soft-flutter-frames 4.04s steps(96, end) infinite;
+  background: var(--flutter-image) center / contain no-repeat;
+  transform-origin: center;
+  animation: soft-flutter-frames 1.8s ease-in-out infinite;
 }
-@keyframes soft-flutter-frames { to { background-position-x: calc(var(--flutter-size, 24px) * -96); } }
+@keyframes soft-flutter-frames { 0%,100% { transform: scaleX(1) translateY(0); } 50% { transform: scaleX(.82) translateY(-2px); } }
 .inline-loading { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
 .action-button[aria-busy='true'] { cursor: wait; }
 .action-button > .soft-flutter { margin-inline-end: 6px; }
@@ -22,7 +23,7 @@
 .action-button[aria-busy='true'] > .action-button__label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .action-button[aria-busy='true'] > .action-button__label > svg { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .soft-flutter { background-image: url('/brand/soft-flutter-poster.webp'); }
+  .soft-flutter { background-image: var(--flutter-image); }
   .soft-flutter::before { display: none; animation: none; }
 }
 .transfer-progress { min-width: 0; width: 100%; margin: 10px 0; }

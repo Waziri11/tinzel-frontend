@@ -2,7 +2,7 @@ import React from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import TinzelLogo from '../common/TinzelLogo';
 export default function LanguageSelect() {
-  const { setLang } = useLanguage();
+  const { lang: selectedLanguage, setLang } = useLanguage();
   return (
     <section style={{ width: 'min(520px,100%)' }}>
       <TinzelLogo variant="full" height={48} />
@@ -16,7 +16,7 @@ export default function LanguageSelect() {
           ['English', 'EN', 'en'],
           ['Kiswahili', 'SW', 'sw'],
         ].map(([label, code, lang]) => (
-          <button className="language-card" key={lang} onClick={() => setLang(lang)}>
+          <button type="button" className="language-card" key={lang} aria-pressed={selectedLanguage === lang} onClick={() => setLang(lang)}>
             <span>{label}</span>
             <span>{code}</span>
           </button>

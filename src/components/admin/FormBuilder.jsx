@@ -1,6 +1,8 @@
 import { runTransfer } from '../../services/fileTransfers';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import EditionPreview from './EditionPreview';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -48,8 +50,11 @@ const FIELD_TYPES = [
 
 export default function FormBuilder({ token }) {
   const tx = useInterfaceText();
+  const confirm = useConfirm();
 
   const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const confirmLeave = () => confirm({ title: ui('Leave without saving?', 'Uondoke bila kuhifadhi?'), description: ui('Your latest edition changes have not been saved.', 'Mabadiliko ya mwisho ya toleo hayajahifadhiwa.'), confirmLabel: ui('Leave without saving', 'Ondoka bila kuhifadhi'), cancelLabel: ui('Keep editing', 'Endelea kuhariri'), danger: true });
   const [preview, setPreview] = useState(false);
   const [baseline, setBaseline] = useState(null);
   const resetBaseline = useRef(false);
@@ -60,7 +65,7 @@ export default function FormBuilder({ token }) {
   const [editionFilter, setEditionFilter] = useState('current');
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -123,8 +128,8 @@ export default function FormBuilder({ token }) {
       event.returnValue = '';
     };
     const leave = (event) => {
-      if (!window.confirm(lang === 'sw' ? 'Uondoke bila kuhifadhi mabadiliko?' : 'Leave without saving your changes?'))
-        event.preventDefault();
+      if (event.detail?.waitUntil) event.detail.waitUntil(confirmLeave());
+      else event.preventDefault();
     };
     window.addEventListener('beforeunload', guard);
     window.addEventListener('tinzel:before-navigate', leave);
@@ -139,14 +144,14 @@ export default function FormBuilder({ token }) {
 
   const loadForms = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.admin.getForms(token);
       setForms(data.forms || []);
     } catch (err) {
-      setError(err.message || 'Failed to load magazine forms');
+      setLoadError(err);
     } finally {
       setLoading(false);
-      setHasLoaded(true);
     }
   };
 
@@ -246,7 +251,7 @@ export default function FormBuilder({ token }) {
 
   const handleRemoveSection = (secId) => {
     if (sections.length <= 1) {
-      alert('A form must have at least one section.');
+      setError(ui('Keep at least one section in this edition.', 'Weka angalau sehemu moja kwenye toleo hili.'));
       return;
     }
     const fallbackSecId = sections.find((s) => s.sectionId !== secId).sectionId;
@@ -356,9 +361,9 @@ export default function FormBuilder({ token }) {
         return api.admin.uploadCover(token, optimizedFile, context);
       });
       setCoverImageUrl(res.coverUrl);
-      setSuccessMsg('Cover artwork uploaded successfully!');
+      setSuccessMsg(ui('Cover artwork uploaded.', 'Picha ya jalada imepakiwa.'));
     } catch (err) {
-      setError(err.message || 'Failed to upload cover image');
+      setError(err);
     } finally {
       setUploadingCover(false);
       e.target.value = '';
@@ -369,17 +374,19 @@ export default function FormBuilder({ token }) {
     if (e && e.preventDefault) e.preventDefault();
 
     if (uploadingCover) {
-      setError('Please wait for the cover photo to finish uploading.');
+      setError(ui('Please wait for the cover photo to finish uploading.', 'Subiri picha ya jalada ikamilishe kupakiwa.'));
       return;
     }
 
     if (!title.trim()) {
-      setError('Magazine edition title is required.');
+      setError(ui('Magazine edition title is required.', 'Jina la toleo linahitajika.'));
+      document.querySelector('[data-edition-title]')?.focus();
       return;
     }
 
     if (!Number.isFinite(Number(price)) || Number(price) <= 0) {
-      setError(lang === 'sw' ? 'Weka bei iliyo zaidi ya sifuri.' : 'Enter a price greater than zero.');
+      setError(ui('Enter a price greater than zero.', 'Weka bei iliyo zaidi ya sifuri.'));
+      document.querySelector('[data-edition-price]')?.focus();
       return;
     }
     setSaving(true);
@@ -403,19 +410,19 @@ export default function FormBuilder({ token }) {
     try {
       if (selectedFormId === 'new') {
         const res = await api.admin.createForm(token, payload);
-        setSuccessMsg(`Draft "${res.form.title}" saved successfully!`);
+        setSuccessMsg(ui(`Draft “${res.form.title}” saved.`, `Rasimu “${res.form.title}” imehifadhiwa.`));
         await loadForms();
         setSelectedFormId(res.form._id);
         setSlug(res.form.slug);
         setIsActive(Boolean(res.form.isActive));
       } else {
         const res = await api.admin.updateForm(token, selectedFormId, payload);
-        setSuccessMsg(`Edition "${res.form.title}" saved successfully!`);
+        setSuccessMsg(ui(`Edition “${res.form.title}” saved.`, `Toleo “${res.form.title}” limehifadhiwa.`));
         await loadForms();
       }
       setBaseline(draftSnapshot);
     } catch (err) {
-      setError(err.message || 'Failed to save form');
+      setError(err);
     } finally {
       setSaving(false);
     }
@@ -427,7 +434,7 @@ export default function FormBuilder({ token }) {
       return;
     }
     if (selectedFormId === 'new') {
-      setError('Save the draft before publishing it.');
+      setError(ui('Save the draft before publishing it.', 'Hifadhi rasimu kabla ya kuichapisha.'));
       return;
     }
     setPublishing(true);
@@ -436,10 +443,10 @@ export default function FormBuilder({ token }) {
     try {
       const res = await api.admin.publishForm(token, selectedFormId);
       setIsActive(true);
-      setSuccessMsg(`Edition "${res.form.title}" published successfully!`);
+      setSuccessMsg(ui(`Edition “${res.form.title}” published.`, `Toleo “${res.form.title}” limechapishwa.`));
       await loadForms();
     } catch (err) {
-      setError(err.message || 'Failed to publish form');
+      setError(err);
     } finally {
       setPublishing(false);
     }
@@ -448,7 +455,7 @@ export default function FormBuilder({ token }) {
   const handleGoogleImport = async (e) => {
     e.preventDefault();
     if (!googleFormUrl.trim()) {
-      setError('Paste a public Google Form link first.');
+      setError(ui('Paste a public Google Form link first.', 'Bandika kiungo cha umma cha Google Form kwanza.'));
       return;
     }
     setImporting(true);
@@ -461,9 +468,9 @@ export default function FormBuilder({ token }) {
       await loadForms();
       selectFormForEdit(res.form);
       setImportWarnings(res.warnings || []);
-      setSuccessMsg(`Imported "${res.form.title}" as an unpublished draft.`);
+      setSuccessMsg(ui(`Imported “${res.form.title}” as an unpublished draft.`, `“${res.form.title}” imeingizwa kama rasimu isiyochapishwa.`));
     } catch (err) {
-      setError(err.message || 'Failed to import Google Form');
+      setError(err);
     } finally {
       setImporting(false);
     }
@@ -471,9 +478,7 @@ export default function FormBuilder({ token }) {
 
   const handleDeleteForm = async (form, event) => {
     event?.stopPropagation();
-    const confirmed = window.confirm(
-      `Delete "${form.title}" from the form builder?\n\nIt will stop accepting new submissions. Historical orders and answers will remain preserved.`,
-    );
+    const confirmed = await confirm({title: ui(`Archive “${form.title}”?`, `Hifadhi “${form.title}” kwenye kumbukumbu?`), description: ui('This edition will stop accepting new orders. Existing orders and answers remain available.', 'Toleo hili litaacha kupokea oda mpya. Oda na majibu yaliyopo yataendelea kupatikana.'), confirmLabel: ui('Archive edition', 'Hifadhi toleo'), danger: true});
     if (!confirmed) return;
 
     setDeletingFormId(form._id);
@@ -484,7 +489,7 @@ export default function FormBuilder({ token }) {
       setForms((current) => current.filter((item) => item._id !== form._id));
       setSuccessMsg(lang === 'sw' ? 'Toleo limehifadhiwa kwenye kumbukumbu.' : 'Edition archived.');
     } catch (err) {
-      setError(err.message || 'Failed to delete form');
+      setError(err);
     } finally {
       setDeletingFormId(null);
     }
@@ -518,11 +523,6 @@ export default function FormBuilder({ token }) {
         className="edition-admin edition-list"
         style={{ maxWidth: '1160px', margin: '0 auto', paddingBottom: '60px' }}
       >
-        {error && (
-          <ActionButton className="ui-button" onClick={loadForms}>
-            {tx('Try again')}
-          </ActionButton>
-        )}
         {/* Top Header */}
         <div
           style={{
@@ -693,55 +693,21 @@ export default function FormBuilder({ token }) {
                 }}
               >
                 {importing ? <SoftFlutter size={15} /> : <Link2 size={15} />}
-                {importing ? 'Importing…' : 'Import as Draft'}
+                {importing ? ui('Importing…', 'Inaingiza…') : ui('Import as Draft', 'Ingiza kama rasimu')}
               </ActionButton>
             </div>
           </form>
         )}
 
-        {error && (
-          <div
-            style={{
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FCA5A5',
-              borderRadius: '6px',
-              padding: '12px 16px',
-              marginBottom: '24px',
-              fontSize: '13px',
-              color: '#991B1B',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
+        {error && (typeof error === 'string' ? <StatePanel compact kind="warning" title={ui('Check the edition details', 'Hakiki taarifa za toleo')} description={tx(error)} /> : <StateError compact error={error} />)}
 
-        {successMsg && (
-          <div
-            style={{
-              backgroundColor: '#F0FDF4',
-              border: '1px solid #86EFAC',
-              borderRadius: '6px',
-              padding: '12px 16px',
-              marginBottom: '24px',
-              fontSize: '13px',
-              color: '#166534',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <CheckCircle2 size={16} />
-            <span>{successMsg}</span>
-          </div>
-        )}
+        {successMsg && <StatePanel compact kind="success" title={successMsg} />}
 
-        {loading && !hasLoaded ? (
+        {loadError && <StateError error={loadError} title={ui('Editions could not be loaded', 'Matoleo hayakuweza kupakiwa')} onRetry={loadForms} />}
+        {loadError && forms.length > 0 && <StatePanel compact kind="warning" title={ui('Showing previously loaded editions', 'Inaonyesha matoleo yaliyopakiwa awali')} description={ui('The list may have changed. Retry to refresh it.', 'Orodha inaweza kuwa imebadilika. Jaribu tena kuisasisha.')} />}
+        {loading && !forms.length ? (
           <PageSkeleton variant="catalogue" compact />
-        ) : forms.length === 0 ? (
+        ) : loadError && forms.length === 0 ? null : forms.length === 0 ? (
           <div
             style={{
               textAlign: 'center',
@@ -1099,14 +1065,8 @@ export default function FormBuilder({ token }) {
       >
         <button
           type="button"
-          onClick={() => {
-            if (
-              dirty &&
-              !window.confirm(
-                lang === 'sw' ? 'Uondoke bila kuhifadhi mabadiliko?' : 'Leave without saving your changes?',
-              )
-            )
-              return;
+          onClick={async () => {
+            if (dirty && !await confirmLeave()) return;
             setViewMode('list');
             loadForms();
           }}
@@ -1196,45 +1156,9 @@ export default function FormBuilder({ token }) {
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FCA5A5',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            marginBottom: '24px',
-            fontSize: '13px',
-            color: '#991B1B',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && (typeof error === 'string' ? <StatePanel compact kind="warning" title={ui('Check the edition details', 'Hakiki taarifa za toleo')} description={tx(error)} /> : <StateError compact error={error} />)}
 
-      {successMsg && (
-        <div
-          style={{
-            backgroundColor: '#F0FDF4',
-            border: '1px solid #86EFAC',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            marginBottom: '24px',
-            fontSize: '13px',
-            color: '#166534',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <CheckCircle2 size={16} />
-          <span>{successMsg}</span>
-        </div>
-      )}
+      {successMsg && <StatePanel compact kind="success" title={successMsg} />}
 
       {importWarnings.length > 0 && (
         <div
@@ -1261,6 +1185,8 @@ export default function FormBuilder({ token }) {
         </div>
       )}
 
+      {isArchived && <StatePanel compact kind="info" title={ui('Archived edition', 'Toleo lililohifadhiwa kwenye kumbukumbu')} description={ui('This edition is read-only and no longer accepts new orders.', 'Toleo hili ni la kusoma tu na halipokei oda mpya.')} />}
+      {dirty && <StatePanel compact kind="info" title={ui('Unsaved edition changes', 'Mabadiliko ya toleo hayajahifadhiwa')} description={ui('Save your changes before publishing or leaving.', 'Hifadhi mabadiliko kabla ya kuchapisha au kuondoka.')} />}
       <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <fieldset disabled={isArchived} style={{ display: 'contents', border: 0 }}>
           {/* LANGUAGE MENU: switches every text input below between the English and Swahili versions */}
@@ -1473,7 +1399,7 @@ export default function FormBuilder({ token }) {
                   placeholder={
                     isSw ? title || 'e.g. Jarida la Kumbukumbu ya Mahafali' : 'e.g. Graduation Keepsake Magazine'
                   }
-                  value={isSw ? titleSw : title}
+                  data-edition-title aria-invalid={!isSw && !title.trim() && !!error || undefined} value={isSw ? titleSw : title}
                   onChange={(e) => (isSw ? setTitleSw(e.target.value) : handleTitleChange(e.target.value))}
                   style={{
                     width: '100%',
@@ -1581,7 +1507,7 @@ export default function FormBuilder({ token }) {
                   type="number"
                   required
                   placeholder="75000"
-                  value={price}
+                  data-edition-price aria-invalid={Number(price) <= 0 || undefined} value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   style={{
                     width: '100%',
@@ -1812,21 +1738,7 @@ export default function FormBuilder({ token }) {
                     {/* Questions in this Section */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
                       {sectionFields.length === 0 ? (
-                        <div
-                          style={{
-                            textAlign: 'center',
-                            padding: '20px',
-                            backgroundColor: 'var(--bg-primary)',
-                            border: '1px dashed #D6D3D1',
-                            borderRadius: '6px',
-                            color: 'var(--text-muted)',
-                            fontSize: '13px',
-                          }}
-                        >
-                          <InterfaceText>
-                            No questions in this section yet. Add a text question or a photo group spread below.
-                          </InterfaceText>
-                        </div>
+                        <StatePanel compact kind="empty" title={ui('No questions in this section yet', 'Hakuna maswali kwenye sehemu hii bado')} description={ui('Add a text question or photo group below.', 'Ongeza swali la maandishi au kundi la picha hapa chini.')} />
                       ) : (
                         sectionFields.map((field) => {
                           const globalIdx = fields.findIndex((f) => f.fieldId === field.fieldId);

@@ -3,8 +3,8 @@
   const overlay = document.getElementById('tinzel-intro');
   const root = document.getElementById('root');
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const publicPage = /^\/(?:track\/?|(?:catalogue|showcase)(?:\/[^/]+)?\/?)?$/.test(location.pathname);
-  if (!publicPage || motion.matches) return;
+  // Direct links should open their page immediately, including recovery controls.
+  if (location.pathname !== '/' || motion.matches || window.tinzelReady) return;
 
   const seenKey = 'tinzel-intro-seen';
   let language = navigator.language;
@@ -23,13 +23,11 @@
   const events = new AbortController();
   const options = { signal: events.signal };
   const watchdog = setTimeout(finish, 6500);
-  let playTimer;
 
   function finish(fade = false) {
     if (events.signal.aborted) return;
     events.abort();
     clearTimeout(watchdog);
-    clearTimeout(playTimer);
     const restoreFocus = overlay.contains(document.activeElement);
     root.inert = false;
     document.documentElement.classList.remove('tinzel-intro-active');
@@ -51,15 +49,10 @@
   motion.addEventListener('change', event => { if (event.matches) finish(); }, options);
   document.addEventListener('visibilitychange', () => { if (document.hidden) finish(); }, options);
   window.addEventListener('pagehide', () => finish(), options);
+  window.addEventListener('tinzel:ready', () => finish(true), options);
 
   root.inert = true;
   document.documentElement.classList.add('tinzel-intro-active');
   overlay.hidden = false;
-  const frames = new Image();
-  frames.addEventListener('error', () => finish(), options);
-  frames.addEventListener('load', () => {
-    overlay.classList.add('is-playing');
-    playTimer = setTimeout(() => finish(true), 4500);
-  }, options);
-  frames.src = '/brand/soft-flutter-atlas.webp';
+  overlay.classList.add('is-playing');
 })();

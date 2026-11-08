@@ -1,6 +1,8 @@
 import PaymentOptionsSettings from './PaymentOptionsSettings';
 import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
@@ -46,7 +48,10 @@ const fieldLabels = {
 export default function AdminSystemSettings({ token, category }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
+  const confirm = useConfirm();
   const [initialLoading, setInitialLoading] = useState(true);
+  const [savedConfig, setSavedConfig] = useState({});
+  const [noticeKinds, setNoticeKinds] = useState({});
   const [providers, setProviders] = useState([]),
     [config, setConfig] = useState({}),
     [configLoaded, setConfigLoaded] = useState(false),
@@ -55,36 +60,44 @@ export default function AdminSystemSettings({ token, category }) {
     [busy, setBusy] = useState({}),
     [notice, setNotice] = useState({}),
     [error, setError] = useState({});
-  const loadProviders = () =>
-    api.providerConfig
-      .get(token)
-      .then((r) => setProviders(r.providers))
-      .catch(() =>
-        setError((x) => ({
-          ...x,
-          providers: t(
-            'Unable to load providers.',
-            'Imeshindikana kupakia watoa huduma.',
-          ),
-        })),
-      );
-  const loadConfig = () =>
-    api.admin
-      .getConfig(token)
-      .then((r) => {
-        setConfig(Object.fromEntries(r.configs.map((x) => [x.key, x.value])));
-        setConfigLoaded(true);
-        setError(x => ({ ...x, config: '' }));
-      })
-      .catch(() =>
-        setError((x) => ({
-          ...x,
-          config: t(
-            'Unable to load settings.',
-            'Imeshindikana kupakia mipangilio.',
-          ),
-        })),
-      );
+  const loadProviders = async () => {
+    setBusy(current => ({ ...current, providers: true }));
+    setError(current => ({ ...current, providers: null }));
+    try { const response = await api.providerConfig.get(token); setProviders(response.providers); return true; }
+    catch (err) { setError(current => ({ ...current, providers: err })); return false; }
+    finally { setBusy(current => ({ ...current, providers: false })); }
+  };
+  const loadConfig = async () => {
+    setBusy(current => ({ ...current, config: true }));
+    setError(current => ({ ...current, config: null }));
+    try {
+      const response = await api.admin.getConfig(token);
+      const values = Object.fromEntries(response.configs.map(item => [item.key, item.value]));
+      setConfig(values); setSavedConfig(values); setConfigLoaded(true);
+    } catch (err) { setError(current => ({ ...current, config: err })); }
+    finally { setBusy(current => ({ ...current, config: false })); }
+  };
+  const saveSetting = async (key, value) => {
+    const result = await api.admin.updateConfig(token, { key, value });
+    const saved = result.config?.value ?? value;
+    setConfig(current => ({ ...current, [key]: saved }));
+    setSavedConfig(current => ({ ...current, [key]: saved }));
+    return result;
+  };
+  const configDirty = Object.keys(config).some(key => JSON.stringify(config[key]) !== JSON.stringify(savedConfig[key]));
+  const providerDirty = Object.values(drafts).some(value => Object.keys(value).length) || Object.values(remove).some(value => value.length);
+  const dirty = configDirty || providerDirty;
+  useEffect(() => {
+    if (!dirty) return;
+    const unload = event => { event.preventDefault(); event.returnValue = ''; };
+    const leave = event => {
+      if (event.detail?.path?.startsWith('/staff/system')) return;
+      if (event.detail?.waitUntil) event.detail.waitUntil(confirm({ title: t('Leave with unsaved settings?', 'Uondoke bila kuhifadhi mipangilio?'), description: t('Your latest changes have not been saved.', 'Mabadiliko yako ya mwisho hayajahifadhiwa.'), confirmLabel: t('Leave without saving', 'Ondoka bila kuhifadhi'), cancelLabel: t('Keep editing', 'Endelea kuhariri'), danger: true }));
+      else event.preventDefault();
+    };
+    window.addEventListener('beforeunload', unload); window.addEventListener('tinzel:before-navigate', leave);
+    return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', leave); };
+  }, [dirty, lang, confirm]);
   useEffect(() => {
     let active = true;
     setInitialLoading(true);
@@ -95,23 +108,27 @@ export default function AdminSystemSettings({ token, category }) {
     setBusy((x) => ({ ...x, [key]: true }));
     setError((x) => ({ ...x, [key]: '' }));
     setNotice((x) => ({ ...x, [key]: '' }));
+    setNoticeKinds(x => ({ ...x, [key]: 'success' }));
     try {
       await action();
     } catch (e) {
-      setError((x) => ({ ...x, [key]: e.message }));
+      setError((x) => ({ ...x, [key]: e }));
     } finally {
       setBusy((x) => ({ ...x, [key]: false }));
     }
   };
   const feedback = (key) => (
     <>
-      {error[key] && <p role="alert">{error[key]}</p>}
-      {notice[key] && <p role="status">{notice[key]}</p>}
+      {error[key] && <StateError compact error={error[key]} />}
+      {notice[key] && <StatePanel compact kind={noticeKinds[key] || "success"} title={notice[key]} />}
     </>
   );
   if (initialLoading) return <PageSkeleton variant="form" />;
+  if (!configLoaded && category !== 'messaging') return busy.config ? <PageSkeleton variant="form" /> : <StateError error={error.config} title={t('Settings could not be loaded', 'Mipangilio haikuweza kupakiwa')} onRetry={loadConfig} />;
   return (
     <section className="system-settings-editor">
+      {dirty && <StatePanel compact kind="info" title={t('Unsaved settings', 'Mipangilio haijahifadhiwa')} description={t('Save each changed setting to apply it. Changes remain while you browse settings categories.', 'Hifadhi kila mpangilio uliobadilisha ili kuutumia. Mabadiliko yanabaki unapopitia makundi ya mipangilio.')} />}
+      {busy.providers && category === 'messaging' && <StatePanel compact kind="loading" title={t('Loading providers…', 'Inapakia watoa huduma…')} />}
       {feedback('config')}
       {error.config && (
         <ActionButton className="ui-button" onClick={loadConfig}>
@@ -121,9 +138,9 @@ export default function AdminSystemSettings({ token, category }) {
       <div className="system-settings-grid">
         {category === 'payments' && <PaymentOptionsSettings value={config.payment_options}
           onChange={value => setConfig(current => ({ ...current, payment_options: value }))}
-          disabled={!configLoaded || !!error.config} busy={busy.payment_options} feedback={feedback('payment_options')}
+          disabled={!configLoaded || !!error.config} busy={busy.payment_options} feedback={feedback('payment_options')} dirty={JSON.stringify(config.payment_options) !== JSON.stringify(savedConfig.payment_options)}
           onSave={() => run('payment_options', async () => {
-            const result = await api.admin.updateConfig(token, { key: 'payment_options', value: config.payment_options || [] });
+            const result = await saveSetting('payment_options', config.payment_options || []);
             setConfig(current => ({ ...current, payment_options: result.config.value }));
             setNotice(current => ({ ...current, payment_options: t('Payment options saved.', 'Njia za malipo zimehifadhiwa.') }));
           })} />}
@@ -132,7 +149,7 @@ export default function AdminSystemSettings({ token, category }) {
           <form onSubmit={event => {
             event.preventDefault();
             run(retentionKey, async () => {
-              const result = await api.admin.updateConfig(token, { key: retentionKey, value: Number(config[retentionKey] ?? 7) });
+              const result = await saveSetting(retentionKey, Number(config[retentionKey] ?? 7));
               setConfig(current => ({ ...current, [retentionKey]: result.config.value }));
               setNotice(current => ({ ...current, [retentionKey]: t('Retention period saved.', 'Muda wa kuhifadhi umehifadhiwa.') }));
             });
@@ -157,7 +174,7 @@ export default function AdminSystemSettings({ token, category }) {
           <form onSubmit={event => {
             event.preventDefault();
             run(verificationKey, async () => {
-              const result = await api.admin.updateConfig(token, { key: verificationKey, value: Number(config[verificationKey] ?? 168) });
+              const result = await saveSetting(verificationKey, Number(config[verificationKey] ?? 168));
               setConfig(current => ({ ...current, [verificationKey]: result.config.value }));
               setNotice(current => ({ ...current, [verificationKey]: t('Verification interval saved.', 'Muda wa uthibitisho umehifadhiwa.') }));
             });
@@ -186,10 +203,10 @@ export default function AdminSystemSettings({ token, category }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 run(key, async () => {
-                  await api.admin.updateConfig(token, {
-                    key,
-                    value: key === 'default_max_workload' ? Number(config[key] || 5) : (config[key] ?? ''),
-                  });
+                  await saveSetting(key,
+                      key === 'default_max_workload'
+                        ? Number(config[key] || 5)
+                        : (config[key] ?? ''));
                   setNotice((x) => ({
                     ...x,
                     [key]: t('Saved.', 'Imehifadhiwa.'),
@@ -284,6 +301,7 @@ export default function AdminSystemSettings({ token, category }) {
                 });
               }}
             >
+              <fieldset disabled={busy[provider.provider]} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
               {provider.fields.map((field) => (
                 <div key={field.name} style={{ marginBottom: 16 }}>
                   <label>
@@ -404,6 +422,7 @@ export default function AdminSystemSettings({ token, category }) {
                   )}
                 </div>
               ))}
+              </fieldset>
               {feedback(provider.provider)}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <ActionButton loading={busy[provider.provider]}
@@ -422,6 +441,7 @@ export default function AdminSystemSettings({ token, category }) {
                         token,
                         provider.provider,
                       );
+                      setNoticeKinds(x => ({ ...x, [provider.provider]: r.configured && r.connected ? 'success' : 'warning' }));
                       setNotice((x) => ({
                         ...x,
                         [provider.provider]: !r.configured
@@ -449,10 +469,9 @@ export default function AdminSystemSettings({ token, category }) {
                 <button
                   type="button"
                   className="ui-button"
-                  onClick={() => {
-                    setDrafts({});
-                    setRemove({});
-                    loadProviders();
+                  onClick={async () => {
+                    if (providerDirty && !await confirm({ title: t('Reload saved provider settings?', 'Pakia mipangilio iliyohifadhiwa?'), description: t('This discards your unsaved provider changes.', 'Hii itaondoa mabadiliko ya watoa huduma ambayo hayajahifadhiwa.'), confirmLabel: t('Discard and reload', 'Ondoa na upakie'), danger: true })) return;
+                    if (await loadProviders()) { setDrafts({}); setRemove({}); }
                   }}
                 >
                   {t(

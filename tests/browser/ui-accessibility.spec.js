@@ -8,7 +8,7 @@ async function staffFixture(page,role,lang){
  await page.route('**/api/manager/orders?*',route=>json(route,{orders:[],total:0,page:1,pageCount:1,summary:{},statusCounts:{}}));
  await page.route('**/api/manager/designers',route=>json(route,{designers:[]}));
  await page.route('**/api/manager/settings',route=>json(route,{printer:{configured:false}}));
- await page.route('**/api/designer/orders*',route=>json(route,{orders:[]}));
+ await page.route('**/api/designer/orders*',route=>json(route,{orders:[],total:0,page:1,pageCount:1}));
  await page.route('**/api/designer/returns*',route=>json(route,{returns:[],summary:{}}));
  await page.route('**/api/admin/forms',route=>json(route,{forms:[]}));
  await page.route('**/api/admin/staff',route=>json(route,{staff:[]}));
@@ -18,9 +18,10 @@ async function staffFixture(page,role,lang){
 }
 for(const [role,paths] of [['public',['/','/catalogue','/track','/staff','/not-found']],['manager',['/staff/pre-design','/staff/design-phase','/staff/post-design','/staff/returns','/staff/notifications']],['designer',['/staff/design','/staff/returns']],['admin',['/staff/forms','/staff/users','/staff/notifications']]])for(const width of [390,1440])for(const lang of ['en','sw'])test(`${role} keyboard labels, contrast and reflow at ${width} in ${lang}`,async({page},testInfo)=>{
  await page.setViewportSize({width,height:900});await page.addInitScript(value=>localStorage.setItem('tinzel_language',value),lang);await publicFixture(page);if(role!=='public')await staffFixture(page,role,lang);
- for(const path of paths){await page.goto(path);await expect(page.locator('#main-content')).toBeVisible();await expect(page.locator('.tinzel-loading')).toHaveCount(0);await expect(page.locator('.spin')).toHaveCount(0);
+ for(const path of paths){await page.goto(path);await expect(page.locator('#main-content')).toBeVisible();await expect(page.locator('.tinzel-loading, .page-skeleton')).toHaveCount(0);await expect(page.locator('.spin')).toHaveCount(0);
   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
   expect(result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target)})),path).toEqual([]);
+  if(role==='manager' && width===1440 && path==='/staff/design-phase'){const board=page.locator('.manager-board');await board.focus();await expect(board).toBeFocused();await page.keyboard.press('ArrowRight');await expect.poll(()=>board.evaluate(element=>element.scrollLeft)).toBeGreaterThan(0);}
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),path).toBe(true);
  }
  await page.screenshot({path:testInfo.outputPath(`${role}-${width}.png`),fullPage:true});
@@ -51,11 +52,11 @@ test('account dialogs contain keyboard focus and return it on close',async({page
 for(const role of ['public','admin'])test(`200 percent desktop layout equivalent preserves ${role} controls`,async({page})=>{
  // A 1440px display at 200% browser zoom has 720 CSS pixels for layout.
  await page.setViewportSize({width:720,height:450});await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));await publicFixture(page);if(role==='admin')await staffFixture(page,role,'en');
- for(const path of role==='public'?['/','/catalogue','/track','/staff']:['/staff/forms','/staff/users','/staff/notifications']){await page.goto(path);await expect(page.locator('.tinzel-loading')).toHaveCount(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),path).toBe(true);const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();expect(result.violations.map(item=>item.id),path).toEqual([]);}
+ for(const path of role==='public'?['/','/catalogue','/track','/staff']:['/staff/forms','/staff/users','/staff/notifications']){await page.goto(path);await expect(page.locator('.tinzel-loading, .page-skeleton')).toHaveCount(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),path).toBe(true);const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();expect(result.violations.map(item=>item.id),path).toEqual([]);}
 });
 
 for(const role of ['manager','designer','admin'])for(const width of [320,430,768])test(`${role} staff reflow at ${width}px in both languages`,async({page})=>{
  await page.setViewportSize({width,height:900});await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));
  const paths=role==='manager'?['/staff/pre-design','/staff/design-phase','/staff/post-design','/staff/returns','/staff/notifications']:role==='designer'?['/staff/design','/staff/returns']:['/staff/forms','/staff/users','/staff/notifications'];
- for(const lang of ['en','sw']){await staffFixture(page,role,lang);for(const path of paths){await page.goto(path);await expect(page.locator('.tinzel-loading')).toHaveCount(0);await expect(page.locator('html')).toHaveAttribute('lang',lang);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${path}: ${lang}`).toBe(true);}}
+ for(const lang of ['en','sw']){await staffFixture(page,role,lang);for(const path of paths){await page.goto(path);await expect(page.locator('.tinzel-loading, .page-skeleton')).toHaveCount(0);await expect(page.locator('html')).toHaveAttribute('lang',lang);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${path}: ${lang}`).toBe(true);}}
 });

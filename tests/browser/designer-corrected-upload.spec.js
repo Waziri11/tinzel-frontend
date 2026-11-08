@@ -14,10 +14,16 @@ async function setup(page, { failSubmission = false } = {}) {
   };
   const order = { _id: 'order-1', trackingId: 'TNZ-TEST', clientName: 'Test Client', formTitle: 'Magazine', status: 'revision_requested', currentDraftVersion: 1, draftVersions: [], revisionRequests: [revision], uploadedPhotos: [] };
   const uploads = [], submissions = [];
-  let fail = failSubmission, chunks = 0;
+  let fail = failSubmission, chunks = 0, orderReads = 0, pendingOrderRead = null;
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'designer-test'));
   await page.route('**/api/staff/me', route => route.fulfill({ json: { user: designer } }));
-  await page.route('**/api/designer/orders/order-1', route => route.fulfill({ json: { order, auditLogs: [] } }));
+  await page.route('**/api/designer/orders/order-1', async route => {
+    orderReads++;
+    const gate = pendingOrderRead;
+    pendingOrderRead = null;
+    if (gate) await gate;
+    return route.fulfill({ json: { order, auditLogs: [] } });
+  });
   await page.route('**/api/proofs/staff/order-1/1**', route => {
     const url = new URL(route.request().url());
     if (url.pathname.includes('/pages/')) {
@@ -53,7 +59,14 @@ async function setup(page, { failSubmission = false } = {}) {
   const dialog = page.getByRole('dialog', { name: 'Upload new draft' });
   await dialog.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(pdf);
   await dialog.getByLabel('Version summary').fill('Updated date and photograph');
-  return { dialog, uploads, submissions, chunkCount: () => chunks };
+  return {
+    dialog, uploads, submissions, chunkCount: () => chunks, orderReadCount: () => orderReads,
+    holdNextOrderRead() {
+      let release;
+      pendingOrderRead = new Promise(resolve => { release = resolve; });
+      return release;
+    },
+  };
 }
 
 async function reviewEachCorrection(page) {
@@ -97,7 +110,7 @@ test('updated PDF uploads with open corrections, then each correction must be pr
 
 test('mobile review survives reload without reuploading and failed submission preserves confirmations for retry', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { dialog, uploads, submissions, chunkCount } = await setup(page, { failSubmission: true });
+  const { dialog, uploads, submissions, chunkCount, orderReadCount, holdNextOrderRead } = await setup(page, { failSubmission: true });
   await dialog.getByRole('button', { name: 'Upload updated PDF' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Review corrections', exact: true })).toBeVisible();
@@ -108,11 +121,26 @@ test('mobile review survives reload without reuploading and failed submission pr
   expect(uploads).toHaveLength(1);
   expect(chunkCount()).toBe(1);
   await send.click();
-  await expect(review.getByRole('alert')).toHaveText('Submission failed. Please retry.');
+  await expect(review.getByRole('heading', { name: 'We could not complete this request' })).toBeVisible();
+  await expect(review.getByRole('heading', { name: 'The submission is unconfirmed' })).toBeVisible();
   await expect(review.getByRole('checkbox', { name: confirmation })).toBeChecked();
-  await expect(send).toBeEnabled();
+  await expect(review.getByText(pdf.name, { exact: true })).toBeVisible();
+  await expect(send).toBeDisabled();
+  expect(submissions).toHaveLength(1);
   expect(await review.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await review.screenshot({ path: '/tmp/tinzel-correction-review-mobile.png' });
+  const readsBeforeCheck = orderReadCount();
+  const releaseRead = holdNextOrderRead();
+  const checkedOrder = page.waitForRequest(request => request.method() === 'GET' && new URL(request.url()).pathname === '/api/designer/orders/order-1');
+  await review.getByRole('button', { name: 'Check saved order', exact: true }).click();
+  await checkedOrder;
+  await expect(send).toBeDisabled();
+  await expect(review.getByRole('checkbox', { name: confirmation })).toBeChecked();
+  expect(submissions).toHaveLength(1);
+  releaseRead();
+  await expect(send).toBeEnabled();
+  await expect(review.getByRole('heading', { name: 'The submission is unconfirmed' })).toHaveCount(0);
+  expect(orderReadCount()).toBe(readsBeforeCheck + 1);
   await send.click();
   await expect(review).toHaveCount(0);
   expect(submissions).toHaveLength(2);

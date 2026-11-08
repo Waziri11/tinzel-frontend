@@ -11,9 +11,9 @@ test('admin SMS OTP rejects incorrect codes, signs in, and keeps credentials out
  await page.screenshot({path:info.outputPath('verification-mobile.png')});await page.setViewportSize({width:1280,height:900});await page.screenshot({path:info.outputPath('verification-desktop.png')});await page.setViewportSize({width:390,height:844});
  await page.getByLabel('Verification code',{exact:true}).fill('000000');await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Invalid verification code');
  const code=(await (await request.get(`http://127.0.0.1:5078/__test__/otp/${challenge.challengeId}`)).json()).code;
- await page.getByLabel('Verification code',{exact:true}).fill(code);await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('button',{name:'Security / Usalama',exact:true})).toBeVisible();
+ await page.getByLabel('Verification code',{exact:true}).fill(code);await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('button',{name:'Security',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>localStorage.getItem('tinzel_staff_token'))).toBeNull();expect((await page.context().cookies()).find(c=>c.name==='tinzel_staff').httpOnly).toBe(true);
- await page.getByRole('button',{name:'Security / Usalama'}).click();await expect(page.getByRole('button',{name:'Close',exact:true})).toBeFocused();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await page.screenshot({path:info.outputPath('mobile-otp-session.png'),fullPage:true});
+ await page.getByRole('button',{name:'Security'}).click();await expect(page.getByRole('button',{name:'Close',exact:true})).toBeFocused();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await page.screenshot({path:info.outputPath('mobile-otp-session.png'),fullPage:true});
 });
 test('manager downloads the original with an audit trail; designer and unauthenticated requests cannot',async({browser,request},info)=>{
  const {context,token}=await sessionContext(browser,request,'manager');const page=await context.newPage();
@@ -28,14 +28,14 @@ test('manager downloads the original with an audit trail; designer and unauthent
 test('printer invitation requires SMS and a revoked invitation stops further downloads',async({browser,request},info)=>{
  const manager=await securityLogin(request,'manager');const orders=await (await request.get('/api/manager/orders',{headers:auth(manager)})).json();const order=orders.orders.find(o=>o.trackingId==='TNZ-SECURITY-2');
  const inviteResponse=await request.post(`/api/printer/orders/${order._id}/invite`,{headers:auth(manager),data:{}});expect(inviteResponse.ok()).toBe(true);const invitation=await inviteResponse.json();
- const context=await browser.newContext();const page=await context.newPage();await page.goto(invitation.url);await expect(page.getByRole('link',{name:'Download authorized print file'})).toHaveCount(0);
+ const context=await browser.newContext();const page=await context.newPage();await page.goto(invitation.url);await expect(page.getByRole('button',{name:'Download authorized print file'})).toHaveCount(0);
  const sent=page.waitForResponse(r=>r.url().endsWith('/otp'));await page.getByRole('button',{name:'Send SMS code'}).click();const challenge=await (await sent).json();
  const code=(await (await request.get(`http://127.0.0.1:5078/__test__/otp/${challenge.challengeId}`)).json()).code;
- await page.getByLabel('Printer SMS code').fill(code);await page.getByRole('button',{name:'Verify printer'}).click();await expect(page.getByRole('link',{name:'Download authorized print file'})).toBeVisible();
- const download=page.waitForEvent('download');await page.getByRole('link',{name:'Download authorized print file'}).click();expect((await download).suggestedFilename()).toBe('tinzel-magazine.pdf');
+ await page.getByLabel('SMS code', { exact: true }).fill(code);await page.getByRole('button',{name:'Verify access'}).click();await expect(page.getByRole('button',{name:'Download authorized print file'})).toBeVisible();
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download authorized print file'}).click();expect((await download).suggestedFilename()).toBe('tinzel-magazine.pdf');
  await page.screenshot({path:info.outputPath('printer-verified.png'),fullPage:true});
  const revoked=await request.post(`/api/printer/orders/${order._id}/revoke`,{headers:auth(manager),data:{}});expect(revoked.ok()).toBe(true);
- await page.getByRole('link',{name:'Download authorized print file'}).click();await expect(page.getByRole('alert')).toContainText('unavailable');await expect(page.getByRole('link',{name:'Download authorized print file'})).toHaveCount(0);await context.close();
+ await page.getByRole('button',{name:'Download authorized print file'}).click();await expect(page.getByRole('heading', { name: 'This invitation is unavailable' })).toBeVisible();await expect(page.getByRole('button',{name:'Download authorized print file'})).toHaveCount(0);await context.close();
 });
 
 test('Staff Login navigation shows the form without restoring an existing session',async({browser,request})=>{

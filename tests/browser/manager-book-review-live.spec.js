@@ -79,10 +79,20 @@ test('real book return, designer checklist, corrected upload and manager approva
     );
   expect(order).toBeTruthy();
   const id = order._id;
-  await api(request, `/manager/orders/${id}/verify-payment`, manager, {
+  const verified = await api(request, `/manager/orders/${id}/verify-payment`, manager, {
     lipaNambaReference: 'BOOK-ISOLATED',
     amountPaid: 50000,
   });
+  // The shared fixture has other eligible designers; do not rely on workload ordering.
+  const testDesigner = (await api(request, '/staff/me', designer, undefined, 'get')).user;
+  const designerId = testDesigner._id || testDesigner.id;
+  if (String(verified.order.assignedDesigner?._id || verified.order.assignedDesigner) !== String(designerId)) {
+    const assigned = await api(request, `/manager/orders/${id}/reassign`, manager, {
+      designerId,
+      reason: 'Assign the designer used by this isolated book-review test.',
+    });
+    expect(String(assigned.order.assignedDesigner?._id || assigned.order.assignedDesigner)).toBe(String(designerId));
+  }
   const initial = await request.post(
     `/api/designer/orders/${id}/upload-draft`,
     {
@@ -254,7 +264,7 @@ test('real book return, designer checklist, corrected upload and manager approva
     const otp = await (await otpResponse).json();
     expect(otp.devOtp).toBeTruthy();
     await page.locator('#track-login-otp').fill(otp.devOtp);
-    await page.getByRole('button', { name: 'Verify & Enter Portal' }).click();
+    await page.getByRole('button', { name: 'View my order' }).click();
     await expect(
       page.getByAltText('Magazine page 1', { exact: true }),
     ).toBeVisible({ timeout: 45000 });
@@ -270,7 +280,9 @@ test('real book return, designer checklist, corrected upload and manager approva
     await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Save comment', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Open image: client-reference.png' })).toBeVisible();
-    await page.getByRole('button', { name: 'Return for corrections (1)', exact: true }).click();
+    const sendChanges = page.getByRole('button', { name: 'Send my changes (1)', exact: true });
+    await expect(sendChanges).toBeVisible();
+    await sendChanges.click();
     await expect(page.getByText('Corrections submitted', { exact: true })).toBeVisible();
     const clientRound = (await api(request, `/manager/orders/${id}`, manager, undefined, 'get')).order.revisionRequests.at(-1);
     expect(clientRound.source).toBe('client'); expect(clientRound.items[0].annotationId).toBeTruthy();
@@ -282,7 +294,6 @@ test('real book return, designer checklist, corrected upload and manager approva
       fullPage: true,
     });
   } finally {
-    await managerContext.close();
-    await designerContext.close();
+    await Promise.allSettled([managerContext.close(), designerContext.close()]);
   }
 });

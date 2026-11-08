@@ -19,7 +19,19 @@ async function setup(page, lang = 'en') {
   await page.getByRole('button', { name: lang === 'en' ? 'Request changes' : 'Omba marekebisho' }).click();
   return order;
 }
-const file = { name: 'changes.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF0000WAVEaudio') };
+function silentWav() {
+  const sampleRate = 8000, channels = 1, bytesPerSample = 2;
+  const dataSize = sampleRate * channels * bytesPerSample;
+  const buffer = Buffer.alloc(44 + dataSize);
+  buffer.write('RIFF', 0); buffer.writeUInt32LE(buffer.length - 8, 4); buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12); buffer.writeUInt32LE(16, 16); buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(channels, 22); buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * channels * bytesPerSample, 28);
+  buffer.writeUInt16LE(channels * bytesPerSample, 32); buffer.writeUInt16LE(bytesPerSample * 8, 34);
+  buffer.write('data', 36); buffer.writeUInt32LE(dataSize, 40);
+  return buffer;
+}
+const file = { name: 'changes.wav', mimeType: 'audio/wav', buffer: silentWav() };
 
 test('audio-only submission previews, retains audio after failure, and plays from history', async ({ page }) => {
   const order = await setup(page);
@@ -31,19 +43,36 @@ test('audio-only submission previews, retains audio after failure, and plays fro
     calls += 1;
     if (calls === 1) return route.fulfill({ status: 503, json: { message: 'Please retry your request' } });
     order.status = 'revision_requested';
-    order.revisionRequests = [{ _id: 'round', roundNumber: 1, status: 'open', items: [{ _id: 'item', text: 'Audio feedback', audio: { contentType: 'audio/wav', size: 16 } }] }];
+    order.revisionRequests = [{ _id: 'round', roundNumber: 1, status: 'open', items: [{ _id: 'item', text: 'Audio feedback', audio: { contentType: 'audio/wav', size: file.buffer.length } }] }];
     return route.fulfill({ json: { order } });
   });
   await page.getByLabel('Attach audio', { exact: true }).setInputFiles(file);
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   await expect(page.getByLabel('Written feedback 1')).toBeEmpty();
   await page.getByRole('button', { name: 'Send my changes' }).click();
   await expect(page.getByText('Please retry your request')).toBeVisible();
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeDisabled();
+  expect(calls).toBe(1);
+  await page.getByRole('button', { name: 'Check decision status', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
   await page.getByRole('button', { name: 'Send my changes' }).click();
-  await page.route('**/api/client/revisions/round/items/item/audio', route => route.fulfill({ contentType: 'audio/wav', body: file.buffer }));
+  await expect.poll(() => calls).toBe(2);
+  let playbackRequests = 0;
+  await page.route('**/api/client/revisions/round/items/item/audio', route => {
+    playbackRequests += 1;
+    // A damaged response must recover through the local playback retry.
+    return route.fulfill({ contentType: 'audio/wav', body: playbackRequests === 1 ? Buffer.from('invalid audio') : file.buffer });
+  });
   await page.getByRole('button', { name: 'Listen to audio feedback' }).click();
-  await expect(page.getByLabel('Audio feedback', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Audio could not open', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  const historyAudio = page.getByLabel('Audio feedback', { exact: true });
+  await expect(historyAudio).toBeVisible();
+  await expect.poll(() => historyAudio.evaluate(audio => audio.readyState)).toBeGreaterThan(0);
+  await expect(page.getByRole('heading', { name: 'Audio could not open', exact: true })).toHaveCount(0);
+  expect(playbackRequests).toBe(2);
 });
 
 test('mobile Swahili form supports removing audio, empty validation, and size limit', async ({ page }, info) => {
@@ -58,7 +87,7 @@ test('mobile Swahili form supports removing audio, empty validation, and size li
   await page.getByRole('button', { name: 'Tuma marekebisho yangu' }).click();
   await expect(page.getByText('Eleza marekebisho au ongeza ujumbe wa sauti.')).toBeVisible();
   await attach.setInputFiles({ ...file, buffer: Buffer.alloc(3 * 1024 * 1024 + 1) });
-  await expect(page.getByRole('alert')).toHaveText('Chagua faili la sauti lisilozidi MB 3.');
+  await expect(page.getByRole('region', { name: 'Maoni ya sauti' }).getByRole('alert')).toContainText('Chagua faili la sauti lisilozidi MB 3.');
 });
 
 test('microphone denial keeps file upload available', async ({ page }) => {
@@ -67,7 +96,7 @@ test('microphone denial keeps file upload available', async ({ page }) => {
   });
   await setup(page);
   await page.getByRole('button', { name: 'Record voice note' }).click();
-  await expect(page.getByRole('alert')).toContainText('Microphone unavailable');
+  await expect(page.getByRole('alert')).toContainText('Microphone access was not allowed');
   await expect(page.getByLabel('Attach audio', { exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
 });

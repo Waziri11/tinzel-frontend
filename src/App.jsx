@@ -12,6 +12,7 @@ import { PageBoundary, Button, EmptyState } from './components/common/UI';
 import { useLanguage } from './i18n/LanguageContext';
 import { navigate } from './navigation/location';
 import './theme/shell.css';
+const StateGallery = import.meta.env.DEV ? lazy(() => import('./components/common/StateGallery')) : null;
 const MagazineShowcase = lazy(() => import('./components/client/MagazineShowcase'));
 const ClientTrackingPortal = lazy(() => import('./components/client/ClientTrackingPortal'));
 const StaffWorkspace = lazy(() => import('./components/common/StaffWorkspace'));
@@ -26,6 +27,8 @@ export default function App() {
     tracking = /^\/track\/?$/.test(path),
     home = path === '/';
   useEffect(() => {
+    window.tinzelReady = true;
+    window.dispatchEvent(new Event('tinzel:ready'));
     const update = () => {
       setPath(window.location.pathname);
       setMenu(false);
@@ -34,7 +37,8 @@ export default function App() {
     return () => window.removeEventListener('popstate', update);
   }, []);
 
-  if(/^\/printer\/[a-f0-9]+$/.test(path))return <><PrinterPortal /><TransferActivity /></>;
+  if (StateGallery && path === '/__states') return <PageBoundary><Suspense fallback={<PageSkeleton />}><StateGallery /></Suspense></PageBoundary>;
+  if(/^\/printer\/[a-f0-9]+$/.test(path))return <PageBoundary><PrinterPortal /><TransferActivity /></PageBoundary>;
   if (!lang)
     return (
       <main className="language-page">

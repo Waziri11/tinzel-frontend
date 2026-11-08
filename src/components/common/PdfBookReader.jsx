@@ -1,3 +1,6 @@
+import StatePanel, { StateError } from './StatePanel';
+import { useConfirm } from './ConfirmDialog';
+import { useLanguage } from '../../i18n/LanguageContext';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import { useProofAttachments } from '../../hooks/useProofAttachments';
 import { AttachmentEditor } from './ProofAttachments';
@@ -39,6 +42,11 @@ export default function PdfBookReader({
   interactionDisabled = false,
 }) {
   const tx = useInterfaceText();
+  const confirmLeave = useConfirm();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const [openingError, setOpeningError] = useState(null);
+  const [slowOpening, setSlowOpening] = useState(false);
   const reader = useMemo(() => proofApi(token, orderId, version, client), [token, orderId, version, client]);
   const uploads = useProofAttachments(reader);
   const [cache, setCache] = useState(null);
@@ -125,12 +133,13 @@ export default function PdfBookReader({
       if (draftRef.current?.selection || draftRef.current?.saving) { event.preventDefault(); event.returnValue = ''; }
     };
     const navigate = event => {
-      if (draftRef.current?.saving || (draftRef.current?.selection && !window.confirm(tx('Discard the unfinished comment? Saved comments will remain.')))) event.preventDefault();
+      if (draftRef.current?.saving) { event.preventDefault(); return; }
+      if (draftRef.current?.selection) event.detail?.waitUntil?.(confirmLeave({ title: ui('Discard the unfinished comment?', 'Uache maoni ambayo hayajakamilika?'), description: ui('Saved comments will remain. This unfinished comment will be removed.', 'Maoni yaliyohifadhiwa yatabaki. Maoni haya ambayo hayajakamilika yataondolewa.'), confirmLabel: ui('Discard comment', 'Acha maoni'), cancelLabel: ui('Keep writing', 'Endelea kuandika'), danger: true }));
     };
     window.addEventListener('beforeunload', unload);
     window.addEventListener('tinzel:before-navigate', navigate);
     return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', navigate); };
-  }, [renderReviewControls, tx]);
+  }, [renderReviewControls, tx, confirmLeave, lang]);
 
   useEffect(() => {
     if (!focused || turn || navigating) return;
@@ -214,6 +223,8 @@ export default function PdfBookReader({
     uploads.clear(true);
     setComment('');
     setError('');
+    setOpeningError(null);
+    setSlowOpening(false);
     setSync('');
     // Both endpoints authenticate independently. Start the cover while metadata is in flight.
     let openingCover = localCache.get(1).then(
@@ -247,7 +258,7 @@ export default function PdfBookReader({
         }
         timer = setTimeout(load, 1000);
       } catch (e) {
-        if (active) setError(e.message);
+        if (active) { setError(e.message); setOpeningError(e); }
       }
     };
     load();
@@ -261,6 +272,11 @@ export default function PdfBookReader({
       localCache.dispose();
     };
   }, [reader, refresh]);
+  useEffect(() => {
+    if (opened) return;
+    const timer = setTimeout(() => setSlowOpening(true), 15000);
+    return () => clearTimeout(timer);
+  }, [opened, reader, refresh]);
   useEffect(() => {
     if (!opened || !metadata?.pageCount || !cache) return;
     let active = true,
@@ -594,7 +610,7 @@ export default function PdfBookReader({
             </button>
           )}
           <button
-            aria-label={`Comments (${metadata?.annotations?.length || 0})`}
+            aria-label={`${tx('Comments')} (${metadata?.annotations?.length || 0})`}
             aria-expanded={showComments}
             title={tx('Comments')}
             onClick={() => setShowComments(!showComments)}
@@ -611,47 +627,20 @@ export default function PdfBookReader({
           </button>
         </div>
       </header>
-      {error && (
-        <div className="proof-error" role="alert">
-          {error}
-        </div>
-      )}
-      {!metadata ? (
-        <div className="proof-page-message">{tx(error ? 'Unable to open magazine.' : 'Opening magazine…')}</div>
-      ) : metadata.state === 'failed' && !opened ? (
-        <div className="proof-page-message">
-          {metadata.message}
-          <ActionButton
-            onClick={async () => {
-              try {
-                await reader.retry();
-                setRefresh((n) => n + 1);
-              } catch (e) {
-                setError(e.message);
-              }
-            }}
-          >
-            <InterfaceText>Retry preparation</InterfaceText>
-          </ActionButton>
-        </div>
+      {error && opened && <div className="proof-error state-inline" role="alert">{tx(error)}</div>}
+      {openingError && !opened ? (
+        <StateError error={openingError} title={ui('Unable to open magazine', 'Hatukuweza kufungua jarida')}
+          retryLabel={metadata?.state === 'failed' ? tx('Retry preparation') : undefined}
+          onRetry={async () => {
+            try {
+              if (metadata?.state === 'failed') await reader.retry();
+              setRefresh(n => n + 1);
+            } catch (e) { setError(e.message); setOpeningError(e); }
+          }} />
+      ) : !metadata ? (
+        <StatePanel compact kind="loading" title={ui('Opening magazine…', 'Tunafungua jarida…')} description={slowOpening ? ui('This is taking longer than usual. You can try opening the magazine again.', 'Hii inachukua muda zaidi. Unaweza kujaribu kufungua jarida tena.') : undefined} onRetry={slowOpening ? () => setRefresh(n => n + 1) : undefined} />
       ) : !opened ? (
-        <div className="proof-page-message" role="status">
-          <SoftFlutter size={32} /> <InterfaceText>Preparing magazine cover…</InterfaceText>{' '}
-          {error && (
-            <ActionButton
-              onClick={async () => {
-                try {
-                  await reader.retry();
-                  setRefresh((n) => n + 1);
-                } catch (e) {
-                  setError(e.message);
-                }
-              }}
-            >
-              <InterfaceText>Retry preparation</InterfaceText>
-            </ActionButton>
-          )}
-        </div>
+        <StatePanel compact kind="loading" title={ui('Preparing magazine cover…', 'Tunatayarisha jalada la jarida…')} description={slowOpening ? ui('Preparation has not finished. Try again to check the latest result.', 'Maandalizi hayajakamilika. Jaribu tena kuangalia matokeo ya hivi karibuni.') : undefined} onRetry={slowOpening ? () => setRefresh(n => n + 1) : undefined} />
       ) : (
         <>
           <div className={`proof-layout${showComments ? '' : ' no-comments'}`}>

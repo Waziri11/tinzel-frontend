@@ -1,7 +1,11 @@
+import { createPortal } from 'react-dom';
+import { Feedback } from './UI';
+import { useConfirm } from './ConfirmDialog';
 import PhoneInput from './PhoneInput';
 import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { normalizePhone } from '../../utils/phone';
 import { Dropdown, Modal } from 'antd';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { api } from '../../services/api';
@@ -14,6 +18,18 @@ export default function StaffProfile({
 }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
+  const confirmAction = useConfirm();
+  const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const formRef = useRef(null);
+  const clearFieldError = key => setFieldErrors(errors => ({ ...errors, [key]: '' }));
+  useEffect(() => { if (!success) return; const timer = setTimeout(() => setSuccess(''), 6000); return () => clearTimeout(timer); }, [success]);
+  const close = async () => {
+    if (busy) return;
+    const dirty = mode === 'profile' ? name !== user.name || phone !== (user.phone || '') : Boolean(current || next || confirm);
+    if (dirty && !(await confirmAction({ title: t('Discard these changes?', 'Uache mabadiliko haya?'), description: t('Your unfinished changes will not be saved.', 'Mabadiliko ambayo hujakamilisha hayatahifadhiwa.'), confirmLabel: t('Discard changes', 'Acha mabadiliko'), cancelLabel: t('Keep editing', 'Endelea kuhariri'), danger: true }))) return;
+    setMode(null);
+  };
   const [mode, setMode] = useState(null),
     [name, setName] = useState(user.name),
     [phone, setPhone] = useState(user.phone || ''),
@@ -28,6 +44,8 @@ export default function StaffProfile({
       return;
     }
     setError('');
+    setFieldErrors({});
+    setSuccess('');
     setName(user.name);
     setPhone(user.phone || '');
     setCurrent('');
@@ -39,10 +57,17 @@ export default function StaffProfile({
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (mode === 'password' && next !== confirm) {
-      setError(t('Passwords do not match.', 'Manenosiri hayalingani.'));
-      return;
+    const invalid = {};
+    if (mode === 'profile') {
+      if (!name.trim()) invalid.profileName = t('Enter your name.', 'Weka jina lako.');
+      if (!normalizePhone(phone)) invalid.profilePhone = t('Enter a valid phone number with its country code.', 'Weka namba sahihi ya simu pamoja na msimbo wa nchi.');
+    } else {
+      if (!passwordReady(next)) invalid.newPassword = t('Use at least 8 characters and at most 72 bytes.', 'Tumia angalau herufi 8 na hadi baiti 72.');
+      if (next !== confirm) invalid.confirmPassword = t('Passwords do not match.', 'Manenosiri hayalingani.');
     }
+    setFieldErrors(invalid);
+    const firstInvalid = Object.keys(invalid)[0];
+    if (firstInvalid) { formRef.current?.elements.namedItem(firstInvalid)?.focus(); return; }
     setBusy(true);
     try {
       const data =
@@ -50,6 +75,7 @@ export default function StaffProfile({
           ? await api.staffAuth.updateProfile(token, { name, phone })
           : await api.staffAuth.changePassword(token, current, next);
       onUpdate(data);
+      setSuccess(mode === 'profile' ? t('Your profile has been saved.', 'Wasifu wako umehifadhiwa.') : t('Your password has been changed.', 'Nenosiri lako limebadilishwa.'));
       setMode(null);
       setCurrent('');
       setNext('');
@@ -67,6 +93,7 @@ export default function StaffProfile({
   }[user.role];
   return (
     <>
+      {success && createPortal(<div className="tinzel-state-toast"><Feedback kind="success" title={success} /><button type="button" className="ui-button" onClick={() => setSuccess('')} aria-label={t('Dismiss confirmation', 'Funga uthibitisho')}>×</button></div>, document.body)}
       <Dropdown
         trigger={['click']}
         placement="topLeft"
@@ -127,39 +154,49 @@ export default function StaffProfile({
             ? t('My profile', 'Wasifu wangu')
             : t('Change password', 'Badilisha nenosiri')
         }
-        onCancel={() => !busy && setMode(null)}
+        onCancel={close}
         footer={null}
         destroyOnClose
       >
-        <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
-          {error && <p role="alert">{error}</p>}
+        <form ref={formRef} onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+          {error && <Feedback kind="error" title={t("Changes were not saved", "Mabadiliko hayajahifadhiwa")}>{error}</Feedback>}
           {mode === 'profile' ? (
             <>
               <label>
                 {t('Name', 'Jina')}
                 <input
+                  disabled={busy}
                   required
                   maxLength={120}
+                  name="profileName"
+                  aria-invalid={Boolean(fieldErrors.profileName)}
+                  aria-describedby={fieldErrors.profileName ? 'profile-name-error' : undefined}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); clearFieldError("profileName"); }}
                 />
               </label>
+              {fieldErrors.profileName && <small id="profile-name-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.profileName}</small>}
               <label>
                 {t('Phone', 'Simu')}
                 <PhoneInput
+                  disabled={busy}
                   required
                   type="tel"
+                  name="profilePhone"
+                  aria-invalid={Boolean(fieldErrors.profilePhone)}
+                  aria-describedby={fieldErrors.profilePhone ? 'profile-phone-error' : undefined}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => { setPhone(e.target.value); clearFieldError("profilePhone"); }}
                 />
               </label>
+              {fieldErrors.profilePhone && <small id="profile-phone-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.profilePhone}</small>}
               <label>
                 {t('Email', 'Barua pepe')}
-                <input readOnly value={user.email} />
+                <input disabled={busy} readOnly value={user.email} />
               </label>
               <label>
                 {t('Role', 'Wajibu')}
-                <input readOnly value={role} />
+                <input disabled={busy} readOnly value={role} />
               </label>
             </>
           ) : (
@@ -167,6 +204,7 @@ export default function StaffProfile({
               <label>
                 {t('Current password', 'Nenosiri la sasa')}
                 <input
+                  disabled={busy}
                   required
                   type="password"
                   autoComplete="current-password"
@@ -177,24 +215,34 @@ export default function StaffProfile({
               <label>
                 {t('New password', 'Nenosiri jipya')}
                 <input
+                  disabled={busy}
                   required
                   minLength={8}
                   type="password"
                   autoComplete="new-password"
+                  name="newPassword"
+                  aria-invalid={Boolean(fieldErrors.newPassword)}
+                  aria-describedby={fieldErrors.newPassword ? 'profile-new-password-error' : undefined}
                   value={next}
-                  onChange={(e) => setNext(e.target.value)}
+                  onChange={(e) => { setNext(e.target.value); clearFieldError("newPassword"); clearFieldError("confirmPassword"); }}
                 />
               </label>
+              {fieldErrors.newPassword && <small id="profile-new-password-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.newPassword}</small>}
               <label>
                 {t('Confirm password', 'Thibitisha nenosiri')}
                 <input
+                  disabled={busy}
                   required
                   type="password"
                   autoComplete="new-password"
+                  name="confirmPassword"
+                  aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                  aria-describedby={fieldErrors.confirmPassword ? 'profile-confirm-password-error' : undefined}
                   value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
+                  onChange={(e) => { setConfirm(e.target.value); clearFieldError("confirmPassword"); }}
                 />
               </label>
+              {fieldErrors.confirmPassword && <small id="profile-confirm-password-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.confirmPassword}</small>}
             </>
           )}
           {mode === 'password' && <PasswordGuidance value={next} />}

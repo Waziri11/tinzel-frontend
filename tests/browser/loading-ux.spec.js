@@ -76,9 +76,12 @@ test('slow transfers explain the wait without invented time estimates', async ({
     await page.locator('#upload-first').setInputFiles(photo('waiting.jpg'));
     await expect.poll(() => held).toBe(true);
     await page.clock.fastForward(21000);
-    await expect(page.getByText(/This is taking longer than usual/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your photos are taking longer', exact: true })).toBeVisible();
+    await expect(page.getByText('Completed photos are saved. Wait for the remaining files, or retry any that fail.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '1 Your details', exact: true }).click();
     await expect(page.locator('#magazine-client-name')).toBeEnabled();
   } finally { release(); }
+  await page.getByRole('button', { name: '3 Photographs', exact: true }).click();
   await expect(page.getByText('Photos ready: 1/1', { exact: true })).toBeVisible();
 });
 
@@ -110,11 +113,14 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   const order = { _id: 'ux-order', trackingId: 'TNZ-UX-TEST', submissionId: 'SUB-UX', clientName: 'UX Test', clientWhatsApp: '0000000000',
     status: 'in_design', formTitle: 'Test Edition', updatedAt: new Date().toISOString(),
     uploadedPhotos: [{ url: '/ux-original.jpg', thumbnailUrl: '/ux-thumbnail.webp', originalName: 'story.jpg', folderName: 'My story' }], draftVersions: [] };
-  const other = { ...order, _id: 'ux-other', trackingId: 'TNZ-OTHER', uploadedPhotos: [] };
+  const other = { ...order, _id: 'ux-other', trackingId: 'TNZ-OTHER', clientName: 'Other UX Test', uploadedPhotos: [] };
   const json = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'synthetic-ui-test'));
   await page.route('**/api/staff/me', (route) => json(route, { user: { _id: 'ux-staff', name: 'Test Designer', role: 'designer', isActive: true,preferredLanguage:'en' } }));
-  await page.route((url) => url.pathname === '/api/designer/orders', (route) => json(route, { orders: [order, other] }));
+  await page.route((url) => url.pathname === '/api/designer/orders', (route) => {
+    const orders = new URL(route.request().url()).searchParams.get('column') === 'new' ? [order, other] : [];
+    return json(route, { orders, total: orders.length, page: 1, pageCount: 1 });
+  });
   await page.route('**/api/designer/orders/ux-order', (route) => json(route, { order }));
   await page.route('**/api/designer/orders/ux-other', (route) => json(route, { order: other }));
   let previewReady = false, jobReady = false, archiveRequests = [];
@@ -128,17 +134,17 @@ test('staff can refresh pending previews and browse while an archive prepares', 
   await page.route('**/api/designer/orders/ux-order/media-jobs/ux-job', (route) => json(route, { state: jobReady ? 'ready' : 'running', jobId: 'ux-job', url: '/ux-download.zip' }));
   await page.route('**/ux-download.zip', (route) => route.fulfill({ contentType: 'application/zip', headers: { 'Content-Disposition': 'attachment; filename="ux-test.zip"' }, body: 'Synthetic UI download' }));
   await page.goto('/staff/design'); await chooseEnglish(page);
-  await page.getByRole('button', { name: 'Open TNZ-UX-TEST' }).click();
+  await page.getByRole('button', { name: 'Open UX Test', exact: true }).click();
   await page.getByRole('tab',{name:'Client content'}).click();
   await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByText('Preview pending', { exact: true })).toBeVisible();
   previewReady = true;
-  await page.getByRole('button', { name: 'Refresh preview for story.jpg' }).click();
+  await page.getByRole('button', { name: 'Refresh preview: story.jpg', exact: true }).click();
   await expect(page.locator('.tinzel-preview-placeholder')).toHaveCount(0);
   await page.getByRole('button', { name: 'Download folder ZIP', exact: true }).click();
   await page.getByRole('button', { name: 'Design Orders', exact: true }).click();
-  await page.getByRole('button', { name: 'Open TNZ-OTHER' }).click();
-  await expect(page.getByRole('heading', { name: 'TNZ-OTHER' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open Other UX Test', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Other UX Test', exact: true })).toBeVisible();
   const downloading = page.waitForEvent('download'); jobReady = true; await downloading;
   await page.screenshot({ path: testInfo.outputPath('folder-ready-desktop.png') });
   expect(archiveRequests).toHaveLength(1);
@@ -159,7 +165,8 @@ test('form skeleton gives way to a fetch error instead of remaining busy', async
     await expect(page.locator('.page-skeleton__field').first()).toBeVisible();
   } finally { release(); }
   await expect(page.locator('.page-skeleton')).toHaveCount(0);
-  await expect(page.getByText('Temporarily unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'We could not open this edition', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled();
 });
 
 

@@ -7,12 +7,16 @@ import { ConfigProvider } from 'antd';
 import { tinzelAntdTheme } from './theme/antdTheme.js';
 import './index.css';
 import { LanguageProvider } from './i18n/LanguageContext.jsx';
+import { ConfirmProvider } from './components/common/ConfirmDialog.jsx';
+import { installNavigationGuard } from './navigation/location.js';
+
+installNavigationGuard();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <LanguageProvider>
       <ConfigProvider theme={tinzelAntdTheme}>
-        <App /><BackgroundUploads /><SecurityVerification />
+        <ConfirmProvider><App /><BackgroundUploads /><SecurityVerification /></ConfirmProvider>
       </ConfigProvider>
     </LanguageProvider>
   </React.StrictMode>,

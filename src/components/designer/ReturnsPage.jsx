@@ -2,7 +2,7 @@ import { orderSenderName } from '../../utils/orderDisplay';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -16,11 +16,17 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { navigate } from '../../navigation/location';
 import './designerWorkspace.css';
 
 export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
+  const requestId = useRef(0);
   const [filter, setFilter] = useState('active');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [searchInput, setSearchInput] = useState('');
@@ -39,6 +45,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
   const [error, setError] = useState('');
 
   const loadReturns = useCallback(async () => {
+    const request = ++requestId.current;
     setLoading(true);
     setError('');
     try {
@@ -47,13 +54,14 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
         source: sourceFilter,
         search,
       });
+      if (request !== requestId.current) return;
       setRows(data.returns || []);
       if (data.summary) setSummary(data.summary);
-    } catch (err) {
-      setError(err.message || 'Unable to load returned magazines.');
-    } finally {
-      setLoading(false);
       setHasLoaded(true);
+    } catch (err) {
+      if (request === requestId.current) setError(err);
+    } finally {
+      if (request === requestId.current) setLoading(false);
     }
   }, [token, filter, sourceFilter, search]);
 
@@ -102,11 +110,11 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           <div className="segmented" role="group" aria-label={tx('Filter returns by status')}>
             <button type="button" className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>
               <InterfaceText>Active (</InterfaceText>
-              {summary.active || 0})
+              {hasLoaded ? (summary.active || 0) : '—'})
             </button>
             <button type="button" className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>
               <InterfaceText>With Designer (</InterfaceText>
-              {summary.open || 0})
+              {hasLoaded ? (summary.open || 0) : '—'})
             </button>
             <button
               type="button"
@@ -114,7 +122,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               onClick={() => setFilter('submitted_for_review')}
             >
               <InterfaceText>Resubmitted (</InterfaceText>
-              {summary.submitted_for_review || 0})
+              {hasLoaded ? (summary.submitted_for_review || 0) : '—'})
             </button>
             <button
               type="button"
@@ -122,7 +130,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               onClick={() => setFilter('resolved')}
             >
               <InterfaceText>Resolved (</InterfaceText>
-              {summary.resolved || 0})
+              {hasLoaded ? (summary.resolved || 0) : '—'})
             </button>
           </div>
           <ActionButton type="button" className="secondary-button" onClick={loadReturns} disabled={loading}>
@@ -167,7 +175,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </div>
           <div>
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
-              {summary.open || 0}
+              {hasLoaded ? (summary.open || 0) : '—'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               <InterfaceText>Open Returns (Needs Fixes)</InterfaceText>
@@ -201,7 +209,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </div>
           <div>
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
-              {summary.submitted_for_review || 0}
+              {hasLoaded ? (summary.submitted_for_review || 0) : '—'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               <InterfaceText>Resubmitted for Manager Review</InterfaceText>
@@ -235,7 +243,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </div>
           <div>
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
-              {summary.manager || 0}
+              {hasLoaded ? (summary.manager || 0) : '—'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               <InterfaceText>Returned by Manager</InterfaceText>
@@ -269,7 +277,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
           </div>
           <div>
             <strong style={{ display: 'block', fontSize: '20px', lineHeight: 1, color: '#1C1917' }}>
-              {summary.client || 0}
+              {hasLoaded ? (summary.client || 0) : '—'}
             </strong>
             <span style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}>
               <InterfaceText>Returned by Client</InterfaceText>
@@ -370,11 +378,14 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
         </div>
       </div>
 
-      {error && <div className="designer-alert is-error">{error}</div>}
+      {error && <StateError error={error} onRetry={loadReturns} title={ui('Corrections could not be loaded', 'Marekebisho hayakuweza kupakiwa')}>
+        {hasLoaded && <p>{ui('Showing the last loaded corrections. They may be out of date.', 'Tunaonyesha marekebisho yaliyopakiwa mara ya mwisho. Huenda yamebadilika.')}</p>}
+      </StateError>}
+      {loading && hasLoaded && <p role="status">{ui('Refreshing corrections…', 'Tunapakia marekebisho upya…')}</p>}
 
       {loading && !hasLoaded ? (
         <PageSkeleton variant="table" compact title={tx('Loading returned magazines')} />
-      ) : (
+      ) : hasLoaded && (!error || rows.length > 0) ? (
         <div className="designer-table-card">
           <table>
             <thead>
@@ -508,13 +519,15 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
               })}
             </tbody>
           </table>
-          {!rows.length && (
-            <div className="designer-empty">
-              <InterfaceText>No returned magazines match the selected filters.</InterfaceText>
-            </div>
+          {!rows.length && !error && (
+            <StatePanel kind="empty" title={search || sourceFilter !== 'all' || filter !== 'active' ? ui('No corrections match these filters', 'Hakuna marekebisho yanayolingana na vichujio hivi') : ui('No corrections waiting', 'Hakuna marekebisho yanayosubiri')}
+              description={ui('New requests will appear here when a magazine is returned for changes.', 'Maombi mapya yataonekana hapa jarida likirudishwa kwa marekebisho.')}>
+              {(search || sourceFilter !== 'all' || filter !== 'active') ? <button type="button" className="secondary-button" onClick={() => { setSearch(''); setSearchInput(''); setSourceFilter('all'); setFilter('active'); }}>{ui('Clear filters', 'Ondoa vichujio')}</button>
+                : <button type="button" className="secondary-button" onClick={() => navigate(isManagerOrAdmin ? '/staff/design-phase' : '/staff/design')}>{ui('Back to orders', 'Rudi kwenye oda')}</button>}
+            </StatePanel>
           )}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

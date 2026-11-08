@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+const isVisible = element => element.getClientRects().length > 0 && !['hidden', 'collapse'].includes(window.getComputedStyle(element).visibility);
+const topDialog = () => [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(isVisible).at(-1);
 // Custom dialogs get the same keyboard containment and focus return as Ant Design dialogs.
 export function useDialogFocus(open, onClose) {
   const close = useRef(onClose);
@@ -6,22 +8,24 @@ export function useDialogFocus(open, onClose) {
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement;
-    let dialog;
+    // Capture this opening's visible dialog now. Closed Ant Design dialogs stay
+    // mounted, and a later animation frame must not switch to another dialog.
+    const dialog = topDialog();
+    if (!dialog) return;
     const focusable = () =>
       [
         ...dialog.querySelectorAll(
           'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
         ),
-      ].filter((el) => el.getClientRects().length);
+      ].filter(isVisible);
     const frame = requestAnimationFrame(() => {
-      dialog = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1);
-      if (dialog) {
+      if (dialog === topDialog()) {
         dialog.tabIndex = -1;
         (focusable()[0] || dialog).focus();
       }
     });
     const key = (event) => {
-      if (!dialog || dialog !== [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].at(-1)) return;
+      if (dialog !== topDialog()) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();

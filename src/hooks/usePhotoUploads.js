@@ -84,18 +84,32 @@ export function usePhotoUploads(slug, form) {
   }
   async function submit(body) {
     setPhase('waiting');
+    let saving = false;
     try {
       await state.recovery;
       await initialize();
       const photos = await queue.wait();
       setPhase('saving');
+      saving = true;
       const result = await submitUploadSession(state.session, { ...body, assetIds: photos.map((p) => p.assetId) });
       queue.onChange = () => {};
       try { localStorage.removeItem(keyFor(slug)); } catch { /* no persistent storage */ }
       state.finished = true;
       setPhase('submitted');
       return result;
-    } catch (error) { setPhase('idle'); throw error; }
+    } catch (error) { error.submissionUncertain = saving && (!error.status || error.status >= 500 || error.status === 408); setPhase('idle'); throw error; }
   }
-  return { items, notice, recoveryStatus, phase, preview, add, remove, retry: (id) => queue.retry(id), submit };
+  async function checkSubmission() {
+    await state.recovery;
+    await initialize();
+    const remote = await readUploadSession(state.session);
+    if (remote.result) {
+      queue.onChange = () => {};
+      try { localStorage.removeItem(keyFor(slug)); } catch { /* no persistent storage */ }
+      state.finished = true;
+      setPhase('submitted');
+    }
+    return remote;
+  }
+  return { items, notice, recoveryStatus, phase, preview, add, remove, retry: (id) => queue.retry(id), submit, checkSubmission };
 }

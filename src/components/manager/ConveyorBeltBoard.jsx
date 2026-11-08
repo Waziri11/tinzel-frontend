@@ -4,8 +4,9 @@ import {navigate} from '../../navigation/location';
 import MagazineDraftCards, {magazineReviewPath} from './MagazineDraftCards';
 import {downloadMagazine} from '../common/SecurityCenter';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer, Modal, Tabs } from 'antd';
 import {
   AlertTriangle,
@@ -225,7 +226,7 @@ const NEXT_TASK = {
   on_hold: 'Resolve hold',
 };
 
-const labelStatus = (status) => STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
+const labelStatus = (status, lang = 'en') => STATUS_LABELS[status] || (lang === 'sw' ? 'Tunasubiri taarifa ya hali' : 'Status update pending');
 const daysWaiting = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000));
 const compactWait = (date) => {
   const age = daysWaiting(date);
@@ -255,6 +256,8 @@ const emptyForm = {
 
 export default function ConveyorBeltBoard({ token, phase = null, onNavigateToReturns = null }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
   const phaseConfig = phase ? PHASE_CONFIGS[phase] : null;
   const activeStages = useMemo(() => (phaseConfig ? phaseConfig.stages : ALL_STAGES), [phaseConfig]);
@@ -263,6 +266,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     [activeStages],
   );
 
+  const listRequest = useRef(0);
+  const detailRequest = useRef(0);
   const [orders, setOrders] = useState([]);
   const [summary, setSummary] = useState({});
   const [statusCounts, setStatusCounts] = useState({});
@@ -282,8 +287,13 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [total, setTotal] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetail, setOrderDetail] = useState(null);
+  const detailSnapshot = useRef(null);
+  detailSnapshot.current = orderDetail;
   const [auditLogs, setAuditLogs] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+  const [designerState, setDesignerState] = useState({ loading: true, error: null });
+  const [printerState, setPrinterState] = useState({ loading: true, error: null });
   const [designers, setDesigners] = useState([]);
   const [settings, setSettings] = useState({ printer: { configured: false, phone: '' } });
   const [action, setAction] = useState(null);
@@ -299,6 +309,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   }, [phase]);
 
   const loadOrders = useCallback(async () => {
+    const request = ++listRequest.current;
     setLoading(true);
     setError('');
     try {
@@ -312,16 +323,17 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       if (phase) queryParams.phase = phase;
 
       const data = await api.manager.getOrders(token, queryParams);
+      if (request !== listRequest.current) return;
       setOrders(data.orders || []);
       setSummary(data.summary || {});
       setStatusCounts(data.statusCounts || {});
       setPageCount(data.pageCount || 1);
       setTotal(data.total || 0);
-    } catch (requestError) {
-      setError(requestError.message || 'Orders could not be loaded.');
-    } finally {
-      setLoading(false);
       setHasLoaded(true);
+    } catch (requestError) {
+      if (request === listRequest.current) setError(requestError);
+    } finally {
+      if (request === listRequest.current) setLoading(false);
     }
   }, [page, phase, search, statusFilter, token]);
 
@@ -329,14 +341,22 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     loadOrders();
   }, [loadOrders]);
 
-  useEffect(() => {
-    Promise.allSettled([api.manager.getDesigners(token), api.manager.getSettings(token)]).then(
-      ([designerResult, settingsResult]) => {
-        if (designerResult.status === 'fulfilled') setDesigners(designerResult.value.designers || []);
-        if (settingsResult.status === 'fulfilled') setSettings(settingsResult.value);
-      },
-    );
+  const loadDesigners = useCallback(async () => {
+    setDesignerState({ loading: true, error: null });
+    try {
+      const result = await api.manager.getDesigners(token);
+      setDesigners(result.designers || []);
+      setDesignerState({ loading: false, error: null });
+    } catch (error) { setDesignerState({ loading: false, error }); }
   }, [token]);
+  const loadPrinter = useCallback(async () => {
+    setPrinterState({ loading: true, error: null });
+    try {
+      setSettings(await api.manager.getSettings(token));
+      setPrinterState({ loading: false, error: null });
+    } catch (error) { setPrinterState({ loading: false, error }); }
+  }, [token]);
+  useEffect(() => { loadDesigners(); loadPrinter(); }, [loadDesigners, loadPrinter]);
 
   const attentionOrders = useMemo(
     () =>
@@ -355,20 +375,27 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     if (updateRoute) {
       const params = new URLSearchParams(window.location.search);
       params.set('orderId', order._id);
-      window.history.pushState({}, '', `${window.location.pathname}?${params}`);
+      const destination = `${window.location.pathname}?${params}`;
+      if (`${window.location.pathname}${window.location.search}` !== destination) {
+        navigate(destination);
+        return;
+      }
     }
+    const request = ++detailRequest.current;
     setSelectedOrder(order);
-    setOrderDetail(null);
-    setAuditLogs([]);
+    if (orderDetail?._id !== order._id) { setOrderDetail(null); setAuditLogs([]); }
+    setDetailError(null);
     setDetailLoading(true);
     try {
       const data = await api.manager.getOrder(token, order._id);
+      if (request !== detailRequest.current) return;
       setOrderDetail(data.order);
       setAuditLogs(data.auditLogs || []);
+      return data.order;
     } catch (requestError) {
-      setNotice({ type: 'error', text: requestError.message || 'Order details could not be loaded.' });
+      if (request === detailRequest.current) setDetailError(requestError);
     } finally {
-      setDetailLoading(false);
+      if (request === detailRequest.current) setDetailLoading(false);
     }
   };
 
@@ -377,10 +404,17 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       const params = new URLSearchParams(window.location.search),
         id = params.get('orderId');
       setDetailTab(params.get('tab') || 'overview');
-      if (id) openOrder({ _id: id }, false);
+      if (id) {
+        const cached = detailSnapshot.current;
+        if (cached?._id === id) setSelectedOrder(cached);
+        else openOrder({ _id: id }, false);
+      }
       else {
+        detailRequest.current++;
         setSelectedOrder(null);
         setOrderDetail(null);
+        setDetailError(null);
+        setDetailLoading(false);
       }
     };
     restore();
@@ -388,24 +422,25 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     return () => window.removeEventListener('popstate', restore);
   }, [token, phase]);
   const changeDetailTab = (tab) => {
-    setDetailTab(tab);
     const params = new URLSearchParams(window.location.search);
     params.set('tab', tab);
-    window.history.pushState({}, '', `${window.location.pathname}?${params}`);
+    navigate(`${window.location.pathname}?${params}`);
   };
 
   const closeDetail = () => {
     const params = new URLSearchParams(window.location.search);
     params.delete('orderId');
     params.delete('tab');
-    window.history.pushState({}, '', `${window.location.pathname}${params.size ? '?' + params : ''}`);
-    setSelectedOrder(null);
-    setOrderDetail(null);
-    setAuditLogs([]);
+    navigate(`${window.location.pathname}${params.size ? '?' + params : ''}`);
   };
 
-  const beginAction = (name, order = orderDetail || selectedOrder) => {
-    if (!order) return;
+  const beginAction = async (name, order = orderDetail || selectedOrder) => {
+    if (!order || submitting) return;
+    if (name === 'print' && orderDetail?._id !== order._id) {
+      const current = await openOrder(order, false);
+      if (!current) return;
+      order = current;
+    }
     if(name==='draft'){navigate(magazineReviewPath(order._id,order.currentDraftVersion));return;}
     setSelectedOrder(order);
     setForm({
@@ -429,7 +464,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   const runAction = async (event) => {
     event.preventDefault();
-    if (!selectedOrder) return;
+    if (!selectedOrder || submitting || uncertain) return;
     setSubmitting(true);
     setNotice(null);
     try {
@@ -557,7 +592,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       )}
 
       {notice && (
-        <div className={`manager-notice is-${notice.type}`} role="status">
+        <div className={`manager-notice is-${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}>
           {notice.type === 'error' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
           <span>{notice.text}</span>
           <button type="button" aria-label={tx('Dismiss message')} onClick={() => setNotice(null)}>
@@ -565,15 +600,14 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           </button>
         </div>
       )}
-      {error && (
-        <div className="manager-notice is-error" role="alert">
-          <AlertTriangle size={18} />
-          <span>{error}</span>
-          <ActionButton type="button" onClick={loadOrders}>
-            <InterfaceText>Try again</InterfaceText>
-          </ActionButton>
-        </div>
-      )}
+      {error && <StateError error={error} onRetry={loadOrders} title={hasLoaded ? ui('Orders could not be refreshed', 'Oda hazikuweza kupakiwa upya') : ui('Orders could not be loaded', 'Oda hazikuweza kupakiwa')}>
+        {hasLoaded && <p>{ui('Showing the last loaded orders. They may be out of date.', 'Tunaonyesha oda zilizopakiwa mara ya mwisho. Huenda zimebadilika.')}</p>}
+      </StateError>}
+      {hasLoaded && orders.some(order => !STATUS_LABELS[order.status]) && <StatePanel compact kind="info" title={ui('Some order statuses need a refresh', 'Baadhi ya hali za oda zinahitaji kupakiwa upya')} description={ui('The latest stage is not available yet. Refresh or open the order to check its details.', 'Hatua ya sasa haipatikani bado. Pakia upya au fungua oda kukagua maelezo yake.')} onRetry={loadOrders}>
+        {orders.filter(order => !STATUS_LABELS[order.status]).map(order => <button key={order._id} type="button" className="manager-secondary-action" onClick={() => openOrder(order)}>{ui('Open order', 'Fungua oda')}: {orderSenderName(order)}</button>)}
+      </StatePanel>}
+      {loading && hasLoaded && <p role="status">{ui('Refreshing orders… Your current list remains visible.', 'Tunapakia oda upya… Orodha yako bado inaonekana.')}</p>}
+
 
       <div className={`manager-summary-grid${summaryCards.length === 4 ? ' is-four-col' : ''}`}>
         {summaryCards.map(({ id, label, value, icon: Icon }) => (
@@ -593,7 +627,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
               <Icon size={20} />
             </span>
             <span>
-              <strong>{value}</strong>
+              <strong>{hasLoaded ? value : '—'}</strong>
               <small>{tx(label)}</small>
             </span>
           </button>
@@ -613,7 +647,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           >
             <ListChecks size={16} />
             <InterfaceText>Priority Queue (</InterfaceText>
-            {attentionOrders.length})
+            {hasLoaded ? attentionOrders.length : '—'})
           </button>
         </div>
         <form
@@ -663,7 +697,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             </option>
             {allowedFilterStatuses.map((status) => (
               <option key={status} value={status}>
-                {labelStatus(status)}
+                {labelStatus(status, lang)}
               </option>
             ))}
           </select>
@@ -684,7 +718,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         <PageSkeleton variant={view === 'board' ? 'board' : 'table'} compact />
       ) : null}
 
-      {hasLoaded && view === 'attention' && (
+      {hasLoaded && (!error || orders.length > 0) && view === 'attention' && (
         <div className="manager-attention-panel">
           <div className="manager-panel-heading">
             <h2>
@@ -693,12 +727,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             <span>{attentionOrders.length}</span>
           </div>
           {attentionOrders.length === 0 ? (
-            <div className="manager-empty">
-              <CheckCircle2 size={32} />
-              <h3>
-                <InterfaceText>All clear in this phase</InterfaceText>
-              </h3>
-            </div>
+            <StatePanel compact kind="empty"
+              title={search || statusFilter !== 'all' ? ui('No orders match these filters', 'Hakuna oda zinazolingana na vichujio hivi') : ui('All clear in this phase', 'Hakuna kazi inayosubiri katika hatua hii')}
+              description={ui('Orders needing your attention will appear here.', 'Oda zinazohitaji hatua yako zitaonekana hapa.')}>
+              {(search || statusFilter !== 'all') && <button type="button" className="manager-secondary-action" onClick={() => { setSearch(''); setSearchInput(''); setStatusFilter('all'); setPage(1); }}>{ui('Clear filters', 'Ondoa vichujio')}</button>}
+            </StatePanel>
           ) : (
             <div className="manager-table-wrap">
               <table className="manager-attention-table">
@@ -744,7 +777,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                         <td data-label={tx('Edition')}>{order.formTitle || order.formId?.title || 'Magazine'}</td>
                         <td data-label={tx('Required action')}>
                           <span className={`manager-status is-${order.status}`}>
-                            {NEXT_TASK[order.status] || labelStatus(order.status)}
+                            {NEXT_TASK[order.status] || labelStatus(order.status, lang)}
                           </span>
                         </td>
                         <td data-label={tx('Waiting')}>
@@ -763,8 +796,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </div>
       )}
 
-      {hasLoaded && view === 'board' && (
+      {hasLoaded && (!error || orders.length > 0) && view === 'board' && (
         <>
+          {!orders.length && <StatePanel compact kind="empty" title={search || statusFilter !== 'all' ? ui('No orders match these filters', 'Hakuna oda zinazolingana na vichujio hivi') : ui('No orders in this phase yet', 'Bado hakuna oda katika hatua hii')} description={ui('Orders will appear as they reach this stage.', 'Oda zitaonekana zikifika hatua hii.')} >
+            {(search || statusFilter !== 'all') && <button type="button" className="manager-secondary-action" onClick={() => { setSearch(''); setSearchInput(''); setStatusFilter('all'); setPage(1); }}>{ui('Clear filters', 'Ondoa vichujio')}</button>}
+          </StatePanel>}
           <label className="manager-mobile-stage-picker">
             <InterfaceText>Stage</InterfaceText>
             <select
@@ -784,6 +820,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           </label>
           <div
             className="manager-board"
+            role="region"
+            tabIndex={0}
             style={{ gridTemplateColumns: `repeat(${activeStages.length}, minmax(265px, 1fr))` }}
             aria-label={tx('Production conveyor')}
           >
@@ -802,7 +840,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                   <div className="manager-board-column__body">
                     {stageOrders.length === 0 ? (
                       <p className="manager-board-empty">
-                        {count > 0 ? 'No orders on this page' : 'No orders in this column'}
+                        {count > 0 ? ui('No orders on this page', 'Hakuna oda katika ukurasa huu') : ui('No orders in this column', 'Hakuna oda katika safu hii')}
                       </p>
                     ) : (
                       stageOrders.map((order) => (
@@ -827,7 +865,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                             {order.formTitle || order.formId?.title || 'Tinzel Magazine'}
                           </span>
                           <div className="manager-stage-row__meta">
-                            <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status))}</span>
+                            <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status, lang))}</span>
                             {order.assignedDesigner?.name && (
                               <span className="manager-stage-row__designer">{order.assignedDesigner.name}</span>
                             )}
@@ -843,7 +881,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </>
       )}
 
-      <div className="manager-pagination">
+      {hasLoaded && <div className="manager-pagination">
         <span>
           {orders.length} <InterfaceText>of</InterfaceText> {total}
         </span>
@@ -868,7 +906,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
             <ChevronRight size={17} />
           </button>
         </div>
-      </div>
+      </div>}
 
       <Drawer
         title={selectedOrder ? orderSenderName(selectedOrder, tx('Unnamed customer')) : 'Order details'}
@@ -877,7 +915,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         onClose={closeDetail}
         className="manager-order-drawer"
       >
-        {detailLoading ? (
+        {detailError && <StateError compact error={detailError} onRetry={() => openOrder(selectedOrder, false)}><button type="button" className="manager-secondary-action" onClick={closeDetail}>{ui('Close order', 'Funga oda')}</button></StateError>}
+        {detailLoading && !orderDetail ? (
           <PageSkeleton variant="detail" />
         ) : orderDetail ? (
           <OrderDetail
@@ -895,10 +934,10 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       <ActionModal
         notice={notice}
         uncertain={uncertain}
+        checkingSaved={detailLoading}
         onCheckSaved={async () => {
-          await openOrder(selectedOrder, false);
-          setAction(null);
-          setUncertain(false);
+          const saved = await openOrder(selectedOrder, false);
+          if (saved) { setAction(null); setUncertain(false); }
         }}
         action={action}
         order={selectedOrder}
@@ -906,6 +945,10 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         setForm={setForm}
         designers={designers}
         settings={settings}
+        designerState={designerState}
+        printerState={printerState}
+        onReloadDesigners={loadDesigners}
+        onReloadPrinter={loadPrinter}
         submitting={submitting}
         onCancel={() => setAction(null)}
         onSubmit={runAction}
@@ -916,7 +959,12 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
 function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAction, nextActionButton }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
+  const [downloadError, setDownloadError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const downloadPrint = async () => { setDownloading(true); setDownloadError(null); try { await downloadMagazine(order._id, 'print'); } catch (error) { setDownloadError(error); } finally { setDownloading(false); } };
   const currentDraft = order.draftVersions?.find((draft) => draft.versionNumber === order.currentDraftVersion);
 
   const items = [
@@ -925,7 +973,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
       label: 'Overview',
       children: (
         <div className="manager-detail-grid">
-          <Detail label={tx('Status')} value={tx(labelStatus(order.status))} />
+          <Detail label={tx('Status')} value={tx(labelStatus(order.status, lang))} />
           <Detail label={tx('Client')} value={order.clientName} />
           <Detail label={tx('WhatsApp')} value={order.clientWhatsApp} />
           <Detail label={tx('Email')} value={order.clientEmail || 'Not provided'} />
@@ -967,9 +1015,9 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
             label={tx('Print file')}
             value={
               order.printDocument?.uploadedAt ? (
-                <button onClick={()=>downloadMagazine(order._id,'print').catch(error=>window.alert(error.message))}>
+                <ActionButton loading={downloading} disabled={downloading} onClick={downloadPrint}>
                   <InterfaceText>Open print-ready document</InterfaceText>
-                </button>
+                </ActionButton>
               ) : (
                 'Not uploaded'
               )
@@ -992,7 +1040,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
       key: 'activity',
       label: `Activity (${auditLogs.length})`,
       children: (
-        <ol className="manager-timeline">
+        <>{!auditLogs.length && <StatePanel compact kind="empty" title={ui('No recorded activity yet', 'Bado hakuna shughuli zilizorekodiwa')} description={ui('Order updates will appear here.', 'Mabadiliko ya oda yataonekana hapa.')} />}<ol className="manager-timeline">
           {auditLogs.map((log) => (
             <li key={log._id}>
               <span>{displayDate(log.createdAt)}</span>
@@ -1000,15 +1048,16 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
               <small>{log.actor?.name || log.actor?.type || 'System'}</small>
             </li>
           ))}
-        </ol>
+        </ol></>
       ),
     },
   ];
   return (
     <div className="manager-order-detail">
+      {downloadError && <StateError compact error={downloadError} onRetry={downloadPrint} title={ui('The print file could not be downloaded', 'Faili ya kuchapisha haikuweza kupakuliwa')} />}
       <div className="manager-order-detail__hero">
         <div>
-          <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status))}</span>
+          <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status, lang))}</span>
           <h2>{order.clientName}</h2>
           <p>{order.formTitle || order.formId?.title}</p>
         </div>
@@ -1062,17 +1111,24 @@ function ActionModal({
   notice,
   uncertain,
   onCheckSaved,
+  checkingSaved,
   action,
   order,
   form,
   setForm,
   designers,
   settings,
+  designerState,
+  printerState,
+  onReloadDesigners,
+  onReloadPrinter,
   submitting,
   onCancel,
   onSubmit,
 }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const titles = {
@@ -1090,7 +1146,9 @@ function ActionModal({
     <Modal
       title={tx(titles[action] || 'Manager action')}
       open={Boolean(action)}
-      onCancel={onCancel}
+      onCancel={() => { if (!submitting) onCancel(); }}
+      closable={!submitting}
+      maskClosable={!submitting}
       footer={null}
       destroyOnHidden
       className="manager-action-modal"
@@ -1107,7 +1165,7 @@ function ActionModal({
               The result is unconfirmed. Check the saved order before repeating this action.
             </InterfaceText>
           </p>
-          <ActionButton className="manager-secondary-action" onClick={onCheckSaved}>
+          <ActionButton loading={checkingSaved} disabled={checkingSaved} className="manager-secondary-action" onClick={onCheckSaved}>
             <InterfaceText>Check saved order</InterfaceText>
           </ActionButton>
         </div>
@@ -1142,12 +1200,15 @@ function ActionModal({
           )}
           {action === 'print' && (
             <>
+              {printerState.loading && <StatePanel compact kind="loading" title={ui('Checking printer settings…', 'Tunakagua mipangilio ya mchapishaji…')} />}
+              {printerState.error && <StateError compact error={printerState.error} onRetry={onReloadPrinter} title={ui('Printer settings are unavailable', 'Mipangilio ya mchapishaji haipatikani')} />}
+              {!order.printDocument?.uploadedAt && <StatePanel compact kind="warning" title={ui('Print file is not ready', 'Faili ya kuchapisha haijawa tayari')} description={ui('The designer must prepare the approved magazine before printing can be authorized.', 'Msanifu lazima aandae jarida lililoidhinishwa kabla ya kuidhinisha uchapishaji.')} />}
               <p>
                 <InterfaceText>
                   This sends the client-approved, print-ready document and its specifications to the configured printer.
                 </InterfaceText>
               </p>
-              <div
+              {!printerState.loading && !printerState.error && <div
                 className={
                   settings.printer?.configured ? 'manager-config-status is-ready' : 'manager-config-status is-blocked'
                 }
@@ -1158,7 +1219,7 @@ function ActionModal({
                     ? `Verified printer: ${settings.printer.phone}`
                     : 'No verified printer is configured. Ask an administrator to configure it first.'}
                 </span>
-              </div>
+              </div>}
             </>
           )}
           {action === 'printer' && (
@@ -1250,9 +1311,12 @@ function ActionModal({
           )}
           {action === 'reassign' && (
             <>
+              {designerState.loading && <StatePanel compact kind="loading" title={ui('Loading designers…', 'Tunapakia wasanifu…')} />}
+              {designerState.error && <StateError compact error={designerState.error} onRetry={onReloadDesigners} title={ui('Designer availability could not be checked', 'Hatujaweza kukagua upatikanaji wa wasanifu')} />}
+              {!designerState.loading && !designerState.error && !designers.length && <StatePanel compact kind="empty" title={ui('No designers are available', 'Hakuna wasanifu wanaopatikana')} description={ui('Ask an administrator to check staff availability, then refresh.', 'Mwombe msimamizi akague upatikanaji wa wafanyakazi, kisha pakia upya.')} onRetry={onReloadDesigners} />}
               <label>
                 <InterfaceText>Active designer</InterfaceText>
-                <select required value={form.designerId} onChange={update('designerId')}>
+                <select required disabled={designerState.loading || Boolean(designerState.error)} value={form.designerId} onChange={update('designerId')}>
                   <option value="">
                     <InterfaceText>Choose designer</InterfaceText>
                   </option>
@@ -1298,13 +1362,13 @@ function ActionModal({
             </div>
           )}
           <div className="manager-action-footer">
-            <button type="button" className="manager-secondary-action" onClick={onCancel}>
+            <button type="button" className="manager-secondary-action" onClick={onCancel} disabled={submitting}>
               <InterfaceText>Cancel</InterfaceText>
             </button>
             <ActionButton loading={submitting}
               type="submit"
               className="manager-primary-action"
-              disabled={submitting || uncertain || (action === 'print' && !settings.printer?.configured)}
+              disabled={submitting || uncertain || (action === 'print' && (printerState.loading || printerState.error || !settings.printer?.configured || !order.printDocument?.uploadedAt)) || (action === 'reassign' && (designerState.loading || designerState.error || !designers.length))}
             >
               {tx(
                 submitting

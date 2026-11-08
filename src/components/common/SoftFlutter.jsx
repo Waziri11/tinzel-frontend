@@ -1,10 +1,11 @@
+import butterfly from '../../assets/brand/tinzel-butterfly.svg';
 import React, { Children, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import './loading.css';
 
-/** Frames from the approved SoftFlutter clip, shared by every loading control. */
+/** Lightweight butterfly motion, with the same static mark when motion is reduced. */
 export default function SoftFlutter({ size = 24, className = '' }) {
-  return <span className={`soft-flutter ${className}`} style={{ '--flutter-size': `${size}px` }} aria-hidden="true" />;
+  return <span className={`soft-flutter ${className}`} style={{ '--flutter-size': `${size}px`, '--flutter-image': `url(${butterfly})` }} aria-hidden="true" />;
 }
 
 export function InlineLoading({ children, size = 28, className = '' }) {
@@ -22,7 +23,14 @@ export function ActionButton({ loading = false, disabled, children, onClick, loa
   const lock = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => { if (!loading && !pending) setInitiated(false); }, [loading, pending]);
+  useEffect(() => {
+    if (!initiated || loading || pending) return;
+    // Implicit Enter submission follows the click's native default action.
+    // Clear idle clicks on the next task, after a real submission can start.
+    const timer = setTimeout(() => setInitiated(false), 0);
+    return () => clearTimeout(timer);
+  }, [loading, pending, initiated]);
+  // A shared request may disable several controls; animate only its initiating action.
   const busy = pending || (loading && initiated);
   const hasIndicator = Children.toArray(children).some(child => child?.type === SoftFlutter);
   const click = async event => {

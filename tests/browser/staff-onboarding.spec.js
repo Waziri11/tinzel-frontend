@@ -63,6 +63,6 @@ test('admin creates staff without entering a password and can inspect or reissue
  await dialog.getByRole('button',{name:'Create Account',exact:true}).click();await expect.poll(()=>created?.preferredLanguage).toBe('sw');expect(created.password).toBeUndefined();
  await page.getByRole('button',{name:'View New Designer'}).click();const details=page.getByRole('dialog',{name:'view user'});
  await expect(details.getByText('Awaiting first sign-in',{exact:true})).toBeVisible();await expect(details.getByText(/SMS: failed/)).toBeVisible();await expect(details.getByText(/EMAIL: provider accepted/)).toBeVisible();
- page.once('dialog',dialog=>dialog.accept());await details.getByRole('button',{name:'Issue new initial password'}).click();await expect.poll(()=>reissues).toBe(1);await expect(details.getByText(/SMS: provider accepted/)).toBeVisible();
+ await details.getByRole('button',{name:'Issue new initial password'}).click();await page.getByRole('dialog',{name:'Issue a new initial password?'}).getByRole('button',{name:'Issue password',exact:true}).click();await expect.poll(()=>reissues).toBe(1);await expect(details.getByText(/SMS: provider accepted/)).toBeVisible();
  await page.screenshot({path:'/tmp/tinzel-admin-onboarding.png',fullPage:true});
 });

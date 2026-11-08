@@ -2,6 +2,9 @@ import { staffOrderText, orderSenderName } from '../../utils/orderDisplay';
 import PhoneInput from './PhoneInput';
 import SoftFlutter, { ActionButton } from './SoftFlutter';
 import PageSkeleton from './PageSkeleton';
+import StatePanel, { StateError } from './StatePanel';
+import { useConfirm } from './ConfirmDialog';
+import { useLanguage } from '../../i18n/LanguageContext';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import '../admin/administration.css';
@@ -250,6 +253,35 @@ export default function NotificationsPage({
 }) {
   const tx = useInterfaceText();
 
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const deliveryLabel = (status, channel) => {
+    if (channel === 'in_system' && ['delivered', 'sent'].includes(status)) return ui('Recorded', 'Imerekodiwa');
+    const labels = {
+      sent: ['provider accepted', 'mtoa huduma amepokea'],
+      delivered: ['delivered', 'imefikishwa'],
+      queued: ['queued', 'iko kwenye foleni'],
+      pending: ['pending', 'inasubiri'],
+      failed: ['failed', 'imeshindikana'],
+      undelivered: ['not delivered', 'haijafikishwa'],
+      unconfirmed: ['unconfirmed', 'haijathibitishwa'],
+      skipped: ['skipped', 'imerukwa'],
+      simulated: ['simulated', 'jaribio la uigaji'],
+      suppressed: ['not sent', 'haijatumwa'],
+      disabled: ['disabled', 'imezimwa'],
+    };
+    return ui(...(labels[status] || labels.unconfirmed));
+  };
+  const deliveryModeLabel = mode => {
+    const labels = {
+      smtp_live: ['SMTP email', 'Barua pepe ya SMTP'],
+      simulated: ['Simulation only', 'Uigaji tu'],
+      smtp_failed_fallback_simulated: ['SMTP failed; simulation only', 'SMTP imeshindikana; uigaji tu'],
+      error: ['Failed', 'Imeshindikana'],
+    };
+    return ui(...(labels[mode] || ['Not reported', 'Haijaripotiwa']));
+  };
+  const confirm = useConfirm();
   const canConfigure = staffUser?.role === 'admin';
 
   // Top-level QAMS Section Tabs: 'history' | 'triggers' | 'health'
@@ -270,6 +302,13 @@ export default function NotificationsPage({
   const [diagLoading, setDiagLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [historyError, setHistoryError] = useState(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [settingsError, setSettingsError] = useState(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsBaseline, setSettingsBaseline] = useState('');
+  const [diagnosticsError, setDiagnosticsError] = useState(null);
 
   // Notification Settings State
   const [settings, setSettings] = useState({
@@ -326,16 +365,16 @@ export default function NotificationsPage({
   useEffect(() => {
     if (!composeOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setComposeOpen(false);
+      if (e.key === 'Escape' && !sending) setComposeOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [composeOpen]);
+  }, [composeOpen, sending]);
 
   const loadNotifications = useCallback(
     async (silent = false) => {
       if (!silent) setLoading(true);
-      setError('');
+      setHistoryError(null);
       try {
         const apiChannel =
           channelFilter === 'grouped' || channelFilter === 'all'
@@ -349,59 +388,17 @@ export default function NotificationsPage({
           ...(search ? { search } : {}),
         };
 
-        const requests = [api.notifications.getHistory(token, params)];
-        if (canConfigure && !silent) {
-          requests.push(Promise.resolve({ diagnostics: null }));
-          requests.push(api.notifications.getSettings(token));
-        }
+        const histRes = await api.notifications.getHistory(token, params);
+        const list = histRes.notifications || [];
+        setNotifications(list);
+        setHistoryLoaded(true);
+        const nextUnread = histRes.unreadCount ?? list.filter(n => !n.isRead).length;
+        setUnreadCount(nextUnread);
+        onUnreadCountChange?.(nextUnread);
+        if (histRes.channelCounts) setChannelCounts(histRes.channelCounts);
 
-        const [histRes, diagRes, settingsRes] =
-          await Promise.allSettled(requests);
-        if (histRes.status === 'fulfilled') {
-          const list = histRes.value.notifications || [];
-          setNotifications(list);
-          const nextUnread =
-            histRes.value.unreadCount ?? list.filter((n) => !n.isRead).length;
-          setUnreadCount(nextUnread);
-          if (onUnreadCountChange) onUnreadCountChange(nextUnread);
-          if (histRes.value.channelCounts) {
-            setChannelCounts(histRes.value.channelCounts);
-          }
-        } else {
-          throw histRes.reason;
-        }
-
-        if (diagRes && diagRes.status === 'fulfilled') {
-          const diagData = diagRes.value.diagnostics || null;
-          setDiagnostics(diagData);
-          if (diagData?.sms?.configuredSenderId) {
-            setSmsTestForm((prev) => ({
-              ...prev,
-              from: prev.from || diagData.sms.configuredSenderId,
-            }));
-          }
-        }
-
-        if (
-          settingsRes &&
-          settingsRes.status === 'fulfilled' &&
-          settingsRes.value.settings
-        ) {
-          const loadedSettings = settingsRes.value.settings;
-          setSettings((prev) => ({
-            ...prev,
-            ...loadedSettings,
-            catalog: loadedSettings.catalog || DEFAULT_TRIGGER_CATALOG,
-          }));
-          if (loadedSettings.smsSenderId) {
-            setSmsTestForm((prev) => ({
-              ...prev,
-              from: loadedSettings.smsSenderId,
-            }));
-          }
-        }
       } catch (err) {
-        setError(err?.message || 'Unable to load notifications.');
+        setHistoryError(err);
       } finally {
         setLoading(false);
       }
@@ -422,22 +419,49 @@ export default function NotificationsPage({
   }, [loadNotifications]);
   useVisiblePolling(() => loadNotifications(true), Boolean(token));
 
+  const loadSettings = async () => {
+    if (!canConfigure) return;
+    if (settingsLoaded && settingsBaseline !== JSON.stringify(settings) && !await confirm({title: ui('Reload saved triggers?', 'Pakia vichocheo vilivyohifadhiwa?'), description: ui('Your unsaved trigger changes will be discarded.', 'Mabadiliko ya vichocheo ambayo hayajahifadhiwa yataondolewa.'), confirmLabel: ui('Discard and reload', 'Ondoa na upakie'), danger: true})) return;
+    setSettingsLoading(true); setSettingsError(null);
+    try {
+      const response = await api.notifications.getSettings(token);
+      if (!response.settings) throw new Error(ui('Saved settings are unavailable.', 'Mipangilio iliyohifadhiwa haipatikani.'));
+      const next = { ...response.settings, catalog: response.settings.catalog || DEFAULT_TRIGGER_CATALOG };
+      setSettings(next); setSettingsBaseline(JSON.stringify(next)); setSettingsLoaded(true);
+    } catch (err) { setSettingsError(err); }
+    finally { setSettingsLoading(false); }
+  };
+  useEffect(() => { loadSettings(); }, [token, canConfigure]);
+  const settingsDirty = settingsLoaded && settingsBaseline !== JSON.stringify(settings);
+  const composeDirty = Object.values(composeForm).some(value => value.trim());
+  useEffect(() => {
+    if (!settingsDirty && !composeDirty) return;
+    const unload = event => { event.preventDefault(); event.returnValue = ''; };
+    const leave = event => {
+      if (event.detail?.waitUntil) event.detail.waitUntil(confirm({ title: ui('Leave unsaved work?', 'Uondoke bila kuhifadhi kazi?'), description: ui('Trigger changes or your drafted message have not been saved or sent.', 'Mabadiliko ya vichocheo au rasimu ya ujumbe hayajahifadhiwa au kutumwa.'), confirmLabel: ui('Leave without saving', 'Ondoka bila kuhifadhi'), cancelLabel: ui('Keep editing', 'Endelea kuhariri'), danger: true }));
+      else event.preventDefault();
+    };
+    window.addEventListener('beforeunload', unload); window.addEventListener('tinzel:before-navigate', leave);
+    return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', leave); };
+  }, [settingsDirty, composeDirty, lang, confirm]);
+
   const handleRefreshDiagnostics = async () => {
     if (!canConfigure) return;
     setDiagLoading(true);
-    setError('');
+    setDiagnosticsError(null);
     try {
       const res = await api.notifications.getDiagnostics(token);
       setDiagnostics(res.diagnostics || null);
-      setNotice('Gateway diagnostics refreshed successfully.');
+      setNotice(ui('Gateway diagnostics refreshed successfully.', 'Uchunguzi wa huduma za ujumbe umesasishwa.'));
     } catch (err) {
-      setError(err.message || 'Failed to refresh gateway diagnostics.');
+      setDiagnosticsError(err);
     } finally {
       setDiagLoading(false);
     }
   };
 
   const handleSaveSettings = async () => {
+    if (!settingsLoaded || settingsError || savingSettings) return;
     setSavingSettings(true);
     setError('');
     setNotice('');
@@ -448,6 +472,7 @@ export default function NotificationsPage({
         triggers: settings.triggers,
       });
       if (res.settings) {
+        setSettingsBaseline(JSON.stringify({ ...settings, ...res.settings, catalog: res.settings.catalog || settings.catalog }));
         setSettings((prev) => ({
           ...prev,
           ...res.settings,
@@ -455,31 +480,34 @@ export default function NotificationsPage({
         }));
       }
       setNotice(
-        'Notification trigger settings saved and applied across all workflow phases.',
+        ui('Notification trigger settings saved and applied across all workflow phases.', 'Mipangilio ya vichocheo vya taarifa imehifadhiwa na kutumika katika hatua zote za kazi.'),
       );
     } catch (err) {
-      setError(err.message || 'Failed to save notification settings.');
+      setError(err);
     } finally {
       setSavingSettings(false);
     }
   };
 
   const handleResetSettings = async () => {
+    if (!settingsLoaded || settingsError || savingSettings) return;
+    if (!await confirm({title: ui('Restore notification defaults?', 'Rejesha mipangilio ya awali?'), description: ui('This replaces your saved channel and trigger choices.', 'Hii itabadilisha chaguo ulizohifadhi za njia na vichocheo vya ujumbe.'), confirmLabel: ui('Restore defaults', 'Rejesha ya awali'), danger: true})) return;
     setSavingSettings(true);
     setError('');
     setNotice('');
     try {
       const res = await api.notifications.resetSettings(token);
       if (res.settings) {
+        setSettingsBaseline(JSON.stringify({ ...settings, ...res.settings, catalog: res.settings.catalog || settings.catalog }));
         setSettings((prev) => ({
           ...prev,
           ...res.settings,
           catalog: res.settings.catalog || prev.catalog,
         }));
       }
-      setNotice('Notification settings restored to factory defaults.');
+      setNotice(ui('Notification settings restored to factory defaults.', 'Mipangilio ya taarifa imerejeshwa kwenye hali ya awali.'));
     } catch (err) {
-      setError(err.message || 'Failed to reset notification settings.');
+      setError(err);
     } finally {
       setSavingSettings(false);
     }
@@ -527,10 +555,10 @@ export default function NotificationsPage({
         message: smsTestForm.message.trim(),
       });
       setSmsTestResult(res.report || res);
-      setNotice(res.message || 'Test SMS dispatched via NextSMS.');
+      setNotice(ui('SMS test processed. Check the recorded result below.', 'Jaribio la SMS limeshughulikiwa. Angalia matokeo yaliyorekodiwa hapa chini.'));
       await loadNotifications();
     } catch (err) {
-      setError(err.message || 'SMS health test failed.');
+      setError(err);
     } finally {
       setSmsTesting(false);
     }
@@ -550,10 +578,10 @@ export default function NotificationsPage({
         message: emailTestForm.message.trim(),
       });
       setEmailTestResult(res.report || res);
-      setNotice(res.message || 'Test email dispatched.');
+      setNotice(ui('Email test processed. Check the recorded result below.', 'Jaribio la barua pepe limeshughulikiwa. Angalia matokeo yaliyorekodiwa hapa chini.'));
       await loadNotifications();
     } catch (err) {
-      setError(err.message || 'Email health test failed.');
+      setError(err);
     } finally {
       setEmailTesting(false);
     }
@@ -581,7 +609,7 @@ export default function NotificationsPage({
         return next;
       });
     } catch (err) {
-      setError(err.message || 'Could not mark notification as read.');
+      setError(err);
     }
   };
 
@@ -593,30 +621,22 @@ export default function NotificationsPage({
       );
       setUnreadCount(0);
       if (onUnreadCountChange) onUnreadCountChange(0);
-      setNotice('All notifications have been marked as read.');
+      setNotice(ui('All notifications have been marked as read.', 'Taarifa zote zimewekwa kuwa zimesomwa.'));
     } catch (err) {
-      setError(err.message || 'Could not mark all notifications as read.');
+      setError(err);
     }
   };
 
   const handleResend = async (id, channel, uncertain = false) => {
-    if (
-      uncertain &&
-      !window.confirm(
-        tx(
-          'Provider acceptance is unknown. Retrying may send a duplicate. Retry this message?',
-        ),
-      )
-    )
-      return;
+    if (uncertain && !await confirm({title: ui('Retry this message?', 'Jaribu ujumbe huu tena?'), description: ui('Provider acceptance is unknown. Retrying may send a duplicate.', 'Haijulikani kama mtoa huduma amepokea. Kujaribu tena kunaweza kutuma nakala nyingine.'), confirmLabel: ui('Retry message', 'Tuma tena')})) return;
     try {
       setResendingId(id);
       setError('');
       await api.notifications.resend(token, id, channel, uncertain);
-      setNotice('Retry processed. Check the recorded delivery result below.');
+      setNotice(ui('Retry processed. Check the recorded delivery result below.', 'Jaribio la kutuma tena limeshughulikiwa. Angalia matokeo yaliyorekodiwa hapa chini.'));
       await loadNotifications();
     } catch (err) {
-      setError(err.message || 'Failed to resend notification.');
+      setError(err);
     } finally {
       setResendingId(null);
     }
@@ -624,7 +644,7 @@ export default function NotificationsPage({
 
   const handleSendTriChannel = async (e) => {
     e.preventDefault();
-    if (!composeForm.message.trim()) return;
+    if (sending || !composeForm.message.trim()) return;
     setSending(true);
     setError('');
     setNotice('');
@@ -646,11 +666,11 @@ export default function NotificationsPage({
         message: '',
       });
       setNotice(
-        'Notification dispatched across In-System, Email, and Phone Number.',
+        ui('Sending request processed. Check each channel’s recorded outcome below.', 'Ombi la kutuma limeshughulikiwa. Angalia matokeo ya kila njia hapa chini.'),
       );
       await loadNotifications();
     } catch (err) {
-      setError(err.message || 'Failed to dispatch multi-channel notification.');
+      setError(err);
     } finally {
       setSending(false);
     }
@@ -876,7 +896,7 @@ export default function NotificationsPage({
           {canConfigure && (
             <button
               type="button"
-              onClick={() => setComposeOpen(true)}
+              onClick={() => { setError(''); setComposeOpen(true); }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1010,74 +1030,14 @@ export default function NotificationsPage({
         </div>
       )}
 
-      {notice && (
-        <div
-          role="status"
-          style={{
-            padding: '11px 14px',
-            backgroundColor: '#F0FDF4',
-            border: '1px solid #86EFAC',
-            borderRadius: '8px',
-            color: '#166534',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice('')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: '#166534',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <div
-          role="alert"
-          style={{
-            padding: '11px 14px',
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FECACA',
-            borderRadius: '8px',
-            color: '#991B1B',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError('')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: '#991B1B',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
+      {notice && <StatePanel compact kind="success" title={notice} />}
+      {error && !composeOpen && <StateError compact error={error} />}
+      {historyError && <StateError compact error={historyError} title={ui('Notification history unavailable', 'Historia ya taarifa haipatikani')} onRetry={() => loadNotifications()} />}
+      {historyError && historyLoaded && <StatePanel compact kind="warning" title={ui('Showing previously loaded notifications', 'Inaonyesha taarifa zilizopakiwa awali')} description={ui('The list and counts may be out of date.', 'Orodha na idadi zinaweza kuwa za zamani.')} />}
       {/* Summary Strip */}
-      <div
+      <div hidden={!historyLoaded}
         style={{
-          display: 'grid',
+          display: historyLoaded ? 'grid' : 'none',
           gridTemplateColumns:
             'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: '12px',
@@ -1208,7 +1168,7 @@ export default function NotificationsPage({
               style={{ fontSize: '11px', fontWeight: 600, color: '#57534E' }}
             >
               <InterfaceText>SMS / Phone Dispatches (Sender:</InterfaceText>{' '}
-              {settings.smsSenderId || DEFAULT_SMS_SENDER})
+              {settingsLoaded ? settings.smsSenderId || DEFAULT_SMS_SENDER : '—'})
             </span>
           </div>
         </div>
@@ -1266,8 +1226,11 @@ export default function NotificationsPage({
       {/* ===================================================================== */}
       {/* TAB 2: CONFIGURABLE NOTIFICATION TRIGGERS & SETTINGS                  */}
       {/* ===================================================================== */}
-      {activeSection === 'triggers' && canConfigure && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {activeSection === 'triggers' && canConfigure && settingsError && <StateError compact error={settingsError} title={ui('Trigger settings unavailable', 'Mipangilio ya vichocheo haipatikani')} onRetry={loadSettings} />}
+      {activeSection === 'triggers' && canConfigure && settingsLoading && <PageSkeleton variant="form" compact />}
+      {activeSection === 'triggers' && canConfigure && settingsDirty && <StatePanel compact kind="info" title={ui('Unsaved trigger changes', 'Mabadiliko ya vichocheo hayajahifadhiwa')} description={ui('Save to apply these settings. Disabled triggers will not send new notifications.', 'Hifadhi ili kutumia mipangilio hii. Vichocheo vilivyozimwa havitatuma taarifa mpya.')} />}
+      {activeSection === 'triggers' && canConfigure && settingsLoaded && (
+        <fieldset disabled={savingSettings || settingsLoading || !!settingsError} style={{ display: 'flex', flexDirection: 'column', gap: '16px', border: 0, padding: 0, minWidth: 0 }}>
           {/* Global Channel Master Controls */}
           <div
             style={{
@@ -1325,7 +1288,7 @@ export default function NotificationsPage({
                 <ActionButton loading={savingSettings}
                   type="button"
                   onClick={handleResetSettings}
-                  disabled={savingSettings}
+                  disabled={savingSettings || settingsLoading || !!settingsError}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1347,7 +1310,7 @@ export default function NotificationsPage({
                 <ActionButton loading={savingSettings}
                   type="button"
                   onClick={handleSaveSettings}
-                  disabled={savingSettings}
+                  disabled={savingSettings || settingsLoading || !!settingsError}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1363,7 +1326,7 @@ export default function NotificationsPage({
                   }}
                 >
                   <Save size={14} />
-                  {savingSettings ? 'Saving…' : 'Save Trigger Settings'}
+                  {savingSettings ? ui('Saving…', 'Inahifadhi…') : ui('Save Trigger Settings', 'Hifadhi mipangilio ya vichocheo')}
                 </ActionButton>
               </div>
             </div>
@@ -1833,7 +1796,7 @@ export default function NotificationsPage({
               </div>
             </div>
           ))}
-        </div>
+        </fieldset>
       )}
 
       {/* ===================================================================== */}
@@ -1841,6 +1804,11 @@ export default function NotificationsPage({
       {/* ===================================================================== */}
       {activeSection === 'health' && canConfigure && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {diagnosticsError && <StateError compact error={diagnosticsError} title={ui('Gateway check unavailable', 'Ukaguzi wa huduma haupatikani')} onRetry={handleRefreshDiagnostics} />}
+          {!diagnostics && !diagLoading && !diagnosticsError && <StatePanel compact kind="info" title={ui('Connections have not been checked', 'Miunganisho haijakaguliwa')} description={ui('Run a health check to see the current provider status.', 'Fanya ukaguzi kuona hali ya sasa ya watoa huduma.')} />}
+          {diagLoading && <StatePanel compact kind="loading" title={ui('Checking connections…', 'Inakagua miunganisho…')} />}
+          {diagnostics && (!diagnostics.sms || !diagnostics.email) && <StatePanel compact kind="warning" title={ui('Some connection details are unavailable', 'Baadhi ya taarifa za muunganisho hazipatikani')} description={ui('Available results remain visible. Run the check again to refresh missing details.', 'Matokeo yaliyopatikana yanaonekana. Fanya ukaguzi tena kusasisha taarifa zinazokosekana.')} />}
+
           <div
             style={{
               backgroundColor: '#FFFFFF',
@@ -1900,7 +1868,7 @@ export default function NotificationsPage({
               }}
             >
               {diagLoading ? <SoftFlutter size={14} /> : <RefreshCw size={14} />}
-              {diagLoading ? 'Checking Gateways…' : 'Run Gateway Health Check'}
+              {diagLoading ? ui('Checking Gateways…', 'Inakagua huduma…') : ui('Run Gateway Health Check', 'Kagua hali ya huduma za ujumbe')}
             </ActionButton>
           </div>
 
@@ -1982,9 +1950,7 @@ export default function NotificationsPage({
                     color: smsHealthy ? '#166534' : '#991B1B',
                   }}
                 >
-                  {smsHealthy
-                    ? 'CONNECTED & AUTHENTICATED'
-                    : 'DISCONNECTED / CHECK KEY'}
+                  {!diagnostics?.sms ? ui('Not checked', 'Haijakaguliwa') : smsHealthy ? ui('Connected', 'Imeunganishwa') : diagnostics.sms.configured === false ? ui('Not configured', 'Haijasanidiwa') : ui('Connection unavailable', 'Muunganisho haupatikani')}
                 </span>
               </div>
 
@@ -2214,8 +2180,8 @@ export default function NotificationsPage({
                 >
                   <Send size={14} />
                   {smsTesting
-                    ? 'Sending Test SMS via NextSMS…'
-                    : 'Send Test SMS Now'}
+                    ? ui('Sending Test SMS via NextSMS…', 'Inatuma SMS ya majaribio kupitia NextSMS…')
+                    : ui('Send Test SMS Now', 'Tuma SMS ya majaribio sasa')}
                 </ActionButton>
               </form>
 
@@ -2236,8 +2202,8 @@ export default function NotificationsPage({
                 >
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {smsTestResult.success
-                      ? 'SMS Health Test Passed'
-                      : 'SMS Health Test Failed'}
+                      ? ui('SMS test: provider accepted', 'Jaribio la SMS: mtoa huduma amepokea')
+                      : ui('SMS test did not confirm acceptance', 'Jaribio la SMS halijathibitisha kupokelewa')}
                   </div>
                   <div>
                     <InterfaceText>Recipient:</InterfaceText>
@@ -2325,8 +2291,8 @@ export default function NotificationsPage({
                       style={{ fontSize: '12px', color: 'var(--text-muted)' }}
                     >
                       <InterfaceText>Host:</InterfaceText>{' '}
-                      {diagnostics?.email?.host || 'smtp.gmail.com'}:
-                      {diagnostics?.email?.port || 465}
+                      {diagnostics?.email?.host || '—'}:
+                      {diagnostics?.email?.port || '—'}
                     </span>
                   </div>
                 </div>
@@ -2341,7 +2307,7 @@ export default function NotificationsPage({
                     color: emailHealthy ? '#1E40AF' : '#6F531C',
                   }}
                 >
-                  {emailHealthy ? 'SMTP LIVE & VERIFIED' : 'SIMULATION MODE'}
+                  {!diagnostics?.email ? ui('Not checked', 'Haijakaguliwa') : emailHealthy ? ui('Connected', 'Imeunganishwa') : diagnostics.email.configured === false ? ui('Not configured', 'Haijasanidiwa') : ui('Connection unavailable', 'Muunganisho haupatikani')}
                 </span>
               </div>
 
@@ -2370,9 +2336,7 @@ export default function NotificationsPage({
                   <strong
                     style={{ fontSize: '14px', color: 'var(--text-main)' }}
                   >
-                    {emailHealthy
-                      ? 'Live Google SMTP'
-                      : 'Local Simulation Fallback'}
+                    {emailHealthy ? ui('Email connection verified', 'Muunganisho wa barua pepe umethibitishwa') : ui('Not verified', 'Haijathibitishwa')}
                   </strong>
                 </div>
                 <div>
@@ -2389,7 +2353,7 @@ export default function NotificationsPage({
                     style={{ fontSize: '14px', color: 'var(--text-main)' }}
                   >
                     <InterfaceText>Port</InterfaceText>{' '}
-                    {diagnostics?.email?.port || 465} (
+                    {diagnostics?.email?.port || '—'} (
                     {diagnostics?.email?.secure !== false
                       ? 'SSL/TLS'
                       : 'STARTTLS'}
@@ -2577,8 +2541,8 @@ export default function NotificationsPage({
                 >
                   <Mail size={14} />
                   {emailTesting
-                    ? 'Dispatching Test Email…'
-                    : 'Send Test Email Now'}
+                    ? ui('Dispatching Test Email…', 'Inatuma barua pepe ya majaribio…')
+                    : ui('Send Test Email Now', 'Tuma barua pepe ya majaribio sasa')}
                 </ActionButton>
               </form>
 
@@ -2599,14 +2563,14 @@ export default function NotificationsPage({
                 >
                   <div style={{ fontWeight: 800, marginBottom: '4px' }}>
                     {emailTestResult.success
-                      ? 'Email Health Test Completed'
-                      : 'Email Health Test Failed'}
+                      ? ui('Email test completed', 'Jaribio la barua pepe limekamilika')
+                      : ui('Email test failed', 'Jaribio la barua pepe limeshindikana')}
                   </div>
                   <div>
                     <InterfaceText>Recipient:</InterfaceText>
                     <strong>{emailTestResult.to}</strong>
                     <InterfaceText>| Mode:</InterfaceText>{' '}
-                    <strong>{emailTestResult.mode}</strong>
+                    <strong>{deliveryModeLabel(emailTestResult.mode)}</strong>
                     <InterfaceText>| Latency:</InterfaceText>{' '}
                     <strong>
                       {emailTestResult.latencyMs}{' '}
@@ -2825,37 +2789,9 @@ export default function NotificationsPage({
             {loading && displayedItems.length === 0 ? (
               <PageSkeleton variant="table" compact />
             ) : displayedItems.length === 0 ? (
-              <div
-                style={{
-                  padding: '48px 24px',
-                  textAlign: 'center',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <Bell
-                  size={28}
-                  color="var(--text-muted)"
-                  style={{ marginBottom: '8px' }}
-                />
-                <div
-                  style={{
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    color: 'var(--text-main)',
-                  }}
-                >
-                  <InterfaceText>No notifications found</InterfaceText>
-                </div>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                  <InterfaceText>
-                    Notifications sent via Email, Phone (NextSMS), and In-System
-                    will appear here automatically.
-                  </InterfaceText>
-                </div>
-              </div>
+              historyError ? null : <StatePanel kind="empty" title={search || statusFilter !== 'all' || !['grouped', 'all'].includes(channelFilter) || readFilter === 'read' ? ui('No notifications match these filters', 'Hakuna taarifa zinazolingana na vichujio') : readFilter === 'unread' ? ui('You are all caught up', 'Umesoma taarifa zote') : ui('No notifications yet', 'Hakuna taarifa bado')} description={readFilter === 'unread' ? ui('New unread notifications will appear here.', 'Taarifa mpya ambazo hujasoma zitaonekana hapa.') : ui('Order updates and recorded message outcomes will appear here.', 'Taarifa za oda na matokeo ya ujumbe yataonekana hapa.')}>
+                {(search || statusFilter !== 'all' || channelFilter !== 'grouped' || readFilter !== 'all') && <button className="ui-button" onClick={() => { setSearch(''); setSearchInput(''); setStatusFilter('all'); setChannelFilter('grouped'); setReadFilter('all'); }}>{ui('Clear filters', 'Ondoa vichujio')}</button>}
+              </StatePanel>
             ) : (
               displayedItems.map(({ primary, siblings, channels }) => {
                 const id = primary._id || primary.id;
@@ -3039,9 +2975,7 @@ export default function NotificationsPage({
                           <Bell size={12} />
                           <InterfaceText>In-System:</InterfaceText>{' '}
                           {channels.in_system
-                            ? channels.in_system.status === 'delivered'
-                              ? 'Recorded'
-                              : channels.in_system.status
+                            ? deliveryLabel(channels.in_system.status, 'in_system')
                             : '—'}
                         </span>
 
@@ -3070,12 +3004,12 @@ export default function NotificationsPage({
                           <Mail size={12} />
                           <InterfaceText>Email:</InterfaceText>{' '}
                           {channels.email
-                            ? `${channels.email.status === 'sent' ? 'provider accepted' : channels.email.status || 'unconfirmed'}${
+                            ? `${deliveryLabel(channels.email.status, 'email')}${
                                 channels.email.recipient || channels.email.to
                                   ? ` (${channels.email.recipient || channels.email.to})`
                                   : ''
                               }`
-                            : 'Not provided'}
+                            : ui('Not provided', 'Haijatolewa')}
                         </span>
 
                         {/* 3. Phone (WhatsApp / SMS) Channel Pill */}
@@ -3106,12 +3040,12 @@ export default function NotificationsPage({
                             channels.phone?.channel || 'sms'
                           ).toUpperCase()}):{' '}
                           {channels.phone
-                            ? `${channels.phone.status === 'sent' ? 'provider accepted' : channels.phone.status || 'unconfirmed'}${
+                            ? `${deliveryLabel(channels.phone.status, channels.phone.channel)}${
                                 channels.phone.recipient || channels.phone.to
                                   ? ` (${channels.phone.recipient || channels.phone.to})`
                                   : ''
                               }`
-                            : 'Not provided'}
+                            : ui('Not provided', 'Haijatolewa')}
                         </span>
                       </div>
 
@@ -3123,18 +3057,14 @@ export default function NotificationsPage({
                               style={{ overflowWrap: 'anywhere' }}
                             >
                               {item.channel.toUpperCase()}:{' '}
-                              {tx(
-                                item.status === 'sent'
-                                  ? 'provider accepted'
-                                  : item.status,
-                              )}{' '}
+                              {deliveryLabel(item.status, item.channel)}{' '}
                               · {item.attempts || 0}{' '}
                               <InterfaceText>/5 attempts</InterfaceText>{' '}
                               {item.errorMessage
                                 ? ` — ${staffOrderText(item.errorMessage, displayOrder)}`
                                 : ''}
                               {item.nextAttemptAt && item.retryable
-                                ? ` · Next retry: ${new Date(item.nextAttemptAt).toLocaleString()}`
+                                ? ` · ${ui('Next retry', 'Jaribio lijalo')}: ${new Date(item.nextAttemptAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-GB')}`
                                 : ''}
                             </p>
                           ))}
@@ -3252,7 +3182,7 @@ export default function NotificationsPage({
         <div
           role="presentation"
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setComposeOpen(false);
+            if (e.target === e.currentTarget && !sending) setComposeOpen(false);
           }}
           style={{
             position: 'fixed',
@@ -3313,7 +3243,7 @@ export default function NotificationsPage({
               <button
                 type="button"
                 aria-label={tx('Close')}
-                onClick={() => setComposeOpen(false)}
+                disabled={sending} onClick={() => setComposeOpen(false)}
                 style={{
                   border: 'none',
                   background: 'transparent',
@@ -3325,10 +3255,11 @@ export default function NotificationsPage({
               </button>
             </div>
 
+            {error && <StateError compact error={error} title={ui('Message was not confirmed', 'Ujumbe haujathibitishwa')} description={ui('Your draft remains below. Check notification history before sending again if the previous result is uncertain.', 'Rasimu yako ipo hapa chini. Angalia historia ya taarifa kabla ya kutuma tena kama matokeo ya awali hayajulikani.')} />}
             <form
               onSubmit={handleSendTriChannel}
-              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
             >
+              <fieldset disabled={sending} style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: 0, margin: 0, padding: 0, minWidth: 0 }}>
               <div>
                 <label
                   htmlFor={`control-100153`}
@@ -3518,7 +3449,7 @@ export default function NotificationsPage({
               >
                 <button
                   type="button"
-                  onClick={() => setComposeOpen(false)}
+                  disabled={sending} onClick={() => setComposeOpen(false)}
                   style={{
                     padding: '9px 14px',
                     borderRadius: '6px',
@@ -3546,9 +3477,10 @@ export default function NotificationsPage({
                     cursor: 'pointer',
                   }}
                 >
-                  {sending ? 'Dispatching…' : 'Send to Email, Phone & System'}
+                  {sending ? ui('Dispatching…', 'Inatuma…') : ui('Send to Email, Phone & System', 'Tuma kwa barua pepe, simu na mfumo')}
                 </ActionButton>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>

@@ -1,0 +1,21 @@
+// Shared recovery copy is selected at render time so changing language also updates errors.
+export function requestState(error, lang = 'en') {
+  const pick = (en, sw) => lang === 'sw' ? sw : en;
+  const status = Number(error?.status || error?.response?.status || 0);
+  const code = String(error?.code || error?.errorCode || '');
+  const message = typeof error === 'string' ? error : error?.message || '';
+  const source = `${code} ${message}`;
+  const state = (kind, en, sw, detailEn, detailSw) => ({ kind, title: pick(en, sw), description: pick(detailEn, detailSw) });
+  if (/invalid.*code|incorrect.*code|invalid.*otp/i.test(source)) return state('warning', 'Check your verification code', 'Hakiki msimbo wa uthibitishaji', 'Enter the latest code sent to your phone, or request a new one.', 'Ingiza msimbo wa mwisho uliotumwa kwenye simu yako, au omba mpya.');
+  if (/code.*expired|otp.*expired|challenge.*expired/i.test(source)) return state('warning', 'This code has expired', 'Msimbo umeisha muda', 'Request a new code to continue.', 'Omba msimbo mpya ili kuendelea.');
+  if (/invalid.*password|incorrect.*password|invalid.*credentials/i.test(source)) return state('error', 'Check your sign-in details', 'Hakiki taarifa za kuingia', 'Check your email and password, then try again.', 'Hakiki barua pepe na nenosiri, kisha ujaribu tena.');
+  if (status === 429) return state('warning', 'Please wait before trying again', 'Tafadhali subiri kabla ya kujaribu tena', 'Too many requests were made. Wait a moment before repeating this action.', 'Maombi mengi yametumwa. Subiri kidogo kabla ya kurudia hatua hii.');
+  if (status === 401) return state('warning', 'Verify your access again', 'Thibitisha ufikiaji wako tena', 'Your session has ended or is no longer valid. Sign in or verify your phone again to continue.', 'Kipindi chako kimeisha au hakitumiki tena. Ingia au thibitisha simu yako tena ili kuendelea.');
+  if (status === 403) return state('warning', 'This action is not available', 'Hatua hii hairuhusiwi', 'Your access or the current order stage does not allow this action. Return to an available page or contact your manager.', 'Ruhusa yako au hatua ya sasa ya oda hairuhusu kitendo hiki. Rudi kwenye ukurasa unaoruhusiwa au wasiliana na msimamizi.');
+  if (status === 404 || status === 410) return state('warning', 'This content is unavailable', 'Maudhui haya hayapatikani', 'This link may have expired or the content may no longer be available. Return to the list or request a new link.', 'Kiungo kinaweza kuwa kimeisha muda au maudhui haya hayapatikani tena. Rudi kwenye orodha au omba kiungo kipya.');
+  if (status === 409 || /stale.version|version.*changed|conflict/i.test(source)) return state('warning', 'The saved information has changed', 'Taarifa zilizohifadhiwa zimebadilika', 'Open the latest information before repeating this action. Check your unfinished changes before continuing.', 'Fungua taarifa za hivi karibuni kabla ya kurudia hatua hii. Hakiki mabadiliko ambayo hujakamilisha kabla ya kuendelea.');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return state('warning', 'You are offline', 'Huna muunganisho wa intaneti', 'Reconnect, then try again. Check the saved result before repeating a submission.', 'Unganisha intaneti, kisha ujaribu tena. Hakiki kilichohifadhiwa kabla ya kutuma tena.');
+  if (status === 408 || status === 504 || /timed? out|timeout/i.test(source)) return state('warning', 'This is taking longer than expected', 'Hii inachukua muda zaidi', 'Check your connection and the saved result before trying again.', 'Hakiki muunganisho wako na kilichohifadhiwa kabla ya kujaribu tena.');
+  if (status >= 500) return state('error', 'We could not complete this request', 'Hatukuweza kukamilisha ombi hili', 'The service is temporarily unavailable. Try again shortly. Check the saved result before repeating a submission.', 'Huduma haipatikani kwa muda. Jaribu tena baada ya muda mfupi. Hakiki kilichohifadhiwa kabla ya kutuma tena.');
+  return state('error', 'Something needs your attention', 'Kuna jambo la kuangalia', 'The request did not complete. Check your information and connection, then try again.', 'Ombi halijakamilika. Hakiki taarifa na muunganisho wako, kisha ujaribu tena.');
+}

@@ -13,9 +13,15 @@ test('real isolated ordering, manager return, customer revision, approval and de
  const admin=await login(request,'admin'),manager=await login(request,'manager'),designer=await login(request,'designer'),edition=await createEdition(request,admin);
  await page.goto('/catalogue');await page.getByRole('button',{name:new RegExp(edition.title)}).click();
  await expect(page).toHaveURL(/\/catalogue\/[^?]+\?step=details$/);
- await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByRole('alert')).toContainText('name');
- await page.getByLabel('Full Name *',{exact:true}).fill('Fictional Release Client');await page.locator('#magazine-client-whatsapp').fill('0712000088');
- await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByLabel('Your story',{exact:true}).fill('Isolated acceptance story.');
+ await page.getByRole('button',{name:'Continue',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('Check the highlighted details.');
+ const clientName=page.getByLabel('Full Name *',{exact:true});
+ await expect(clientName).toHaveAttribute('aria-invalid','true');
+ await expect(clientName).toHaveAccessibleDescription('Enter your name.');
+ await expect(page.locator('#magazine-client-name-error')).toBeVisible();
+ await expect(clientName).toBeFocused();
+ await clientName.fill('Fictional Release Client');await page.locator('#magazine-client-whatsapp').fill('0712000088');
+ await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('textbox',{name:'Your story',exact:true}).fill('Isolated acceptance story.');
  await page.getByRole('button',{name:'Continue',exact:true}).click();await page.getByRole('button',{name:'Continue',exact:true}).click();
  await expect(page.getByText('Isolated acceptance story.',{exact:true})).toBeVisible();
  const submitted=page.waitForResponse(response=>response.url().endsWith('/submit')&&response.request().method()==='POST');
@@ -34,7 +40,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  await expect(alert.filter({hasText:edition.title})).toHaveCount(0);
  await page.clock.resume();
  await page.locator('.manager-order-drawer').getByRole('button',{name:'Verify payment',exact:true}).click();
- const payment=page.getByRole('dialog',{name:'Verify Lipa Namba payment'});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify Lipa Namba payment',exact:true}).click();
+ const payment=page.getByRole('dialog',{name:'Verify payment',exact:true});await payment.getByLabel('Payment reference').fill('ISOLATED-ONLY');await payment.getByLabel('Amount paid (TZS)').fill('50000');await payment.getByRole('button',{name:'Verify payment',exact:true}).click();
  await expect(payment).toHaveCount(0);order=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(order.status).toBe('assigned');
  // Other journeys can change the workload-based assignment in this shared fixture.
  const testDesigner=(await api(request,'/staff/me',designer,undefined,'get')).user;
@@ -66,7 +72,7 @@ test('real isolated ordering, manager return, customer revision, approval and de
  // Printer configuration is confined to the in-memory test database. Providers are simulated.
  await api(request,'/admin/config',admin,{key:'printer_whatsapp_phone',value:'+255712000099'},'put');
  for(const [suffix,data] of [['authorise-print',{}],['printer-update',{stage:'in_progress',notes:'Isolated acknowledgement'}],['printer-update',{stage:'completed',notes:'Isolated verification'}],['authorise-dispatch',{carrier:'Fictional Courier',trackingReference:'ISOLATED-SHIP',deliveryAddress:'Fictional test address',notes:'Test only'}],['close-order',{recipientName:'Fictional Release Client',confirmationMethod:'phone_call',recipientFeedback:'Test fixture closure'}]])await api(request,`/manager/orders/${id}/${suffix}`,manager,data);
- await page.reload();await expect(page.getByText('closed',{exact:true})).toBeVisible();
+ await page.reload();await expect(page.getByRole('heading',{name:'Order complete',exact:true})).toBeVisible();
  const final=(await api(request,`/manager/orders/${id}`,manager,undefined,'get')).order;expect(final.status).toBe('closed');expect(final.approvedVersionNumber).toBe(3);
  // Check this order's deliveries; account-security alerts use a separate worker.
  await expect.poll(async()=>{const inbox=await api(request,`/notifications/history?limit=100&orderId=${id}`,manager,undefined,'get');return inbox.notifications.length>0 && inbox.notifications.every(item=>['simulated','delivered','skipped'].includes(item.status));},{timeout:15000}).toBe(true);
@@ -83,16 +89,20 @@ for(const lang of ['en','sw'])for(const width of [320,390,430,768,1440])test(`re
 
 test('all sixteen question types keep stored values when language and steps change',async({page},testInfo)=>{
  await page.addInitScript(()=>{if(!localStorage.getItem('tinzel_language'))localStorage.setItem('tinzel_language','en');});await page.goto('/catalogue/acceptance-magazine?step=story');
- await page.getByLabel('Test text',{exact:true}).fill('Fictional words');await page.getByLabel('Test textarea',{exact:true}).fill('A fictional longer story.');
- await page.getByLabel('Test number',{exact:true}).fill('0');await page.getByLabel('Test date',{exact:true}).fill('2026-11-01');await page.getByLabel('Test datetime',{exact:true}).fill('2026-11-01T12:30');await page.getByLabel('Test time',{exact:true}).fill('12:30');await page.getByLabel('Test duration',{exact:true}).fill('02:10:00');
- await page.getByLabel('Test dropdown',{exact:true}).selectOption('One');
+ await page.getByRole('textbox',{name:'Test text',exact:true}).fill('Fictional words');await page.getByRole('textbox',{name:'Test textarea',exact:true}).fill('A fictional longer story.');
+ await page.getByRole('spinbutton',{name:'Test number',exact:true}).fill('0');
+ await page.getByLabel('Test date',{exact:true}).and(page.locator('input[type="date"]')).fill('2026-11-01');
+ await page.getByLabel('Test datetime',{exact:true}).and(page.locator('input[type="datetime-local"]')).fill('2026-11-01T12:30');
+ await page.getByLabel('Test time',{exact:true}).and(page.locator('input[type="time"]')).fill('12:30');
+ await page.getByRole('textbox',{name:'Test duration',exact:true}).fill('02:10:00');
+ await page.getByRole('combobox',{name:'Test dropdown',exact:true}).selectOption('One');
  await page.getByRole('group',{name:'Test radio',exact:true}).getByLabel('One',{exact:true}).check();await page.getByRole('group',{name:'Test checkbox',exact:true}).getByLabel('Two',{exact:true}).check();
  await page.getByLabel('Test linear_scale 1',{exact:true}).check();await page.getByLabel('Test rating 2',{exact:true}).check();
  await page.getByLabel('Test grid_radio: First — One',{exact:true}).check();await page.getByLabel('Test grid_checkbox: Second — Two',{exact:true}).check();
- await page.getByRole('button',{name:'SW',exact:true}).click();await expect(page.getByLabel('Jaribio dropdown',{exact:true})).toHaveValue('One');await expect(page.getByLabel('Jaribio number',{exact:true})).toHaveValue('0');await expect(page.getByRole('group',{name:'Jaribio radio',exact:true}).getByLabel('Moja',{exact:true})).toBeChecked();
+ await page.getByRole('button',{name:'SW',exact:true}).click();await expect(page.getByRole('combobox',{name:'Jaribio dropdown',exact:true})).toHaveValue('One');await expect(page.getByRole('spinbutton',{name:'Jaribio number',exact:true})).toHaveValue('0');await expect(page.getByRole('group',{name:'Jaribio radio',exact:true}).getByLabel('Moja',{exact:true})).toBeChecked();
  await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('tinzel:answers:v2:acceptance-magazine'))?.data?.answers?.grid_radio?.First)).toBe('One');
  await page.getByRole('button',{name:'3 Picha',exact:true}).click();await expect(page.locator('#upload-photo_group')).toBeAttached();await expect(page.locator('#upload-photo_upload')).toBeAttached();
- await page.goBack();await expect(page.getByLabel('Jaribio text',{exact:true})).toHaveValue('Fictional words');await page.reload();await expect(page.getByLabel('Jaribio number',{exact:true})).toHaveValue('0');
+ await page.goBack();await expect(page.getByRole('textbox',{name:'Jaribio text',exact:true})).toHaveValue('Fictional words');await page.reload();await expect(page.getByRole('spinbutton',{name:'Jaribio number',exact:true})).toHaveValue('0');
  const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();expect(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,html:n.html,reason:n.failureSummary}))}))).toEqual([]);
  await page.screenshot({path:testInfo.outputPath('question-types-sw.png'),fullPage:true});
 });
@@ -103,7 +113,7 @@ for (const role of ['admin', 'manager']) test(`${role} opens all field editors, 
  const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();expect(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,html:n.html,reason:n.failureSummary}))}))).toEqual([]);
  await page.getByRole('button',{name:'Preview',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Edition preview'});await expect(dialog).toBeVisible();await expect(dialog.getByText('Test grid_radio',{exact:true})).toBeVisible();
  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);const title=page.getByLabel('Magazine Edition Title *',{exact:true});await title.fill('Unsaved fictional title');
- page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Back to Magazine Editions'}).click();await expect(title).toHaveValue('Unsaved fictional title');
+ await page.getByRole('button',{name:'Back to Magazine Editions'}).click();await page.getByRole('dialog',{name:'Leave without saving?'}).getByRole('button',{name:'Keep editing',exact:true}).click();await expect(title).toHaveValue('Unsaved fictional title');
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:testInfo.outputPath('edition-editor-mobile.png'),fullPage:true});
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Back to Magazine Editions'}).click();await expect(page.getByRole('heading',{name:'Magazine editions',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Back to Magazine Editions'}).click();await page.getByRole('dialog',{name:'Leave without saving?'}).getByRole('button',{name:'Leave without saving',exact:true}).click();await expect(page.getByRole('heading',{name:'Magazine editions',exact:true})).toBeVisible();
 });

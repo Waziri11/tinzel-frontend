@@ -878,6 +878,13 @@ Object.assign(uiText, {
   'Refresh preview': 'Sasisha hakikisho',
   View: 'Angalia',
 });
+Object.assign(uiText, {
+  'Photo': 'Picha',
+  'General Photos': 'Picha za jumla',
+  'Preview pending': 'Hakikisho linaandaliwa',
+  'Preview unavailable': 'Hakikisho halipatikani',
+  'Loading preview': 'Inapakia hakikisho',
+});
 const folded = Object.fromEntries(Object.entries(uiText).map(([en, sw]) => [en.toLocaleLowerCase(), sw]));
 export function translateUI(text, lang) {
   if (lang !== 'sw' || typeof text !== 'string') return text;

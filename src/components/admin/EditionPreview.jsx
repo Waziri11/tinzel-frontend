@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from 'antd';
+import StatePanel from '../common/StatePanel';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 export default function EditionPreview({ open, onClose, form }) {
   const { lang } = useLanguage(),
@@ -8,6 +9,8 @@ export default function EditionPreview({ open, onClose, form }) {
   const control = (field) => {
     const options = localizedList(field, 'options', lang),
       rows = localizedList(field, 'rows', lang);
+    const supported = ['text', 'textarea', 'photo_upload', 'photo_group', 'dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox', 'linear_scale', 'rating', 'datetime', 'date', 'time', 'number', 'duration'];
+    if (!supported.includes(field.type)) return <StatePanel compact kind="warning" title={sw ? 'Hakikisho la swali halipatikani' : 'Question preview unavailable'} description={sw ? 'Kagua aina ya swali kabla ya kuchapisha.' : 'Review this question type before publishing.'} />;
     if (['photo_upload', 'photo_group'].includes(field.type))
       return (
         <div className="preview-photo">
@@ -110,7 +113,8 @@ export default function EditionPreview({ open, onClose, form }) {
             ? 'Hakikisho hili haliweki oda wala kuhifadhi majibu.'
             : 'This preview does not place an order or save answers.'}
         </p>
-        <h1 className="ui-title">{L(form, 'title') || '—'}</h1>
+        <h1 className="ui-title">{L(form, 'title') || (sw ? 'Toleo lisilo na jina' : 'Untitled edition')}</h1>
+        {(!L(form, 'title') || !form.fields?.length) && <StatePanel compact kind="info" title={sw ? 'Hakikisho halijakamilika' : 'Preview is incomplete'} description={sw ? 'Ongeza jina na maswali kwenye kihariri kabla ya kuchapisha.' : 'Add a title and questions in the editor before publishing.'} />}
         <p>{L(form, 'description')}</p>
         <p className="ui-badge">
           {form.price?.toLocaleString()} {form.currency}
@@ -123,7 +127,8 @@ export default function EditionPreview({ open, onClose, form }) {
             <section className="ui-card" key={section.sectionId}>
               <h2>{L(section, 'title')}</h2>
               <p>{L(section, 'description')}</p>
-              {form.fields
+              {!(form.fields || []).some(field => field.sectionId === section.sectionId || section.sectionId === 'default') && <StatePanel compact kind="empty" title={sw ? 'Hakuna maswali bado' : 'No questions yet'} description={sw ? 'Rudi kwenye kihariri kuongeza maswali kwenye sehemu hii.' : 'Return to the editor to add questions to this section.'} />}
+              {(form.fields || [])
                 .filter((field) => field.sectionId === section.sectionId || section.sectionId === 'default')
                 .map((field) => (
                   <div className="ui-field" key={field.fieldId}>

@@ -131,7 +131,7 @@ test('text selections save normalized anchors and submit together as corrections
 
 test('client can reopen a released historical magazine while a replacement is private', async ({page}) => {
   await page.addInitScript(()=>sessionStorage.setItem('tinzel_client_token','client-test'));
-  const released={...order,status:'draft_manager_review',currentDraftVersion:2,draftVersions:[{versionNumber:1,managerReview:{status:'approved'}}],revisionRequests:[]};
+  const released={...order,clientPreferredLanguage:'en',status:'draft_manager_review',currentDraftVersion:2,draftVersions:[{versionNumber:1,managerReview:{status:'approved'}}],revisionRequests:[]};
   await page.route('**/api/client/order',route=>json(route,{order:released}));
   await page.route(/\/api\/proofs\/client\/1(?:\/prepare)?$/,route=>json(route,{state:'ready',pageCount:1,pages:[{page:1}],annotations:[],canComment:false}));
   await page.route('**/api/proofs/client/1/pages/1*',route=>new URL(route.request().url()).searchParams.has('text')?json(route,{width:600,height:800,text:[]}):route.fulfill({contentType:'image/svg+xml',body:samplePage}));
@@ -164,11 +164,12 @@ test('draft upload shows real progress, resumes after reload, and waits for serv
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
   await expect(page.getByRole('progressbar',{name:'Magazine upload progress'})).toBeVisible();
   await expect(page.getByText('Reconnecting',{exact:false})).toBeVisible();
-  await expect(page.getByRole('alert')).toContainText('Connection interrupted');
+  await expect(page.getByRole('heading', { name: 'Upload needs attention' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry upload' })).toBeVisible();
   expect(await page.getByRole('progressbar').getAttribute('value')).not.toBe('100');
   expect(chunks.has(0)).toBe(true);blocked=false;
   await page.reload();await chooseEnglish(page);await page.getByRole('button',{name:'Upload new draft'}).click();
-  await expect(page.getByText(/A saved upload is available/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'An unfinished upload is available' })).toBeVisible();
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(payload);await page.getByRole('button',{name:'Send to manager review'}).click();
   await expect(page.getByText('Finalizing draft',{exact:false})).toBeVisible();expect(counts.get(0)).toBe(1);
   await expect(page.getByRole('dialog', { name: 'Upload new draft' })).toHaveCount(0);
@@ -189,7 +190,7 @@ test('draft upload shows real progress, resumes after reload, and waits for serv
   const panelBounds = await panel.boundingBox();
   expect(panelBounds.x).toBeGreaterThanOrEqual(0);
   expect(panelBounds.x + panelBounds.width).toBeLessThanOrEqual(390);
-  const securityBounds = await page.getByRole('button', { name: 'Security / Usalama' }).boundingBox();
+  const securityBounds = await page.getByRole('button', { name: 'Security' }).boundingBox();
   expect(panelBounds.y + panelBounds.height).toBeLessThan(securityBounds.y);
   await page.screenshot({path:'/tmp/tinzel-background-upload-mobile.png',fullPage:true});
   completeRelease();await expect(page.getByRole('dialog',{name:'Upload new draft'})).toHaveCount(0);await expect(page.getByText(/Draft uploaded and sent to manager review/)).toBeVisible();
@@ -481,7 +482,8 @@ test('background upload retries from the panel without selecting the PDF again',
   await page.getByLabel('Magazine PDF · up to 500 MB').setInputFiles({name:'retry.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.7\nretry')});
   await page.getByRole('button', {name:'Send to manager review'}).click();
   const panel = page.getByRole('region', {name:'Magazine uploads'});
-  await expect(panel.getByRole('alert')).toHaveText('Transfer interrupted. Please retry.');
+  await expect(panel.getByRole('heading', { name: 'Upload needs attention' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Retry upload' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', {name:'Notifications', exact:true}).first().click();
   await panel.getByRole('button', {name:'Retry upload'}).click();

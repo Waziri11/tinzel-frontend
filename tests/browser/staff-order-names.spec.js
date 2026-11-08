@@ -37,7 +37,7 @@ test('manager security selects a sender by name and keeps the selected internal 
  let requested;
  await page.route('**/api/security/downloads?*',route=>{requested=new URL(route.request().url()).searchParams.get('orderId');return json(route,{events:[{eventId:'event',orderId:'internal-two',orderClientName:'Asha Mushi',version:2,actorName:'Manager',action:'DOWNLOAD_COMPLETED',createdAt:'2026-11-07T10:00:00Z'}]});});
  await page.goto('/staff/pre-design');
- await page.getByRole('button',{name:'Security / Usalama'}).click();
+ await page.getByRole('button',{name:'Security'}).click();
  await page.getByLabel('Select an order',{exact:true}).selectOption('internal-two');
  await page.getByRole('button',{name:'Search download history',exact:true}).click();
  await expect.poll(()=>requested).toBe('internal-two');

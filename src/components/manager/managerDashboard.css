@@ -448,9 +448,13 @@
   padding: 0;
   scrollbar-gutter: stable;
 }
+.manager-board:focus-visible {
+  outline: 3px solid #8a6825;
+  outline-offset: -3px;
+}
 .manager-board-empty {
   margin: 28px 8px;
-  color: #a8a29e;
+  color: #635e59;
   font-size: 11px;
   text-align: center;
 }

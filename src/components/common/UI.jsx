@@ -2,29 +2,26 @@ import React from 'react';
 import { ActionButton } from './SoftFlutter';
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import StatePanel from './StatePanel';
+import { useInterfaceText } from '../../i18n/InterfaceText';
 export function Button({ variant = '', className = '', ...props }) {
   return <ActionButton type="button" className={`ui-button ${variant ? `is-${variant}` : ''} ${className}`} {...props} />;
 }
 export function Feedback({ kind = 'info', title, children }) {
+  const tx = useInterfaceText();
   const Icon = kind === 'error' ? AlertCircle : kind === 'success' ? CheckCircle2 : Info;
   return (
     <div className={`ui-feedback is-${kind}`} role={kind === 'error' ? 'alert' : 'status'}>
       <Icon size={20} aria-hidden="true" />
       <div>
-        <strong>{title}</strong>
-        {children && <p>{children}</p>}
+        <strong>{tx(title)}</strong>
+        {children && <div>{tx(children)}</div>}
       </div>
     </div>
   );
 }
 export function EmptyState({ title, description, children }) {
-  return (
-    <section className="ui-empty">
-      <h2>{title}</h2>
-      <p>{description}</p>
-      {children}
-    </section>
-  );
+  return <StatePanel title={title} description={description}>{children}</StatePanel>;
 }
 class Boundary extends React.Component {
   state = { error: false };
@@ -42,12 +39,9 @@ export function PageBoundary({ children }) {
     <Boundary
       fallback={
         <div className="ui-error-boundary">
-          <Feedback kind="error" title={lang === 'sw' ? 'Ukurasa haujafunguka' : 'This page could not open'}>
-            {lang === 'sw'
-              ? 'Jaribu kufungua ukurasa tena. Taarifa zilizohifadhiwa zitabaki.'
-              : 'Reload to try again. Saved information will remain available.'}
-          </Feedback>
-          <Button onClick={() => window.location.reload()}>{lang === 'sw' ? 'Jaribu tena' : 'Reload page'}</Button>
+          <StatePanel kind="error" title={lang === 'sw' ? 'Ukurasa haujafunguka' : 'This page could not open'} description={lang === 'sw' ? 'Fungua ukurasa upya ili kujaribu tena. Mabadiliko ambayo hayajahifadhiwa yanaweza kupotea.' : 'Reload to try again. Changes that have not been saved may be lost.'} onRetry={() => window.location.reload()} retryLabel={lang === 'sw' ? 'Fungua upya' : 'Reload page'}>
+            <a className="ui-button" href={window.location.pathname.startsWith('/staff') ? '/staff' : '/'}>{lang === 'sw' ? 'Rudi mwanzo' : 'Return home'}</a>
+          </StatePanel>
         </div>
       }
     >

@@ -12,7 +12,7 @@ export const requestVerification=options=>new Promise((resolve,reject)=>window.d
 async function otpFlow(challenge,purpose='login'){
  let current=challenge;
  const call=async(path,body)=>{const response=await fetchWithTimeout(`${API_BASE}/api/staff/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return handleResponse(response);};
- return requestVerification({challengeId:current.challengeId,channel:current.channel,allowTrust:purpose==='login',verify:(code,trustDevice=false)=>call(purpose==='login'?'otp/verify':'step-up/verify',{challengeId:current.challengeId,code,trustDevice}),resend:async channel=>{current=await call(purpose==='login'?'otp/resend':'step-up',{challengeId:current.challengeId,channel});return current;}});
+ return requestVerification({challengeId:current.challengeId,channel:current.channel,expiresIn:current.expiresIn,resendAfter:current.resendAfter,allowTrust:purpose==='login',verify:(code,trustDevice=false)=>call(purpose==='login'?'otp/verify':'step-up/verify',{challengeId:current.challengeId,code,trustDevice}),resend:async channel=>{current=await call(purpose==='login'?'otp/resend':'step-up',{challengeId:current.challengeId,channel});return current;}});
 }
 export const DEFAULT_API_TIMEOUT_MS = 25000;
 export const UPLOAD_API_TIMEOUT_MS = 60000;

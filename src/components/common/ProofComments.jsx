@@ -1,3 +1,4 @@
+import StatePanel from './StatePanel';
 import { customerChangeStatusKey } from '../../utils/customerJourney';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ActionButton } from './SoftFlutter';
@@ -25,6 +26,11 @@ export default function ProofComments({
   const { t, lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
   const statusLabel = status => client ? t(`track.comment.${['private', 'submitted', 'open', 'addressed'].includes(status) ? status : 'submitted'}`) : tx(status);
+  const roundStatusLabel = status => client ? t(customerChangeStatusKey(status)) : ({
+    open: ui('Open', 'Wazi'),
+    submitted_for_review: ui('Submitted for review', 'Imewasilishwa kwa ukaguzi'),
+    resolved: ui('Resolved', 'Yametatuliwa'),
+  }[status] || ui('Status unavailable', 'Hali haipatikani'));
   const [filter, setFilter] = useState('all'),
     root = useRef(null);
   const matches = (a) =>
@@ -92,21 +98,13 @@ export default function ProofComments({
           </button>
         </nav>
       </div>
-      {!shown.length && (
-        <p>
-          {tx(
-            annotations.length
-              ? 'No comments match this filter.'
-              : canComment
-                ? 'Select text or an image to add a correction.'
-                : 'No submitted corrections for this version.',
-          )}
-        </p>
-      )}
+      {!shown.length && <StatePanel compact title={annotations.length ? ui('No comments match this filter', 'Hakuna maoni yanayolingana na kichujio') : ui('No comments yet', 'Hakuna maoni bado')} description={canComment ? ui('Select text or an image to add a correction.', 'Chagua maandishi au picha ili kuongeza marekebisho.') : ui('No submitted corrections for this version.', 'Hakuna marekebisho yaliyowasilishwa kwa toleo hili.')}>
+        {annotations.length > 0 && <button className="ui-button" onClick={() => setFilter('all')}>{ui('Clear filter', 'Ondoa kichujio')}</button>}
+      </StatePanel>}
       {Array.from(groups)
         .sort(([a], [b]) => a - b)
         .map(([page, items]) => (
-          <section className="proof-comment-group" key={page} aria-label={`Page ${page} comments`}>
+          <section className="proof-comment-group" key={page} aria-label={ui(`Page ${page} comments`, `Maoni ya ukurasa ${page}`)}>
             <h3>
               <InterfaceText>Page</InterfaceText> {page} <span>{items.length}</span>
             </h3>
@@ -114,7 +112,7 @@ export default function ProofComments({
               <article key={a._id} data-comment-row={a._id} className={focused === a._id ? 'is-focused' : ''}>
                 <button
                   className="proof-comment-card"
-                  aria-label={`Open comment ${a.displayNumber} on page ${a.page}`}
+                  aria-label={ui(`Open comment ${a.displayNumber} on page ${a.page}`, `Fungua maoni ${a.displayNumber} ya ukurasa ${a.page}`)}
                   aria-current={focused === a._id ? 'true' : undefined}
                   onClick={() => onJump(a)}
                 >
@@ -126,14 +124,14 @@ export default function ProofComments({
                   </span>
                   {a.selectedText && <blockquote>{a.selectedText}</blockquote>}
                   <span className="proof-comment-body">{a.text}</span>
-                  <small>{new Date(a.createdAt).toLocaleString()}</small>
+                  <small>{new Date(a.createdAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>
                 </button>
                 <ProofAttachments attachments={a.attachments} reader={reader} />
                 {a.correction && (
                   <div className="proof-comment-response">
                     <small>
                       {client ? ui('Request', 'Ombi') : tx('Round')} {a.correction.roundNumber} ·{' '}
-                      {client ? t(customerChangeStatusKey(a.correction.roundStatus)) : a.correction.roundStatus.replaceAll('_', ' ')}
+                      {roundStatusLabel(a.correction.roundStatus)}
                     </small>
                     {a.correction.designerResponse && (
                       <>
@@ -145,7 +143,7 @@ export default function ProofComments({
                     )}
                     {a.correction.addressedAt && (
                       <small>
-                        {client ? ui('Updated', 'Yamerekebishwa') : tx('Addressed')} {new Date(a.correction.addressedAt).toLocaleString()}
+                        {client ? ui('Updated', 'Yamerekebishwa') : tx('Addressed')} {new Date(a.correction.addressedAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}
                       </small>
                     )}
                   </div>

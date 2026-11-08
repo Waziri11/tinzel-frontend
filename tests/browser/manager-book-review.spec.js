@@ -37,6 +37,7 @@ async function setup(
         managerReview: { status: 'pending' },
       })),
       createdAt: '2026-11-01T10:00:00Z',
+      updatedAt: '2026-11-01T10:00:00Z',
     },
   };
   await page.route('**/api/staff/me', (route) =>
@@ -184,6 +185,7 @@ async function setup(
     },
   );
   await page.goto('/staff/design-phase');
+  await page.getByRole('button', { name: 'Priority Queue (1)', exact: true }).click();
   await page
     .getByRole('button', { name: 'Review magazine', exact: true })
     .first()
@@ -319,9 +321,7 @@ test('notes-only returns are allowed, empty returns are blocked, and failed deci
     .getByRole('dialog', { name: 'Confirm return' })
     .getByRole('button', { name: 'Return to designer', exact: true })
     .click();
-  await expect(page.getByRole('alert')).toContainText(
-    'Decision could not be confirmed.',
-  );
+  await expect(page.getByRole('heading', { name: 'The decision needs attention' })).toBeVisible();
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Change the overall colour palette.',
   );
@@ -344,25 +344,23 @@ test('stale-version decisions preserve notes until an explicit confirmed reload'
     .getByRole('dialog', { name: 'Confirm return' })
     .getByRole('button', { name: 'Return to designer', exact: true })
     .click();
-  await expect(page.getByRole('alert')).toContainText(
-    'changed in another session',
-  );
+  await expect(page.getByRole('heading', { name: 'The decision needs attention' })).toBeVisible();
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Keep these notes until I reload.',
   );
-  page.once('dialog', (d) => d.dismiss());
   await page
     .getByRole('button', { name: 'Reload current draft', exact: true })
     .click();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Keep these notes until I reload.',
   );
   state.order.currentDraftVersion = 3;
   state.order.draftVersions.push({ _id: 'draft-3', versionNumber: 3 });
-  page.once('dialog', (d) => d.accept());
   await page
     .getByRole('button', { name: 'Reload current draft', exact: true })
     .click();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Discard and leave' }).click();
   await expect(
     page.getByText('Magazine version 3', { exact: true }),
   ).toBeVisible();
@@ -375,21 +373,21 @@ test('unsaved comments and notes warn on close while saved corrections survive r
 }) => {
   const state = await setup(page);
   await mark(page, 'Persist this correction');
-  page.once('dialog', (d) => d.dismiss());
   await page.getByRole('button', { name: 'Back to order', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
   await expect(
     page.getByLabel('Correction comment', { exact: true }),
   ).toHaveValue('Persist this correction');
   await page.getByRole('button', { name: 'Save comment', exact: true }).click();
   await expect(page.getByText('Saved', { exact: true })).toBeVisible();
   await page.getByLabel('General notes', { exact: true }).fill('Unsaved note');
-  page.once('dialog', (d) => d.dismiss());
   await page.getByRole('button', { name: 'Back to order', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Unsaved note',
   );
-  page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: 'Back to order', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Discard and leave' }).click();
   await page.getByRole('button', {name: 'Review magazine version 2', exact: true}).click();
   await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   await expect(
@@ -469,7 +467,6 @@ test('unsent notes guard application and browser-back navigation', async ({
   await page
     .getByLabel('General notes', { exact: true })
     .fill('Do not lose these review instructions.');
-  page.once('dialog', (d) => d.dismiss());
   const allowed = await page.evaluate(() =>
     window.dispatchEvent(
       new Event('tinzel:before-navigate', { cancelable: true }),
@@ -480,8 +477,8 @@ test('unsent notes guard application and browser-back navigation', async ({
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Do not lose these review instructions.',
   );
-  page.once('dialog', (d) => d.dismiss());
   await page.goBack();
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
   await expect(page).toHaveURL(/staff\/review\/order-1\/versions\/2/);
   await expect(page.getByLabel('General notes', { exact: true })).toHaveValue(
     'Do not lose these review instructions.',
@@ -591,8 +588,8 @@ test('mobile attachment-only drafts guard navigation and accept paste/drop with 
   await page.setViewportSize({ width: 390, height: 844 }); await setup(page);
   await mark(page, ''); await page.locator('.proof-attachment-editor input').setInputFiles(referenceFile);
   await expect(page.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
-  page.once('dialog', dialog => dialog.dismiss());
   await page.getByLabel('Magazine version', { exact: true }).selectOption('1');
+  await page.getByRole('dialog', { name: 'Leave this review?' }).getByRole('button', { name: 'Keep reviewing' }).click();
   await expect(page.getByLabel('Magazine version', { exact: true })).toHaveValue('2');
   await expect(page.locator('.proof-attachment-editor img')).toHaveCount(1);
   await page.locator('.proof-composer').evaluate((element, base64) => {
@@ -614,4 +611,19 @@ test('mobile attachment-only drafts guard navigation and accept paste/drop with 
   await expect(page.locator('.proof-attachment-editor img')).toHaveCount(4);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.locator('.proof-composer')).toHaveCount(0);
+});
+
+
+test('network failure after a review decision requires checking the saved version', async ({ page }) => {
+  await setup(page);
+  let attempts = 0;
+  await page.route('**/api/manager/orders/order-1/review-draft', route => { attempts++; return route.abort('failed'); });
+  await page.getByLabel('General notes', { exact: true }).fill('Keep these instructions after a connection failure.');
+  await page.getByRole('button', { name: 'Return to designer', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Confirm return' }).getByRole('button', { name: 'Return to designer', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'The decision needs attention' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reload current draft', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Return to designer', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('General notes', { exact: true })).toHaveValue('Keep these instructions after a connection failure.');
+  expect(attempts).toBe(1);
 });

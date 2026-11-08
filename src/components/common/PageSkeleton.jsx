@@ -1,6 +1,8 @@
 import React from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import './pageSkeleton.css';
+import TinzelLogo from './TinzelLogo';
+import './states.css';
 
 function Block({ className = '' }) {
   return <span className={`page-skeleton__block ${className}`} />;
@@ -13,7 +15,7 @@ export default function PageSkeleton({ variant = 'table', title, compact = false
   const form = variant === 'form' || variant === 'detail';
   return (
     <section className={`page-skeleton ${compact ? 'page-skeleton--compact' : ''}`} aria-busy="true" aria-label={label}>
-      <span className="page-skeleton__status" role="status">{label}</span>
+      <div className="page-skeleton__brand" role="status"><TinzelLogo variant="icon" height={24} alt="" /><span>{label}</span></div>
       <div aria-hidden="true">
         {!compact && <div className="page-skeleton__heading"><Block className="is-title" /><Block className="is-subtitle" /></div>}
         {variant === 'dashboard' && <div className="page-skeleton__summary">

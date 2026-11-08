@@ -21,8 +21,8 @@ test('staff language persists, actual channel outcomes are shown, and unconfirme
  await page.getByRole('button',{name:'SW',exact:true}).click();await expect.poll(()=>writes).toEqual(['sw']);
  await page.reload();await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');expect(writes).toEqual(['sw']);
  await page.getByRole('button',{name:'EN',exact:true}).click();
- page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Retry SMS',exact:true}).click();expect(retryBody).toBeUndefined();
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Retry SMS',exact:true}).click();await expect.poll(()=>retryBody).toEqual({channel:'sms',confirmUncertain:true});
+ await page.getByRole('button',{name:'Retry SMS',exact:true}).click();await page.getByRole('dialog',{name:'Retry this message?'}).getByRole('button',{name:'Cancel',exact:true}).click();expect(retryBody).toBeUndefined();
+ await page.getByRole('button',{name:'Retry SMS',exact:true}).click();await page.getByRole('dialog',{name:'Retry this message?'}).getByRole('button',{name:'Retry message',exact:true}).click();await expect.poll(()=>retryBody).toEqual({channel:'sms',confirmUncertain:true});
  await page.screenshot({path:'/tmp/tinzel-workflow-notifications-desktop.png',fullPage:true});
  await page.getByRole('button',{name:'Notification Triggers & Settings'}).click();await expect(page.getByLabel('Printer notification language')).toHaveValue('sw');
  await page.getByLabel('Printer notification language').selectOption('en');await page.getByRole('button',{name:'Save printer language'}).click();await expect(page.getByText('Printer notification language saved.')).toBeVisible();

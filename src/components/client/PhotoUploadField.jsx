@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Image, UploadCloud } from 'lucide-react';
 import { ActionButton } from '../common/SoftFlutter';
 import { errorText } from '../../i18n/errors';
+import StatePanel from '../common/StatePanel';
 import { uploadSummary, uploadIsStalled } from '../../utils/uploadProgress';
 import './photoUploadField.css';
 
@@ -90,7 +91,7 @@ export default function PhotoUploadField({ field, label, helperText, items, uplo
       <span>{ui('Original quality · up to 25 MB per photo', 'Ubora asili · hadi MB 25 kwa picha')}</span>
     </button>
     <input ref={input} id={`upload-${field.fieldId}`} type="file" multiple={field.type === 'photo_group'} disabled={disabled || selecting} accept="image/*" hidden onChange={select} />
-    {error && <p role="alert" className="photo-field__error">{error}</p>}
+    {error && <StatePanel compact kind="error" title={ui('Check this photo selection', 'Hakiki picha ulizochagua')} description={error} />}
     {(items.length > 0 || selecting) && <div className="photo-field__status">
       <p role="status" aria-live="polite" aria-atomic="true" className={ready ? 'photo-field__success' : ''}>
         {ready && <CheckCircle2 size={18} aria-hidden="true" />}
@@ -99,8 +100,8 @@ export default function PhotoUploadField({ field, label, helperText, items, uplo
       </p>
       {busy && <progress aria-label={`${ui('Photo upload progress', 'Maendeleo ya kupakia picha')}: ${label}`} max="100" value={selecting ? undefined : summary.percent} />}
       {busy && <p className="photo-field__hint">{ui('You can keep filling in the form while these photos upload.', 'Unaweza kuendelea kujaza fomu picha hizi zikipakiwa.')}</p>}
-      {uploads.recoveryStatus === 'unavailable' && <p className="photo-field__hint">{ui('Keep this page open', 'Usifunge ukurasa huu')}</p>}
-      {busy && (offline || uploadIsStalled(summary.active, now)) && <p role="status" className="photo-field__notice"><AlertCircle size={16} aria-hidden="true" />{offline ? ui('You are offline. Reconnect, then retry unfinished photos.', 'Huna mtandao. Unganisha tena, kisha jaribu picha ambazo hazijakamilika.') : ui('This is taking longer than usual. Completed photos are saved.', 'Hii inachukua muda zaidi. Picha zilizokamilika zimehifadhiwa.')}</p>}
+      {uploads.recoveryStatus === 'unavailable' && <StatePanel compact kind="warning" title={ui('Keep this page open', 'Usifunge ukurasa huu')} description={ui('This browser cannot save upload recovery. Finish submitting before closing this page.', 'Kivinjari hiki hakiwezi kuhifadhi taarifa za kuendelea kupakia. Kamilisha uwasilishaji kabla ya kufunga ukurasa huu.')} />}
+      {busy && (offline || uploadIsStalled(summary.active, now)) && <StatePanel compact kind="warning" title={offline ? ui('You are offline', 'Huna mtandao') : ui('Your photos are taking longer', 'Picha zako zinachukua muda zaidi')} description={offline ? ui('Reconnect, then retry unfinished photos. Completed photos remain saved.', 'Unganisha tena, kisha jaribu picha ambazo hazijakamilika. Picha zilizokamilika zimehifadhiwa.') : ui('Completed photos are saved. Wait for the remaining files, or retry any that fail.', 'Picha zilizokamilika zimehifadhiwa. Subiri faili zilizobaki, au jaribu tena zilizoshindikana.')} />}
     </div>}
     {items.length > 0 && <ul className="photo-field__photos">
       {items.map(item => <li key={item.id} className="photo-field__photo">

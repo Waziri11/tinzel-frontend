@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { navigate as navigateLocation } from '../../navigation/location';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { EmptyState, Button } from './UI';
+import { EmptyState, Button, Feedback } from './UI';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
@@ -174,6 +174,12 @@ export default function StaffWorkspace({ onExitToHome }) {
   );
   const loginInFlight = useRef(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [accountReady, setAccountReady] = useState(false);
+  useEffect(() => {
+    if (!accountReady) return;
+    const timer = setTimeout(() => setAccountReady(false), 10000);
+    return () => clearTimeout(timer);
+  }, [accountReady]);
   useEffect(() => {
     if (currentUser) draftUploads.setOwner(currentUser._id || currentUser.id);
   }, [currentUser?._id, currentUser?.id]);
@@ -249,12 +255,6 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
   useEffect(() => {
     const pop = (event) => {
-      // Ask the active editor before changing routes on native Back/Forward.
-      // Programmatic navigation already performs this check in navigateLocation.
-      if (event.isTrusted && !window.dispatchEvent(new Event('tinzel:before-navigate', {cancelable:true}))) {
-        window.history.pushState({}, '', staffLocation.current);
-        return;
-      }
       staffLocation.current = window.location.href;
       const route = readRoute();
       setActivePage(route.page);
@@ -300,7 +300,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       localStorage.removeItem('tinzel_staff_token');
       setError(
         event?.detail?.message ||
-          'Your session has expired or is invalid. Please sign in again.',
+          ui('Your session has ended. Sign in again to continue.', 'Kipindi chako kimeisha. Ingia tena ili kuendelea.'),
       );
     };
     window.addEventListener('tinzel:staff:unauthorized', onUnauthorized);
@@ -342,7 +342,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         localStorage.removeItem('tinzel_staff_token');
       } else {
         setError(
-          'Unable to reconnect to your workspace. Please check your backend connection or sign in again.',
+          ui('We could not reconnect to your workspace. Check your connection and try again.', 'Hatukuweza kuunganisha eneo lako la kazi. Hakiki mtandao kisha ujaribu tena.'),
         );
       }
     } finally {
@@ -366,7 +366,7 @@ export default function StaffWorkspace({ onExitToHome }) {
       // state into the authenticated workspace. Keep sign-in locked until we leave.
       window.location.replace(staffEntryPath(data.user));
     } catch (err) {
-      setError(err.message || 'Login failed. Please verify your credentials.');
+      setError(err.message || ui('Sign-in did not complete. Check your details and try again.', 'Kuingia hakujakamilika. Hakiki taarifa zako kisha ujaribu tena.'));
       setCaptchaToken('');setCaptchaReset(x=>x+1);
       loginInFlight.current = false;
       setLoading(false);
@@ -374,6 +374,7 @@ export default function StaffWorkspace({ onExitToHome }) {
   };
 
   const handleLogout = async () => {
+    setAccountReady(false);
     clearTransfers();
     draftUploads.reset();
     const currentToken = token;
@@ -429,6 +430,7 @@ export default function StaffWorkspace({ onExitToHome }) {
         user={currentUser}
         onLogout={handleLogout}
         onComplete={(data) => {
+          setAccountReady(true);
           setCurrentUser(data.user);
           setToken(data.token);
           localStorage.removeItem('tinzel_staff_token');
@@ -521,7 +523,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               lineHeight: 1.5,
             }}
           >
-            {error || 'Reconnecting to your workspace…'}
+            {error || ui('Reconnecting to your workspace…', 'Tunaunganisha eneo lako la kazi tena…')}
           </p>
           <div
             style={{
@@ -549,7 +551,7 @@ export default function StaffWorkspace({ onExitToHome }) {
                   cursor: 'pointer',
                 }}
               >
-                {loading ? 'Reconnecting…' : 'Retry connection'}
+                {loading ? ui('Reconnecting…', 'Inaunganisha tena…') : ui('Retry connection', 'Jaribu kuunganisha tena')}
               </ActionButton>
             )}
             <ActionButton
@@ -663,25 +665,7 @@ export default function StaffWorkspace({ onExitToHome }) {
               </h1>
             </div>
 
-            {error && (
-              <div
-                style={{
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FCA5A5',
-                  borderRadius: '6px',
-                  padding: '10px 14px',
-                  marginBottom: '20px',
-                  fontSize: '13px',
-                  color: '#991B1B',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </div>
-            )}
+            {error && <Feedback kind="error" title={ui('Sign-in needs attention', 'Kuingia kunahitaji kuangaliwa')}>{error}</Feedback>}
 
             {recovering && <PasswordRecovery initialEmail={email} onClose={()=>setRecovering(false)} />}
             <form
@@ -1150,6 +1134,10 @@ export default function StaffWorkspace({ onExitToHome }) {
         {/* Viewport Dynamic Page Render based on RBAC */}
         <ConfigProvider theme={tinzelAntdTheme}>
           <SecurityCenter user={currentUser} /><div className="staff-content" style={{ padding: '32px', flex: 1 }}>
+            {accountReady && <div style={{ marginBottom: 20 }}>
+              <Feedback kind="success" title={ui('Your account is ready', 'Akaunti yako iko tayari')}>{ui('Your password has been saved. You can now use your workspace.', 'Nenosiri lako limehifadhiwa. Sasa unaweza kutumia sehemu yako ya kazi.')}</Feedback>
+              <button type="button" className="ui-button" onClick={() => setAccountReady(false)} aria-label={ui('Dismiss confirmation', 'Funga uthibitisho')}>{ui('Dismiss', 'Funga')}</button>
+            </div>}
             <Suspense
               fallback={
                 <PageSkeleton

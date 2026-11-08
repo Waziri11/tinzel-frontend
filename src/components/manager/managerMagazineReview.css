@@ -118,3 +118,7 @@
 .magazine-draft-card .primary-button { background:var(--accent-primary,#805d1f); color:#fff; border-color:var(--accent-primary,#805d1f); }
 .magazine-review-page > button { margin-bottom:12px; }
 .magazine-draft-card button:focus-visible, .magazine-review-heading button:focus-visible { outline:3px solid var(--focus,#805d1f); outline-offset:3px; }
+
+.magazine-draft-cover:has(.tinzel-state) { height:auto; min-height:280px; }
+.magazine-draft-cover .tinzel-state { width:100%; text-align:left; margin:0; }
+.magazine-draft-cover .tinzel-state .tinzel-state__symbol img { width:auto; height:38px; }

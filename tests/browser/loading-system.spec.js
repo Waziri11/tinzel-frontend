@@ -27,7 +27,7 @@ test('reduced motion uses a static butterfly', async ({ page }) => {
     image: getComputedStyle(el).backgroundImage,
   }));
   expect(result.animation).toBe('none');
-  expect(result.image).toContain('soft-flutter-poster.webp');
+  expect(result.image).toContain('tinzel-butterfly');
   await page.evaluate(() => window.finishAction());
 });
 
@@ -95,6 +95,7 @@ test('file uploads keep an indeterminate confirmation bar until the server accep
 
 test('keyboard submission shows flutter only on the submitted action', async ({ page }) => {
   await page.goto('/tests/loading-harness.html');
+  await page.getByRole('button', { name: 'Unrelated action' }).click();
   await page.getByLabel('Form value').fill('example');
   await page.getByLabel('Form value').press('Enter');
   await expect(page.getByRole('button', { name: 'Submit form' }).locator('.soft-flutter')).toBeVisible();

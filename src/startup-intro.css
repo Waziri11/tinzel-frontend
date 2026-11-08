@@ -23,13 +23,11 @@ html.tinzel-intro-active { overflow: hidden; }
   background: url('/brand/soft-flutter-poster.webp') center / contain no-repeat;
 }
 #tinzel-intro.is-playing .intro-butterfly {
-  background-image: url('/brand/soft-flutter-atlas.webp');
-  background-position: left;
-  background-size: 9600% 100%;
-  animation: intro-flutter 4.04s steps(95, end) forwards;
+  animation: intro-flutter 1.8s ease-in-out infinite;
 }
-/* Move across the 96 frames once, resting on the final pose. */
-@keyframes intro-flutter { to { background-position: right; } }
+@keyframes intro-flutter {
+  50% { transform: translateY(-5px) scaleX(.94); }
+}
 
 .intro-name {
   width: min(218px, 54vw, 50svh);

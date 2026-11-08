@@ -1,4 +1,5 @@
 import PageSkeleton from './PageSkeleton';
+import StatePanel, { StateError } from './StatePanel';
 import { ActionButton, InlineLoading } from './SoftFlutter';
 import React, { useState, useEffect, useRef } from 'react';
 import AdminSystemSettings from '../admin/AdminSystemSettings';
@@ -19,14 +20,15 @@ function SystemOverview({ token }) {
     [loading, setLoading] = useState({}),
     [errors, setErrors] = useState({});
   const [initialLoading, setInitialLoading] = useState(true);
-  const refresh = async () => {
-    await Promise.all(['runtime', 'storage', 'messaging'].map(async name => {
+  const refresh = async (only) => {
+    const names = typeof only === 'string' ? [only] : ['runtime', 'storage', 'messaging'];
+    await Promise.all(names.map(async name => {
       setLoading((x) => ({ ...x, [name]: true }));
       setErrors((x) => ({ ...x, [name]: false }));
       await api.system
         .section(token, name)
         .then((data) => setSections((x) => ({ ...x, [name]: data })))
-        .catch(() => setErrors((x) => ({ ...x, [name]: true })))
+        .catch((error) => setErrors((x) => ({ ...x, [name]: error })))
         .finally(() => setLoading((x) => ({ ...x, [name]: false })));
     }));
     setInitialLoading(false);
@@ -103,14 +105,8 @@ function SystemOverview({ token }) {
               {loading[name] && (
                 <InlineLoading>{t('Refreshing…', 'Inasasisha…')}</InlineLoading>
               )}
-              {errors[name] && (
-                <p role="alert">
-                  {t(
-                    'Measurement unavailable. Try refreshing.',
-                    'Takwimu hazipatikani. Jaribu tena.',
-                  )}
-                </p>
-              )}
+              {errors[name] && <StateError compact error={errors[name]} title={t('Measurement unavailable', 'Takwimu hazipatikani')} onRetry={() => refresh(name)} />}
+              {errors[name] && data && <StatePanel compact kind="warning" title={t('Showing the last measurement', 'Inaonyesha kipimo cha mwisho')} description={t('These values may be out of date. Other sections remain available.', 'Thamani hizi zinaweza kuwa za zamani. Sehemu nyingine zinaendelea kupatikana.')} />}
               {data && (
                 <>
                   {name === 'runtime' ? (
@@ -181,11 +177,11 @@ function SystemOverview({ token }) {
                     <>
                       {row(
                         t('SMS credits remaining', 'SMS zilizobaki'),
-                        data.sms.remaining,
+                        data.sms?.remaining,
                       )}
                       {row(
                         t('SMS gateway', 'Huduma ya SMS'),
-                        !data.sms.configured
+                        !data.sms ? no : !data.sms.configured
                           ? configured(false)
                           : data.sms.connected
                             ? t('Connected', 'Imeunganishwa')
@@ -193,9 +189,9 @@ function SystemOverview({ token }) {
                       )}
                       {row(
                         t('Email', 'Barua pepe'),
-                        configured(data.email.configured),
+                        data.email ? configured(data.email.configured) : no,
                       )}
-                      {row('WhatsApp', configured(data.whatsapp.configured))}
+                      {row('WhatsApp', data.whatsapp ? configured(data.whatsapp.configured) : no)}
                     </>
                   )}
                   <small style={{ display: 'block', marginTop: 16 }}>

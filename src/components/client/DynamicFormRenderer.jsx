@@ -1,4 +1,4 @@
-import { requirePhone } from '../../utils/phone';
+import { normalizePhone, requirePhone } from '../../utils/phone';
 import { errorText } from '../../i18n/errors';
 import PhoneInput from '../common/PhoneInput';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -26,9 +26,12 @@ import PhotoUploadField, { PhotoPreview } from './PhotoUploadField';
 import PageSkeleton from '../common/PageSkeleton';
 import BrandLoading, { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
 
 export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavigateToTracking }) {
   const { t, lang } = useLanguage();
+  const confirm = useConfirm();
   const steps = ['details', 'story', 'photos', 'review'];
   const readStep = () => {
     const value = new URLSearchParams(window.location.search).get('step');
@@ -51,6 +54,10 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [focusField, setFocusField] = useState(null);
 
   useLayoutEffect(() => {
     if (loading || !stepHeading.current) return;
@@ -75,29 +82,60 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const draftKey = 'tinzel:answers:v2:' + slug;
   const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftStatus, setDraftStatus] = useState('idle');
+  const [uncertain, setUncertain] = useState(false);
+  const [resumeSaving, setResumeSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [slowSubmit, setSlowSubmit] = useState(false);
+  const draftDiscardBlocked = submitting || checking || uncertain || resumeSaving;
   const ui = (en, sw) => (lang === 'sw' ? sw : en);
 
-  const clearSavedDraft = () => {
-    if (
-      !window.confirm(
-        ui(
+  const clearSavedDraft = async () => {
+    if (draftDiscardBlocked) return;
+    if (!(await confirm({ title: ui('Clear saved answers?', 'Ufute majibu yaliyohifadhiwa?'), description: ui(
           'Discard your saved answers? Uploaded photographs will remain available separately.',
           'Ufute majibu yaliyohifadhiwa? Picha zilizopakiwa zitabaki kando.',
-        ),
-      )
-    )
-      return;
+        ), confirmLabel: ui('Clear answers', 'Futa majibu'), danger: true }))) return;
     try {
       localStorage.removeItem(draftKey);
     } catch {
-      /* optional recovery */
+      setError(ui('This browser could not clear the saved answers. Your answers are still here.', 'Kivinjari hiki hakikuweza kufuta majibu yaliyohifadhiwa. Majibu yako bado yapo.'));
+      return;
     }
     setClientName('');
     setClientWhatsApp('');
     setClientEmail('');
     setAnswers({});
     setHasSavedDraft(false);
+    setDraftRestored(false);
+    setDraftStatus('idle');
+    setFieldErrors({});
   };
+
+  useEffect(() => {
+    if (!focusField) return;
+    const element = document.getElementById(focusField) || document.querySelector(`[data-order-field="${CSS.escape(focusField)}"] input, [data-order-field="${CSS.escape(focusField)}"] textarea, [data-order-field="${CSS.escape(focusField)}"] select, [data-order-field="${CSS.escape(focusField)}"] button`);
+    if (element) { element.focus(); element.scrollIntoView({ block: 'center' }); setFocusField(null); }
+  }, [focusField, step]);
+  useEffect(() => {
+    setSlowSubmit(false);
+    if (!submitting) return;
+    const timer = setTimeout(() => setSlowSubmit(true), 12000);
+    return () => clearTimeout(timer);
+  }, [submitting]);
+  const unfinishedUploads = uploads.items.some(item => item.state !== 'complete');
+  useEffect(() => {
+    const needsWarning = !submissionResult && (submitting || uncertain || unfinishedUploads || (draftStatus !== 'saved' && Boolean(clientName || clientWhatsApp || clientEmail || Object.keys(answers).length)));
+    if (!needsWarning) return;
+    const unload = event => { event.preventDefault(); event.returnValue = ''; };
+    const leave = event => {
+      if (event.detail?.path?.split('?')[0] === window.location.pathname && !submitting) return;
+      event.detail?.waitUntil?.(confirm({ title: ui('Leave this order?', 'Uondoke kwenye oda hii?'), description: ui('Some work is still being saved or uploaded. Stay here to finish and check the result.', 'Baadhi ya taarifa bado zinahifadhiwa au kupakiwa. Baki hapa ukamilishe na uhakiki matokeo.'), confirmLabel: ui('Leave page', 'Ondoka'), cancelLabel: ui('Stay here', 'Baki hapa') }));
+    };
+    window.addEventListener('beforeunload', unload); window.addEventListener('tinzel:before-navigate', leave);
+    return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', leave); };
+  }, [submissionResult, submitting, uncertain, unfinishedUploads, draftStatus, clientName, clientWhatsApp, clientEmail, answers, lang, confirm]);
 
   useEffect(() => {
     if (!submissionResult) return;
@@ -109,6 +147,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     let active = true;
     setLoading(true);
     setError(null);
+    setLoadError(null);
     setSubmissionResult(null);
     let draft = {};
     let loadedFromDraft = false;
@@ -136,6 +175,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       /* optional recovery */
     }
     setHasSavedDraft(loadedFromDraft);
+    setDraftRestored(loadedFromDraft);
     setClientName(draft.clientName || '');
     setClientWhatsApp(draft.clientWhatsApp || '');
     setClientEmail(draft.clientEmail || '');
@@ -147,7 +187,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         if (active) setForm(data.form);
       })
       .catch((err) => {
-        if (active) setError(errorText(err.message, err.status) || t('form.loadFailed'));
+        if (active) setLoadError(err);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -155,10 +195,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, loadAttempt]);
 
   useEffect(() => {
     if (restoredSlug !== slug || submissionResult) return;
+    setDraftStatus('saving');
     const timer = setTimeout(() => {
       try {
         const hasContent = Boolean(
@@ -173,29 +214,52 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             }),
           );
           setHasSavedDraft(true);
+          setDraftStatus('saved');
         } else {
           localStorage.removeItem(draftKey);
           setHasSavedDraft(false);
+          setDraftStatus('idle');
         }
       } catch {
-        /* optional recovery */
+        setDraftStatus('unavailable');
       }
     }, 300);
     return () => clearTimeout(timer);
   }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, submissionResult]);
 
-  const handleFieldChange = (fieldId, value) => setAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  const handleFieldChange = (fieldId, value) => { setAnswers((prev) => ({ ...prev, [fieldId]: value })); setFieldErrors(previous => ({ ...previous, [fieldId]: null })); };
+  const validateDetails = () => {
+    const errors = {};
+    if (!clientName.trim()) errors['magazine-client-name'] = ui('Enter your name.', 'Weka jina lako.');
+    if (!normalizePhone(clientWhatsApp)) errors['magazine-client-whatsapp'] = ui('Enter a valid phone number with its country code.', 'Weka namba sahihi ya simu pamoja na msimbo wa nchi.');
+    const email = document.getElementById('magazine-client-email');
+    if (email && !email.checkValidity()) errors['magazine-client-email'] = ui('Enter a valid email address or leave this blank.', 'Weka barua pepe sahihi au acha wazi.');
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) { goStep('details'); setError(ui('Check the highlighted details.', 'Hakiki taarifa zilizoainishwa.')); setFocusField(Object.keys(errors)[0]); return false; }
+    return true;
+  };
+  const markMissing = missing => {
+    const message = t('form.errRequired', { label: L(missing, 'label') });
+    setFieldErrors(previous => ({ ...previous, [missing.fieldId]: message })); setError(message); setFocusField(missing.fieldId);
+  };
+  const checkSavedResult = async () => {
+    setChecking(true); setError(null);
+    try {
+      const remote = await uploads.checkSubmission();
+      if (remote.result) { setSubmissionResult(remote.result); setUncertain(false); setHasSavedDraft(false); try { localStorage.removeItem(draftKey); } catch {} }
+      else if (remote.state === 'open') { setUncertain(false); setError(ui('No submitted order was found for this draft. Your answers are still here; review and submit when ready.', 'Hakuna oda iliyowasilishwa kwa rasimu hii. Majibu yako bado yapo; hakiki na uwasilishe ukiwa tayari.')); }
+      else if (remote.state === 'finalizing') { setUncertain(false); setResumeSaving(true); setError(null); }
+      else setError(ui('Your order is still being confirmed. Check again shortly before submitting anything else.', 'Oda yako bado inathibitishwa. Hakiki tena baada ya muda mfupi kabla ya kuwasilisha tena.'));
+    } catch (failure) { setError(errorText(failure.message, failure.status)); }
+    finally { setChecking(false); }
+  };
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (step !== 'review') {
       advance();
       return;
     }
-    if (!clientName.trim() || !clientWhatsApp.trim()) {
-      goStep('details');
-      setError(t('form.errNamePhone'));
-      return;
-    }
+    if (uncertain || submitting || !validateDetails()) return;
     const missing = (form?.fields || []).find((field) => {
       if (!field.required) return false;
       if (['photo_upload', 'photo_group'].includes(field.type)) return !(fieldPhotos[field.fieldId] || []).length;
@@ -208,7 +272,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     });
     if (missing) {
       goStep(['photo_upload', 'photo_group'].includes(missing.type) ? 'photos' : 'story');
-      setError(t('form.errRequired', { label: L(missing, 'label') }));
+      markMissing(missing);
       return;
     }
     setSubmitting(true);
@@ -230,6 +294,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       }
     } catch (err) {
       setError(errorText(err.message, err.status) || t('form.errSubmit'));
+      if (err.submissionUncertain) setUncertain(true);
     } finally {
       setSubmitting(false);
     }
@@ -237,17 +302,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
   const advance = () => {
     setError(null);
-    if (step === 'details') {
-      if (!clientName.trim() || !clientWhatsApp.trim()) {
-        setError(t('form.errNamePhone'));
-        return;
-      }
-      const email = document.getElementById('magazine-client-email');
-      if (email && !email.checkValidity()) {
-        email.reportValidity();
-        return;
-      }
-    }
+    if (step === 'details' && !validateDetails()) return;
     if (step === 'story') {
       const missing = (form?.fields || []).find(
         (field) =>
@@ -264,7 +319,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               : !String(answers[field.fieldId] ?? '').trim()),
       );
       if (missing) {
-        setError(t('form.errRequired', { label: L(missing, 'label') }));
+        markMissing(missing);
         return;
       }
     }
@@ -276,7 +331,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           !(fieldPhotos[field.fieldId] || []).length,
       );
       if (missing) {
-        setError(t('form.errRequired', { label: L(missing, 'label') }));
+        markMissing(missing);
         return;
       }
     }
@@ -316,24 +371,9 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   }
 
   if (!form) {
-    return (
-      <div
-        style={{
-          backgroundColor: '#FDF0EE',
-          border: '1px solid var(--accent-danger)',
-          borderRadius: '8px',
-          padding: '24px',
-          color: 'var(--accent-danger)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <AlertCircle size={20} />
-          <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{t('form.notFound')}</h3>
-        </div>
-        <p style={{ fontSize: '14px' }}>{error || t('form.notFoundSlug', { slug })}</p>
-        <Button onClick={() => window.location.reload()}>{ui('Try again', 'Jaribu tena')}</Button>
-      </div>
-    );
+    return loadError?.status === 404 || (!loadError && !loading)
+      ? <StatePanel kind="warning" title={ui('This edition is unavailable', 'Toleo hili halipatikani')} description={ui('It may no longer be accepting orders. Choose another edition to continue.', 'Huenda halipokei oda kwa sasa. Chagua toleo jingine ili kuendelea.')}><Button variant="primary" onClick={() => navigate('/catalogue')}>{ui('Browse editions', 'Angalia matoleo')}</Button></StatePanel>
+      : <StateError error={loadError} onRetry={() => setLoadAttempt(value => value + 1)} title={ui('We could not open this edition', 'Hatukuweza kufungua toleo hili')} />;
   }
 
   // Derive form sections or provide standard default section
@@ -375,86 +415,23 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           </button>
         ))}
       </nav>
-      {error && (
-        <div
-          role="alert"
-          tabIndex={-1}
-          style={{
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #DC2626',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            marginBottom: '20px',
-            color: '#991B1B',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '13px',
-          }}
-        >
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {hasSavedDraft && (
-        <div
-          role="status"
-          style={{
-            backgroundColor: '#F8FAFC',
-            border: '1px solid #CBD5E1',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            fontSize: '13px',
-            color: '#334155',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <RotateCcw size={15} style={{ color: '#64748B', flexShrink: 0 }} />
-            <span>
-              {ui(
-                'Draft restored from this browser (auto-expires in 24 hours).',
-                'Rasimu imerejeshwa kutoka kwenye kivinjari hiki (inaisha baada ya saa 24).',
-              )}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={clearSavedDraft}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              border: '1px solid #DC2626',
-              backgroundColor: '#FFFFFF',
-              color: '#DC2626',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Trash2 size={13} />
-            {ui('Clear saved draft', 'Futa rasimu')}
-          </button>
-        </div>
-      )}
+      {error && <StatePanel compact kind="error" title={ui('Please check your order', 'Tafadhali hakiki oda yako')} description={error} />}
+      {uncertain && <StatePanel kind="warning" title={ui('The submission result is unconfirmed', 'Matokeo ya uwasilishaji hayajathibitishwa')} description={ui('The connection ended before we could confirm the result. Check whether this order was saved before submitting again.', 'Muunganisho ulikatika kabla hatujathibitisha matokeo. Hakiki kama oda ilihifadhiwa kabla ya kuwasilisha tena.')}><Button disabled={checking} onClick={checkSavedResult}>{checking ? ui('Checking saved order…', 'Tunahakiki oda iliyohifadhiwa…') : ui('Check saved order', 'Hakiki oda iliyohifadhiwa')}</Button></StatePanel>}
+      {resumeSaving && !uncertain && <StatePanel compact kind="warning" title={ui('This order needs to finish saving', 'Oda hii inahitaji kukamilisha kuhifadhiwa')} description={ui('Your original submitted details are being kept. Use Finish saving below to resume this same order.', 'Taarifa zako ulizowasilisha awali zinahifadhiwa. Tumia Kamilisha kuhifadhi hapa chini kuendeleza oda hii hiyo.')} />}
+      {slowSubmit && <StatePanel compact kind="info" title={ui('This is taking longer than usual', 'Hii inachukua muda zaidi')} description={ui('Keep this page open while we finish. We will show confirmation when your order is saved.', 'Usifunge ukurasa huu tunapokamilisha. Tutaonyesha uthibitisho oda yako ikihifadhiwa.')} />}
+      {hasSavedDraft && draftStatus === 'saved' && <StatePanel compact kind="info" title={draftRestored ? ui('Your saved answers were restored', 'Majibu yako yaliyohifadhiwa yamerejeshwa') : ui('Answers saved in this browser', 'Majibu yamehifadhiwa kwenye kivinjari hiki')} description={ui('Saved answers expire after 24 hours. They become an order only after you submit.', 'Majibu yaliyohifadhiwa yanaisha baada ya saa 24. Yanakuwa oda baada ya kuwasilisha tu.')}><Button disabled={draftDiscardBlocked} onClick={clearSavedDraft}>{ui('Clear saved draft', 'Futa rasimu')}</Button></StatePanel>}
+      {draftStatus === 'saving' && <p role="status">{ui('Saving answers in this browser…', 'Tunahifadhi majibu kwenye kivinjari hiki…')}</p>}
+      {draftStatus === 'unavailable' && <StatePanel compact kind="warning" title={ui('This browser cannot save your answers', 'Kivinjari hiki hakiwezi kuhifadhi majibu yako')} description={ui('Keep this page open until you submit. Your entered answers are still available on this page.', 'Usifunge ukurasa huu hadi uwasilishe. Majibu uliyoweka bado yapo kwenye ukurasa huu.')} />}
 
       {/* Main Form Fields */}
       <form noValidate onSubmit={handleSubmit}>
-        {uploads.notice && <p role="status">{uploads.notice}</p>}
+        {uploads.notice && <StatePanel compact kind="warning" title={ui('Check photo recovery', 'Hakiki urejeshaji wa picha')} description={uploads.recoveryStatus === 'unavailable' ? ui('This browser cannot save upload recovery. Keep this page open until you submit.', 'Kivinjari hiki hakiwezi kuhifadhi taarifa za kuendelea kupakia. Usifunge ukurasa huu hadi uwasilishe.') : errorText(uploads.notice)} />}
         <fieldset
-          disabled={submitting}
+          disabled={submitting || uncertain}
           aria-label={ui('Magazine order details', 'Taarifa za oda ya jarida')}
           style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
         >
+          <fieldset disabled={resumeSaving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* Contact Information Section */}
           <div
             hidden={step !== 'details'}
@@ -508,12 +485,14 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 </label>
                 <input
                   id="magazine-client-name"
+                  aria-invalid={Boolean(fieldErrors['magazine-client-name'])}
+                  aria-describedby={fieldErrors['magazine-client-name'] ? 'magazine-client-name-error' : undefined}
                   autoComplete="name"
                   type="text"
                   required
                   placeholder={t('form.fullNamePh')}
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  onChange={(e) => { setClientName(e.target.value); setDraftRestored(false); setFieldErrors(previous => ({ ...previous, 'magazine-client-name': null })); } }
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -525,6 +504,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     outline: 'none',
                   }}
                 />
+                {fieldErrors['magazine-client-name'] && <p id="magazine-client-name-error" style={{ color: 'var(--accent-danger)' }}>{fieldErrors['magazine-client-name']}</p>}
               </div>
 
               <div>
@@ -542,12 +522,14 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 </label>
                 <PhoneInput
                   id="magazine-client-whatsapp"
+                  aria-invalid={Boolean(fieldErrors['magazine-client-whatsapp'])}
+                  aria-describedby={fieldErrors['magazine-client-whatsapp'] ? 'magazine-client-whatsapp-error' : undefined}
                   type="tel"
                   autoComplete="tel"
                   required
                   placeholder="e.g. +255712345678"
                   value={clientWhatsApp}
-                  onChange={(e) => setClientWhatsApp(e.target.value)}
+                  onChange={(e) => { setClientWhatsApp(e.target.value); setDraftRestored(false); setFieldErrors(previous => ({ ...previous, 'magazine-client-whatsapp': null })); } }
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -558,6 +540,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                     fontSize: '14px',
                   }}
                 />
+                {fieldErrors['magazine-client-whatsapp'] && <p id="magazine-client-whatsapp-error" style={{ color: 'var(--accent-danger)' }}>{fieldErrors['magazine-client-whatsapp']}</p>}
               </div>
             </div>
 
@@ -576,11 +559,13 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               </label>
               <input
                 id="magazine-client-email"
+                aria-invalid={Boolean(fieldErrors['magazine-client-email'])}
+                aria-describedby={fieldErrors['magazine-client-email'] ? 'magazine-client-email-error' : undefined}
                 autoComplete="email"
                 type="email"
                 placeholder={t('form.emailPh')}
                 value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
+                onChange={(e) => { setClientEmail(e.target.value); setDraftRestored(false); setFieldErrors(previous => ({ ...previous, 'magazine-client-email': null })); } }
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -591,6 +576,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   fontSize: '14px',
                 }}
               />
+                {fieldErrors['magazine-client-email'] && <p id="magazine-client-email-error" style={{ color: 'var(--accent-danger)' }}>{fieldErrors['magazine-client-email']}</p>}
             </div>
           </div>
 
@@ -667,6 +653,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 {/* Questions in this Section */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {sectionFields.map((field) => {
+                    const content = (() => {
                     if (field.type === 'photo_group' || field.type === 'photo_upload') {
                       return <PhotoUploadField key={field.fieldId} field={field}
                         label={L(field, 'label')} helperText={L(field, 'helperText')}
@@ -974,6 +961,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                         />
                       </div>
                     );
+                    })();
+                    return <div key={field.fieldId} data-order-field={field.fieldId} role="group" aria-label={L(field, 'label')} aria-invalid={Boolean(fieldErrors[field.fieldId])} aria-describedby={fieldErrors[field.fieldId] ? `error-${field.fieldId}` : undefined}>
+                      {content}
+                      {fieldErrors[field.fieldId] && <p id={`error-${field.fieldId}`} style={{ color: 'var(--accent-danger)' }}>{fieldErrors[field.fieldId]}</p>}
+                    </div>;
                   })}
                 </div>
               </div>
@@ -1050,6 +1042,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
               </Button>
             )}
           </div>
+          </fieldset>
+          {step === 'review' && unfinishedUploads && <StatePanel compact kind="info" title={ui('Some photos are not ready yet', 'Baadhi ya picha bado hazijakamilika')} description={ui('Submission will wait for active uploads. Return to Photographs to retry or reselect files that need attention.', 'Uwasilishaji utasubiri picha zinazopakiwa. Rudi kwenye Picha ujaribu tena au uchague faili zinazohitaji msaada.')} />}
           {/* Submit Action Card */}
           <div
             hidden={step !== 'review'}
@@ -1076,7 +1070,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             <button
               className="tinzel-submit-button"
               type="submit"
-              disabled={submitting}
+              disabled={submitting || uncertain}
               style={{
                 display: 'flex',
                 maxWidth: '100%',
@@ -1102,7 +1096,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                 </>
               ) : (
                 <>
-                  {t('form.continuePay')} <ArrowRight size={18} />
+                  {resumeSaving ? ui('Finish saving this order', 'Kamilisha kuhifadhi oda hii') : t('form.continuePay')} <ArrowRight size={18} />
                 </>
               )}
             </button>

@@ -1,3 +1,6 @@
+import StatePanel, { StateError } from './StatePanel';
+import { Feedback } from './UI';
+import { useConfirm } from './ConfirmDialog';
 import PhoneInput from './PhoneInput';
 import PageSkeleton from './PageSkeleton';
 import { ActionButton } from './SoftFlutter';
@@ -14,23 +17,37 @@ const activity = {
 };
 export default function AccountSecurity({ user }) {
   const { lang } = useLanguage(), t = (en, sw) => lang === 'sw' ? sw : en;
+  const confirmAction = useConfirm();
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [refreshError, setRefreshError] = useState(null);
   const [email, setEmail] = useState(''), [phone, setPhone] = useState(''), [evidence, setEvidence] = useState(''), [confirmed, setConfirmed] = useState(false), [message, setMessage] = useState('');
-  const reload = async () => setData(await securityRequest('staff/security'));
-  useEffect(() => { let active = true; securityRequest('staff/security').then(result => { if (active) setData(result); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, []);
-  const run = async fn => { setBusy(true); setError(''); setMessage(''); try { await fn(); } catch (e) { setError(e.message); } finally { setBusy(false); } };
-  const revoke = (kind, id) => run(async () => { const result = await securityRequest('staff/security/revoke', { kind, id }); if (result.signedOut) window.location.reload(); else await reload(); });
+  const reload = async () => {
+    setRefreshError(null);
+    try { setData(await securityRequest('staff/security')); }
+    catch (err) { setRefreshError(err); }
+  };
+  const refreshActivity = async () => { setBusy(true); try { await reload(); } finally { setBusy(false); } };
+  useEffect(() => { let active = true; securityRequest('staff/security').then(result => { if (active) setData(result); }).catch(e => { if (active) setRefreshError(e); }); return () => { active = false; }; }, []);
+  const run = async fn => { setBusy(true); setError(''); setMessage(''); try { await fn(); } catch (e) { setError(e); } finally { setBusy(false); } };
+  const revoke = async (kind, id) => { if (!(await confirmAction({ title: t('Remove this access?', 'Ondoa ufikiaji huu?'), description: t('This session will end, or the device will require verification next time.', 'Kipindi hiki kitakoma, au kifaa kitahitaji uthibitishaji kitakapotumika tena.'), danger: true }))) return; return run(async () => { const result = await securityRequest('staff/security/revoke', { kind, id }); if (result.signedOut) window.location.reload(); else {
+      setMessage(t('Access has been removed.', 'Ufikiaji umeondolewa.'));
+      const collection = kind === 'session' ? 'sessions' : 'devices';
+      setData(current => current ? { ...current, [collection]: current[collection].filter(item => item.id !== id) } : current);
+      await reload();
+    } }); };
   const date = value => value ? new Date(value).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-GB') : t('Unavailable', 'Haipatikani');
   return <section aria-label={t('Account access', 'Ufikiaji wa akaunti')}>
     <h3>{t('Your sessions and devices', 'Vipindi na vifaa vyako')}</h3>
     <p>{t('Removing a trusted device requires SMS verification at its next sign-in. Revoke its active session too to end current access.', 'Kuondoa kifaa kilichoaminika kutahitaji SMS kinapoingia tena. Ondoa pia kipindi chake ili kukomesha ufikiaji wa sasa.')}</p>
-    {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <ActionButton loading={busy} disabled={busy} onClick={() => run(reload)}>{t('Refresh activity', 'Sasisha shughuli')}</ActionButton>
-    <ActionButton loading={busy} disabled={busy} onClick={() => run(async () => { await securityRequest('staff/security/revoke-all', {}); window.location.reload(); })}>{t('Sign out everywhere and forget devices', 'Toka kila mahali na uondoe vifaa')}</ActionButton>
-    {!data && !error && <PageSkeleton variant="table" compact title={t('Loading account activity…', 'Inapakia shughuli za akaunti…')} />}
-    {data && <><h4>{t('Active sessions', 'Vipindi hai')}</h4>{!data.sessions.length && <p>{t('No active sessions.', 'Hakuna vipindi hai.')}</p>}{data.sessions.map(s => <div className="auth-record" key={s.id}><strong>{s.current ? t('This session', 'Kipindi hiki') : t('Other session', 'Kipindi kingine')}</strong><small>{s.browser || t('Browser details unavailable', 'Taarifa za kivinjari hazipatikani')}</small><small>{s.ipAddress} · {t('Last active', 'Ilitumika mwisho')}: {date(s.lastSeenAt || s.createdAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('session', s.id)}>{t('Sign out session', 'Ondoa kipindi')}</ActionButton></div>)}
-      <h4>{t('Trusted devices', 'Vifaa vinavyoaminika')}</h4>{!data.devices.length && <p>{t('No trusted devices.', 'Hakuna vifaa vinavyoaminika.')}</p>}{data.devices.map(d => <div className="auth-record" key={d.id}><strong>{d.current ? t('This device', 'Kifaa hiki') : t('Other device', 'Kifaa kingine')}</strong><small>{d.browser}</small><small>{t('Trusted until', 'Kinaaminika hadi')}: {date(d.expiresAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('device', d.id)}>{t('Forget device', 'Ondoa kifaa')}</ActionButton></div>)}
-      <details><summary>{t('Recent security activity', 'Shughuli za hivi karibuni za usalama')}</summary>{!data.events.length && <p>{t('No activity yet.', 'Hakuna shughuli bado.')}</p>}{data.events.map(e => <div className="auth-record" key={e.eventId}><strong>{activity[e.action]?.[lang === 'sw' ? 1 : 0] || t('Security event', 'Tukio la usalama')}</strong><small>{date(e.createdAt)} · {e.ipAddress}</small></div>)}</details></>}
+    {error && <StateError error={error} />}{message && <Feedback kind="success" title={message} />}
+    {refreshError && <StateError error={refreshError} title={t('Account activity could not be refreshed', 'Shughuli za akaunti hazikuweza kusasishwa')} onRetry={refreshActivity} />}
+    {refreshError && data && <StatePanel compact kind="warning" title={t('Showing previously loaded account activity', 'Inaonyesha shughuli za akaunti zilizopakiwa awali')} description={t('Confirmed access removals are applied. Other activity may be out of date until you refresh.', 'Ufikiaji uliothibitishwa kuondolewa umeondolewa. Shughuli nyingine zinaweza kuwa za zamani hadi usasishe.')} />}
+    <ActionButton loading={busy} disabled={busy} onClick={refreshActivity}>{t('Refresh activity', 'Sasisha shughuli')}</ActionButton>
+    <ActionButton loading={busy} disabled={busy} onClick={async () => { if (await confirmAction({ title: t('Sign out everywhere?', 'Toka kwenye vifaa vyote?'), description: t('All sessions will end and every device will need verification next time.', 'Vipindi vyote vitakoma na kila kifaa kitahitaji uthibitishaji kitakapotumika tena.'), danger: true })) await run(async () => { await securityRequest('staff/security/revoke-all', {}); window.location.reload(); }); }}>{t('Sign out everywhere and forget devices', 'Toka kila mahali na uondoe vifaa')}</ActionButton>
+    {!data && !error && !refreshError && <PageSkeleton variant="table" compact title={t('Loading account activity…', 'Inapakia shughuli za akaunti…')} />}
+    {data && <><h4>{t('Active sessions', 'Vipindi hai')}</h4>{!data.sessions.length && <StatePanel compact title={t('No active sessions.', 'Hakuna vipindi hai.')} />}{data.sessions.map(s => <div className="auth-record" key={s.id}><strong>{s.current ? t('This session', 'Kipindi hiki') : t('Other session', 'Kipindi kingine')}</strong><small>{s.browser || t('Browser details unavailable', 'Taarifa za kivinjari hazipatikani')}</small><small>{s.ipAddress} · {t('Last active', 'Ilitumika mwisho')}: {date(s.lastSeenAt || s.createdAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('session', s.id)}>{t('Sign out session', 'Ondoa kipindi')}</ActionButton></div>)}
+      <h4>{t('Trusted devices', 'Vifaa vinavyoaminika')}</h4>{!data.devices.length && <StatePanel compact title={t('No trusted devices.', 'Hakuna vifaa vinavyoaminika.')} />}{data.devices.map(d => <div className="auth-record" key={d.id}><strong>{d.current ? t('This device', 'Kifaa hiki') : t('Other device', 'Kifaa kingine')}</strong><small>{d.browser}</small><small>{t('Trusted until', 'Kinaaminika hadi')}: {date(d.expiresAt)}</small><ActionButton loading={busy} disabled={busy} onClick={() => revoke('device', d.id)}>{t('Forget device', 'Ondoa kifaa')}</ActionButton></div>)}
+      <details><summary>{t('Recent security activity', 'Shughuli za hivi karibuni za usalama')}</summary>{!data.events.length && <StatePanel compact title={t('No activity yet.', 'Hakuna shughuli bado.')} />}{data.events.map(e => <div className="auth-record" key={e.eventId}><strong>{activity[e.action]?.[lang === 'sw' ? 1 : 0] || t('Security event', 'Tukio la usalama')}</strong><small>{date(e.createdAt)} · {e.ipAddress}</small></div>)}</details></>}
     {user.role === 'admin' && <details><summary>{t('Help a staff member recover a lost phone', 'Msaidie mfanyakazi kurejesha simu iliyopotea')}</summary>
       <p>{t('For active managers and designers only. Verify identity independently using a known staff contact or in person. Record a case reference, never identity documents or passwords. Administrator accounts require your organization’s separate recovery process.', 'Kwa mameneja na wasanifu hai pekee. Thibitisha utambulisho kupitia mawasiliano ya kazi yanayojulikana au ana kwa ana. Andika rejea ya tukio, si nyaraka za utambulisho au manenosiri. Akaunti za wasimamizi zinahitaji utaratibu tofauti wa taasisi.')}</p>
       <form className="auth-fields" onSubmit={e => { e.preventDefault(); run(async () => {

@@ -3,7 +3,7 @@ import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import { runTransfer } from '../../services/fileTransfers';
 import { ActionButton } from '../common/SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
-import { savedDraftUpload, cancelDraftUpload, submitDraftUpload } from '../../services/draftUpload';
+import { MAX_DRAFT_BYTES, savedDraftUpload, cancelDraftUpload, submitDraftUpload } from '../../services/draftUpload';
 import { tabListKeys } from '../common/UI';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { draftUploads, useDraftUploads } from '../../hooks/useDraftUploads';
@@ -12,20 +12,36 @@ import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { navigate } from '../../navigation/location';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import './designerWorkspace.css';
 
 const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
+const MAX_PRINT_BYTES = 4 * 1024 * 1024;
 
 export default function DesignerOrderPage({ token, staffUser, orderId, onBack }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const confirm = useConfirm();
 
   const [order, setOrder] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [starting, setStarting] = useState(false);
+  const [printUncertain, setPrintUncertain] = useState(false);
+  const [uploadUncertain, setUploadUncertain] = useState(false);
+  const [checkingSaved, setCheckingSaved] = useState(false);
+  const [downloadingFolder, setDownloadingFolder] = useState(null);
+  const [printValidation, setPrintValidation] = useState('');
+  const [printErrors, setPrintErrors] = useState({});
+  const [printDirty, setPrintDirty] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
@@ -48,6 +64,35 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     coverFinish: 'Laminated Matte',
     binding: 'Saddle Stitch',
   });
+  const hasLocalDraft = Boolean(file || (!resume && notes.trim()) || printFile || printDirty || Object.values(responses).some(value => String(value).trim()));
+  const savingLocalWork = Boolean(addressing || starting || uploading);
+  useEffect(() => {
+    const beforeNavigate = event => {
+      // Query changes within this order do not discard its inputs.
+      if (event.detail?.path && new URL(event.detail.path, window.location.href).pathname === window.location.pathname) return;
+      if (savingLocalWork) { event.preventDefault(); return; }
+      if (!hasLocalDraft) return;
+      if (!event.detail?.waitUntil) { event.preventDefault(); return; }
+      event.detail.waitUntil(confirm({
+        title: ui('Leave this order?', 'Ondoka kwenye oda hii?'),
+        description: ui('Unsent correction replies, selected files and unfinished edits will be discarded. Submitted versions remain available.', 'Majibu ya marekebisho ambayo hayajatumwa, faili ulizochagua na mabadiliko ambayo hayajakamilika yataondolewa. Matoleo yaliyowasilishwa yatabaki.'),
+        confirmLabel: ui('Discard and leave', 'Ondoa na uondoke'),
+        cancelLabel: ui('Keep working', 'Endelea kufanya kazi'),
+        danger: true,
+      }));
+    };
+    const beforeUnload = event => {
+      if (!hasLocalDraft && !savingLocalWork) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('tinzel:before-navigate', beforeNavigate);
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      window.removeEventListener('tinzel:before-navigate', beforeNavigate);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, [hasLocalDraft, savingLocalWork, confirm, lang]);
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     setError('');
@@ -55,8 +100,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       const data = await api.designer.getOrder(token, orderId);
       setOrder(data.order);
       setLogs(data.auditLogs || []);
+      return data.order;
     } catch (err) {
-      setError(err.message || 'Unable to load this order');
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -70,6 +116,8 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   );
   const currentDraft = order?.draftVersions?.find((item) => item.versionNumber === order.currentDraftVersion);
   const canEdit = ['designer', 'admin'].includes(staffUser?.role);
+  const canUploadDraft = canEdit && ['assigned', 'in_design', 'revision_requested'].includes(order?.status);
+  const canPreparePrint = canEdit && order?.approvedVersionNumber && ['client_approved', 'print_document_prep'].includes(order?.status);
   const [tab, setTab] = useState(null);
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [focusAnnotation, setFocusAnnotation] = useState(null);
@@ -102,6 +150,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     setShowUpload(true);
   };
   useEffect(() => {
+    let cleanupTimer;
     const openReview = () => {
       if (window.location.pathname !== `/staff/design/orders/${encodeURIComponent(orderId)}` || !new URLSearchParams(window.location.search).has('reviewUpload')) return;
       const saved = savedDraftUpload(staffUser?._id, orderId) || (backgroundUpload?.status === 'ready' ? backgroundUpload.result : null);
@@ -110,22 +159,36 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setResume(saved);
       setUploadError('');
       setShowUpload(true);
-      window.history.replaceState(window.history.state, '', window.location.pathname);
+      // Consume only the review flag after entering this order. This changes no
+      // editor content; defer until an enclosing approved navigation has finished.
+      clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => {
+        if (window.location.pathname !== `/staff/design/orders/${encodeURIComponent(orderId)}`) return;
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('reviewUpload')) return;
+        params.delete('reviewUpload');
+        navigate(`${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`, { replace: true, confirmed: true });
+      }, 0);
     };
     openReview();
     window.addEventListener('popstate', openReview);
-    return () => window.removeEventListener('popstate', openReview);
+    return () => { clearTimeout(cleanupTimer); window.removeEventListener('popstate', openReview); };
   }, [orderId, staffUser?._id, backgroundUpload?.status, backgroundUpload?.result]);
   useEffect(() => {
     if (backgroundUpload?.status !== 'complete') return;
-    setSuccess('Draft uploaded and sent to manager review. Preparing opening pages.');
+    setSuccess(ui('Draft uploaded and sent to manager review. Preparing opening pages.', 'Rasimu imepakiwa na kutumwa kwa ukaguzi wa meneja. Kurasa za mwanzo zinaandaliwa.'));
     load(true);
   }, [backgroundUpload?.id, backgroundUpload?.status, load]);
   const upload = (event) => {
     event.preventDefault();
     if (uploading || uploadInProgress) return;
     if (!file) {
-      setUploadError('Select a magazine PDF before continuing.');
+      setUploadError(ui('Select a magazine PDF before continuing.', 'Chagua PDF ya jarida kabla ya kuendelea.'));
+      return;
+    }
+    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf') || file.size > MAX_DRAFT_BYTES || file.size === 0) {
+      setUploadError(ui('Choose a valid PDF up to 500 MB.', 'Chagua PDF halali isiyozidi MB 500.'));
+      document.getElementById('draft-pdf')?.focus();
       return;
     }
     try {
@@ -145,10 +208,11 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setResume(null);
       setUploadError('');
     } catch (err) {
-      setUploadError(err.message);
+      setUploadError(err);
     }
   };
   const submitReviewedDraft = async (confirmedCorrectionIds) => {
+    if (uploading || uploadUncertain) return;
     setUploading(true);
     setUploadError('');
     try {
@@ -161,36 +225,57 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setNotes('');
       setSelectedVersion(null);
       setTab('magazine');
-      setSuccess('Draft uploaded and sent to manager review. Preparing opening pages.');
+      setSuccess(ui('Draft uploaded and sent to manager review. Preparing opening pages.', 'Rasimu imepakiwa na kutumwa kwa ukaguzi wa meneja. Kurasa za mwanzo zinaandaliwa.'));
       await load();
     } catch (err) {
-      setUploadError(err.message);
+      setUploadError(err);
+      setUploadUncertain(!err.status || [408, 409].includes(err.status) || err.status >= 500);
     } finally {
       setUploading(false);
     }
   };
   const cancelUpload = async () => {
+    if (uploading) return;
+    if ((readyUpload || resume || file) && !(await confirm({ title: ui('Cancel this upload?', 'Ghairi upakiaji huu?'), description: ui('This removes the unfinished upload. Your existing magazine versions remain.', 'Hii itaondoa upakiaji ambao haujakamilika. Matoleo ya jarida yaliyopo yatabaki.'), confirmLabel: ui('Cancel upload', 'Ghairi upakiaji'), cancelLabel: ui('Keep upload', 'Endelea na upakiaji'), danger: true }))) return;
     try {
       await cancelDraftUpload(token, staffUser?._id, orderId);
       if (backgroundUpload) draftUploads.dismiss(backgroundUpload.id);
       setResume(null);
       setReadyUpload(null);
       setFile(null);
+      setNotes('');
+      setUploadUncertain(false);
       setShowUpload(false);
     } catch (err) {
-      setUploadError(err.message);
+      setUploadError(err);
     }
   };
   const startDesign = async () => {
+    if (starting) return;
+    setStarting(true);
+    setError(null);
     try {
       await api.designer.startDesign(token, orderId);
+      setSuccess(ui('Design started. You can now prepare the magazine.', 'Usanifu umeanza. Sasa unaweza kuandaa jarida.'));
       await load();
     } catch (err) {
-      setError(err.message);
-    }
+      setError(err);
+    } finally { setStarting(false); }
   };
   const uploadPrint = async (event) => {
     event.preventDefault();
+    if (uploading || printUncertain) return;
+    const invalid = {};
+    if (printFile && (!/\.pdf$/i.test(printFile.name) || (printFile.type && printFile.type !== 'application/pdf') || printFile.size > MAX_PRINT_BYTES || !printFile.size)) invalid.pdf = ui('Choose a valid PDF up to 4 MB, or use the approved magazine for print.', 'Chagua PDF halali isiyozidi MB 4, au tumia jarida lililoidhinishwa kwa uchapishaji.');
+    if (!Number.isInteger(Number(printSpecs.quantity)) || Number(printSpecs.quantity) < 1) invalid.quantity = ui('Enter a whole-number quantity of at least one.', 'Weka idadi kamili ya angalau moja.');
+    for (const field of ['paperType', 'coverFinish', 'binding']) if (!printSpecs[field].trim()) invalid[field] = ui('Complete this print specification.', 'Jaza maelezo haya ya uchapishaji.');
+    setPrintErrors(invalid);
+    if (Object.keys(invalid).length) {
+      setPrintValidation(ui('Correct the highlighted details before sending.', 'Sahihisha maelezo yaliyoonyeshwa kabla ya kutuma.'));
+      document.getElementById(`print-${Object.keys(invalid)[0]}`)?.focus();
+      return;
+    }
+    setPrintValidation('');
     setUploading(true);
     setError('');
     try {
@@ -208,15 +293,19 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         await api.designer.uploadPrintDocument(token, orderId, data);
       }
       setPrintFile(null);
-      setSuccess('Print-ready PDF sent for manager authorization.');
+      setPrintDirty(false);
+      setSuccess(ui('Print-ready PDF sent for manager authorization.', 'PDF ya uchapishaji imetumwa kwa idhini ya meneja.'));
       await load();
     } catch (err) {
-      setError(err.message);
+      setError(err);
+      setPrintUncertain(!err.status || [408, 409].includes(err.status) || err.status >= 500);
     } finally {
       setUploading(false);
     }
   };
   const downloadFolder = async (folder) => {
+    if (downloadingFolder) return;
+    setDownloadingFolder(folder);
     try {
       await runTransfer({ key: `folder:${orderId}:${folder}`, name: `${folder}.zip`, kind: 'download' }, async context => {
         const { url } = await api.designer.downloadPhotoFolder(token, orderId, folder, {
@@ -231,8 +320,24 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         context.progress({ stage: 'handed-off', percent: null });
       });
     } catch (err) {
-      setError(err.message);
-    }
+      setError(err);
+    } finally { setDownloadingFolder(null); }
+  };
+  const checkSaved = async (kind) => {
+    setCheckingSaved(true);
+    try {
+      const saved = await load(true);
+      if (!saved) return;
+      if (kind === 'print') setPrintUncertain(false);
+      else {
+        setUploadUncertain(false);
+        setUploadError(null);
+        if (readyUpload?.metadata?.expectedVersion !== undefined && saved.currentDraftVersion !== readyUpload.metadata.expectedVersion) {
+          setUploadUncertain(true);
+          setUploadError(ui('The magazine version has changed. Check the current version before canceling this unfinished submission.', 'Toleo la jarida limebadilika. Kagua toleo la sasa kabla ya kughairi uwasilishaji huu ambao haujakamilika.'));
+        }
+      }
+    } finally { setCheckingSaved(false); }
   };
 
   if (loading && (!order || order._id !== orderId))
@@ -244,9 +349,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           <ArrowLeft size={16} />
           <InterfaceText>Back</InterfaceText>
         </button>
-        <div className="designer-alert is-error" role="alert">
-          {error || 'Order not found'}
-        </div>
+        <StateError error={error || { status: 404 }} onRetry={() => load()} title={ui('This order could not be opened', 'Oda hii haikuweza kufunguliwa')} />
       </section>
     );
   return (
@@ -267,27 +370,23 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         {canEdit && (
           <div style={{ display: 'flex', gap: 8 }}>
             {['assigned', 'revision_requested'].includes(order.status) && (
-              <ActionButton className="secondary-button" onClick={startDesign}>
+              <ActionButton loading={starting} disabled={starting} className="secondary-button" onClick={startDesign}>
                 <InterfaceText>Start design</InterfaceText>
               </ActionButton>
             )}
-            <button className="primary-button" onClick={openUpload} disabled={Boolean(uploadInProgress)}>
+            <button className="primary-button" onClick={openUpload} disabled={!canUploadDraft || Boolean(uploadInProgress)}>
               <UploadCloud size={16} />
               <InterfaceText>Upload new draft</InterfaceText>
             </button>
           </div>
         )}
       </div>
-      {error && (
-        <div className="designer-alert is-error" role="alert">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="designer-alert is-success" role="status">
-          {success}
-        </div>
-      )}
+      {error && <StateError compact error={error} onRetry={() => load()} />}
+      {success && <StatePanel compact kind="success" title={success} />}
+      {loading && <p role="status">{ui('Refreshing order…', 'Tunapakia oda upya…')}</p>}
+      {!canEdit && <StatePanel compact kind="info" title={ui('Read-only order', 'Oda ya kusoma tu')} description={ui('You can review this order. Changes are available to its designer and administrators.', 'Unaweza kukagua oda hii. Msanifu wake na wasimamizi ndio wanaoweza kuibadilisha.')} />}
+      {!order.assignedDesigner && <StatePanel compact kind="info" title={ui('Designer assignment is pending', 'Mgawo wa msanifu unasubiri')} description={ui('A manager will assign this order to an available designer.', 'Meneja atamgawia msanifu anayepatikana oda hii.')} />}
+      {canEdit && !canUploadDraft && <StatePanel compact kind="info" title={ui('New drafts are not needed at this stage', 'Rasimu mpya hazihitajiki katika hatua hii')} description={ui('You can view the magazine and its history. Draft uploads reopen when the order returns to design.', 'Unaweza kuona jarida na historia yake. Upakiaji wa rasimu utafunguliwa tena oda ikirudi kwenye usanifu.')} />}
       <nav className="designer-tabs" role="tablist" onKeyDown={tabListKeys} aria-label={tx('Order sections')}>
         {[
           ['magazine', 'Magazine'],
@@ -317,9 +416,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             focusAnnotation={focusAnnotation}
           />
         ) : (
-          <p>
-            <InterfaceText>No magazine uploaded yet.</InterfaceText>
-          </p>
+          <StatePanel kind="empty" title={ui('No magazine uploaded yet', 'Bado hakuna jarida lililopakiwa')} description={ui('The first draft will appear here after it has been submitted.', 'Rasimu ya kwanza itaonekana hapa baada ya kuwasilishwa.')}>
+            {canUploadDraft && <button className="primary-button" onClick={openUpload} disabled={Boolean(uploadInProgress)}>{ui('Upload first draft', 'Pakia rasimu ya kwanza')}</button>}
+          </StatePanel>
         )}
       </div>
       <div>
@@ -329,9 +428,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               <InterfaceText>Returns &amp; fixes</InterfaceText>
             </h2>
             {!(order.revisionRequests || []).length ? (
-              <p className="muted">
-                <InterfaceText>No returns have been issued.</InterfaceText>
-              </p>
+              <StatePanel compact kind="empty" title={ui('No corrections waiting', 'Hakuna marekebisho yanayosubiri')} description={ui('Requests from the manager or client will appear here.', 'Maombi ya meneja au mteja yataonekana hapa.')} />
             ) : (
               (order.revisionRequests || [])
                 .slice()
@@ -409,13 +506,14 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               formFields={order.formId?.fields}
             />
             <div style={{ marginTop: 18 }}>
-              <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} onDownloadFolder={downloadFolder} />
+              <OrderPhotosFolderView uploadedPhotos={order.uploadedPhotos} onDownloadFolder={downloadFolder} downloadingFolder={downloadingFolder} />
             </div>
           </div>
           <div hidden={tab !== 'history'} className="designer-card">
             <h2>
               <InterfaceText>Draft versions</InterfaceText>
             </h2>
+            {!order.draftVersions?.length && <StatePanel compact kind="empty" title={ui('No versions submitted yet', 'Bado hakuna matoleo yaliyowasilishwa')} description={ui('Submitted magazine versions will appear here.', 'Matoleo ya jarida yaliyowasilishwa yataonekana hapa.')} />}
             {(order.draftVersions || [])
               .slice()
               .reverse()
@@ -470,51 +568,78 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 <strong>{order.dispatchDetails?.trackingReference || 'Not dispatched'}</strong>
               </div>
             </div>
-            {canEdit && order.approvedVersionNumber && !order.printDocument?.uploadedAt && (
-              <form className="print-upload" onSubmit={uploadPrint}>
+            {canEdit && !order.approvedVersionNumber && <StatePanel compact kind="info" title={ui('Waiting for client approval', 'Tunasubiri idhini ya mteja')} description={ui('Print preparation becomes available after the client approves a magazine version.', 'Maandalizi ya uchapishaji yatapatikana mteja akiidhinisha toleo la jarida.')} />}
+            {printUncertain && <StatePanel compact kind="warning" title={ui('The print submission is unconfirmed', 'Uwasilishaji wa uchapishaji haujathibitishwa')} description={ui('Check the saved order before sending the file again.', 'Kagua oda iliyohifadhiwa kabla ya kutuma faili tena.')}>
+              <ActionButton loading={checkingSaved} disabled={checkingSaved} onClick={() => checkSaved('print')}>{ui('Check saved order', 'Kagua oda iliyohifadhiwa')}</ActionButton>
+            </StatePanel>}
+            {canPreparePrint && !order.printDocument?.uploadedAt && (
+              <form className="print-upload" onSubmit={uploadPrint} noValidate>
+                {printValidation && <StatePanel compact kind="error" title={ui("Check the print details", "Kagua maelezo ya uchapishaji")} description={printValidation} />}
                 <label htmlFor="print-pdf">
                   <InterfaceText>Print-ready PDF (leave empty to promote approved draft v</InterfaceText>{' '}
                   {order.approvedVersionNumber})
                 </label>
+                <p className="muted">{ui('Optional replacement PDF, up to 4 MB. Leave it empty to use the approved magazine.', 'PDF mbadala ya hiari, isiyozidi MB 4. Acha wazi kutumia jarida lililoidhinishwa.')}</p>
                 <input
                   id="print-pdf"
+                  aria-invalid={Boolean(printErrors.pdf)}
+                  aria-describedby={printErrors.pdf ? 'print-pdf-error' : undefined}
+                  disabled={uploading || printUncertain}
                   type="file"
                   accept="application/pdf,.pdf"
                   onChange={(e) => setPrintFile(e.target.files?.[0] || null)}
                 />
+                {printErrors.pdf && <p id="print-pdf-error" role="alert">{printErrors.pdf}</p>}
                 <div className="print-specs">
                   <label>
                     <InterfaceText>Quantity</InterfaceText>
                     <input
+                      id="print-quantity"
                       type="number"
                       min="1"
+                      step="1"
+                      aria-invalid={Boolean(printErrors.quantity)}
+                      aria-describedby={printErrors.quantity ? 'print-quantity-error' : undefined}
                       value={printSpecs.quantity}
-                      onChange={(e) => setPrintSpecs({ ...printSpecs, quantity: e.target.value })}
+                      onChange={(e) => { setPrintDirty(true); setPrintSpecs({ ...printSpecs, quantity: e.target.value }); }}
                     />
+                    {printErrors.quantity && <span id="print-quantity-error" role="alert">{printErrors.quantity}</span>}
                   </label>
                   <label>
                     <InterfaceText>Paper</InterfaceText>
                     <input
+                      id="print-paperType"
+                      aria-invalid={Boolean(printErrors.paperType)}
+                      aria-describedby={printErrors.paperType ? 'print-paperType-error' : undefined}
                       value={printSpecs.paperType}
-                      onChange={(e) => setPrintSpecs({ ...printSpecs, paperType: e.target.value })}
+                      onChange={(e) => { setPrintDirty(true); setPrintSpecs({ ...printSpecs, paperType: e.target.value }); }}
                     />
+                    {printErrors.paperType && <span id="print-paperType-error" role="alert">{printErrors.paperType}</span>}
                   </label>
                   <label>
                     <InterfaceText>Finish</InterfaceText>
                     <input
+                      id="print-coverFinish"
+                      aria-invalid={Boolean(printErrors.coverFinish)}
+                      aria-describedby={printErrors.coverFinish ? 'print-coverFinish-error' : undefined}
                       value={printSpecs.coverFinish}
-                      onChange={(e) => setPrintSpecs({ ...printSpecs, coverFinish: e.target.value })}
+                      onChange={(e) => { setPrintDirty(true); setPrintSpecs({ ...printSpecs, coverFinish: e.target.value }); }}
                     />
+                    {printErrors.coverFinish && <span id="print-coverFinish-error" role="alert">{printErrors.coverFinish}</span>}
                   </label>
                   <label>
                     <InterfaceText>Binding</InterfaceText>
                     <input
+                      id="print-binding"
+                      aria-invalid={Boolean(printErrors.binding)}
+                      aria-describedby={printErrors.binding ? 'print-binding-error' : undefined}
                       value={printSpecs.binding}
-                      onChange={(e) => setPrintSpecs({ ...printSpecs, binding: e.target.value })}
+                      onChange={(e) => { setPrintDirty(true); setPrintSpecs({ ...printSpecs, binding: e.target.value }); }}
                     />
+                    {printErrors.binding && <span id="print-binding-error" role="alert">{printErrors.binding}</span>}
                   </label>
                 </div>
-                <ActionButton loading={uploading && !printFile} className="primary-button" disabled={uploading}>
+                <ActionButton loading={uploading} className="primary-button" disabled={uploading || printUncertain}>
                   {printFile
                     ? 'Upload & send print PDF'
                     : `Use approved draft v${order.approvedVersionNumber} for print`}
@@ -539,9 +664,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               </div>
             ))}
             {!logs.length && (
-              <p className="muted">
-                <InterfaceText>No recorded activity.</InterfaceText>
-              </p>
+              <StatePanel compact kind="empty" title={ui('No recorded activity yet', 'Bado hakuna shughuli zilizorekodiwa')} description={ui('Changes to this order will appear here.', 'Mabadiliko ya oda hii yataonekana hapa.')} />
             )}
           </div>
         </aside>
@@ -557,7 +680,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           {readyUpload ? (
             <DraftCorrectionReview
               token={token} orderId={orderId} request={activeReturn}
-              upload={readyUpload} submitting={uploading} error={uploadError}
+              upload={readyUpload} submitting={uploading} error={uploadError} uncertain={uploadUncertain} checkingSaved={checkingSaved} onCheckSaved={() => checkSaved('upload')}
               onSubmit={submitReviewedDraft} onCancel={cancelUpload}
               onClose={() => setShowUpload(false)}
             />
@@ -573,21 +696,17 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             </h2>
             {activeReturn && <p><InterfaceText>Upload your updated PDF first. You will preview and confirm each correction before sending it to the manager.</InterfaceText></p>}
             {resume && !uploading && (
-              <p>
-                <InterfaceText>A saved upload is available for</InterfaceText> {resume.name}{' '}
-                <InterfaceText>. Select the same PDF to resume.</InterfaceText>
-              </p>
+              <StatePanel compact kind="info" title={ui('An unfinished upload is available', 'Kuna upakiaji ambao haujakamilika')} description={ui(`Select the same PDF (${resume.name}) to resume. If its saved session has expired, the upload will restart.`, `Chagua PDF ileile (${resume.name}) kuendelea. Ikiwa muda wa kipindi chake umeisha, upakiaji utaanza upya.`)} />
             )}
             {uploadError && (
-              <div className="designer-alert is-error" role="alert">
-                {tx(uploadError)}
-              </div>
+              <StateError compact error={uploadError} description={typeof uploadError === 'string' ? uploadError : undefined} />
             )}
             <label htmlFor="draft-pdf">
               <InterfaceText>Magazine PDF · up to 500 MB</InterfaceText>
             </label>
             <input
               id="draft-pdf"
+              aria-invalid={Boolean(uploadError)}
               type="file"
               required
               disabled={uploading}

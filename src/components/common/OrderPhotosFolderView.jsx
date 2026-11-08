@@ -1,3 +1,5 @@
+import StatePanel from './StatePanel';
+import { useLanguage } from '../../i18n/LanguageContext';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useState } from 'react';
 import MediaThumbnail from './MediaThumbnail';
@@ -18,6 +20,8 @@ import {
  */
 export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadFolder, downloadingFolder }) {
   const tx = useInterfaceText();
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
 
   // Group photos by folderName
   const grouped = {};
@@ -49,24 +53,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
   };
 
   if (!uploadedPhotos || uploadedPhotos.length === 0) {
-    return (
-      <div
-        style={{
-          padding: '24px',
-          textAlign: 'center',
-          backgroundColor: '#FAFAF9',
-          border: '1px dashed #D6D3D1',
-          borderRadius: '8px',
-          color: '#78716C',
-          fontSize: '13px',
-        }}
-      >
-        <ImageIcon size={24} color="#A8A29E" style={{ margin: '0 auto 8px auto' }} />
-        <p style={{ margin: 0 }}>
-          <InterfaceText>No photos have been uploaded for this magazine order.</InterfaceText>
-        </p>
-      </div>
-    );
+    return <StatePanel compact title={ui('No photographs yet', 'Hakuna picha bado')} description={ui('No photos have been uploaded for this magazine order.', 'Hakuna picha zilizopakiwa kwa oda hii ya jarida.')} />;
   }
 
   return (
@@ -83,7 +70,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
         >
           <InterfaceText>Client Photo Folders (</InterfaceText>
           {uploadedPhotos.length} <InterfaceText>Total Assets across</InterfaceText> {folderNames.length}{' '}
-          {folderNames.length === 1 ? 'Folder' : 'Folders'})
+          {ui(folderNames.length === 1 ? 'Folder' : 'Folders', 'Folda')})
         </span>
       </div>
 
@@ -130,7 +117,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                 }}
               >
                 {isOpen ? <FolderOpen size={18} color="#C5A059" /> : <Folder size={18} color="#C5A059" />}
-                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>{folderName}</span>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#1C1917' }}>{tx(folderName)}</span>
                 <span
                   style={{
                     fontSize: '11px',
@@ -142,7 +129,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                     letterSpacing: '0.4px',
                   }}
                 >
-                  {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
+                  {photos.length} {ui(photos.length === 1 ? 'photo' : 'photos', 'picha')}
                 </span>
               </button>
 
@@ -155,7 +142,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                       onDownloadFolder(folderName);
                     }}
                     disabled={Boolean(downloadingFolder)}
-                    title={`Download all photos in ${folderName} as a ZIP`}
+                    title={ui(`Download all photos in ${folderName} as a ZIP`, `Pakua picha zote za ${folderName} kama ZIP`)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -171,11 +158,11 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                     }}
                   >
                     <Download size={13} />
-                    {downloadingFolder === folderName ? 'Preparing ZIP...' : 'Download folder ZIP'}
+                    {downloadingFolder === folderName ? ui('Preparing ZIP…', 'Inaandaa ZIP…') : ui('Download folder ZIP', 'Pakua folda ya ZIP')}
                   </button>
                 )}
                 <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '600' }}>
-                  {isOpen ? 'Collapse' : 'Expand'}
+                  {isOpen ? ui('Collapse', 'Funga') : ui('Expand', 'Fungua')}
                 </span>
                 {isOpen ? <ChevronDown size={16} color="#78716C" /> : <ChevronRight size={16} color="#78716C" />}
               </div>
@@ -231,7 +218,7 @@ export default function OrderPhotosFolderView({ uploadedPhotos = [], onDownloadF
                             maxWidth: '90px',
                           }}
                         >
-                          {photo.originalName || `Photo ${photo.index}`}
+                          {photo.originalName || `${ui('Photo', 'Picha')} ${photo.index}`}
                         </span>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

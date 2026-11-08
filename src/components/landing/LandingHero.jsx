@@ -7,6 +7,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
   const { lang, t } = useLanguage();
   const sw = lang === 'sw';
   const [covers, setCovers] = useState([]);
+  const [artworkFailed, setArtworkFailed] = useState(false);
   const [{ active: activeCover, previous: previousCover }, setCoverPosition] = useState({
     active: 0, previous: null,
   });
@@ -92,7 +93,7 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
         </div>
         <div className="landing-art">
           <div className="landing-covers">
-            {covers.length ? covers.map((cover, index) => (
+            {artworkFailed ? <div className="edition-cover-fallback" style={{ minHeight: 320 }}><BookOpen size={48} aria-hidden="true" /><strong>Tinzel</strong><span>{sw ? 'Hadithi yako, jarida lako.' : 'Your story, your magazine.'}</span></div> : covers.length ? covers.map((cover, index) => (
               <img
                 key={cover.src}
                 className={index === activeCover ? 'is-active' : index === previousCover ? 'is-outgoing' : ''}
@@ -101,11 +102,12 @@ export default function LandingHero({ onSelectNewOrder, onOpenFollowUp }) {
                 aria-hidden={index !== activeCover}
                 width="480"
                 height="679"
+                onError={() => setArtworkFailed(true)}
               />
             )) : (
               <img className="is-active" src="/brand/magazine-cover-sample.jpg"
                 alt={sw ? 'Mfano wa jalada la jarida la Tinzel' : 'Sample Tinzel magazine cover'}
-                width="480" height="679" fetchPriority="high" />
+                width="480" height="679" fetchPriority="high" onError={() => setArtworkFailed(true)} />
             )}
           </div>
 

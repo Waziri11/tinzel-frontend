@@ -1,6 +1,8 @@
 import PhoneInput from '../common/PhoneInput';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import './administration.css';
@@ -33,12 +35,14 @@ export default function StaffWorkloadManager({
   systemOnly = false,
 }) {
   const tx = useInterfaceText();
+  const confirm = useConfirm();
   const managerOnly = role === 'manager';
   const staffApi = api.staffManagement(role);
 
   const { lang } = useLanguage();
   const ui = (en, sw) => (lang === 'sw' ? sw : en);
   const [checking, setChecking] = useState(false);
+  const [diagnosticError, setDiagnosticError] = useState(null);
   const [staff, setStaff] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [simulatedNotifs, setSimulatedNotifs] = useState([]);
@@ -47,9 +51,14 @@ export default function StaffWorkloadManager({
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
+  const [sectionErrors, setSectionErrors] = useState({});
+  const [sectionBusy, setSectionBusy] = useState({});
+  const [rowStates, setRowStates] = useState({});
+  const [openingUser, setOpeningUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userModal, setUserModal] = useState(null); // 'view' | 'edit' | 'delete'
   const [userForm, setUserForm] = useState({});
+  const [userBaseline, setUserBaseline] = useState('');
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -77,58 +86,29 @@ export default function StaffWorkloadManager({
   const [newRole, setNewRole] = useState('designer');
   const [newMaxWorkload, setNewMaxWorkload] = useState(5);
 
-  useDialogFocus(
-    Boolean(showAddStaffModal || userModal || showTestNotifModal),
-    () => {
-      if (!saving && !creating && !testNotifSending) {
-        setShowAddStaffModal(false);
-        setUserModal(null);
-        setShowTestNotifModal(false);
-      }
-    },
-  );
-  useEffect(() => {
-    loadData();
-  }, [token]);
+  const closeDialogs = async () => {
+    if (saving || creating || testNotifSending) return;
+    const dirty = (userModal === 'edit' && JSON.stringify(userForm) !== userBaseline) || (showAddStaffModal && Boolean(newName || newEmail || newPhone)) || (showTestNotifModal && Boolean(testNotifData.to || testNotifData.message));
+    if (dirty && !await confirm({ title: ui('Discard these changes?', 'Ondoa mabadiliko haya?'), description: ui('This form has changes that have not been saved or sent.', 'Fomu hii ina mabadiliko ambayo hayajahifadhiwa au kutumwa.'), confirmLabel: ui('Discard changes', 'Ondoa mabadiliko'), cancelLabel: ui('Keep editing', 'Endelea kuhariri'), danger: true })) return;
+    setShowAddStaffModal(false); setUserModal(null); setShowTestNotifModal(false); setError(null);
+  };
+  useDialogFocus(Boolean(showAddStaffModal || userModal || showTestNotifModal), closeDialogs);
+  useEffect(() => { loadData(); }, [token]);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setShowAddStaffModal(false);
-        setUserModal(null);
-        setShowTestNotifModal(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const loadData = async () => {
+  const loadData = async (only) => {
+    const keys = typeof only === 'string' ? [only] : [...(!systemOnly ? ['staff'] : []), ...(!managerOnly ? ['logs', 'notifs'] : [])];
     setLoading(true);
-    setError(null);
-    try {
-      const staffRes = systemOnly
-        ? { staff: [] }
-        : await staffApi.getStaff(token);
-      setStaff(staffRes.staff || []);
-      if (managerOnly) return;
-      const [logsRes, notifsRes, diagRes] = await Promise.allSettled([
-        api.admin.getAuditLogs(token),
-        api.notifications.getHistory(token, { limit: 100 }),
-        Promise.resolve({ diagnostics: null }),
-      ]);
-      if (logsRes.status === 'fulfilled')
-        setAuditLogs(logsRes.value.logs || []);
-      if (notifsRes.status === 'fulfilled')
-        setSimulatedNotifs(notifsRes.value.notifications || []);
-      if (diagRes.status === 'fulfilled' && diagRes.value.diagnostics)
-        setTwilioDiagnostics(diagRes.value.diagnostics);
-    } catch (err) {
-      setError(err.message || 'Failed to fetch admin data');
-    } finally {
-      setLoading(false);
-      setHasLoaded(true);
-    }
+    await Promise.all(keys.map(async key => {
+      setSectionBusy(current => ({ ...current, [key]: true }));
+      setSectionErrors(current => ({ ...current, [key]: null }));
+      try {
+        if (key === 'staff') setStaff((await staffApi.getStaff(token)).staff || []);
+        if (key === 'logs') setAuditLogs((await api.admin.getAuditLogs(token)).logs || []);
+        if (key === 'notifs') setSimulatedNotifs((await api.notifications.getHistory(token, { limit: 100 })).notifications || []);
+      } catch (err) { setSectionErrors(current => ({ ...current, [key]: err })); }
+      finally { setSectionBusy(current => ({ ...current, [key]: false })); }
+    }));
+    setLoading(false); setHasLoaded(true);
   };
 
   const handleResendNotif = async (id, channel) => {
@@ -136,11 +116,11 @@ export default function StaffWorkloadManager({
       setResendingId(id);
       await api.notifications.resend(token, id, channel);
       setNotice(
-        `Notification re-sent successfully via ${channel.toUpperCase()}`,
+        ui('Retry processed. Check the recorded channel outcome.', 'Jaribio limeshughulikiwa. Angalia matokeo ya njia ya ujumbe.'),
       );
       await loadData();
     } catch (err) {
-      setError(err.message || 'Failed to resend notification');
+      setError(err);
     } finally {
       setResendingId(null);
     }
@@ -152,23 +132,27 @@ export default function StaffWorkloadManager({
     try {
       setTestNotifSending(true);
       await api.notifications.testSend(token, testNotifData);
-      setNotice(`Test message dispatched to ${testNotifData.to}`);
+      setNotice(ui('Test request processed. Check the delivery outcome.', 'Ombi la majaribio limeshughulikiwa. Angalia matokeo ya uwasilishaji.'));
       setShowTestNotifModal(false);
       setTestNotifData({ to: '', channel: 'whatsapp', message: '' });
       await loadData();
     } catch (err) {
-      setError(err.message || 'Failed to send test notification');
+      setError(err);
     } finally {
       setTestNotifSending(false);
     }
   };
 
   const handleUpdateStaff = async (id, updates) => {
+    if (rowStates[id]?.busy) return;
+    if ('maxActiveWorkload' in updates && (!Number.isInteger(updates.maxActiveWorkload) || updates.maxActiveWorkload < 1 || updates.maxActiveWorkload > 20)) { setRowStates(current => ({ ...current, [id]: { validation: true } })); return; }
+    setRowStates(current => ({ ...current, [id]: { busy: true } }));
     try {
       await staffApi.updateStaff(token, id, updates);
-      await loadData();
+      setStaff(current => current.map(item => item._id === id ? { ...item, ...updates } : item));
+      setRowStates(current => ({ ...current, [id]: { saved: true } }));
     } catch (err) {
-      setError(err.message);
+      setRowStates(current => ({ ...current, [id]: { error: err, updates } }));
     }
   };
 
@@ -191,7 +175,7 @@ export default function StaffWorkloadManager({
       setNewPhone('');
 
       setNotice(
-        'User account created. Initial credentials are queued for SMS and email. Open the user details to check delivery.',
+        ui('User account created. Initial credentials are queued for SMS and email. Open the user details to check delivery.', 'Akaunti imeundwa. Taarifa za kuingia zinasubiri kutumwa kwa SMS na barua pepe. Fungua maelezo ya mtumiaji kuangalia uwasilishaji.'),
       );
       await loadData();
     } catch (err) {
@@ -206,11 +190,11 @@ export default function StaffWorkloadManager({
   };
 
   const openUser = async (user, mode) => {
-    setError(null);
+    setError(null); setOpeningUser(user._id);
     try {
       const response = await staffApi.getStaffUser(token, user._id);
       setSelectedUser(response.user);
-      setUserForm({
+      const nextForm = {
         name: response.user.name,
         email: response.user.email,
         phone: response.user.phone || '',
@@ -220,11 +204,12 @@ export default function StaffWorkloadManager({
           response.user.isEligibleForAssignment !== false,
         maxActiveWorkload: response.user.maxActiveWorkload ?? 5,
         preferredLanguage: response.user.preferredLanguage || 'sw',
-      });
+      };
+      setUserForm(nextForm); setUserBaseline(JSON.stringify(nextForm));
       setUserModal(mode);
     } catch (err) {
-      setError(err.message);
-    }
+      setError(err);
+    } finally { setOpeningUser(null); }
   };
 
   const saveUser = async (event) => {
@@ -239,10 +224,10 @@ export default function StaffWorkloadManager({
 
       await staffApi.updateStaff(token, selectedUser._id, payload);
       setUserModal(null);
-      setNotice('User account updated.');
+      setNotice(ui('User account updated.', 'Akaunti imesasishwa.'));
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setError(err);
     } finally {
       setSaving(false);
     }
@@ -255,48 +240,26 @@ export default function StaffWorkloadManager({
       await staffApi.deleteStaff(token, selectedUser._id);
       setUserModal(null);
       setNotice(
-        'User account deleted. Its order and audit history was preserved.',
+        ui('User account deleted. Its order and audit history was preserved.', 'Akaunti imefutwa. Historia yake ya oda na ukaguzi imehifadhiwa.'),
       );
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setError(err);
     } finally {
       setSaving(false);
     }
   };
 
+  const visibleStaff = staff.filter(s => (roleFilter === 'all' || s.role === roleFilter) && [s.name, s.email, s.phone].some(value => String(value || '').toLowerCase().includes(search.trim().toLowerCase())));
   if (loading && !hasLoaded) return <PageSkeleton variant="table" />;
 
   return (
     <div className="team-admin">
-      {notice && (
-        <div
-          role="status"
-          style={{
-            padding: '10px 14px',
-            background: '#ECFDF5',
-            color: '#166534',
-            borderRadius: 6,
-            marginBottom: 14,
-          }}
-        >
-          {notice}
-        </div>
-      )}
-      {error && !userModal && (
-        <div
-          role="alert"
-          style={{
-            padding: '10px 14px',
-            background: '#FEF2F2',
-            color: '#991B1B',
-            borderRadius: 6,
-            marginBottom: 14,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {notice && <StatePanel compact kind="success" title={notice} />}
+      {error && !userModal && <StateError compact error={error} />}
+      {sectionErrors[activeTab] && <StateError compact error={sectionErrors[activeTab]} title={ui('This section could not be refreshed', 'Sehemu hii haikuweza kusasishwa')} onRetry={() => loadData(activeTab)} />}
+      {sectionErrors[activeTab] && (activeTab === 'staff' ? staff.length : activeTab === 'logs' ? auditLogs.length : simulatedNotifs.length) > 0 && <StatePanel compact kind="warning" title={ui('Showing previously loaded records', 'Inaonyesha rekodi zilizopakiwa awali')} />}
+      {sectionBusy[activeTab] && <StatePanel compact kind="loading" title={ui('Refreshing this section…', 'Inasasisha sehemu hii…')} />}
       <div
         style={{
           display: 'flex',
@@ -326,7 +289,7 @@ export default function StaffWorkloadManager({
           >
             <Users size={14} />
             <InterfaceText>Users</InterfaceText>
-            <span aria-label={`${staff.length} users`}>{staff.length}</span>
+            <span aria-label={sectionErrors.staff ? ui("Staff count unavailable", "Idadi ya wafanyakazi haipatikani") : `${staff.length} users`}>{sectionErrors.staff && !staff.length ? "—" : staff.length}</span>
           </button>
         )}
 
@@ -518,16 +481,8 @@ export default function StaffWorkloadManager({
                 </tr>
               </thead>
               <tbody>
-                {staff
-                  .filter(
-                    (s) =>
-                      (roleFilter === 'all' || s.role === roleFilter) &&
-                      [s.name, s.email, s.phone].some((value) =>
-                        String(value || '')
-                          .toLowerCase()
-                          .includes(search.trim().toLowerCase()),
-                      ),
-                  )
+                {!visibleStaff.length && !sectionErrors.staff && !sectionBusy.staff && <tr><td colSpan={6}><StatePanel compact kind="empty" title={staff.length ? ui('No staff match these filters', 'Hakuna wafanyakazi wanaolingana na vichujio') : ui('No staff members yet', 'Hakuna wafanyakazi bado')} description={staff.length ? ui('Clear the search or role filter to see your team.', 'Ondoa utafutaji au kichujio cha jukumu kuona timu yako.') : ui('Add a staff member to start assigning work.', 'Ongeza mfanyakazi kuanza kugawa kazi.')}><button className="ui-button" onClick={() => { if (staff.length) { setSearch(''); setRoleFilter('all'); } else setShowAddStaffModal(true); }}>{staff.length ? ui('Clear filters', 'Ondoa vichujio') : ui('Add user', 'Ongeza mtumiaji')}</button></StatePanel></td></tr>}
+                {visibleStaff
                   .map((s) => {
                     const percent = s.maxActiveWorkload
                       ? Math.min(
@@ -544,6 +499,10 @@ export default function StaffWorkloadManager({
                       >
                         <td data-label={tx('User')} style={{ padding: '12px 8px', minWidth: 200 }}>
                           <strong style={{ display: 'block' }}>{s.name}</strong>
+                          {rowStates[s._id]?.busy && <span role="status">{ui('Saving…', 'Inahifadhi…')}</span>}
+                          {rowStates[s._id]?.saved && <span role="status">{ui('Saved', 'Imehifadhiwa')}</span>}
+                          {rowStates[s._id]?.validation && <StatePanel compact kind="warning" title={ui("Enter a capacity from 1 to 20", "Weka uwezo kati ya 1 na 20")} />}
+                          {rowStates[s._id]?.error && <StateError compact error={rowStates[s._id].error} onRetry={() => handleUpdateStaff(s._id, rowStates[s._id].updates)} />}
                           <span
                             style={{
                               display: 'block',
@@ -596,7 +555,7 @@ export default function StaffWorkloadManager({
                             color: s.isActive ? '#166534' : '#991B1B',
                           }}
                         >
-                          {s.isActive ? 'Active' : 'Inactive'}
+                          {s.isActive ? ui('Active', 'Hai') : ui('Inactive', 'Haifanyi kazi')}
                           <small
                             style={{
                               display: 'block',
@@ -636,7 +595,7 @@ export default function StaffWorkloadManager({
                                   </span>
                                   /{' '}
                                   <input
-                                    aria-label={`Maximum active orders for ${s.name}`}
+                                    aria-label={`Maximum active orders for ${s.name}`} disabled={rowStates[s._id]?.busy} aria-invalid={rowStates[s._id]?.validation || undefined}
                                     type="number"
                                     min={1}
                                     max={20}
@@ -700,7 +659,7 @@ export default function StaffWorkloadManager({
                             >
                               <input
                                 type="checkbox"
-                                checked={s.isEligibleForAssignment !== false}
+                                disabled={rowStates[s._id]?.busy} checked={s.isEligibleForAssignment !== false}
                                 onChange={(e) =>
                                   handleUpdateStaff(s._id, {
                                     isEligibleForAssignment: e.target.checked,
@@ -724,7 +683,7 @@ export default function StaffWorkloadManager({
                             type="button"
                             title={tx('View user')}
                             aria-label={`View ${s.name}`}
-                            onClick={() => openUser(s, 'view')}
+                            loading={openingUser === s._id} disabled={openingUser === s._id} onClick={() => openUser(s, 'view')}
                             style={{ padding: 6, marginRight: 4 }}
                           >
                             <Eye size={15} />
@@ -733,7 +692,7 @@ export default function StaffWorkloadManager({
                             type="button"
                             title={tx('Edit user')}
                             aria-label={`Edit ${s.name}`}
-                            onClick={() => openUser(s, 'edit')}
+                            loading={openingUser === s._id} disabled={openingUser === s._id} onClick={() => openUser(s, 'edit')}
                             style={{ padding: 6, marginRight: 4 }}
                           >
                             <Pencil size={15} />
@@ -743,7 +702,7 @@ export default function StaffWorkloadManager({
                               type="button"
                               title={tx('Delete user')}
                               aria-label={`Delete ${s.name}`}
-                              onClick={() => openUser(s, 'delete')}
+                              loading={openingUser === s._id} disabled={openingUser === s._id} onClick={() => openUser(s, 'delete')}
                               style={{ padding: 6, color: '#991B1B' }}
                             >
                               <Trash2 size={15} />
@@ -774,7 +733,7 @@ export default function StaffWorkloadManager({
             className="ui-button"
             disabled={checking}
             onClick={async () => {
-              setChecking(true);
+              setChecking(true); setDiagnosticError(null);
               try {
                 const r = await api.notifications.getDiagnostics(token);
                 setTwilioDiagnostics({
@@ -782,7 +741,7 @@ export default function StaffWorkloadManager({
                   checkedAt: new Date().toISOString(),
                 });
               } catch (e) {
-                setError(e.message);
+                setDiagnosticError(e);
               } finally {
                 setChecking(false);
               }
@@ -792,6 +751,9 @@ export default function StaffWorkloadManager({
               ? ui('Checking…', 'Inakagua…')
               : ui('Check connections', 'Kagua miunganisho')}
           </ActionButton>
+          {!twilioDiagnostics && !checking && !diagnosticError && <StatePanel compact kind="info" title={ui('Connections have not been checked', 'Miunganisho haijakaguliwa')} description={ui('Use Check connections to request current provider results.', 'Tumia Kagua miunganisho kupata matokeo ya sasa ya watoa huduma.')} />}
+          {diagnosticError && <StateError compact error={diagnosticError} title={ui('Connection check unavailable', 'Ukaguzi wa muunganisho haupatikani')} />}
+          {diagnosticError && twilioDiagnostics && <StatePanel compact kind="warning" title={ui('Showing the previous connection check', 'Inaonyesha ukaguzi wa awali wa muunganisho')} />}
           {twilioDiagnostics && (
             <div
               style={{
@@ -864,7 +826,7 @@ export default function StaffWorkloadManager({
                 >
                   <h3>{name}</h3>
                   <p>
-                    {!report?.configured
+                    {!report ? ui('Unavailable', 'Haipatikani') : !report.configured
                       ? ui('Not configured', 'Haijasanidiwa')
                       : connected
                         ? ui('Connected', 'Imeunganishwa')
@@ -1075,20 +1037,10 @@ export default function StaffWorkloadManager({
               });
 
               if (filtered.length === 0) {
-                return (
-                  <div
-                    style={{
-                      color: 'var(--text-muted)',
-                      fontSize: '13px',
-                      padding: '16px 0',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <InterfaceText>
-                      No messages matching current filters.
-                    </InterfaceText>
-                  </div>
-                );
+                if (sectionErrors.notifs || sectionBusy.notifs) return null;
+                return <StatePanel compact kind="empty" title={simulatedNotifs.length ? ui('No messages match these filters', 'Hakuna ujumbe unaolingana na vichujio') : ui('No notification history yet', 'Hakuna historia ya taarifa bado')} description={ui('Recorded channel outcomes will appear here.', 'Matokeo ya njia za ujumbe yataonekana hapa.')}>
+                  {(notifChannelFilter !== 'all' || notifStatusFilter !== 'all') && <button className="ui-button" onClick={() => { setNotifChannelFilter('all'); setNotifStatusFilter('all'); }}>{ui('Clear filters', 'Ondoa vichujio')}</button>}
+                </StatePanel>;
               }
 
               return filtered.map((n) => {
@@ -1396,6 +1348,7 @@ export default function StaffWorkloadManager({
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {!auditLogs.length && !sectionErrors.logs && !sectionBusy.logs && <StatePanel compact kind="empty" title={ui('No audit activity yet', 'Hakuna shughuli za ukaguzi bado')} description={ui('Recorded staff actions will appear here.', 'Vitendo vya wafanyakazi vilivyorekodiwa vitaonekana hapa.')} />}
             {auditLogs.map((log) => (
               <div
                 key={log._id}
@@ -1475,30 +1428,14 @@ export default function StaffWorkloadManager({
               <button
                 type="button"
                 aria-label={tx('Close')}
-                onClick={() => {
-                  setShowAddStaffModal(false);
-                  setError(null);
-                }}
+                onClick={closeDialogs}
                 style={{ background: 'none', color: 'var(--text-muted)' }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            {error && (
-              <div
-                role="alert"
-                style={{
-                  padding: 10,
-                  background: '#FEF2F2',
-                  color: '#991B1B',
-                  borderRadius: 6,
-                  marginBottom: 12,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <StateError compact error={error} description={typeof error === "string" || error?.status === 400 ? error?.message || error : undefined} />}
             <form
               onSubmit={handleAddStaff}
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
@@ -1665,7 +1602,7 @@ export default function StaffWorkloadManager({
               >
                 <button
                   type="button"
-                  onClick={() => setShowAddStaffModal(false)}
+                  onClick={closeDialogs}
                   style={{
                     backgroundColor: 'transparent',
                     color: 'var(--text-muted)',
@@ -1687,7 +1624,7 @@ export default function StaffWorkloadManager({
                     fontWeight: '600',
                   }}
                 >
-                  {creating ? 'Creating account…' : 'Create Account'}
+                  {creating ? ui('Creating account…', 'Inafungua akaunti…') : ui('Create Account', 'Fungua akaunti')}
                 </ActionButton>
               </div>
             </form>
@@ -1738,29 +1675,13 @@ export default function StaffWorkloadManager({
               </h3>
               <button
                 type="button"
-                onClick={() => {
-                  setUserModal(null);
-                  setError(null);
-                }}
+                onClick={closeDialogs}
                 aria-label={tx('Close')}
               >
                 <X size={18} />
               </button>
             </div>
-            {error && (
-              <div
-                role="alert"
-                style={{
-                  padding: 10,
-                  background: '#FEF2F2',
-                  color: '#991B1B',
-                  borderRadius: 6,
-                  marginBottom: 12,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <StateError compact error={error} description={typeof error === "string" || error?.status === 400 ? error?.message || error : undefined} />}
             {userModal !== 'delete' && (
               <StaffOnboardingStatus
                 user={selectedUser}
@@ -1790,7 +1711,7 @@ export default function StaffWorkloadManager({
                   ['Email', selectedUser.email],
                   ['Phone', selectedUser.phone || '—'],
                   ['Role', selectedUser.role],
-                  ['Status', selectedUser.isActive ? 'Active' : 'Inactive'],
+                  ['Status', selectedUser.isActive ? ui('Active', 'Hai') : ui('Inactive', 'Haifanyi kazi')],
                   ...(selectedUser.role === 'designer'
                     ? [
                         [
@@ -1835,7 +1756,7 @@ export default function StaffWorkloadManager({
                     gap: 8,
                   }}
                 >
-                  <button type="button" onClick={() => setUserModal(null)}>
+                  <button type="button" onClick={closeDialogs}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
                   <ActionButton loading={saving}
@@ -1850,7 +1771,7 @@ export default function StaffWorkloadManager({
                       padding: '8px 12px',
                     }}
                   >
-                    {saving ? 'Deleting…' : 'Delete User'}
+                    {saving ? ui('Deleting…', 'Inafuta…') : ui('Delete User', 'Futa mtumiaji')}
                   </ActionButton>
                 </div>
               </>
@@ -1988,7 +1909,7 @@ export default function StaffWorkloadManager({
                     gap: 8,
                   }}
                 >
-                  <button type="button" onClick={() => setUserModal(null)}>
+                  <button type="button" onClick={closeDialogs}>
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
                   <ActionButton loading={saving}
@@ -2002,7 +1923,7 @@ export default function StaffWorkloadManager({
                       padding: '8px 12px',
                     }}
                   >
-                    {saving ? 'Saving…' : 'Save Changes'}
+                    {saving ? ui('Saving…', 'Inahifadhi…') : ui('Save Changes', 'Hifadhi mabadiliko')}
                   </ActionButton>
                 </div>
               </form>
@@ -2051,7 +1972,7 @@ export default function StaffWorkloadManager({
               </h3>
               <button
                 type="button"
-                onClick={() => setShowTestNotifModal(false)}
+                onClick={closeDialogs}
                 aria-label={tx('Close')}
                 style={{
                   background: 'transparent',
@@ -2186,7 +2107,7 @@ export default function StaffWorkloadManager({
               >
                 <button
                   type="button"
-                  onClick={() => setShowTestNotifModal(false)}
+                  onClick={closeDialogs}
                   style={{
                     backgroundColor: 'transparent',
                     border: '1px solid #d1d5db',
@@ -2212,7 +2133,7 @@ export default function StaffWorkloadManager({
                     cursor: 'pointer',
                   }}
                 >
-                  {testNotifSending ? 'Sending…' : 'Send Test'}
+                  {testNotifSending ? ui('Sending…', 'Inatuma…') : ui('Send Test', 'Tuma jaribio')}
                 </ActionButton>
               </div>
             </form>

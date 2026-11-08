@@ -105,10 +105,13 @@ for (const width of [390, 1440])
       '',
     );
     await dialog.getByLabel('Name', { exact: true }).fill('Updated manager');
-    await dialog.getByLabel('Phone', { exact: true }).fill('0712000022');
+    const phone = dialog.getByRole('textbox', { name: 'Phone', exact: true });
+    await phone.fill('0712000022');
+    await phone.blur();
+    await expect(phone).toHaveValue('+255712000022');
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
-    expect(saved).toEqual({ name: 'Updated manager', phone: '0712000022' });
+    expect(saved).toEqual({ name: 'Updated manager', phone: '+255712000022' });
     if (width < 992)
       await page.getByRole('button', { name: 'Open workspace menu' }).click();
     await page.getByRole('button', { name: 'Open profile menu' }).click();

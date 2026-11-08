@@ -4,7 +4,8 @@ import { api } from '../../services/api';
 import { useLanguage, localized } from '../../i18n/LanguageContext';
 import { navigate, editionSlug } from '../../navigation/location';
 import PageSkeleton from '../common/PageSkeleton';
-import { Button, EmptyState, Feedback } from '../common/UI';
+import { Button, EmptyState } from '../common/UI';
+import { StateError } from '../common/StatePanel';
 import '../../theme/customer.css';
 const DynamicFormRenderer = lazy(() => import('./DynamicFormRenderer'));
 function Cover({ form, lang }) {
@@ -40,6 +41,7 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
     [error, setError] = useState(''),
     [query, setQuery] = useState(''),
     [slug, setSlug] = useState(editionSlug);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     const update = () => setSlug(editionSlug());
     window.addEventListener('popstate', update);
@@ -51,8 +53,9 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
     try {
       const data = await api.public.getForms();
       setForms(data.forms || []);
+      setLoaded(true);
     } catch (err) {
-      setError(err.message);
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -113,21 +116,16 @@ export default function MagazineShowcase({ onNavigateToTracking }) {
           </label>
         )}
       </div>
-      {loading ? (
+      {loaded && <Button disabled={loading} onClick={load}>{loading ? (sw ? 'Tunasasisha…' : 'Refreshing…') : (sw ? 'Sasisha matoleo' : 'Refresh editions')}</Button>}
+      {error && <StateError error={error} onRetry={load} title={sw ? 'Matoleo hayajafunguka' : 'The catalogue could not load'}>{loaded && <p>{sw ? 'Unaona matoleo yaliyopakiwa awali.' : 'You are viewing the last loaded editions.'}</p>}</StateError>}
+      {loading && !loaded ? (
         <PageSkeleton variant="catalogue"
           title={t('showcase.loading')}
           description={
             sw ? 'Tunakuandalia matoleo ya kuchagua kwa hadithi yako.' : 'Finding the right edition for your story.'
           }
         />
-      ) : error ? (
-        <>
-          <Feedback kind="error" title={sw ? 'Matoleo hayajafunguka' : 'The catalogue could not load'}>
-            {sw ? 'Angalia mtandao wako kisha ujaribu tena.' : 'Check your connection and try again.'}
-          </Feedback>
-          <Button onClick={load}>{sw ? 'Jaribu tena' : 'Retry Loading'}</Button>
-        </>
-      ) : !forms.length ? (
+      ) : error && !loaded ? null : !forms.length ? (
         <EmptyState
           title={sw ? 'Matoleo mapya yanakuja' : 'New editions are on their way'}
           description={t('showcase.none')}

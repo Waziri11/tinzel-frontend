@@ -1,8 +1,9 @@
 import React from 'react';
 import { ActionButton } from '../common/SoftFlutter';
 import { useLanguage } from '../../i18n/LanguageContext';
+import StatePanel from '../common/StatePanel';
 
-export default function PaymentOptionsSettings({ value, onChange, onSave, busy, disabled, feedback }) {
+export default function PaymentOptionsSettings({ value, onChange, onSave, busy, disabled, feedback, dirty }) {
   const { isSwahili } = useLanguage();
   const t = (en, sw) => isSwahili ? sw : en;
   const options = Array.isArray(value) ? value : [];
@@ -15,7 +16,8 @@ export default function PaymentOptionsSettings({ value, onChange, onSave, busy, 
   return <article className="system-settings-card" style={{ gridColumn: '1 / -1' }}>
     <h3>{t('Payment options', 'Njia za malipo')}</h3>
     <p>{t('Customers see enabled options after submitting any magazine. Add the provider or bank name, payment number, account name and instructions.', 'Wateja huona njia zilizowashwa baada ya kuwasilisha jarida lolote. Ongeza jina la mtoa huduma au benki, namba ya malipo, jina la akaunti na maelekezo.')}</p>
-    {value === undefined && <p>{t('Until you save here, existing forms keep their previous payment details.', 'Hadi uhifadhi hapa, fomu zilizopo zitaendelea kutumia taarifa zao za awali za malipo.')}</p>}
+    {value === undefined ? <StatePanel compact kind="info" title={t('Payment options have not been configured here', 'Njia za malipo hazijasanidiwa hapa')} description={t('Until you save here, existing forms keep their previous payment details.', 'Hadi uhifadhi hapa, fomu zilizopo zitaendelea kutumia taarifa zao za awali za malipo.')} /> : !options.length ? <StatePanel compact kind="empty" title={t('No payment options', 'Hakuna njia za malipo')} description={t('Add a payment option so customers can see how to pay.', 'Ongeza njia ya malipo ili wateja wajue jinsi ya kulipa.')} /> : !options.some(option => option.enabled) ? <StatePanel compact kind="warning" title={t('Every payment option is disabled', 'Njia zote za malipo zimezimwa')} description={t('Customers cannot see payment instructions until you enable and save an option.', 'Wateja hawawezi kuona maelekezo ya malipo hadi uwashe na uhifadhi njia.')} /> : null}
+    {dirty && <StatePanel compact kind="info" title={t('Unsaved payment changes', 'Mabadiliko ya malipo hayajahifadhiwa')} />}
     <form onSubmit={event => { event.preventDefault(); onSave(); }}>
       <fieldset disabled={disabled || busy} style={{ border: 0, padding: 0, minWidth: 0 }}>
         {options.map((option, index) => <fieldset key={option.id} style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 16, marginBottom: 16, minWidth: 0 }}>

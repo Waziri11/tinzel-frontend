@@ -4,6 +4,7 @@ import { api } from "../../services/api";
 import { navigate } from "../../navigation/location";
 import { useLanguage } from "../../i18n/LanguageContext";
 import PageSkeleton from "../common/PageSkeleton";
+import StatePanel, { StateError } from "../common/StatePanel";
 import ManagerMagazineReview from "./ManagerMagazineReview";
 import { magazineReviewPath } from "./MagazineDraftCards";
 export default function MagazineReviewPage({ token, orderId, version }) {
@@ -13,38 +14,42 @@ export default function MagazineReviewPage({ token, orderId, version }) {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [revision, setRevision] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const guard = useRef(null);
   const registerGuard = useCallback((value) => {
     guard.current = value;
   }, []);
   useEffect(() => {
     let active = true;
+    setError(null);
     api.manager
       .getOrder(token, orderId)
       .then((data) => {
         if (active) setOrder(data.order);
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) setError(e);
       });
     return () => {
       active = false;
     };
-  }, [token, orderId]);
+  }, [token, orderId, attempt]);
   const reload = async () => {
-    if (guard.current && !guard.current()) return;
+    if (guard.current && !(await guard.current())) return;
+    setRefreshing(true);
+    setError(null);
     try {
       const data = await api.manager.getOrder(token, orderId);
       setOrder(data.order);
       guard.current = null;
       if (data.order.currentDraftVersion !== version) {
-        // Leaving was already confirmed above; avoid asking twice for the same notes.
-        window.history.pushState({}, '', magazineReviewPath(orderId, data.order.currentDraftVersion));
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // The combined notes/comment guard above has already approved this change.
+        navigate(magazineReviewPath(orderId, data.order.currentDraftVersion), { confirmed: true });
       } else setRevision((n) => n + 1);
     } catch (e) {
-      setError(e.message);
-    }
+      setError(e);
+    } finally { setRefreshing(false); }
   };
   const back = () =>
     navigate(
@@ -53,8 +58,9 @@ export default function MagazineReviewPage({ token, orderId, version }) {
   if (!order)
     return error ? (
       <section className="magazine-review-page">
-        <p role="alert">{error}</p>
-        <button onClick={back}>{t("Back to order", "Rudi kwenye oda")}</button>
+        <StateError error={error} onRetry={() => setAttempt(n => n + 1)} title={t('The magazine could not be opened', 'Jarida halikuweza kufunguliwa')}>
+          <button className="secondary-button" onClick={back}>{t("Back to order", "Rudi kwenye oda")}</button>
+        </StateError>
       </section>
     ) : (
       <PageSkeleton variant="detail" />
@@ -89,8 +95,12 @@ export default function MagazineReviewPage({ token, orderId, version }) {
           </select>
         </label>
       </header>
-      {notice && <p role="status">{notice}</p>}
-      {error && <p role="alert">{error}</p>}
+      {notice && <StatePanel compact kind="success" title={notice} />}
+      {refreshing && <p role="status">{t('Checking the current version…', 'Tunakagua toleo la sasa…')}</p>}
+      {error && <StateError compact error={error} onRetry={reload} title={t('The latest review could not be loaded', 'Ukaguzi wa sasa haukuweza kupakiwa')} />}
+      {exists && version !== order.currentDraftVersion && <StatePanel compact kind="info" title={t('You are viewing an earlier version', 'Unaangalia toleo la awali')} description={t('This version is read only. Open the current version to check the latest review.', 'Toleo hili ni la kusoma tu. Fungua toleo la sasa kukagua mabadiliko mapya.')}>
+        <button className="secondary-button" onClick={() => navigate(magazineReviewPath(orderId, order.currentDraftVersion))}>{t('Open current version', 'Fungua toleo la sasa')}</button>
+      </StatePanel>}
       {exists ? (
         <ManagerMagazineReview
           key={`${orderId}:${version}:${revision}`}
@@ -102,15 +112,19 @@ export default function MagazineReviewPage({ token, orderId, version }) {
           onReviewed={async (message) => {
             guard.current = null;
             setNotice(message);
-            const data = await api.manager.getOrder(token, orderId);
-            setOrder(data.order);
-            setRevision((n) => n + 1);
+            try {
+              const data = await api.manager.getOrder(token, orderId);
+              setOrder(data.order);
+              setRevision((n) => n + 1);
+            } catch (error) { setError(error); }
           }}
         />
       ) : (
-        <p role="alert">
-          {t("Magazine version not found.", "Toleo la jarida halipatikani.")}
-        </p>
+        <StatePanel kind="warning" title={t("Magazine version not found", "Toleo la jarida halipatikani")}
+          description={t('Choose an available version or return to the order.', 'Chagua toleo linalopatikana au rudi kwenye oda.')}>
+          {order.currentDraftVersion > 0 && <button className="primary-button" onClick={() => navigate(magazineReviewPath(orderId, order.currentDraftVersion))}>{t('Open current version', 'Fungua toleo la sasa')}</button>}
+          <button className="secondary-button" onClick={back}>{t('Back to order', 'Rudi kwenye oda')}</button>
+        </StatePanel>
       )}
     </section>
   );

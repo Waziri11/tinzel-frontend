@@ -6,6 +6,8 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { api, proofApi } from '../../services/api';
 import PdfBookReader from '../common/PdfBookReader';
+import StatePanel, { StateError } from '../common/StatePanel';
+import { useConfirm } from '../common/ConfirmDialog';
 import './managerMagazineReview.css';
 function Confirmation({
   reader,
@@ -116,6 +118,10 @@ export default function ManagerMagazineReview({
   onReload,
   registerGuard,
 }) {
+  const confirm = useConfirm();
+  const [downloadError, setDownloadError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const download = async () => { setDownloading(true); setDownloadError(null); try { await downloadMagazine(order._id, version); } catch (error) { setDownloadError(error); } finally { setDownloading(false); } };
   const attachmentReader = useMemo(() => proofApi(token, order._id, version), [token, order._id, version]);
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
@@ -137,26 +143,29 @@ export default function ManagerMagazineReview({
     order.status === 'draft_manager_review' &&
     version === order.currentDraftVersion;
   const dirty = Boolean(notes.trim() || state.composing);
-  const allowLeave = useCallback(() => {
+  const allowLeave = useCallback(async () => {
     if (completed.current) return true;
     if (requestLock.current || state.saving) return false;
-    return (
-      !dirty ||
-      window.confirm(
-        t(
-          'Discard unsent general notes or the unfinished comment? Saved page corrections will remain.',
-          'Ondoa maelezo ambayo hayajatumwa au maoni ambayo hayajakamilika? Marekebisho ya kurasa yaliyohifadhiwa yatabaki.',
-        ),
-      )
-    );
-  }, [dirty, state.saving, lang]);
+    if (!dirty) return true;
+    return confirm({
+      title: t('Leave this review?', 'Ondoka kwenye ukaguzi huu?'),
+      description: t('Unsent general notes and the unfinished comment will be discarded. Saved page corrections will remain.', 'Maelezo ambayo hayajatumwa na maoni ambayo hayajakamilika yataondolewa. Marekebisho ya kurasa yaliyohifadhiwa yatabaki.'),
+      confirmLabel: t('Discard and leave', 'Ondoa na uondoke'),
+      cancelLabel: t('Keep reviewing', 'Endelea kukagua'), danger: true,
+    });
+  }, [dirty, state.saving, lang, confirm]);
   useEffect(() => {
     registerGuard?.(allowLeave);
     return () => registerGuard?.(null);
   }, [allowLeave, registerGuard]);
   useEffect(() => {
     const navigate = (event) => {
-      if (!allowLeave()) event.preventDefault();
+      if (completed.current) return;
+      if (requestLock.current || state.saving) { event.preventDefault(); return; }
+      if (dirty) {
+        if (event.detail?.waitUntil) event.detail.waitUntil(allowLeave());
+        else event.preventDefault();
+      }
     };
     const unload = (event) => {
       if (dirty || state.saving || requestLock.current) {
@@ -224,15 +233,9 @@ export default function ManagerMagazineReview({
       );
     } catch (e) {
       setDecision(null);
-      setError(
-        e.message ||
-          t(
-            'Unable to save the decision. Your corrections and notes remain.',
-            'Imeshindikana kuhifadhi uamuzi. Marekebisho na maelezo yako yamebaki.',
-          ),
-      );
+      setError(e);
       if (
-        [409, 400].includes(e.status) ||
+        !e.status || [400, 408, 409].includes(e.status) ||
         e.name === 'TimeoutError' ||
         e.status >= 500
       ) {
@@ -253,12 +256,7 @@ export default function ManagerMagazineReview({
         )}
       >
         {!eligible ? (
-          <p>
-            {t(
-              'Read-only version. Decisions are available only for the current magazine awaiting manager review.',
-              'Toleo la kusoma tu. Uamuzi unaruhusiwa kwa toleo la sasa linalosubiri ukaguzi wa msimamizi.',
-            )}
-          </p>
+          <StatePanel compact kind="info" title={t('Read-only review', 'Ukaguzi wa kusoma tu')} description={t('Decisions are available only for the current magazine awaiting manager review.', 'Uamuzi unaruhusiwa kwa toleo la sasa linalosubiri ukaguzi wa msimamizi.')} />
         ) : (
           <>
             <label htmlFor={`manager-review-notes-${order._id}-${version}`}>
@@ -276,7 +274,7 @@ export default function ManagerMagazineReview({
               disabled={busy}
               onChange={(e) => setNotes(e.target.value)}
             />
-            {error && <div role="alert">{error}</div>}
+            {error && <StateError compact error={error} title={t("The decision needs attention", "Uamuzi unahitaji kushughulikiwa")} description={typeof error === 'string' ? error : undefined} />}
             {reader.composing && (
               <p>
                 {t(
@@ -360,7 +358,9 @@ export default function ManagerMagazineReview({
     </>
   );
   return (
-    <><button onClick={()=>downloadMagazine(order._id,version).catch(error=>window.alert(error.message))}>Download original PDF</button><PdfBookReader
+    <><ActionButton loading={downloading} disabled={downloading} onClick={download}>{t('Download original PDF', 'Pakua PDF asili')}</ActionButton>
+      {downloadError && <StateError compact error={downloadError} onRetry={download} title={t('The magazine could not be downloaded', 'Jarida halikuweza kupakuliwa')} />}
+      <PdfBookReader
       token={token}
       orderId={order._id}
       version={version}

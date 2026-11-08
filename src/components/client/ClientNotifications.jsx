@@ -1,5 +1,6 @@
 import { hideSubmissionReference } from '../../utils/orderDisplay';
 import PageSkeleton from '../common/PageSkeleton';
+import StatePanel, { StateError } from '../common/StatePanel';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Modal } from 'antd';
@@ -30,6 +31,7 @@ function NotificationHistory({ token, onUnauthorized }) {
     [unread, setUnread] = useState(0),
     [error, setError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [readFailure, setReadFailure] = useState(null), [reading, setReading] = useState(null), [saved, setSaved] = useState(false);
   const load = useCallback(async () => {
     try {
       const data = await api.client.getNotifications(token);
@@ -38,7 +40,7 @@ function NotificationHistory({ token, onUnauthorized }) {
       setError('');
     } catch (error) {
       if ([401, 403].includes(error.status)) onUnauthorized();
-      else setError(sw ? 'Imeshindikana kupakia taarifa.' : 'Unable to load your order updates.');
+      else setError(error);
     } finally { setInitialLoading(false); }
   }, [token, sw, onUnauthorized]);
   useEffect(() => {
@@ -50,12 +52,16 @@ function NotificationHistory({ token, onUnauthorized }) {
   }, [load]);
   useVisiblePolling(load, Boolean(token));
   const read = async (id) => {
+    if (reading) return;
+    setReading(id); setReadFailure(null); setSaved(false);
     try {
       await api.client.readNotification(token, id);
-      await load();
-    } catch {
-      setError(sw ? 'Imeshindikana kuhifadhi. Jaribu tena.' : 'Unable to save. Please retry.');
-    }
+      setItems(previous => previous.map(item => item._id === id ? { ...item, isRead: true } : item));
+      setUnread(previous => Math.max(0, previous - 1)); setSaved(true);
+    } catch (failure) {
+      if ([401, 403].includes(failure.status)) onUnauthorized();
+      else setReadFailure({ id, error: failure });
+    } finally { setReading(null); }
   };
   return (
     <section
@@ -66,13 +72,11 @@ function NotificationHistory({ token, onUnauthorized }) {
         {sw ? 'Taarifa za oda yako' : 'Order updates'}
         {unread > 0 ? ` (${unread})` : ''}
       </h3>
-      {error && (
-        <p role="alert">
-          {error} <ActionButton onClick={load}>{sw ? 'Jaribu tena' : 'Retry'}</ActionButton>
-        </p>
-      )}
+      {error && <StateError compact error={error} onRetry={load} title={sw ? 'Taarifa hazijapakiwa' : 'Order updates could not load'}>{items.length > 0 && <p>{sw ? 'Taarifa zilizopakiwa awali bado zinaonekana.' : 'Previously loaded updates remain visible.'}</p>}</StateError>}
+      {readFailure && <StateError compact error={readFailure.error} onRetry={() => read(readFailure.id)} title={sw ? 'Hatukuweza kuweka imesomwa' : 'Could not mark this update as read'} />}
+      {saved && <p role="status">{sw ? 'Taarifa imewekwa imesomwa.' : 'Update marked as read.'}</p>}
       {initialLoading && <PageSkeleton compact variant="table" />}
-      {!initialLoading && !items.length && !error && <p>{sw ? 'Taarifa za oda yako zitaonekana hapa.' : 'Your order updates will appear here.'}</p>}
+      {!initialLoading && !items.length && !error && <StatePanel compact kind="empty" title={sw ? 'Bado hakuna taarifa' : 'No order updates yet'} description={sw ? 'Taarifa za oda yako zitaonekana hapa.' : 'Your order updates will appear here.'} />}
       {items.map((item) => (
         <article key={item._id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
           <strong>{hideSubmissionReference(item.title)}</strong>
@@ -80,6 +84,8 @@ function NotificationHistory({ token, onUnauthorized }) {
           <small>{new Date(item.createdAt).toLocaleString(sw ? 'sw-TZ' : 'en-TZ')}</small>
           {!item.isRead && (
             <ActionButton
+              loading={reading === item._id}
+              disabled={Boolean(reading)}
               onClick={() => read(item._id)}
               style={{ marginLeft: 12, color: 'var(--text-gold)', background: 'transparent' }}
             >

@@ -39,7 +39,7 @@ for (const lang of ['en', 'sw']) test(`SMS recovery works on mobile in ${lang} w
   await page.getByLabel(lang === 'en' ? 'Work Email Address' : 'Barua pepe ya kazi', { exact: true }).fill(`recovery-${lang}@example.test`);
   await page.getByLabel(lang === 'en' ? 'Password' : 'Nenosiri', { exact: true }).fill(password);
   await page.getByRole('button', { name: lang === 'en' ? 'Sign in' : 'Ingia', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Security / Usalama', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: lang === 'en' ? 'Security' : 'Usalama', exact: true })).toBeVisible();
 });
 test('explicit trusted device appears in security inventory and can be revoked', async ({ page, request }, info) => {
   await request.post(`${sink}/__test__/reset-otp-limits`);
@@ -51,14 +51,16 @@ test('explicit trusted device appears in security inventory and can be revoked',
   const challenge = await (await sent).json(); const code = await codeFor(request, challenge.challengeId);
   const trust = page.getByRole('checkbox', { name: /Trust this private device/ }); await expect(trust).not.toBeChecked(); await trust.check();
   await page.getByLabel('Verification code', { exact: true }).fill(code); await page.getByRole('button', { name: 'Verify code', exact: true }).click();
-  await page.getByRole('button', { name: 'Security / Usalama', exact: true }).click();
+  await page.getByRole('button', { name: 'Security', exact: true }).click();
   await expect(page.getByText('This session', { exact: true })).toBeVisible(); await expect(page.getByText('This device', { exact: true })).toBeVisible();
   await page.getByText('Recent security activity', { exact: true }).click();
   await expect(page.getByText('Signed in', { exact: true }).first()).toBeVisible();
   await page.screenshot({ path: info.outputPath('account-security.png'), fullPage: true });
   await page.getByRole('button', { name: 'Forget device', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Remove this access?' }).getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByText('No trusted devices.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out everywhere and forget devices', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Sign out everywhere?' }).getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
 });
 test('CAPTCHA configuration failure blocks sign-in and supports retry', async ({ page }) => {
@@ -67,6 +69,6 @@ test('CAPTCHA configuration failure blocks sign-in and supports retry', async ({
   await page.route('**/api/staff/auth-config', route => route.fulfill({ json: { captcha: broken ? { enabled: true, siteKey: '' } : { enabled: false } } }));
   await page.goto('/staff/login'); await expect(page.getByRole('alert')).toContainText('Security check is unavailable.');
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled();
-  broken = false; await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  broken = false; await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled();
 });

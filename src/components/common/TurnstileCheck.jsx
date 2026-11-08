@@ -1,3 +1,4 @@
+import StatePanel from './StatePanel';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -57,6 +58,6 @@ export default function TurnstileCheck({ action, onToken, resetKey = 0 }) {
   return <div style={{ minWidth: 0 }}>
     {loading && !failed && <InlineLoading>{lang === 'sw' ? 'Ukaguzi wa usalama unapakia…' : 'Loading security check…'}</InlineLoading>}
     <div ref={container} style={{ width: '100%', minWidth: 0 }} />
-    {failed && <p role="alert">{lang === 'sw' ? 'Ukaguzi wa usalama haupatikani.' : 'Security check is unavailable.'} <button type="button" onClick={() => setRetry(x => x + 1)}>{lang === 'sw' ? 'Jaribu tena' : 'Retry'}</button></p>}
+    {failed && <StatePanel compact kind="error" title={lang === 'sw' ? 'Ukaguzi wa usalama haupatikani.' : 'Security check is unavailable.'} onRetry={() => setRetry(x => x + 1)} />}
   </div>;
 }

@@ -72,12 +72,16 @@ for (const [width, height] of [[320, 740], [390, 844], [768, 1024], [820, 1180],
     await reachable(dialog.getByRole('button', { name: 'Send to manager review', exact: true }), width, height);
     await page.screenshot({ path: info.outputPath('upload-dialog.png') });
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByRole('button', { name: 'Security / Usalama', exact: true }).click();
-    await expect(page.getByText('No active sessions.', { exact: true })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Cancel this upload?' }).getByRole('button', { name: 'Cancel upload', exact: true }).click();
+    await page.getByRole('button', { name: 'Security', exact: true }).click();
+    const securityDialog = page.getByRole('dialog', { name: 'Account security', exact: true });
+    await expect(securityDialog).toBeVisible();
+    await expect(securityDialog.getByRole('heading', { name: 'No active sessions.', exact: true })).toBeVisible();
     await fits(page, 'account security');
-    await page.getByLabel('New phone number', { exact: true }).fill('0712000000');
-    await reachable(page.getByRole('button', { name: 'Verify new contact', exact: true }), width, height);
+    await securityDialog.getByRole('textbox', { name: 'New phone number', exact: true }).fill('0712000000');
+    await reachable(securityDialog.getByRole('button', { name: 'Verify new contact', exact: true }), width, height);
     await page.keyboard.press('Escape');
+    await expect(securityDialog).toBeHidden();
     if (width < 992) {
       await page.getByRole('button', { name: 'Open workspace menu' }).click();
       await reachable(page.getByRole('button', { name: 'Open profile menu' }), width, height);
@@ -97,11 +101,12 @@ for (const [width, height] of [[320, 740], [390, 844], [768, 1024], [820, 1180],
     await page.goto('/track');
     await expect(page.getByAltText('Magazine page 1')).toBeVisible();
     await fits(page, 'customer proof');
-    await page.getByRole('button', { name: /Request Changes/i }).click();
-    await page.getByLabel('Page reference 1').fill('1');
+    await page.getByRole('button', { name: 'Request changes', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Page number 1', exact: true }).fill('1');
     await fits(page, 'customer correction form');
     await page.screenshot({ path: info.outputPath('customer-corrections.png'), fullPage: true });
     currentOrder = { ...order, status: 'dispatched', dispatchDetails: { carrier: 'Courier', trackingReference: 'REFERENCE'.repeat(30) } };
+    page.once('dialog', async dialog => { expect(dialog.type()).toBe('beforeunload'); await dialog.accept(); });
     await page.reload();
     await expect(page.getByText(/REFERENCE/)).toBeVisible();
     await fits(page, 'delivery details with long reference');
@@ -149,7 +154,7 @@ for (const [width, height] of [[320, 740], [768, 1024], [1024, 768], [844, 390]]
     await page.route(url => url.pathname === '/api/manager/orders', route => json(route, { orders: [current], total: 1, pageCount: 1, summary: {}, statusCounts: {} }));
     await page.route('**/api/manager/orders/responsive-order', route => json(route, { order: current, auditLogs: [] }));
     for (const [status, action, title] of [
-      ['awaiting_payment', 'Verify payment', 'Verify Lipa Namba payment'],
+      ['awaiting_payment', 'Verify payment', 'Verify payment'],
       ['assigned', 'Reassign', 'Assign designer'],
       ['print_manager_review', 'Authorize printing', 'Authorize printing'],
       ['printing_sent', 'Record acknowledgement', 'Record printer progress'],
@@ -158,7 +163,7 @@ for (const [width, height] of [[320, 740], [768, 1024], [1024, 768], [844, 390]]
       ['on_hold', 'Resume order', 'Resume this order'],
       ['in_design', 'Place on hold', 'Place order on hold'],
     ]) {
-      current = { ...order, status };
+      current = { ...order, status, ...(status === 'print_manager_review' ? { printDocument: { uploadedAt: '2026-11-01T10:00:00Z' } } : {}) };
       await page.goto('/staff/pre-design?orderId=responsive-order');
       const drawer = page.locator('.manager-order-drawer');
       await drawer.getByRole('button', { name: action, exact: true }).click();
@@ -179,10 +184,10 @@ for (const width of [320, 768, 1024]) test(`printer verification and download at
   await page.route(`**/api/printer/invitations/${invitation}/verify`, route => json(route, { success: true }));
   await page.goto(`/printer/${invitation}`);
   await page.getByRole('button', { name: 'Send SMS code' }).click();
-  await page.getByLabel('Printer SMS code').fill('123456');
+  await page.getByLabel('SMS code', { exact: true }).fill('123456');
   await fits(page, 'printer verification');
-  await page.getByRole('button', { name: 'Verify printer' }).click();
-  await reachable(page.getByRole('link', { name: 'Download authorized print file' }), width, 740);
+  await page.getByRole('button', { name: 'Verify access' }).click();
+  await reachable(page.getByRole('button', { name: 'Download authorized print file' }), width, 740);
 });
 
 test('notification composer keeps close and cancel reachable in portrait and landscape', async ({ page }) => {

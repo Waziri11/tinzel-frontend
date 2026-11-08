@@ -26,7 +26,7 @@ test('designer board and admin retention work through the real API', async ({ pa
   await page.getByRole('searchbox', {name:'Search orders'}).fill('TNZ-BOARD-NEW-00');
   await expect(fresh.locator('.designer-kanban-card')).toHaveCount(1);
   await expect(fresh.getByRole('button', {name:'Open TNZ-BOARD-NEW-00'})).toBeVisible();
-  await expect(client.getByText('No matching orders.')).toBeVisible();
+  await expect(client.getByRole('heading', { name: 'No matching orders', exact: true })).toBeVisible();
   await page.getByRole('searchbox').clear();
   await expect(fresh.locator('.designer-kanban-card')).toHaveCount(10);
   await page.screenshot({path:'/tmp/tinzel-designer-kanban-desktop.png',fullPage:true});
@@ -40,6 +40,7 @@ test('designer board and admin retention work through the real API', async ({ pa
   await page.context().clearCookies();
   await securityLogin(page.request, 'admin');
   await page.goto('/staff/system');
+  await page.getByRole('button', { name: 'Magazine history', exact: true }).click();
   const retention = page.getByLabel('Keep completed submissions for (days)');
   await expect(retention).toHaveValue('7');
   await retention.fill('30');

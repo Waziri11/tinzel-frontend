@@ -3,16 +3,20 @@ import { proofApi } from "../../services/api";
 import { navigate } from "../../navigation/location";
 import { useLanguage } from "../../i18n/LanguageContext";
 import "./managerMagazineReview.css";
+import StatePanel, { StateError } from "../common/StatePanel";
 export const magazineReviewPath = (id, version) =>
   `/staff/review/${encodeURIComponent(id)}/versions/${version}`;
 function DraftCard({ token, order, draft }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === "sw" ? sw : en);
   const [cover, setCover] = useState("");
+  const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     let url = "";
     setCover("");
+    setError(null);
     proofApi(token, order._id, draft.versionNumber)
       .page(1, controller.signal)
       .then((blob) => {
@@ -21,12 +25,12 @@ function DraftCard({ token, order, draft }) {
           setCover(url);
         }
       })
-      .catch(() => {});
+      .catch(error => { if (!controller.signal.aborted) setError(error); });
     return () => {
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [token, order._id, draft.versionNumber]);
+  }, [token, order._id, draft.versionNumber, attempt]);
   const current = draft.versionNumber === order.currentDraftVersion;
   return (
     <article className="magazine-draft-card">
@@ -37,11 +41,7 @@ function DraftCard({ token, order, draft }) {
             alt={`${t("Magazine cover, version", "Jalada la jarida, toleo")} ${draft.versionNumber}`}
           />
         ) : (
-          <span>
-            {t("Magazine cover", "Jalada la jarida")}
-            <br />
-            {t("Version", "Toleo")} {draft.versionNumber}
-          </span>
+          error ? <StateError compact error={error} onRetry={() => setAttempt(n => n + 1)} title={t('Cover preview unavailable', 'Hakikisho la jalada halipatikani')} /> : <StatePanel compact kind="loading" title={t('Loading cover…', 'Tunapakia jalada…')} />
         )}
       </div>
       <div className="magazine-draft-summary">
@@ -73,7 +73,7 @@ function DraftCard({ token, order, draft }) {
 export default function MagazineDraftCards({ token, order }) {
   const { lang } = useLanguage();
   if (!order.draftVersions?.length)
-    return <p>{lang === "sw" ? "Hakuna rasimu bado." : "No drafts yet."}</p>;
+    return <StatePanel compact kind="empty" title={lang === "sw" ? "Bado hakuna rasimu" : "No drafts yet"} description={lang === "sw" ? "Jarida litaonekana hapa msanifu atakapowasilisha rasimu." : "The magazine will appear here when the designer submits a draft."} />;
   return (
     <div className="magazine-draft-cards">
       {[...order.draftVersions].reverse().map((draft) => (
