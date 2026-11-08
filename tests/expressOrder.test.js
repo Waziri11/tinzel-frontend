@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { workingMilliseconds, expressCountdown, compareExpressPriority } from '../src/utils/expressOrder.js';
+import { workingMilliseconds, expressCountdown, orderCountdown, compareExpressPriority } from '../src/utils/expressOrder.js';
 const order = { isExpress: true, status: 'in_design', expressStartedAt: '2026-11-07T10:00:00+03:00', expressDueAt: '2026-11-09T10:00:00+03:00' };
+test('standard has its own 72-hour clock with Sunday pause, completion, pending and overdue states', () => {
+  const standard = { isExpress: false, standardStartedAt: '2026-11-06T10:00:00+03:00', standardDueAt: '2026-11-10T10:00:00+03:00' };
+  assert.equal(orderCountdown(standard, standard.standardStartedAt).hours, 72);
+  for (const now of ['2026-11-08T00:00:00+03:00', '2026-11-08T23:59:59+03:00']) {
+    assert.deepEqual(orderCountdown(standard, now), { state: 'active', hours: 34, minutes: 0, seconds: 0, paused: true, resumesAt: Date.parse('2026-11-09T00:00:00+03:00') });
+  }
+  assert.deepEqual(orderCountdown(standard, '2026-11-09T00:00:01+03:00'), { state: 'active', hours: 33, minutes: 59, seconds: 59, paused: false });
+  assert.equal(orderCountdown(standard, '2026-11-10T10:00:01+03:00').state, 'overdue');
+  assert.equal(orderCountdown({}).state, 'pending');
+  assert.equal(orderCountdown({ ...standard, orderStatus: 'delivered' }).state, 'complete');
+  assert.equal(orderCountdown(null), null);
+});
 test('countdown pauses for the whole Tanzanian Sunday and resumes on Monday', () => {
   assert.deepEqual(expressCountdown(order, order.expressStartedAt), { state: 'active', hours: 24, minutes: 0, seconds: 0, paused: false });
   for (const now of ['2026-11-08T00:00:00+03:00', '2026-11-08T15:30:00+03:00', '2026-11-08T23:59:59+03:00']) {

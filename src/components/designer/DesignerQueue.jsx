@@ -1,4 +1,4 @@
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import { ActionButton } from '../common/SoftFlutter';
 import { useInterfaceText } from '../../i18n/InterfaceText';
@@ -71,7 +71,7 @@ function BoardColumn({ column, token, search, refresh, onOpenOrder, onClearSearc
               <button type="button" className="manager-stage-row" onClick={() => onOpenOrder(order._id)} aria-label={`${tx('Open')} ${orderSenderName(order, tx('Unnamed customer'))}`}>
                 <span className="manager-stage-row__age">{tx('Updated')} {new Date(order.updatedAt).toLocaleDateString()}</span>
                 <strong>{orderSenderName(order, tx('Unnamed customer'))}</strong>
-                <ExpressOrderBadge order={order} />
+                <OrderCountdownBadge order={order} />
                 <span className="manager-stage-row__subtitle">{order.formTitle}</span>
                 <span className="manager-stage-row__meta"><span className={`manager-status is-${order.status}`}>{tx(order.status.replaceAll('_', ' '))}</span></span>
               </button>

@@ -1,4 +1,4 @@
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../services/api";
@@ -75,7 +75,7 @@ export default function MagazineReviewPage({ token, orderId, version }) {
             {t("Back to order", "Rudi kwenye oda")}
           </button>
           <h1>{t("Magazine review", "Ukaguzi wa jarida")}</h1>
-          <ExpressOrderBadge order={order} />
+          <OrderCountdownBadge order={order} />
           <p>
             {orderSenderName(order, t('Unnamed customer', 'Mteja asiye na jina'))}
           </p>

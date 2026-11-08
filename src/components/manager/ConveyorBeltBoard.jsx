@@ -1,6 +1,6 @@
 import { compareExpressPriority } from '../../utils/expressOrder';
 import { paymentAmounts } from '../../utils/paymentAmounts';
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import {navigate} from '../../navigation/location';
@@ -792,7 +792,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                         }}
                       >
 
-                        <td data-label={tx('Client')}>{orderSenderName(order, tx('Unnamed customer'))}<ExpressOrderBadge order={order} /></td>
+                        <td data-label={tx('Client')}>{orderSenderName(order, tx('Unnamed customer'))}<OrderCountdownBadge order={order} /></td>
                         <td data-label={tx('Edition')}>{order.formTitle || order.formId?.title || 'Magazine'}</td>
                         <td data-label={tx('Required action')}>
                           <span className={`manager-status is-${order.status}`}>
@@ -880,7 +880,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
                           <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
                           <strong>{order.clientName}</strong>
-                          <ExpressOrderBadge order={order} />
+                          <OrderCountdownBadge order={order} />
                           <span className="manager-stage-row__subtitle">
                             {order.formTitle || order.formId?.title || 'Tinzel Magazine'}
                           </span>
@@ -1095,7 +1095,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
         <div>
           <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status, lang))}</span>
           <h2>{order.clientName}</h2>
-          <ExpressOrderBadge order={order} />
+          <OrderCountdownBadge order={order} />
           <p>{order.formTitle || order.formId?.title}</p>
         </div>
         <div className="manager-order-detail__actions">
@@ -1212,7 +1212,7 @@ function ActionModal({
         <form onSubmit={onSubmit} className="manager-action-form">
           <div className="manager-action-context">
             <strong>{orderSenderName(order, tx('Unnamed customer'))}</strong>
-            <ExpressOrderBadge order={order} />
+            <OrderCountdownBadge order={order} />
             {order.isExpress && <p>{ui('Expected total including express', 'Jumla inayotarajiwa pamoja na Express')}: {order.totalPrice?.toLocaleString()} TZS</p>}
           </div>
           {action === 'payment' && (

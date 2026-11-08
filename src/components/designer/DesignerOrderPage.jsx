@@ -1,4 +1,4 @@
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import { runTransfer } from '../../services/fileTransfers';
@@ -358,7 +358,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
             <ArrowLeft size={15} /> {staffUser?.role === 'manager' ? 'Returns' : 'Design orders'}
           </button>
           <h1>{orderSenderName(order, tx('Unnamed customer'))}</h1>
-          <ExpressOrderBadge order={order} />
+          <OrderCountdownBadge order={order} />
           <p>
             {order.formTitle} ·{' '}
             <span className="designer-status" data-status={order.status}>

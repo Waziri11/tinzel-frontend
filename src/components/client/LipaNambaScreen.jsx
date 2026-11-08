@@ -1,4 +1,4 @@
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { OrderPriceBreakdown } from './ExpressOrderChoice';
 import PaymentOptions from './PaymentOptions';
 import DepositSummary from './DepositSummary';
@@ -32,9 +32,9 @@ export default function LipaNambaScreen({ order, paymentOptions, lipaNambaInstru
             <p>{order?.formTitle}</p>
           </div>
           <DepositSummary total={order?.price} currency={order?.currency} showDeposit={false} isExpress={order?.isExpress} />
-          {order?.isExpress && <div className="payment-page__express">
-            <ExpressOrderBadge order={order} />
-            <OrderPriceBreakdown basePrice={order.basePrice} expressFee={order.expressFee} currency={order.currency} showTotal={false} />
+          {order && <div className="payment-page__express">
+            <OrderCountdownBadge order={order} />
+            {order.isExpress && <OrderPriceBreakdown basePrice={order.basePrice} expressFee={order.expressFee} currency={order.currency} showTotal={false} />}
           </div>}
           <p className="payment-page__notice"><MessageSquare size={17} aria-hidden="true" /><span>{t('pay.notice', { phone: order?.clientWhatsApp ?? '' })}</span></p>
         </section>

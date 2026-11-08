@@ -1,5 +1,5 @@
 import { OrderPriceBreakdown } from './ExpressOrderChoice';
-import ExpressOrderBadge from '../common/ExpressOrderBadge';
+import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import StatePanel from '../common/StatePanel';
 import { useConfirm } from '../common/ConfirmDialog';
 import { normalizePhone } from '../../utils/phone';
@@ -557,7 +557,7 @@ export default function ClientTrackingPortal() {
             <span className="customer-order-name" style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
               {orderSenderName(order, ui('Your magazine', 'Jarida lako'))}
             </span>
-            <ExpressOrderBadge order={order} />
+            <OrderCountdownBadge order={order} />
             <span
               style={{
                 backgroundColor: 'var(--accent-gold-light)',

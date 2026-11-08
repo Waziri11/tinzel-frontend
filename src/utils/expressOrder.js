@@ -39,14 +39,21 @@ export function compareExpressPriority(a, b) {
 
 export function expressCountdown(order, now = Date.now()) {
   if (!order?.isExpress) return null;
+  return orderCountdown(order, now);
+}
+
+export function orderCountdown(order, now = Date.now()) {
+  if (!order) return null;
   if (['delivered', 'closed'].includes(order.orderStatus || order.status)) return { state: 'complete' };
-  if (!order.expressStartedAt || !order.expressDueAt) return { state: 'pending' };
-  const remaining = workingMilliseconds(now, order.expressDueAt);
+  const startedAt = order.isExpress ? order.expressStartedAt : order.standardStartedAt;
+  const dueAt = order.isExpress ? order.expressDueAt : order.standardDueAt;
+  if (!startedAt || !dueAt) return { state: 'pending' };
+  const remaining = workingMilliseconds(now, dueAt);
   const seconds = Math.ceil(Math.abs(remaining) / 1000);
   const paused = isExpressSunday(now);
   const localNow = new Date(new Date(now).getTime() + EAT_OFFSET);
   return {
-    state: new Date(now).getTime() >= new Date(order.expressDueAt).getTime() ? 'overdue' : 'active',
+    state: new Date(now).getTime() >= new Date(dueAt).getTime() ? 'overdue' : 'active',
     hours: Math.floor(seconds / 3600), minutes: Math.floor(seconds / 60) % 60, seconds: seconds % 60,
     paused,
     ...(paused ? { resumesAt: Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate() + 1) - EAT_OFFSET } : {}),
