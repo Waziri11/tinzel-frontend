@@ -225,6 +225,7 @@ test('admin saves provider overrides without revealing secrets or probing automa
     return route.fulfill({ json: { configured: true, connected: true } });
   });
   await page.goto('/staff/system');
+  await page.getByRole('button', { name: 'Messaging services', exact: true }).click();
   const card = page
     .locator('article')
     .filter({
@@ -256,6 +257,8 @@ test('admin saves provider overrides without revealing secrets or probing automa
   ).toBeVisible();
   expect(checks).toBe(1);
   expect(diagnosticChecks).toBe(0);
+  await page.getByRole('button', { name: 'Back to settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Diagnostics & history', exact: true }).click();
   await page
     .getByRole('button', { name: 'Check connections', exact: true })
     .click();
@@ -300,6 +303,7 @@ test('admin can save and reload the sign-in verification interval on mobile', as
     return route.fulfill({ json: { configs: [{ key: 'staff_login_verification_hours', value }] } });
   });
   await page.goto('/staff/system');
+  await page.getByRole('button', { name: 'Security settings', exact: true }).click();
   const interval = page.getByLabel('Sign-in verification interval', { exact: true });
   await expect(interval).toHaveValue('168');
   await interval.selectOption('24');
@@ -315,4 +319,80 @@ test('admin can save and reload the sign-in verification interval on mobile', as
   await expect(page.getByText('Verification interval saved.', { exact: true })).toBeVisible();
   expect(writes.at(-1).value).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const language of ['en', 'sw']) test(`admin settings cards reflow and support keyboard navigation in ${language}`, async ({ page }) => {
+  await prepare(page, { ...manager, id: 'admin-workspace', role: 'admin' });
+  await page.goto('/staff/system');
+  if (language === 'sw') await page.getByRole('button', { name: 'SW', exact: true }).click();
+  const title = language === 'sw' ? 'Mipangilio ya mfumo' : 'System settings';
+  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  await expect(page.locator('.system-category-card')).toHaveCount(9);
+  await expect(page.locator('.system-settings-editor')).toHaveCount(0);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 390 || width === 1440) await page.screenshot({ path: `/tmp/tinzel-settings-hub-${language}-${width}.png`, fullPage: true });
+  }
+  const statusName = language === 'sw' ? 'Hali ya mfumo' : 'System status';
+  const card = page.getByRole('button', { name: statusName, exact: true });
+  await card.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/category=status$/);
+  await expect(page.getByRole('heading', { name: statusName, level: 1 })).toBeFocused();
+  await expect(page.getByText('123', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: language === 'sw' ? 'Rudi kwenye mipangilio' : 'Back to settings', exact: true }).click();
+  await expect(card).toBeFocused();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: statusName, level: 1 })).toBeVisible();
+  await page.goForward();
+  await expect(card).toBeVisible();
+});
+
+test('admin categories preserve drafts and save only the selected operational setting', async ({ page }) => {
+  await prepare(page, { ...manager, id: 'admin-workspace', role: 'admin' });
+  const config = { printer_name: 'Fixture printer', support_email: 'help@example.test', default_max_workload: 5 };
+  const writes = [];
+  await page.route('**/api/admin/config', route => {
+    if (route.request().method() === 'PUT') {
+      const body = route.request().postDataJSON();
+      writes.push(body);
+      config[body.key] = body.value;
+      return route.fulfill({ json: { config: body } });
+    }
+    return route.fulfill({ json: { configs: Object.entries(config).map(([key, value]) => ({ key, value })) } });
+  });
+  await page.route('**/api/admin/providers', route => route.fulfill({ json: { providers: [] } }));
+  await page.goto('/staff/system');
+  const open = name => page.getByRole('button', { name, exact: true }).click();
+  const back = () => open('Back to settings');
+  await open('Printing');
+  await page.getByLabel('Printer name', { exact: true }).fill('Unsaved printer');
+  await expect(page.getByLabel('Support email', { exact: true })).toHaveCount(0);
+  await back();
+  await open('Customer support');
+  const email = page.getByLabel('Support email', { exact: true });
+  await email.fill('updated@example.test');
+  await email.locator('..').getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
+  expect(writes).toEqual([{ key: 'support_email', value: 'updated@example.test' }]);
+  await back();
+  await open('Printing');
+  await expect(page.getByLabel('Printer name', { exact: true })).toHaveValue('Unsaved printer');
+  await back();
+  await open('Payment settings');
+  await open('Add payment option');
+  await page.getByLabel('Provider / bank name', { exact: true }).fill('Unsaved payment');
+  await back();
+  await open('Staff capacity');
+  await expect(page.getByLabel('Default designer capacity', { exact: true })).toHaveValue('5');
+  await back();
+  await open('Payment settings');
+  await expect(page.getByLabel('Provider / bank name', { exact: true })).toHaveValue('Unsaved payment');
+  await back();
+  await open('Magazine history');
+  await expect(page.getByLabel('Keep completed submissions for (days)')).toHaveValue('7');
+  await page.setViewportSize({ width: 320, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(writes).toHaveLength(1);
 });

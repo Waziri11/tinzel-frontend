@@ -8,6 +8,7 @@ test('admin payment options persist and appear after submission in both language
   page.on('pageerror', error => errors.push(error.message));
   await securityLogin(page.request, 'admin');
   await page.goto('/staff/system');
+  await page.getByRole('button', { name: 'Payment settings', exact: true }).click();
   const settings = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Payment options', exact: true }) });
   await expect(settings).toBeVisible();
   for (const [index, type, name, number] of [[0, 'mobile', 'Test Mobile', 'TEST-MOBILE'], [1, 'bank', 'Test Bank', 'TEST-BANK'], [2, 'till', 'Hidden Till', 'TEST-HIDDEN']]) {
@@ -54,6 +55,7 @@ test('admin payment options persist and appear after submission in both language
   await expect(payment).toContainText('Majaribio pekee: Test Bank.');
   await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.goto('/staff/system');
+  await page.getByRole('button', { name: 'Payment settings', exact: true }).click();
   for (let i = 0; i < 3; i++) await settings.getByRole('button', { name: 'Remove option', exact: true }).first().click();
   await settings.getByRole('button', { name: 'Save payment options', exact: true }).click();
   await expect(settings.getByText('Payment options saved.', { exact: true })).toBeVisible();

@@ -1,16 +1,18 @@
 import PageSkeleton from './PageSkeleton';
 import { ActionButton, InlineLoading } from './SoftFlutter';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AdminSystemSettings from '../admin/AdminSystemSettings';
 import StaffWorkloadManager from '../admin/StaffWorkloadManager';
 import './systemPage.css';
+import { ArrowLeft, ChevronRight, CreditCard, Printer, Headphones, Users, ShieldCheck, Archive, MessagesSquare, Activity, ClipboardList } from 'lucide-react';
+import { navigate } from '../../navigation/location';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 const bytes = (value) =>
   value == null
     ? null
     : `${(value / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`;
-export default function SystemPage({ token, user }) {
+function SystemOverview({ token }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
   const [sections, setSections] = useState({}),
@@ -61,7 +63,7 @@ export default function SystemPage({ token, user }) {
           marginBottom: 20,
         }}
       >
-        <h1 className="ui-title">{t('System', 'Mfumo')}</h1>
+        <h2>{t('System status', 'Hali ya mfumo')}</h2>
         <ActionButton
           className="ui-button"
           onClick={refresh}
@@ -214,24 +216,110 @@ export default function SystemPage({ token, user }) {
           'Kumbukumbu ni za programu hii inayofanya kazi. Vikomo vya mtoa huduma na hifadhi ya nje huonyeshwa vinapopatikana. Jumla ya faili ni sehemu ya hifadhi ya hifadhidata.',
         )}
       </p>
-      {user.role === 'admin' && (
+    </section>
+  );
+}
+
+const settingsGroups = [
+  {
+    title: ['Orders & customers', 'Oda na wateja'],
+    items: [
+      { id: 'payments', icon: CreditCard, title: ['Payment settings', 'Mipangilio ya malipo'], description: ['Manage payment methods and the instructions customers see after ordering.', 'Simamia njia za malipo na maelekezo ambayo wateja huona baada ya kuagiza.'] },
+      { id: 'printing', icon: Printer, title: ['Printing', 'Uchapishaji'], description: ['Set printer contacts and the language used for printing notifications.', 'Weka mawasiliano ya mchapishaji na lugha ya taarifa za uchapishaji.'] },
+      { id: 'support', icon: Headphones, title: ['Customer support', 'Msaada kwa wateja'], description: ['Keep your customer support phone number and email address up to date.', 'Sasisha namba ya simu na barua pepe za msaada kwa wateja.'] },
+    ],
+  },
+  {
+    title: ['Team & policies', 'Timu na sera'],
+    items: [
+      { id: 'capacity', icon: Users, title: ['Staff capacity', 'Uwezo wa wafanyakazi'], description: ['Set the default number of orders a designer can work on at a time.', 'Weka idadi ya kawaida ya oda ambazo mbunifu anaweza kushughulikia kwa wakati mmoja.'] },
+      { id: 'security', icon: ShieldCheck, title: ['Security settings', 'Mipangilio ya usalama'], description: ['Choose how often admins and managers verify their sign-in with a code.', 'Chagua mara ambazo wasimamizi na meneja huthibitisha kuingia kwa msimbo.'] },
+      { id: 'retention', icon: Archive, title: ['Magazine history', 'Historia ya magazeti'], description: ['Choose how long completed orders and their files are kept.', 'Chagua muda wa kuhifadhi oda zilizokamilika pamoja na faili zake.'] },
+    ],
+  },
+  {
+    title: ['Services & monitoring', 'Huduma na ufuatiliaji'],
+    items: [
+      { id: 'messaging', icon: MessagesSquare, title: ['Messaging services', 'Huduma za ujumbe'], description: ['Configure SMS, email and WhatsApp providers and check their connections.', 'Sanidi watoa huduma za SMS, barua pepe na WhatsApp na ukague miunganisho yao.'] },
+      { id: 'status', icon: Activity, title: ['System status', 'Hali ya mfumo'], description: ['View application health, storage usage and messaging availability.', 'Angalia hali ya programu, matumizi ya hifadhi na upatikanaji wa huduma za ujumbe.'] },
+      { id: 'diagnostics', icon: ClipboardList, title: ['Diagnostics & history', 'Uchunguzi na historia'], description: ['Review notification delivery, check connections and inspect activity logs.', 'Pitia uwasilishaji wa taarifa, kagua miunganisho na rekodi za shughuli.'] },
+    ],
+  },
+];
+const categories = settingsGroups.flatMap(group => group.items);
+const readCategory = () => {
+  const value = new URLSearchParams(window.location.search).get('category');
+  return categories.some(item => item.id === value) ? value : null;
+};
+
+export default function SystemPage({ token, user }) {
+  const { lang } = useLanguage();
+  const t = (en, sw) => lang === 'sw' ? sw : en;
+  const [category, setCategory] = useState(readCategory);
+  const [editorVisited, setEditorVisited] = useState(Boolean(category && !['status', 'diagnostics'].includes(category)));
+  const previousCategory = useRef(category);
+  const heading = useRef(null);
+  const cardRefs = useRef({});
+  const selected = categories.find(item => item.id === category);
+  const isAdmin = user.role === 'admin';
+  useEffect(() => {
+    const sync = () => setCategory(readCategory());
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  useEffect(() => {
+    if (category && !['status', 'diagnostics'].includes(category)) setEditorVisited(true);
+    if (previousCategory.current !== category) {
+      if (category) heading.current?.focus();
+      else cardRefs.current[previousCategory.current]?.focus();
+    }
+    previousCategory.current = category;
+  }, [category]);
+  const openCategory = (next) => navigate(next ? `/staff/system?category=${next}` : '/staff/system');
+  if (!isAdmin) return <section className="system-page"><h1 className="ui-title">{t('System', 'Mfumo')}</h1><SystemOverview token={token} /></section>;
+  return (
+    <section className="system-page">
+      {selected ? (
+        <header className="system-settings-header">
+          <button type="button" className="ui-button system-settings-back" onClick={() => openCategory(null)}>
+            <ArrowLeft size={17} aria-hidden="true" />{t('Back to settings', 'Rudi kwenye mipangilio')}
+          </button>
+          <h1 ref={heading} tabIndex={-1} className="ui-title">{t(...selected.title)}</h1>
+          <p className="ui-description">{t(...selected.description)}</p>
+        </header>
+      ) : (
         <>
-          <AdminSystemSettings token={token} />
-          <section style={{ marginTop: 32 }}>
-            <h2>
-              {t(
-                'Diagnostics and notification history',
-                'Uchunguzi na historia ya taarifa',
-              )}
-            </h2>
-            <StaffWorkloadManager
-              token={token}
-              initialTab="notifs"
-              systemOnly
-            />
-          </section>
+          <header className="system-settings-header">
+            <span className="ui-eyebrow">{t('Administration', 'Usimamizi')}</span>
+            <h1 className="ui-title">{t('System settings', 'Mipangilio ya mfumo')}</h1>
+            <p className="ui-description">{t('Manage Tinzel from one place. Choose a category to view or update its settings.', 'Simamia Tinzel sehemu moja. Chagua kundi ili kuona au kusasisha mipangilio yake.')}</p>
+          </header>
+          <div className="system-settings-groups">
+            {settingsGroups.map((group, index) => (
+              <section className="system-settings-group" key={index} aria-labelledby={`settings-group-${index}`}>
+                <h2 id={`settings-group-${index}`}>{t(...group.title)}</h2>
+                <div className="system-category-grid">
+                  {group.items.map(({ id, icon: Icon, title, description }) => (
+                    <button key={id} ref={element => { cardRefs.current[id] = element; }} type="button" className="system-category-card" onClick={() => openCategory(id)} aria-labelledby={`settings-title-${id}`} aria-describedby={`settings-description-${id}`}>
+                      <span className="system-category-icon"><Icon size={22} strokeWidth={1.7} aria-hidden="true" /></span>
+                      <span className="system-category-copy">
+                        <span id={`settings-title-${id}`} className="system-category-title">{t(...title)}</span>
+                        <span id={`settings-description-${id}`} className="system-category-description">{t(...description)}</span>
+                      </span>
+                      <ChevronRight className="system-category-arrow" size={17} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </>
       )}
+      <div hidden={!selected || ['status', 'diagnostics'].includes(category)}>
+        {editorVisited && <AdminSystemSettings token={token} category={category} />}
+      </div>
+      {category === 'status' && <SystemOverview token={token} />}
+      {category === 'diagnostics' && <div className="system-diagnostics-panel"><StaffWorkloadManager token={token} initialTab="notifs" systemOnly /></div>}
     </section>
   );
 }

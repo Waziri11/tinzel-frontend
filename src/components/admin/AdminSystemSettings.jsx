@@ -43,7 +43,7 @@ const fieldLabels = {
   ],
   ENABLE_TWILIO_SMS_FALLBACK: ['SMS fallback', 'SMS ya akiba'],
 };
-export default function AdminSystemSettings({ token }) {
+export default function AdminSystemSettings({ token, category }) {
   const { lang } = useLanguage(),
     t = (en, sw) => (lang === 'sw' ? sw : en);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -111,8 +111,7 @@ export default function AdminSystemSettings({ token }) {
   );
   if (initialLoading) return <PageSkeleton variant="form" />;
   return (
-    <section style={{ marginTop: 32 }}>
-      <h2>{t('Configuration', 'Mipangilio')}</h2>
+    <section className="system-settings-editor">
       {feedback('config')}
       {error.config && (
         <ActionButton className="ui-button" onClick={loadConfig}>
@@ -120,15 +119,15 @@ export default function AdminSystemSettings({ token }) {
         </ActionButton>
       )}
       <div className="system-settings-grid">
-        <PaymentOptionsSettings value={config.payment_options}
+        {category === 'payments' && <PaymentOptionsSettings value={config.payment_options}
           onChange={value => setConfig(current => ({ ...current, payment_options: value }))}
           disabled={!configLoaded || !!error.config} busy={busy.payment_options} feedback={feedback('payment_options')}
           onSave={() => run('payment_options', async () => {
             const result = await api.admin.updateConfig(token, { key: 'payment_options', value: config.payment_options || [] });
             setConfig(current => ({ ...current, payment_options: result.config.value }));
             setNotice(current => ({ ...current, payment_options: t('Payment options saved.', 'Njia za malipo zimehifadhiwa.') }));
-          })} />
-        <article className="system-settings-card">
+          })} />}
+        {category === 'retention' && <article className="system-settings-card">
           <h3>{t('Magazine history retention', 'Muda wa kuhifadhi historia ya magazeti')}</h3>
           <form onSubmit={event => {
             event.preventDefault();
@@ -151,9 +150,9 @@ export default function AdminSystemSettings({ token }) {
             {feedback(retentionKey)}
             <ActionButton loading={busy[retentionKey]} className="ui-button" disabled={!configLoaded || busy[retentionKey] || !!error.config}>{t('Save retention period', 'Hifadhi muda wa kuhifadhi')}</ActionButton>
           </form>
-        </article>
+        </article>}
 
-        <article className="system-settings-card">
+        {category === 'security' && <article className="system-settings-card">
           <h3>{t('Sign-in security', 'Usalama wa kuingia')}</h3>
           <form onSubmit={event => {
             event.preventDefault();
@@ -177,10 +176,11 @@ export default function AdminSystemSettings({ token }) {
             {feedback(verificationKey)}
             <ActionButton loading={busy[verificationKey]} className="ui-button" disabled={!configLoaded || busy[verificationKey] || !!error.config}>{t('Save verification interval', 'Hifadhi muda wa uthibitisho')}</ActionButton>
           </form>
-        </article>
-        <article className="system-settings-card">
-          <h3>{t('Operational settings', 'Mipangilio ya uendeshaji')}</h3>
-          {operationalFields.map(([key, en, sw]) => (
+        </article>}
+        {['printing', 'support', 'capacity'].includes(category) && <article className="system-settings-card">
+          <h3>{category === 'printing' ? t('Printer details', 'Taarifa za mchapishaji') : category === 'support' ? t('Support contacts', 'Mawasiliano ya msaada') : t('Designer workload', 'Kazi za wabunifu')}</h3>
+          <div className="system-operational-fields">
+          {operationalFields.filter(([key]) => category === 'printing' ? key.startsWith('printer_') : category === 'support' ? key.startsWith('support_') : key === 'default_max_workload').map(([key, en, sw]) => (
             <form
               key={key}
               onSubmit={(e) => {
@@ -188,10 +188,7 @@ export default function AdminSystemSettings({ token }) {
                 run(key, async () => {
                   await api.admin.updateConfig(token, {
                     key,
-                    value:
-                      key === 'default_max_workload'
-                        ? Number(config[key] || 5)
-                        : (config[key] ?? ''),
+                    value: key === 'default_max_workload' ? Number(config[key] || 5) : (config[key] ?? ''),
                   });
                   setNotice((x) => ({
                     ...x,
@@ -199,12 +196,15 @@ export default function AdminSystemSettings({ token }) {
                   }));
                 });
               }}
-              style={{ marginBottom: 20 }}
+              className="system-operational-field"
             >
-              <label>
+              <fieldset disabled={!configLoaded || busy[key] || !!error.config}>
+              <label htmlFor={`setting-${key}`}>
                 {t(en, sw)}
+              </label>
                 {key === 'printer_preferred_language' ? (
                   <select
+                    id={`setting-${key}`}
                     value={config[key] || 'sw'}
                     onChange={(e) =>
                       setConfig((x) => ({ ...x, [key]: e.target.value }))
@@ -214,9 +214,10 @@ export default function AdminSystemSettings({ token }) {
                     <option value="sw">Kiswahili</option>
                   </select>
                 ) : key.includes('phone') ? (
-                  <PhoneInput value={config[key] || ''} onChange={e => setConfig(x => ({ ...x, [key]: e.target.value }))} />
+                  <PhoneInput id={`setting-${key}`} value={config[key] || ''} onChange={e => setConfig(x => ({ ...x, [key]: e.target.value }))} />
                 ) : (
                   <input
+                    id={`setting-${key}`}
                     type={
                       key === 'default_max_workload'
                         ? 'number'
@@ -234,7 +235,6 @@ export default function AdminSystemSettings({ token }) {
                     }
                   />
                 )}
-              </label>
               {feedback(key)}
               <ActionButton loading={busy[key]}
                 disabled={busy[key] || !!error.config}
@@ -243,10 +243,12 @@ export default function AdminSystemSettings({ token }) {
               >
                 {t('Save', 'Hifadhi')}
               </ActionButton>
+              </fieldset>
             </form>
           ))}
-        </article>
-        {providers.map((provider) => (
+          </div>
+        </article>}
+        {category === 'messaging' && providers.map((provider) => (
           <article key={provider.provider} className="system-settings-card">
             <h3>
               {provider.provider === 'smtp'
@@ -463,18 +465,18 @@ export default function AdminSystemSettings({ token }) {
           </article>
         ))}
       </div>
-      {feedback('providers')}
-      {error.providers && (
+      {category === 'messaging' && feedback('providers')}
+      {category === 'messaging' && error.providers && (
         <ActionButton className="ui-button" onClick={loadProviders}>
           {t('Retry', 'Jaribu tena')}
         </ActionButton>
       )}
-      <p style={{ color: 'var(--text-muted)', marginTop: 16 }}>
+      {category === 'messaging' && <p className="system-settings-note">
         {t(
           'Hosting, database, storage credentials and encryption keys are managed in deployment settings. Connection checks use saved values; they do not send messages.',
           'Taarifa za seva, hifadhidata, hifadhi na funguo za usimbaji husimamiwa kwenye seva. Ukaguzi hutumia mipangilio iliyohifadhiwa na hautumi ujumbe.',
         )}
-      </p>
+      </p>}
     </section>
   );
 }

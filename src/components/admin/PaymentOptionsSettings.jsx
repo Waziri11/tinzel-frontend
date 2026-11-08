@@ -20,6 +20,8 @@ export default function PaymentOptionsSettings({ value, onChange, onSave, busy, 
       <fieldset disabled={disabled || busy} style={{ border: 0, padding: 0, minWidth: 0 }}>
         {options.map((option, index) => <fieldset key={option.id} style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 16, marginBottom: 16, minWidth: 0 }}>
           <legend>{t('Payment option', 'Njia ya malipo')} {index + 1}</legend>
+          <div className="system-payment-fields">
+          <div>
           <label htmlFor={`payment-type-${option.id}`}>{t('Payment type', 'Aina ya malipo')}</label>
             <select id={`payment-type-${option.id}`} value={option.type} onChange={event => update(index, 'type', event.target.value)}>
               <option value="till">Lipa Namba</option>
@@ -27,6 +29,7 @@ export default function PaymentOptionsSettings({ value, onChange, onSave, busy, 
               <option value="bank">{t('Bank transfer', 'Uhamisho wa benki')}</option>
               <option value="other">{t('Other', 'Nyingine')}</option>
             </select>
+          </div>
           {[
             ['name', 'Provider / bank name', 'Jina la mtoa huduma / benki', 120],
             ['nameSw', 'Display name in Kiswahili (optional)', 'Jina la kuonyesha kwa Kiswahili (si lazima)', 120],
@@ -34,12 +37,13 @@ export default function PaymentOptionsSettings({ value, onChange, onSave, busy, 
             ['accountName', 'Account name', 'Jina la akaunti', 160],
             ['instructions', 'Payment instructions', 'Maelekezo ya malipo', 2000],
             ['instructionsSw', 'Instructions in Kiswahili (optional)', 'Maelekezo kwa Kiswahili (si lazima)', 2000],
-          ].map(([key, en, sw, maxLength]) => <label key={key} style={{ display: 'block', marginTop: 12 }}>
+          ].map(([key, en, sw, maxLength]) => <label key={key}>
             {t(en, sw)}
             {key.startsWith('instructions')
               ? <textarea required={!key.endsWith('Sw')} maxLength={maxLength} rows={3} value={option[key] || ''} onChange={event => update(index, key, event.target.value)} />
               : <input type="text" required={!key.endsWith('Sw')} maxLength={maxLength} value={option[key] || ''} onChange={event => update(index, key, event.target.value)} />}
           </label>)}
+          </div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '12px 0' }}>
             <input type="checkbox" style={{ width: 'auto' }} checked={option.enabled} onChange={event => update(index, 'enabled', event.target.checked)} />
             {t('Show to customers', 'Onyesha kwa wateja')}
