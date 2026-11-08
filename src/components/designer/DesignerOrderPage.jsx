@@ -35,7 +35,6 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [starting, setStarting] = useState(false);
   const [printUncertain, setPrintUncertain] = useState(false);
   const [uploadUncertain, setUploadUncertain] = useState(false);
   const [checkingSaved, setCheckingSaved] = useState(false);
@@ -66,7 +65,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     binding: 'Saddle Stitch',
   });
   const hasLocalDraft = Boolean(file || (!resume && notes.trim()) || printFile || printDirty || Object.values(responses).some(value => String(value).trim()));
-  const savingLocalWork = Boolean(addressing || starting || uploading);
+  const savingLocalWork = Boolean(addressing || uploading);
   useEffect(() => {
     const beforeNavigate = event => {
       // Query changes within this order do not discard its inputs.
@@ -252,18 +251,6 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       setUploadError(err);
     }
   };
-  const startDesign = async () => {
-    if (starting) return;
-    setStarting(true);
-    setError(null);
-    try {
-      await api.designer.startDesign(token, orderId);
-      setSuccess(ui('Design started. You can now prepare the magazine.', 'Usanifu umeanza. Sasa unaweza kuandaa jarida.'));
-      await load();
-    } catch (err) {
-      setError(err);
-    } finally { setStarting(false); }
-  };
   const uploadPrint = async (event) => {
     event.preventDefault();
     if (uploading || printUncertain) return;
@@ -374,11 +361,6 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
         </div>
         {canEdit && (
           <div style={{ display: 'flex', gap: 8 }}>
-            {['assigned', 'revision_requested'].includes(order.status) && (
-              <ActionButton loading={starting} disabled={starting} className="secondary-button" onClick={startDesign}>
-                <InterfaceText>Start design</InterfaceText>
-              </ActionButton>
-            )}
             <button className="primary-button" onClick={openUpload} disabled={!canUploadDraft || Boolean(uploadInProgress)}>
               <UploadCloud size={16} />
               <InterfaceText>Upload new draft</InterfaceText>
