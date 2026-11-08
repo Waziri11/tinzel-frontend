@@ -25,7 +25,7 @@ for (const [lang, index] of [['en', 1], ['sw', 2]]) {
   test(`customer journey uses clear wording at every stage on mobile in ${lang}`, async ({ page }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript(lang => localStorage.setItem('tinzel_language', lang), lang);
-    const order = { _id: 'customer-order', trackingId: 'TNZ-2026-0005', clientName: 'Test Customer', formTitle: 'Birthday Magazine', clientPreferredLanguage: lang, currentDraftVersion: 1, draftVersions: [], revisionRequests: [] };
+    const order = { _id: 'customer-order', trackingId: 'TNZ-2026-0005', clientName: 'Test Customer', formTitle: 'Birthday Magazine', price: 50000, currency: 'TZS', clientPreferredLanguage: lang, currentDraftVersion: 1, draftVersions: [], revisionRequests: [] };
     await page.route('**/api/client/order', route => route.fulfill({ json: { order } }));
     for (const [status, en, sw] of states) {
       order.status = status;
@@ -34,6 +34,10 @@ for (const [lang, index] of [['en', 1], ['sw', 2]]) {
       await expect(page.locator('.customer-status-description')).not.toBeEmpty();
       await expect(page.locator('main')).not.toContainText(/CONVEYOR BELT|queued for assignment|draft manager review|approval loop|print document prep|track\.status\.|future_internal_state/i);
       await expect(page.getByText('We sent a six-digit code by SMS.')).toHaveCount(0);
+      if (status === 'awaiting_payment') {
+        await expect(page.locator('.payment-deposit-summary')).toContainText(lang === 'en' ? 'Pay TSh 25,000 now' : 'Lipa TSh 25,000 sasa');
+        await expect(page.locator('.payment-deposit-summary')).toContainText('25,000 TZS');
+      }
       if (status === 'dispatched') await expect(page.getByText(lang === 'en' ? '6. Delivery' : '6. Uwasilishaji', { exact: true })).toBeVisible();
       if (['delivered', 'closed'].includes(status)) await expect(page.locator('[aria-current="step"]')).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), status).toBe(true);

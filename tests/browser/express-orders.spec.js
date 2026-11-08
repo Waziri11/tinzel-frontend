@@ -19,8 +19,11 @@ test('express flows from uploaded photo and review through payment to manager an
   const choice = page.locator('.express-choice');
   await expect(choice.getByRole('radio', { name: /Standard order/ })).toBeChecked();
   await expect(choice.locator('.express-price-breakdown > div').last()).toContainText('50,000');
+  await expect(choice.locator('.payment-deposit-summary')).toContainText('Pay TSh 25,000 now');
   await choice.getByRole('radio', { name: /Express/ }).check();
   await expect(choice.locator('.express-price-breakdown > div').last()).toContainText('70,000');
+  await expect(choice.locator('.payment-deposit-summary')).toContainText('Pay TSh 35,000 now');
+  await expect(choice.locator('.payment-deposit-summary')).toContainText('including Express');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:answers:v2:upload-performance-test') || '{}')?.data?.isExpress)).toBe(true);
   await page.reload();
   await expect(choice.getByRole('radio', { name: /Express/ })).toBeChecked();
@@ -36,7 +39,14 @@ test('express flows from uploaded photo and review through payment to manager an
   expect(result.order.isExpress).toBe(true);
   expect(result.order.photosCount).toBe(1);
   const payment = page.locator('.payment-page');
-  await expect(payment).toContainText('70,000');
+  await expect(payment.locator('.payment-page__amount')).toContainText('35,000');
+  await expect(payment.getByRole('heading', { name: 'Pay TSh 35,000 to start your design', exact: true })).toBeVisible();
+  await expect(payment).toContainText('Pay TSh 35,000 now');
+  await expect(payment.locator('.payment-deposit-summary')).toContainText('70,000');
+  await expect(payment.locator('.payment-deposit-summary')).toContainText('Remaining balance after deposit');
+  await page.getByRole('button', { name: 'SW', exact: true }).click();
+  await expect(payment).toContainText('Lipa TSh 35,000 sasa');
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
   await expect(payment.locator('.express-order')).toContainText('Awaiting payment');
   await payment.screenshot({ path: '/tmp/tinzel-express-payment-mobile.png' });
   // A newer standard order must still appear below this express order.
@@ -51,12 +61,13 @@ test('express flows from uploaded photo and review through payment to manager an
   await first.click();
   await page.getByRole('button', { name: 'Verify payment', exact: true }).last().click();
   const dialog = page.locator('.manager-action-modal');
-  await expect(dialog.getByLabel('Amount paid (TZS)', { exact: true })).toHaveValue('70000');
+  await expect(dialog.getByLabel('Amount paid (TZS)', { exact: true })).toHaveValue('35000');
   await dialog.getByLabel('Payment reference', { exact: true }).fill('EXPRESS-BROWSER-TEST');
   const verified = page.waitForResponse(response => response.url().includes('/verify-payment') && response.request().method() === 'POST');
   await dialog.locator('button[type=submit]').click();
   const paid = await (await verified).json();
   expect(paid.success).toBe(true);
+  expect(paid.order.paymentDetails.amountPaid).toBe(35000);
   expect(paid.order.expressStartedAt).toBeTruthy();
   expect(paid.order.expressDueAt).toBeTruthy();
   await page.goto('/staff/design-phase');

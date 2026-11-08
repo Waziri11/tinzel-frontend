@@ -88,7 +88,7 @@ export const trackingTranslations = {
   "track.print.courier": { en: "Delivery tracking:", sw: "Fuatilia uwasilishaji:" },
   "track.status.on_hold": { en: "Temporarily paused", sw: "Oda imesitishwa kwa muda" },
   "track.status.unknown": { en: "Order update", sw: "Taarifa ya oda" },
-  "track.detail.awaiting_payment": { en: "We have your order details. Follow the payment instructions below so we can start your magazine. If you have already paid, please wait for confirmation.", sw: "Tumepokea taarifa za oda yako. Fuata maelekezo ya malipo hapa chini ili tuanze kubuni jarida lako. Ikiwa umeshalipa, tafadhali subiri uthibitisho." },
+  "track.detail.awaiting_payment": { en: "We have your order details. Pay half (50%) of your order total using the instructions below. Design begins once your deposit is confirmed. If you have already paid, please wait for confirmation.", sw: "Tumepokea taarifa za oda yako. Lipa nusu (50%) ya jumla ya oda kwa kufuata maelekezo hapa chini. Usanifu unaanza malipo yako ya awali yakithibitishwa. Ikiwa umeshalipa, tafadhali subiri uthibitisho." },
   "track.detail.payment_verified": { en: "Your payment is confirmed. We will start work on your magazine next.", sw: "Malipo yako yamethibitishwa. Hatua inayofuata ni kuanza kubuni jarida lako." },
   "track.detail.queued_for_assignment": { en: "Your payment is confirmed and we are getting ready to design your magazine. No action is needed from you right now.", sw: "Malipo yako yamethibitishwa na tunajiandaa kubuni jarida lako. Huhitaji kufanya chochote kwa sasa." },
   "track.detail.assigned": { en: "Your magazine is in design. We will let you know when it is ready for you to review.", sw: "Jarida lako linabuniwa. Tutakujulisha likiwa tayari kwa mapitio yako." },

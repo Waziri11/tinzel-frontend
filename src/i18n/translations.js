@@ -141,7 +141,8 @@ export const translations = {
   'form.continuePay': { en: 'Continue to Payment', sw: 'Endelea kwenye Malipo' },
 
   // Lipa Namba screen
-  'pay.title': { en: 'Order received · Complete your payment', sw: 'Oda imepokelewa · Kamilisha malipo' },
+  'pay.title': { en: 'Make your deposit to start your design', sw: 'Lipa malipo ya awali ili tuanze usanifu' },
+  'pay.titleWithAmount': { en: 'Pay {amount} to start your design', sw: 'Lipa {amount} ili tuanze usanifu' },
   'pay.uploaded': {
     en: 'Your photos and responses for {title} are safely uploaded.',
     sw: 'Picha na majibu yako kwa {title} yamepakiwa salama.',
@@ -150,14 +151,25 @@ export const translations = {
   'pay.awaiting': { en: 'Awaiting Payment', sw: 'Inasubiri Malipo' },
   'pay.noticeTitle': { en: 'Your order number', sw: 'Namba ya oda yako' },
   'pay.notice': {
-    en: 'Once payment is confirmed, we’ll text your tracking ID to {phone}.',
-    sw: 'Malipo yakithibitishwa, tutatuma namba yako ya ufuatiliaji kwa SMS kwenye {phone}.',
+    en: 'Once your deposit is confirmed, we’ll text your tracking ID to {phone}.',
+    sw: 'Malipo yako ya awali yakithibitishwa, tutatuma namba yako ya ufuatiliaji kwa SMS kwenye {phone}.',
   },
   'pay.instrTitle': { en: 'Lipa Namba Payment Instructions', sw: 'Maelekezo ya Malipo ya Lipa Namba' },
   'pay.till': { en: 'Lipa Namba (Till Number):', sw: 'Lipa Namba:' },
   'pay.copy': { en: 'Copy', sw: 'Nakili' },
   'pay.copied': { en: 'Copied', sw: 'Imenakiliwa' },
-  'pay.amount': { en: 'Amount to Pay:', sw: 'Kiasi cha Kulipa:' },
+  'pay.amount': { en: 'Amount to pay now', sw: 'Kiasi cha kulipa sasa' },
+  'pay.depositExplanation': {
+    en: 'Pay {amount} now as your deposit—half of your {total} order total. We will begin designing your magazine once this payment is confirmed.',
+    sw: 'Lipa {amount} sasa kama malipo ya awali—nusu ya jumla ya oda yako ya {total}. Tutaanza kubuni jarida lako baada ya malipo haya kuthibitishwa.',
+  },
+  'pay.expressDepositExplanation': {
+    en: 'Pay {amount} now as your deposit—half of your {total} total, including Express. We will begin designing your magazine once this payment is confirmed.',
+    sw: 'Lipa {amount} sasa kama malipo ya awali—nusu ya jumla ya {total}, pamoja na ada ya Express. Tutaanza kubuni jarida lako baada ya malipo haya kuthibitishwa.',
+  },
+  'pay.depositUnavailable': { en: 'Check your order total to confirm the deposit amount before paying.', sw: 'Hakiki jumla ya oda yako kuthibitisha kiasi cha malipo ya awali kabla ya kulipa.' },
+  'pay.orderTotal': { en: 'Order total', sw: 'Jumla ya oda' },
+  'pay.remainingBalance': { en: 'Remaining balance after deposit', sw: 'Salio baada ya malipo ya awali' },
   'pay.account': { en: 'Account Name:', sw: 'Jina la Akaunti:' },
   'pay.verify': { en: 'We will let you know when your payment is confirmed.', sw: 'Tutakujulisha malipo yako yakithibitishwa.' },
   'pay.goTracking': { en: 'Track my order', sw: 'Fuatilia oda yangu' },

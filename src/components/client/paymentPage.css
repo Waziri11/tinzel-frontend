@@ -65,9 +65,16 @@
 }
 
 .payment-page__express { grid-column: 1 / -1; min-width: 0; }
+.payment-deposit-summary { grid-column: 1 / -1; min-width: 0; font-size: 13px; line-height: 1.6; }
+.payment-deposit-summary > p { margin: 0 0 10px; }
+.payment-deposit-summary dl { display: grid; gap: 6px; margin: 0; }
+.payment-deposit-summary dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+.payment-deposit-summary dt, .payment-deposit-summary dd { margin: 0; }
+.payment-deposit-summary dd { font-weight: 650; }
+.express-choice .payment-deposit-summary { margin-top: 16px; }
 .payment-page__express .express-order { margin: 0 0 8px; padding: 4px 8px; font-size: 11px; }
 .payment-page__express .express-price-breakdown { margin: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; font-size: 11px; }
-.payment-page__express .express-price-breakdown > div { display: grid; gap: 2px; border: 0; padding: 0; font-weight: 400; }
+.payment-page .payment-page__express .express-price-breakdown > div { display: grid; gap: 2px; border: 0; padding: 0; font-weight: 400; }
 .payment-page__express .express-price-breakdown dd { font-weight: 650; }
 
 @media (max-width: 360px) {

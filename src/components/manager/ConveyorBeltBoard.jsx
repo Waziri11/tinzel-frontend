@@ -1,4 +1,5 @@
 import { compareExpressPriority } from '../../utils/expressOrder';
+import { paymentAmounts } from '../../utils/paymentAmounts';
 import ExpressOrderBadge from '../common/ExpressOrderBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
@@ -447,7 +448,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     setSelectedOrder(order);
     setForm({
       ...emptyForm,
-      amountPaid: String(order.totalPrice ?? order.formId?.price ?? ''),
+      amountPaid: String(paymentAmounts(order.totalPrice ?? order.formId?.price)?.deposit ?? ''),
       printerStage: order.status === 'printing_sent' ? 'in_progress' : 'completed',
       deliveryAddress: order.dispatchDetails?.deliveryAddress || '',
       designerId: order.assignedDesigner?._id || '',
@@ -1185,12 +1186,8 @@ function ActionModal({
           </div>
           {action === 'payment' && (
             <>
-              <p>
-                <InterfaceText>
-                  Verification confirms payment and starts designer assignment. Compare the
-                  amount with the expected price before confirming.
-                </InterfaceText>
-              </p>
+              <p>{ui('Confirm at least a 50% deposit to begin design and start designer assignment. Enter the amount actually received.', 'Thibitisha malipo ya awali ya angalau 50% ili kuanza usanifu na kumkabidhi mbunifu. Weka kiasi kilichopokelewa.')}</p>
+              <p>{ui('Required deposit (50%)', 'Malipo ya awali yanayohitajika (50%)')}: {paymentAmounts(order.totalPrice ?? order.formId?.price)?.deposit.toLocaleString('en-TZ') ?? '—'} {order.currency || order.formId?.currency || 'TZS'}</p>
               <label>
                 <InterfaceText>Payment reference</InterfaceText>
                 <input

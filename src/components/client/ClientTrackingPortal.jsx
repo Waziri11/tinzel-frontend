@@ -6,6 +6,8 @@ import { normalizePhone } from '../../utils/phone';
 import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
 import { orderSenderName } from '../../utils/orderDisplay';
 import PaymentOptions from './PaymentOptions';
+import DepositSummary from './DepositSummary';
+import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
 import RevisionAudioInput from '../common/RevisionAudioInput';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import PhoneInput from '../common/PhoneInput';
@@ -520,6 +522,13 @@ export default function ClientTrackingPortal() {
 
   // Active Order & Whole-Magazine Review Portal View
   const journey = customerJourney(order);
+  const amounts = paymentAmounts(order.price);
+  const journeyDescription = order.status === 'awaiting_payment' && amounts
+    ? t(order.isExpress ? 'pay.expressDepositExplanation' : 'pay.depositExplanation', {
+        amount: formatPaymentAmount(amounts.deposit, order.currency),
+        total: formatPaymentAmount(amounts.total, order.currency),
+      })
+    : t(journey.detailKey);
   const currentStageIdx = journey.stage;
   const releasedDraft =
     (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) ||
@@ -564,7 +573,7 @@ export default function ClientTrackingPortal() {
             {t('track.magazine')}{' '}
             <strong>{order.formTitle}</strong>
           </p>
-          <p className="customer-status-description" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 600 }}>{t(journey.detailKey)}</p>
+          <p className="customer-status-description" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 600 }}>{journeyDescription}</p>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -578,7 +587,7 @@ export default function ClientTrackingPortal() {
         </div>
       </div>
 
-      <StatePanel compact kind={journey.complete ? 'success' : order.status === 'on_hold' || order.status === 'awaiting_payment' ? 'warning' : 'info'} title={t(journey.statusKey)} description={order.status === 'on_hold' ? order.holdReason || t(journey.detailKey) : t(journey.detailKey)}>
+      <StatePanel compact kind={journey.complete ? 'success' : order.status === 'on_hold' || order.status === 'awaiting_payment' ? 'warning' : 'info'} title={t(journey.statusKey)} description={order.status === 'on_hold' ? order.holdReason || journeyDescription : journeyDescription}>
         <ActionButton className="ui-button" loading={loading} disabled={loading || submittingDecision} onClick={() => loadOrder(clientToken)}>{ui('Refresh order', 'Sasisha oda')}</ActionButton>
         {lastLoaded && <small>{ui('Last checked: ', 'Ilihakikiwa mwisho: ')}{new Date(lastLoaded).toLocaleTimeString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>}
       </StatePanel>
@@ -606,11 +615,12 @@ export default function ClientTrackingPortal() {
             }}
           >
             <CreditCard size={18} />
-            <span>{t('pay.title')}</span>
+            <span>{amounts ? t('pay.titleWithAmount', { amount: formatPaymentAmount(amounts.deposit, order.currency) }) : t('pay.title')}</span>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '12px', lineHeight: '1.5' }}>
-            {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
+            {t('pay.verify')}
           </p>
+          <DepositSummary total={order.price} currency={order.currency} isExpress={order.isExpress} />
           {order.isExpress && <OrderPriceBreakdown basePrice={order.basePrice} expressFee={order.expressFee} currency={order.currency} />}
           <PaymentOptions paymentOptions={order.paymentOptions} lipaNambaInstructions={order.lipaNambaInstructions} />
         </div>

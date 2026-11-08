@@ -1,6 +1,8 @@
 import ExpressOrderBadge from '../common/ExpressOrderBadge';
 import { OrderPriceBreakdown } from './ExpressOrderChoice';
 import PaymentOptions from './PaymentOptions';
+import DepositSummary from './DepositSummary';
+import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
 import React from 'react';
 import { CheckCircle2, ArrowRight, MessageSquare } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -8,12 +10,13 @@ import './paymentPage.css';
 
 export default function LipaNambaScreen({ order, paymentOptions, lipaNambaInstructions, onNavigateToTracking, confirmationRef }) {
   const { t, isSwahili } = useLanguage();
+  const amounts = paymentAmounts(order?.price);
   return (
     <section className="payment-page" aria-labelledby="payment-heading">
       <header className="payment-page__header">
         <div>
           <p className="payment-page__saved" role="status"><CheckCircle2 size={18} aria-hidden="true" />{isSwahili ? 'Oda yako imehifadhiwa' : 'Your order has been saved'}</p>
-          <h1 id="payment-heading" ref={confirmationRef} tabIndex={-1}>{isSwahili ? 'Kamilisha malipo' : 'Complete your payment'}</h1>
+          <h1 id="payment-heading" ref={confirmationRef} tabIndex={-1}>{amounts ? t('pay.titleWithAmount', { amount: formatPaymentAmount(amounts.deposit, order?.currency) }) : t('pay.title')}</h1>
         </div>
       </header>
 
@@ -21,13 +24,14 @@ export default function LipaNambaScreen({ order, paymentOptions, lipaNambaInstru
         <section className="payment-page__summary" aria-label={isSwahili ? 'Muhtasari wa oda' : 'Order summary'}>
           <div className="payment-page__amount">
             <span>{t('pay.amount')}</span>
-            <strong>{order?.price?.toLocaleString()} <small>{order?.currency || 'TZS'}</small></strong>
+            <strong>{amounts?.deposit.toLocaleString('en-TZ') ?? '—'} <small>{order?.currency || 'TZS'}</small></strong>
           </div>
           <div className="payment-page__customer">
             <span>{t('pay.submitter')}</span>
             <strong>{order?.clientName}</strong>
             <p>{order?.formTitle}</p>
           </div>
+          <DepositSummary total={order?.price} currency={order?.currency} showDeposit={false} isExpress={order?.isExpress} />
           {order?.isExpress && <div className="payment-page__express">
             <ExpressOrderBadge order={order} />
             <OrderPriceBreakdown basePrice={order.basePrice} expressFee={order.expressFee} currency={order.currency} showTotal={false} />

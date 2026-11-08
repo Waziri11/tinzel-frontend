@@ -40,6 +40,10 @@ test('admin payment options persist and appear after submission in both language
   await page.getByRole('button', { name: '4 Review', exact: true }).click();
   await page.getByRole('button', { name: /Continue.*Pay/i }).click();
   const payment = page.locator('.payment-page');
+  await expect(payment.locator('.payment-page__amount')).toContainText('25,000');
+  await expect(payment).toContainText('Pay TSh 25,000 now');
+  await expect(payment.locator('.payment-deposit-summary')).toContainText('50,000');
+  await expect(payment.locator('.payment-deposit-summary')).toContainText('25,000');
   await expect(payment.getByRole('heading', { name: 'Ways to pay', exact: true })).toBeVisible();
   await expect(payment.getByRole('combobox', { name: 'Payment method', exact: true }).locator('option')).toHaveText(['Test Bank', 'Test Mobile']);
   await expect(payment.locator('article h3')).toHaveText(['Test Bank']);
