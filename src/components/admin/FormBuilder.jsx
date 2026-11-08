@@ -2134,7 +2134,7 @@ export default function FormBuilder({ token }) {
                                     }}
                                   >
                                     <Trash2 size={13} />
-                                    {lang === 'sw' ? 'Hifadhi kwenye kumbukumbu' : 'Archive'}
+                                    {lang === 'sw' ? 'Futa' : 'Delete'}
                                   </button>
                                 </div>
                               </div>
