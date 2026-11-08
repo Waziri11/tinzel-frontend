@@ -255,6 +255,13 @@ export const api = {
         headers: getHeaders(clientToken),
       }).then(res => handleResponse(res, { silentUnauthorized })),
 
+    saveDeliveryLocation: (clientToken, location) =>
+      fetchWithTimeout(`${API_BASE}/api/client/delivery-location`, {
+        method: 'PATCH',
+        headers: getHeaders(clientToken),
+        body: JSON.stringify({ location }),
+      }).then(handleResponse),
+
     approveDraft: (clientToken, feedback, expectedVersion) =>
       fetchWithTimeout(`${API_BASE}/api/client/approve-draft`, {
         method: 'POST',

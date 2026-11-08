@@ -470,6 +470,17 @@
 .client-decision-actions { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
 .client-decision-actions button { flex: 1 1 180px; min-width: 0; justify-content: center; overflow-wrap: anywhere; }
 .tracking-order { overflow-wrap: anywhere; }
+.client-delivery-location { margin-bottom: 24px; padding: 24px; border: 1px solid var(--accent-primary); border-radius: 8px; background: var(--card-bg); }
+.client-delivery-location__heading { display: flex; align-items: center; gap: 10px; color: var(--text-gold); }
+.client-delivery-location__heading svg { flex-shrink: 0; }
+.client-delivery-location__heading h2 { margin: 0; font-size: 18px; }
+.client-delivery-location p { margin: 12px 0; font-size: 14px; line-height: 1.6; }
+.client-delivery-location label { display: block; margin: 16px 0 8px; font-weight: 600; font-size: 14px; }
+.client-delivery-location textarea { display: block; width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--input-bg, var(--card-bg)); color: var(--text-main); font: inherit; font-size: 16px; resize: vertical; }
+.client-delivery-location textarea:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.client-delivery-location [role="alert"] { color: var(--danger-color, #b42318); }
+.client-delivery-location__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.client-delivery-location__value { white-space: pre-wrap; overflow-wrap: anywhere; }
 .client-delivery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; font-size: 13px; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .client-revision-row, .client-delivery-grid { grid-template-columns: minmax(0, 1fr); }

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
 import ClientNotifications from './ClientNotifications';
+import ClientDeliveryLocation from './ClientDeliveryLocation';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -87,6 +88,7 @@ export default function ClientTrackingPortal() {
   const [revisionAudio, setRevisionAudio] = useState(null);
   const [audioBusy, setAudioBusy] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [focusDeliveryLocation, setFocusDeliveryLocation] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
   const [proofState, setProofState] = useState({ composing: false, saving: false });
   const retainedFeedbackFor = useRef(null);
@@ -272,6 +274,7 @@ export default function ClientTrackingPortal() {
         order.currentDraftVersion,
       );
       setOrder(res.order);
+      setFocusDeliveryLocation(true);
       setSuccessMsg(t('track.ok.approved'));
     } catch (err) {
       setError(err.message || t('track.err.approve')); setErrorStatus(err.status);
@@ -592,6 +595,13 @@ export default function ClientTrackingPortal() {
         {lastLoaded && <small>{ui('Last checked: ', 'Ilihakikiwa mwisho: ')}{new Date(lastLoaded).toLocaleTimeString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>}
       </StatePanel>
       {loadFailed && <StatePanel compact kind="warning" title={ui('These details may be out of date', 'Taarifa hizi huenda si za sasa')} description={ui('We could not refresh your order. Your previously loaded details remain visible.', 'Hatukuweza kusasisha oda yako. Taarifa zilizopakiwa awali bado zinaonekana.')} />}
+      <ClientDeliveryLocation
+        key={order._id}
+        order={order}
+        token={clientToken}
+        focusOnOpen={focusDeliveryLocation}
+        onSaved={(clientDeliveryDetails) => setOrder(current => current?._id === order._id ? { ...current, clientDeliveryDetails } : current)}
+      />
       {/* Awaiting Payment Guidance Banner */}
       {order.status === 'awaiting_payment' && (
         <div

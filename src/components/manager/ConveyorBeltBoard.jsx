@@ -455,7 +455,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   const beginAction = async (name, order = orderDetail || selectedOrder) => {
     if (!order || submitting) return;
-    if (name === 'print' && orderDetail?._id !== order._id) {
+    if (name === 'dispatch' || (name === 'print' && orderDetail?._id !== order._id)) {
       const current = await openOrder(order, false);
       if (!current) return;
       order = current;
@@ -466,7 +466,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       ...emptyForm,
       amountPaid: String(paymentAmounts(order.totalPrice ?? order.formId?.price)?.deposit ?? ''),
       printerStage: order.status === 'printing_sent' ? 'in_progress' : 'completed',
-      deliveryAddress: order.dispatchDetails?.deliveryAddress || '',
+      deliveryAddress: order.dispatchDetails?.deliveryAddress || order.clientDeliveryDetails?.location || '',
       designerId: order.assignedDesigner?._id || '',
     });
     setUncertain(false);
@@ -1059,6 +1059,11 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
           <Detail label={tx('Finish')} value={order.printDocument?.specs?.coverFinish || 'Not set'} />
           <Detail label={tx('Printer')} value={order.printingDetails?.printerPhone || 'Not dispatched'} />
           <Detail label={tx('Courier')} value={order.dispatchDetails?.carrier || 'Not dispatched'} />
+          <Detail
+            wide
+            label={ui('Client delivery location', 'Mahali pa uwasilishaji alipochagua mteja')}
+            value={order.clientDeliveryDetails?.location || ui('Waiting for the client to provide a location', 'Tunasubiri mteja atoe mahali pa uwasilishaji')}
+          />
           <Detail
             wide
             label={tx('Delivery address')}
