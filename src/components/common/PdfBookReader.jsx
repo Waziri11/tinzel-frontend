@@ -320,17 +320,12 @@ export default function PdfBookReader({
     cache.setVisible([...visible, ...(turn?.oldPages || [])], { retain: desired });
   }, [cache, opened, page, single, metadata?.pageCount, turn]);
   useEffect(() => {
-    const changed = () => {
-      if (!document.fullscreenElement) setExpanded(false);
-    };
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
-  }, []);
-  useEffect(() => {
     if (!expanded) return;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     root.current.focus({ preventScroll: true });
+    // A native file picker may exit browser fullscreen. Keep the expanded
+    // reader mounted until the user closes it, so file inputs retain selection.
     root.current.requestFullscreen?.().catch(() => {});
     return () => {
       document.body.style.overflow = overflow;
@@ -534,6 +529,7 @@ export default function PdfBookReader({
     setFocusSerial((n) => n + 1);
     setShowComments(true);
   };
+  const composerTop = Math.max(16, Math.min((selection?.anchor?.y || 0) + 8, window.innerHeight - 640));
   const content = (
     <section
       ref={root}
@@ -562,7 +558,7 @@ export default function PdfBookReader({
         if (e.key === 'Escape' && expanded) {
           e.preventDefault();
           e.stopPropagation();
-          setExpanded(false);
+          toggleFullscreen();
           return;
         }
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
@@ -703,22 +699,15 @@ export default function PdfBookReader({
                     ? {
                         position: 'fixed',
                         zIndex: 2300,
-                        maxHeight: 'calc(100dvh - 32px)',
-                        bottom: 16,
+                        maxHeight: `calc(100dvh - ${composerTop + 16}px)`,
                         left: Math.max(
                           16,
                           Math.min(
                             selection.anchor.x + 8,
-                            window.innerWidth - 316,
+                            window.innerWidth - 376,
                           ),
                         ),
-                        top: Math.max(
-                          16,
-                          Math.min(
-                            selection.anchor.y + 8,
-                            window.innerHeight - 600,
-                          ),
-                        ),
+                        top: composerTop,
                       }
                     : undefined
                 }
@@ -728,15 +717,42 @@ export default function PdfBookReader({
                   {tx(selection.kind === 'image' ? 'Image' : selection.kind === 'text' ? 'Text' : 'Area')}{' '}
                   <InterfaceText>comment</InterfaceText>
                 </strong>
-                {selection.selectedText && <blockquote>{selection.selectedText}</blockquote>}
-                <textarea
-                  ref={commentInput}
-                  aria-label={tx('Correction comment')}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  maxLength={4000}
-                />
-                <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
+                <div className="proof-composer-body">
+                  {selection.selectedText && <blockquote>{selection.selectedText}</blockquote>}
+                  <textarea
+                    ref={commentInput}
+                    aria-label={tx('Correction comment')}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    maxLength={4000}
+                  />
+                  <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
+                  {replacement && (
+                    <div className="proof-replacement" role="alert">
+                      <p>
+                        <InterfaceText>Save or discard this comment before choosing another selection.</InterfaceText>
+                      </p>
+                      <ActionButton loading={saving} type="submit" disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                        <InterfaceText>Save current comment</InterfaceText>
+                      </ActionButton>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          uploads.clear(true);
+                          setSelection(replacement);
+                          setReplacement(null);
+                          setComment('');
+                        }}
+                      >
+                        <InterfaceText>Discard current draft</InterfaceText>
+                      </button>
+                      <button type="button" onClick={() => setReplacement(null)}>
+                        <InterfaceText>Keep editing</InterfaceText>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="proof-composer-actions">
                   <ActionButton loading={saving} disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                     <InterfaceText>Save comment</InterfaceText>
@@ -754,31 +770,6 @@ export default function PdfBookReader({
                     <InterfaceText>Cancel</InterfaceText>
                   </button>
                 </div>
-                {replacement && (
-                  <div className="proof-replacement" role="alert">
-                    <p>
-                      <InterfaceText>Save or discard this comment before choosing another selection.</InterfaceText>
-                    </p>
-                    <ActionButton loading={saving} type="submit" disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
-                      <InterfaceText>Save current comment</InterfaceText>
-                    </ActionButton>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => {
-                        uploads.clear(true);
-                        setSelection(replacement);
-                        setReplacement(null);
-                        setComment('');
-                      }}
-                    >
-                      <InterfaceText>Discard current draft</InterfaceText>
-                    </button>
-                    <button type="button" onClick={() => setReplacement(null)}>
-                      <InterfaceText>Keep editing</InterfaceText>
-                    </button>
-                  </div>
-                )}
               </form>
             )}
           </div>

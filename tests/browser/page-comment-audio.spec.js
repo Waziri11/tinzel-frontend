@@ -8,7 +8,7 @@ wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.
 const audioFile = { name: 'voice-note.wav', mimeType: 'audio/wav', buffer: wav };
 const png = readFileSync(new URL('../../../tinzel-backend/tests/fixtures/review-reference.png', import.meta.url));
 
-async function setup(page, lang = 'en', failures = false) {
+async function setup(page, lang = 'en', failures = false, fullscreen = false) {
   await page.addInitScript(language => localStorage.setItem('tinzel_language', language), lang);
   const state = { annotations: [], attachments: new Map(), chunkFailed: false, saveFailed: false, playbackFailed: false };
   const order = { _id: 'comment-audio', clientName: 'Audio comment client', clientPreferredLanguage: lang, status: 'client_review', currentDraftVersion: 1,
@@ -28,7 +28,9 @@ async function setup(page, lang = 'en', failures = false) {
       if (route.request().method() === 'DELETE') return json({});
       if (pathname.includes('/chunks/')) {
         if (failures && !state.chunkFailed && asset.contentType.startsWith('audio/')) { state.chunkFailed = true; return json({ message: 'Audio upload interrupted' }, 503); }
-        asset.bytes = route.request().postDataBuffer(); asset.received.push({ n: 0 }); return json({});
+        // WebKit may omit binary request bodies from its inspection protocol.
+        asset.bytes = route.request().postDataBuffer() || (asset.contentType.startsWith('image/') ? png : wav);
+        asset.received.push({ n: 0 }); return json({});
       }
       if (pathname.endsWith('/complete')) { asset.state = 'ready'; return json({ id: asset.id, name: asset.name, contentType: asset.contentType }); }
       if (failures && asset.contentType.startsWith('audio/') && !state.playbackFailed) { state.playbackFailed = true; return route.fulfill({ contentType: asset.contentType, body: Buffer.from('bad audio') }); }
@@ -47,6 +49,10 @@ async function setup(page, lang = 'en', failures = false) {
     return json({ state: 'ready', pageCount: 1, pages: [{ page: 1, width: 600, height: 800, geometryVersion: 3, ocrVersion: 1 }], canComment: true, annotations: state.annotations });
   });
   await page.goto('/track');
+  if (fullscreen) {
+    await page.getByRole('button', { name: lang === 'en' ? 'Fullscreen' : 'Skrini nzima', exact: true }).click();
+    await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  }
   await page.getByRole('button', { name: lang === 'en' ? 'Mark area' : 'Weka alama eneo', exact: true }).click();
   await page.locator('.proof-sheet').first().scrollIntoViewIfNeeded();
   const bounds = await page.locator('.proof-sheet').first().boundingBox();
@@ -115,3 +121,47 @@ test('recording locks comment saving, stops the microphone, and can accompany pi
 });
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });
+
+for (const width of [390, 1280]) test(`photo chooser preserves fullscreen, previews and saved pictures at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = await setup(page, 'en', false, true);
+  const composer = page.locator('.proof-composer');
+  await composer.locator('textarea').fill('Please use these photos.');
+  const chooserReady = page.waitForEvent('filechooser');
+  await composer.getByRole('button', { name: 'Attach images', exact: true }).click();
+  const chooser = await chooserReady;
+  // Native photo pickers can exit browser fullscreen before dispatching change.
+  await page.evaluate(async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else document.dispatchEvent(new Event('fullscreenchange'));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  expect(await chooser.element().evaluate(input => input.isConnected)).toBe(true);
+  await chooser.setFiles([]);
+  await expect(composer.locator('textarea')).toHaveValue('Please use these photos.');
+  const secondChooserReady = page.waitForEvent('filechooser');
+  await composer.getByRole('button', { name: 'Attach images', exact: true }).click();
+  await (await secondChooserReady).setFiles([{ name: 'first.png', mimeType: 'image/png', buffer: png }, { name: 'second.png', mimeType: 'image/png', buffer: png }]);
+  const previews = composer.locator('.proof-attachment-thumbnails img');
+  await expect(previews).toHaveCount(2);
+  await expect(previews.first()).toBeInViewport();
+  await expect.poll(() => previews.evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
+  await expect(composer.locator('textarea')).toHaveValue('Please use these photos.');
+  const save = composer.getByRole('button', { name: 'Save comment', exact: true });
+  await expect(save).toBeEnabled(); await expect(save).toBeInViewport();
+  await page.screenshot({ path: info.outputPath(`fullscreen-photo-previews-${width}.png`), animations: 'disabled' });
+  await composer.getByRole('button', { name: 'Remove image: first.png', exact: true }).click();
+  await expect(previews).toHaveCount(1);
+  await save.click();
+  await expect(composer).toHaveCount(0);
+  expect(state.annotations[0].attachments).toHaveLength(1);
+  await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  await page.getByRole('button', { name: 'Open image: second.png', exact: true }).click();
+  await expect.poll(() => page.locator('.proof-image-viewer img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await page.getByRole('button', { name: 'Close image', exact: true }).click();
+  await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click();
+  await expect(page.locator('.pdf-book.is-expanded')).toHaveCount(0);
+  await expect(page.locator('.proof-attached-image img')).toBeVisible();
+});

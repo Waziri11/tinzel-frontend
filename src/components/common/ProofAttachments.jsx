@@ -16,14 +16,13 @@ export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
   return <section className="proof-attachment-editor" aria-label={ui('Comment attachments', 'Viambatisho vya maoni')}>
     <input ref={input} type="file" multiple accept="image/jpeg,image/png,image/webp" hidden disabled={disabled}
       onChange={e => { uploads.add(e.target.files); e.target.value = ''; }} />
-    <button type="button" disabled={disabled || images.length >= 5} onClick={() => input.current.click()}><InterfaceText>Attach images</InterfaceText></button>
+    <div className="proof-photo-heading">
+      <button type="button" disabled={disabled || images.length >= 5} onClick={() => input.current.click()}><InterfaceText>Attach images</InterfaceText></button>
+      <span aria-live="polite">{ui('Photos', 'Picha')} {images.length}/5</span>
+    </div>
     <small><InterfaceText>Up to 5 images · 10 MiB each. You can also paste or drop images.</InterfaceText></small>
     {uploads.error && <p role="alert">{tx(uploads.error)}</p>}
-    <RevisionAudioInput compact file={audio?.file || null} disabled={disabled} onBusyChange={onAudioBusyChange}
-      onChange={file => { if (audio) uploads.remove(audio); if (file) uploads.addAudio(file); }} />
-    {audio?.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: audio.progress }} label={ui('Uploading audio', 'Inapakia sauti')} />}
-    {audio?.state === 'failed' && <div role="alert"><p>{tx(audio.error)}</p><button type="button" disabled={disabled} onClick={() => uploads.retry(audio)}>{ui('Retry audio upload', 'Jaribu kupakia sauti tena')}</button></div>}
-    <div className="proof-attachment-thumbnails">
+    {images.length > 0 && <div className="proof-attachment-thumbnails">
       {images.map(item => <figure key={item.key}>
         <img src={item.preview} alt={item.file.name} />
         <figcaption>{item.state === 'uploading' ? <><InterfaceText>Uploading image</InterfaceText> {item.progress}%</> : item.file.name}</figcaption>
@@ -31,7 +30,11 @@ export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
         {item.state === 'failed' && <><small role="alert">{tx(item.error)}</small><button type="button" disabled={disabled} onClick={() => uploads.retry(item)}><InterfaceText>Retry image</InterfaceText></button></>}
         <button type="button" disabled={disabled} aria-label={`${tx('Remove image')}: ${item.file.name}`} onClick={() => uploads.remove(item)}><InterfaceText>Remove image</InterfaceText></button>
       </figure>)}
-    </div>
+    </div>}
+    <RevisionAudioInput compact file={audio?.file || null} disabled={disabled} onBusyChange={onAudioBusyChange}
+      onChange={file => { if (audio) uploads.remove(audio); if (file) uploads.addAudio(file); }} />
+    {audio?.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: audio.progress }} label={ui('Uploading audio', 'Inapakia sauti')} />}
+    {audio?.state === 'failed' && <div role="alert"><p>{tx(audio.error)}</p><button type="button" disabled={disabled} onClick={() => uploads.retry(audio)}>{ui('Retry audio upload', 'Jaribu kupakia sauti tena')}</button></div>}
   </section>;
 }
 
