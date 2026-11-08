@@ -4,6 +4,7 @@ import { useConfirm } from './ConfirmDialog';
 import PhoneInput from './PhoneInput';
 import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
+import PasswordInput from './PasswordInput';
 import React, { useState, useEffect, useRef } from 'react';
 import { normalizePhone } from '../../utils/phone';
 import { Dropdown, Modal } from 'antd';
@@ -203,10 +204,9 @@ export default function StaffProfile({
             <>
               <label>
                 {t('Current password', 'Nenosiri la sasa')}
-                <input
+                <PasswordInput
                   disabled={busy}
                   required
-                  type="password"
                   autoComplete="current-password"
                   value={current}
                   onChange={(e) => setCurrent(e.target.value)}
@@ -214,11 +214,10 @@ export default function StaffProfile({
               </label>
               <label>
                 {t('New password', 'Nenosiri jipya')}
-                <input
+                <PasswordInput
                   disabled={busy}
                   required
                   minLength={8}
-                  type="password"
                   autoComplete="new-password"
                   name="newPassword"
                   aria-invalid={Boolean(fieldErrors.newPassword)}
@@ -230,10 +229,9 @@ export default function StaffProfile({
               {fieldErrors.newPassword && <small id="profile-new-password-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.newPassword}</small>}
               <label>
                 {t('Confirm password', 'Thibitisha nenosiri')}
-                <input
+                <PasswordInput
                   disabled={busy}
                   required
-                  type="password"
                   autoComplete="new-password"
                   name="confirmPassword"
                   aria-invalid={Boolean(fieldErrors.confirmPassword)}

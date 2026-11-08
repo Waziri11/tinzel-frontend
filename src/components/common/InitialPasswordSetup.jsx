@@ -1,6 +1,7 @@
 import { Feedback } from './UI';
 import { ActionButton } from './SoftFlutter';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
+import PasswordInput from './PasswordInput';
 import React, { useState, useRef } from 'react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -92,10 +93,9 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
         <form ref={formRef} onSubmit={submit} style={{ display: 'grid', gap: 14 }}>
           <label>
             {text('Initial password', 'Nenosiri la awali')}
-            <input
+            <PasswordInput
               disabled={busy}
               required
-              type="password"
               autoComplete="current-password"
               value={current}
               onChange={(event) => setCurrent(event.target.value)}
@@ -104,10 +104,9 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
           </label>
           <label>
             {text('New password', 'Nenosiri jipya')}
-            <input
+            <PasswordInput
               disabled={busy}
               required
-              type="password"
               minLength={8}
               autoComplete="new-password"
               name="newPassword"
@@ -121,10 +120,9 @@ export default function InitialPasswordSetup({ token, user, onComplete, onLogout
           {fieldErrors.newPassword && <small id="initial-new-password-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{fieldErrors.newPassword}</small>}
           <label>
             {text('Confirm new password', 'Thibitisha nenosiri jipya')}
-            <input
+            <PasswordInput
               disabled={busy}
               required
-              type="password"
               minLength={8}
               autoComplete="new-password"
               name="confirmPassword"

@@ -7,6 +7,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import TurnstileCheck from './TurnstileCheck';
 import PasswordGuidance, { passwordReady } from './PasswordGuidance';
+import PasswordInput from './PasswordInput';
 import './security-controls.css';
 export default function PasswordRecovery({ initialEmail, onClose }) {
   const { lang } = useLanguage(), t = (en, sw) => lang === 'sw' ? sw : en;
@@ -42,9 +43,9 @@ export default function PasswordRecovery({ initialEmail, onClose }) {
       <button type="button" disabled={busy} onClick={() => { setStage('request'); setError(''); }}>{t('Change email', 'Badilisha barua pepe')}</button>
     </>}
     {stage === 'reset' && <form className="verification-form" onSubmit={e => { e.preventDefault(); setError(''); setConfirmError(''); if (password !== confirm) { setConfirmError(t('Passwords do not match.', 'Manenosiri hayalingani.')); e.currentTarget.elements.namedItem('confirmPassword')?.focus(); return; } run(async () => { await api.staffAuth.recovery('reset', { resetToken: grant, newPassword: password }); setGrant(''); setPassword(''); setConfirm(''); setStage('done'); }); }}>
-      <label>{t('New password', 'Nenosiri jipya')}<input disabled={busy} autoFocus type="password" autoComplete="new-password" required value={password} onChange={e => { setPassword(e.target.value); setConfirmError(''); }} /></label>
+      <label>{t('New password', 'Nenosiri jipya')}<PasswordInput disabled={busy} autoFocus autoComplete="new-password" required value={password} onChange={e => { setPassword(e.target.value); setConfirmError(''); }} /></label>
       <PasswordGuidance value={password} />
-      <label>{t('Confirm new password', 'Thibitisha nenosiri jipya')}<input disabled={busy} name="confirmPassword" type="password" autoComplete="new-password" required aria-invalid={!!confirmError} aria-describedby={confirmError ? 'recovery-confirm-password-error' : undefined} value={confirm} onChange={e => { setConfirm(e.target.value); setConfirmError(''); }} /></label>
+      <label>{t('Confirm new password', 'Thibitisha nenosiri jipya')}<PasswordInput disabled={busy} name="confirmPassword" autoComplete="new-password" required aria-invalid={!!confirmError} aria-describedby={confirmError ? 'recovery-confirm-password-error' : undefined} value={confirm} onChange={e => { setConfirm(e.target.value); setConfirmError(''); }} /></label>
       {confirmError && <small id="recovery-confirm-password-error" role="alert" style={{ color: 'var(--accent-danger, #B42318)', fontSize: 13 }}>{confirmError}</small>}
       {!expires && <p role="alert">{t('Recovery expired. Start again.', 'Muda wa kurejesha umeisha. Anza tena.')}</p>}
       <ActionButton loading={busy} className="verification-primary" disabled={busy || !passwordReady(password) || !expires}>{t('Reset password', 'Weka nenosiri upya')}</ActionButton>
