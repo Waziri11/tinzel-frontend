@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, Image, UploadCloud } from 'lucide-react';
-import { ActionButton } from '../common/SoftFlutter';
+import { Check, CheckCircle2, Image, Plus, Trash2, UploadCloud } from 'lucide-react';
 import { errorText } from '../../i18n/errors';
 import StatePanel from '../common/StatePanel';
-import { uploadSummary, uploadIsStalled } from '../../utils/uploadProgress';
+import { uploadSummary } from '../../utils/uploadProgress';
 import './photoUploadField.css';
 
 export function PhotoPreview({ item, preview, ui }) {
@@ -40,25 +39,26 @@ export function PhotoPreview({ item, preview, ui }) {
   </div>;
 }
 
-export default function PhotoUploadField({ field, label, helperText, items, uploads, lang, disabled }) {
+export default function PhotoUploadField({ field, label, helperText, items, uploads, lang, disabled, onShowUploads }) {
   const ui = (en, sw) => lang === 'sw' ? sw : en;
   const input = useRef(null);
+  const picker = useRef(null);
+  const restorePickerFocus = useRef(false);
   const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState('');
-  const [now, setNow] = useState(Date.now());
-  const [offline, setOffline] = useState(!navigator.onLine);
   const summary = uploadSummary(items);
-  const busy = selecting || items.some(item => ['queued', 'uploading'].includes(item.state));
+  const completed = items.filter(item => item.state === 'complete');
+  const selected = completed.filter(item => selectedIds.includes(item.id));
+  const locked = disabled || removing;
+  const canAdd = field.type === 'photo_group' || items.length === 0 || items.some(item => item.state === 'needs_file');
   useEffect(() => {
-    if (!busy) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [busy]);
-  useEffect(() => {
-    const update = () => setOffline(!navigator.onLine);
-    window.addEventListener('online', update); window.addEventListener('offline', update);
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
-  }, []);
+    if (!removing && restorePickerFocus.current) {
+      picker.current?.focus();
+      restorePickerFocus.current = false;
+    }
+  }, [removing]);
   const ready = summary.ready && !selecting;
   const select = async event => {
     const files = Array.from(event.target.files || []);
@@ -69,52 +69,59 @@ export default function PhotoUploadField({ field, label, helperText, items, uplo
     catch (err) { setError(errorText(err.message, err.status)); }
     finally { setSelecting(false); }
   };
-  const remove = async id => {
-    setError('');
-    try { await uploads.remove(id); }
+  const removeSelected = async () => {
+    setError(''); setRemoving(true);
+    try {
+      for (const item of selected) {
+        await uploads.remove(item.id);
+        setSelectedIds(ids => ids.filter(id => id !== item.id));
+      }
+    }
     catch (err) { setError(errorText(err.message, err.status)); }
+    finally { restorePickerFocus.current = true; setRemoving(false); }
   };
-  const status = item => item.state === 'complete' ? ui('Uploaded', 'Imepakiwa')
-    : item.state === 'needs_file' ? ui('Reselect this file below to resume', 'Chagua tena faili hii hapa chini kuendelea')
-      : item.state === 'failed' ? errorText(item.error)
-        : item.state === 'queued' ? ui('Waiting to upload', 'Inasubiri kupakiwa')
-          : item.stage === 'confirming' ? ui('Confirming your photo…', 'Tunathibitisha picha yako…')
-            : item.stage === 'retrying' ? ui('Reconnecting…', 'Tunaunganisha tena…')
-              : `${Math.floor(item.progress)}% · ${ui('Uploading', 'Inapakia')}`;
-
   return <section className="photo-field" aria-labelledby={`photo-label-${field.fieldId}`} data-field-id={field.fieldId}>
     <label id={`photo-label-${field.fieldId}`} htmlFor={`upload-${field.fieldId}`} className="photo-field__label">{label} {field.required ? '*' : ''}</label>
     {helperText && <p className="photo-field__hint">{helperText}</p>}
-    <button type="button" className="photo-field__picker" disabled={disabled || selecting} onClick={() => input.current.click()}>
-      {ready ? <CheckCircle2 size={28} className="photo-field__success" aria-hidden="true" /> : <UploadCloud size={28} aria-hidden="true" />}
+    {items.length === 0 && !selecting && <button ref={picker} type="button" className="photo-field__picker" disabled={locked} onClick={() => input.current.click()}>
+      <UploadCloud size={28} aria-hidden="true" />
       <strong>{selecting ? ui('Preparing your photos…', 'Tunaandaa picha zako…') : ui(field.type === 'photo_group' ? 'Choose photos' : 'Choose a photo', field.type === 'photo_group' ? 'Chagua picha' : 'Chagua picha moja')}</strong>
       <span>{ui('Original quality · up to 25 MB per photo', 'Ubora asili · hadi MB 25 kwa picha')}</span>
-    </button>
-    <input ref={input} id={`upload-${field.fieldId}`} type="file" multiple={field.type === 'photo_group'} disabled={disabled || selecting} accept="image/*" hidden onChange={select} />
+    </button>}
+    <input ref={input} id={`upload-${field.fieldId}`} type="file" multiple={field.type === 'photo_group'} disabled={locked || selecting} accept="image/*" hidden onChange={select} />
     {error && <StatePanel compact kind="error" title={ui('Check this photo selection', 'Hakiki picha ulizochagua')} description={error} />}
-    {(items.length > 0 || selecting) && <div className="photo-field__status">
-      <p role="status" aria-live="polite" aria-atomic="true" className={ready ? 'photo-field__success' : ''}>
-        {ready && <CheckCircle2 size={18} aria-hidden="true" />}
-        <strong>{ready ? ui('Photos uploaded successfully', 'Picha zimepakiwa kikamilifu') : selecting ? ui('Preparing your photos…', 'Tunaandaa picha zako…') : summary.attention.length ? ui('Some photos need attention', 'Baadhi ya picha zinahitaji msaada') : ui('Uploading photos…', 'Tunapakia picha…')}</strong>
-        <span>{ui('Photos ready', 'Picha zilizo tayari')}: {summary.done}/{summary.total}</span>
+    {(items.length > 0 || selecting) && <div className="photo-field__status photo-field__compact-status">
+      <p role="status" className={ready ? 'photo-field__success' : ''}>
+        {ready && <CheckCircle2 size={16} aria-hidden="true" />}
+        {selecting ? ui('Preparing your photos…', 'Tunaandaa picha zako…') : `${ui('Photos ready', 'Picha zilizo tayari')}: ${summary.done}/${summary.total}`}
       </p>
-      {busy && <progress aria-label={`${ui('Photo upload progress', 'Maendeleo ya kupakia picha')}: ${label}`} max="100" value={selecting ? undefined : summary.percent} />}
-      {busy && <p className="photo-field__hint">{ui('You can keep filling in the form while these photos upload.', 'Unaweza kuendelea kujaza fomu picha hizi zikipakiwa.')}</p>}
-      {uploads.recoveryStatus === 'unavailable' && <StatePanel compact kind="warning" title={ui('Keep this page open', 'Usifunge ukurasa huu')} description={ui('This browser cannot save upload recovery. Finish submitting before closing this page.', 'Kivinjari hiki hakiwezi kuhifadhi taarifa za kuendelea kupakia. Kamilisha uwasilishaji kabla ya kufunga ukurasa huu.')} />}
-      {busy && (offline || uploadIsStalled(summary.active, now)) && <StatePanel compact kind="warning" title={offline ? ui('You are offline', 'Huna mtandao') : ui('Your photos are taking longer', 'Picha zako zinachukua muda zaidi')} description={offline ? ui('Reconnect, then retry unfinished photos. Completed photos remain saved.', 'Unganisha tena, kisha jaribu picha ambazo hazijakamilika. Picha zilizokamilika zimehifadhiwa.') : ui('Completed photos are saved. Wait for the remaining files, or retry any that fail.', 'Picha zilizokamilika zimehifadhiwa. Subiri faili zilizobaki, au jaribu tena zilizoshindikana.')} />}
+      {items.length > 0 && <button type="button" className="photo-field__view-uploads" onClick={onShowUploads}>{ui('View uploads', 'Angalia upakiaji')}</button>}
+      {!completed.length && canAdd && <button ref={picker} type="button" className="photo-field__compact-add" disabled={locked || selecting} onClick={() => input.current.click()}><Plus size={16} aria-hidden="true" />{ui('Add more', 'Ongeza picha')}</button>}
     </div>}
-    {items.length > 0 && <ul className="photo-field__photos">
-      {items.map(item => <li key={item.id} className="photo-field__photo">
-        {item.state === 'complete' && <PhotoPreview item={item} preview={uploads.preview} ui={ui} />}
-        <div className="photo-field__photo-copy"><strong>{item.name}</strong>
-          <span className={item.state === 'complete' ? 'photo-field__success' : ''}>{item.state === 'complete' && <CheckCircle2 size={14} aria-hidden="true" />}{status(item)}</span>
-          {item.state === 'uploading' && <progress aria-label={item.name} max="100" value={['confirming', 'retrying'].includes(item.stage) ? undefined : item.progress} />}
-          <div className="photo-field__actions">
-            {item.state === 'failed' && <button type="button" aria-label={ui('Retry photo', 'Jaribu tena picha')} disabled={disabled} onClick={() => uploads.retry(item.id)}>{ui('Retry', 'Jaribu tena')}</button>}
-            <ActionButton type="button" disabled={disabled} aria-label={`${ui('Remove', 'Ondoa')} ${item.name}`} onClick={() => remove(item.id)}>{ui('Remove', 'Ondoa')}</ActionButton>
-          </div>
+    {completed.length > 0 && <>
+      <div className="photo-field__gallery">
+        <div className="photo-field__toolbar" role="group" aria-label={ui('Photo actions', 'Vitendo vya picha')}>
+          {selected.length > 0 && <div className="photo-field__selection">
+            <span role="status">{selected.length} {ui('selected', 'zimechaguliwa')}</span>
+            <button type="button" disabled={locked} onClick={removeSelected}>
+              <Trash2 size={16} aria-hidden="true" />{removing ? ui('Removing…', 'Tunaondoa…') : ui('Remove', 'Ondoa')}
+            </button>
+          </div>}
+          {canAdd && <button ref={picker} type="button" className="photo-field__add" disabled={locked || selecting} onClick={() => input.current.click()}>
+            <Plus size={18} aria-hidden="true" />{selecting ? ui('Preparing…', 'Tunaandaa…') : ui('Add more', 'Ongeza picha')}
+          </button>}
         </div>
-      </li>)}
-    </ul>}
+        <ul className="photo-field__gallery-photos" aria-label={ui('Selected photos', 'Picha ulizoongeza')}>
+          {completed.map(item => <li key={item.id} className={`photo-field__tile${selectedIds.includes(item.id) ? ' is-selected' : ''}`}>
+            <input type="checkbox" className="photo-field__select" aria-label={`${ui('Select', 'Chagua')} ${item.name}`} checked={selectedIds.includes(item.id)} disabled={locked}
+              onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, item.id] : ids.filter(id => id !== item.id))} />
+            <PhotoPreview item={item} preview={uploads.preview} ui={ui} />
+            <span className="photo-field__filename" title={item.name}>{item.name}</span>
+            <span className="photo-field__check" aria-hidden="true"><Check size={14} /></span>
+          </li>)}
+        </ul>
+      </div>
+      <p className="photo-field__hint">{ui('Select photos to remove them.', 'Chagua picha ili kuziondoa.')}</p>
+    </>}
   </section>;
 }

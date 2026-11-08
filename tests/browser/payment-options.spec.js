@@ -41,7 +41,12 @@ test('admin payment options persist and appear after submission in both language
   await page.getByRole('button', { name: /Continue.*Pay/i }).click();
   const payment = page.locator('.payment-page');
   await expect(payment.getByRole('heading', { name: 'Ways to pay', exact: true })).toBeVisible();
-  await expect(payment.locator('article h3')).toHaveText(['Test Bank', 'Test Mobile']);
+  await expect(payment.getByRole('combobox', { name: 'Payment method', exact: true }).locator('option')).toHaveText(['Test Bank', 'Test Mobile']);
+  await expect(payment.locator('article h3')).toHaveText(['Test Bank']);
+  await payment.getByRole('combobox', { name: 'Payment method', exact: true }).selectOption({ label: 'Test Mobile' });
+  await expect(payment).toContainText('TEST-MOBILE');
+  await expect(payment).not.toContainText('TEST-BANK');
+  await payment.getByRole('combobox', { name: 'Payment method', exact: true }).selectOption({ label: 'Test Bank' });
   await expect(payment).not.toContainText('TEST-HIDDEN');
   await expect(payment).not.toContainText('Do not pay this test order.');
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -51,7 +56,8 @@ test('admin payment options persist and appear after submission in both language
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await payment.screenshot({ path: '/tmp/tinzel-payment-options-customer.png' });
   await page.getByRole('button', { name: 'SW', exact: true }).click();
-  await expect(payment.locator('article h3')).toHaveText(['Kiswahili Test Bank', 'Kiswahili Test Mobile']);
+  await expect(payment.getByRole('combobox', { name: 'Njia ya malipo', exact: true }).locator('option')).toHaveText(['Kiswahili Test Bank', 'Kiswahili Test Mobile']);
+  await expect(payment.locator('article h3')).toHaveText(['Kiswahili Test Bank']);
   await expect(payment).toContainText('Majaribio pekee: Test Bank.');
   await page.getByRole('button', { name: 'EN', exact: true }).click();
   await page.goto('/staff/system');

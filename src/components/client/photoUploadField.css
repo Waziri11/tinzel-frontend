@@ -27,3 +27,40 @@
 .photo-field__photo-copy svg { flex-shrink: 0; }
 .photo-field__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .photo-field__actions button, .photo-field__placeholder button { font: inherit; padding: 7px 9px; border: 1px solid #c9b892; border-radius: 5px; background: #fffdf8; color: #674b18; cursor: pointer; }
+.photo-field__gallery { position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--border-color); border-radius: 12px; background: #f5f1e9; }
+.photo-field__toolbar { position: absolute; z-index: 3; top: 12px; left: 12px; right: 12px; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+.photo-field__toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 20px; background: #fffdf8; color: #674b18; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; pointer-events: auto; }
+.photo-field__toolbar button:hover:not(:disabled) { background: #f5ead4; }
+.photo-field__toolbar svg { flex-shrink: 0; }
+.photo-field__toolbar .photo-field__add { margin-left: auto; box-shadow: 0 2px 12px #30240d26; }
+.photo-field__selection { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; max-width: 100%; border-radius: 20px; background: #fffdf8; box-shadow: 0 2px 12px #30240d26; pointer-events: auto; }
+.photo-field__selection > span { padding: 0 10px; font-size: 12px; color: #674b18; }
+.photo-field__gallery-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 4px; max-height: 440px; overflow-y: auto; list-style: none; margin: 0; padding: 4px; }
+.photo-field__tile { position: relative; min-width: 0; min-height: 180px; overflow: hidden; background: #eee8dd; }
+.photo-field__tile .photo-field__preview { height: 200px; aspect-ratio: auto; }
+.photo-field__tile .photo-field__preview img { object-fit: cover; }
+.photo-field__select { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.photo-field__select:disabled { cursor: default; }
+.photo-field__tile:has(.photo-field__select:focus-visible)::after, .photo-field__tile.is-selected::after { content: ''; position: absolute; z-index: 2; inset: 0; border: 3px solid var(--accent-primary); pointer-events: none; }
+.photo-field__tile:has(.photo-field__select:focus-visible)::after { border-width: 4px; box-shadow: inset 0 0 0 2px #fff; }
+.photo-field__check { position: absolute; right: 10px; bottom: 10px; display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%; background: #30240d45; color: transparent; opacity: 0; pointer-events: none; box-shadow: 0 1px 4px #0003; }
+.photo-field__tile:hover .photo-field__check, .photo-field__tile:focus-within .photo-field__check, .photo-field__tile.is-selected .photo-field__check { opacity: 1; }
+.photo-field__tile.is-selected .photo-field__check { color: #fff; background: #79571c; }
+.photo-field__filename { position: absolute; right: 0; bottom: 0; left: 0; padding: 24px 40px 12px 10px; color: #fff; background: linear-gradient(transparent, #000b); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; pointer-events: none; }
+.photo-field__tile:hover .photo-field__filename, .photo-field__tile:focus-within .photo-field__filename, .photo-field__tile.is-selected .photo-field__filename { opacity: 1; }
+.photo-field__compact-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; }
+.photo-field__compact-status > p:first-child { margin: 0; font-size: 12px; color: var(--text-muted); }
+.photo-field__compact-status button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 20px; background: #fffdf8; color: #674b18; font: inherit; font-size: 12px; cursor: pointer; }
+.photo-field__compact-status .photo-field__view-uploads { border: 0; padding-inline: 0; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.photo-field__compact-add { margin-left: auto; }
+.photo-field__tile .photo-field__placeholder { padding: 64px 12px 40px; }
+.photo-field__tile .photo-field__placeholder button { position: relative; z-index: 2; }
+@media (max-width: 480px) {
+  .photo-field__toolbar { top: 8px; right: 8px; left: 8px; }
+  .photo-field__toolbar button { min-height: 44px; }
+  .photo-field__gallery-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .photo-field__tile:only-child { grid-column: 1 / -1; }
+}
+@media (hover: none) {
+  .photo-field__check { opacity: 1; }
+}

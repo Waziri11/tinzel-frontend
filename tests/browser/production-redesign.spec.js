@@ -11,6 +11,8 @@ async function createEdition(request,admin){const suffix=Date.now();const create
 test('real isolated ordering, manager return, customer revision, approval and delivery closure',async({page,request},testInfo)=>{
  test.setTimeout(180000);await page.addInitScript(()=>localStorage.setItem('tinzel_language','en'));
  const admin=await login(request,'admin'),manager=await login(request,'manager'),designer=await login(request,'designer'),edition=await createEdition(request,admin);
+ // This journey owns its payment fixture; another test may have disabled all methods.
+ await api(request,'/admin/config',admin,{key:'payment_options',value:[{id:'release-till',type:'till',enabled:true,name:'Lipa Namba',number:'TEST',accountName:'Isolated test only',instructions:'Do not pay this test order.'}]},'put');
  await page.goto('/catalogue');await page.getByRole('button',{name:new RegExp(edition.title)}).click();
  await expect(page).toHaveURL(/\/catalogue\/[^?]+\?step=details$/);
  await page.getByRole('button',{name:'Continue',exact:true}).click();

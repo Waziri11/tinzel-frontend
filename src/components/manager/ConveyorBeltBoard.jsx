@@ -1,3 +1,5 @@
+import { compareExpressPriority } from '../../utils/expressOrder';
+import ExpressOrderBadge from '../common/ExpressOrderBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
 import {navigate} from '../../navigation/location';
@@ -361,8 +363,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const attentionOrders = useMemo(
     () =>
       orders
-        .filter((order) => ATTENTION.has(order.status))
-        .sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)),
+        .filter((order) => ATTENTION.has(order.status) || (order.isExpress && !['delivered', 'closed'].includes(order.status)))
+        .sort((a, b) => compareExpressPriority(a, b) || new Date(a.updatedAt) - new Date(b.updatedAt)),
     [orders],
   );
 
@@ -445,7 +447,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     setSelectedOrder(order);
     setForm({
       ...emptyForm,
-      amountPaid: String(order.formId?.price || ''),
+      amountPaid: String(order.totalPrice ?? order.formId?.price ?? ''),
       printerStage: order.status === 'printing_sent' ? 'in_progress' : 'completed',
       deliveryAddress: order.dispatchDetails?.deliveryAddress || '',
       designerId: order.assignedDesigner?._id || '',
@@ -773,7 +775,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
                         }}
                       >
 
-                        <td data-label={tx('Client')}>{orderSenderName(order, tx('Unnamed customer'))}</td>
+                        <td data-label={tx('Client')}>{orderSenderName(order, tx('Unnamed customer'))}<ExpressOrderBadge order={order} /></td>
                         <td data-label={tx('Edition')}>{order.formTitle || order.formId?.title || 'Magazine'}</td>
                         <td data-label={tx('Required action')}>
                           <span className={`manager-status is-${order.status}`}>
@@ -861,6 +863,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
                           <span className="manager-stage-row__age">{compactWait(order.updatedAt)}</span>
                           <strong>{order.clientName}</strong>
+                          <ExpressOrderBadge order={order} />
                           <span className="manager-stage-row__subtitle">
                             {order.formTitle || order.formId?.title || 'Tinzel Magazine'}
                           </span>
@@ -978,6 +981,8 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
           <Detail label={tx('WhatsApp')} value={order.clientWhatsApp} />
           <Detail label={tx('Email')} value={order.clientEmail || 'Not provided'} />
           <Detail label={tx('Magazine')} value={order.formTitle || order.formId?.title} />
+          <Detail label={ui('Order total', 'Jumla ya oda')} value={`${(order.totalPrice ?? order.formId?.price ?? 0).toLocaleString()} ${order.currency || order.formId?.currency || 'TZS'}`} />
+          {order.isExpress && <Detail label={ui('Express fee included', 'Ada ya Express imejumuishwa')} value={`${order.expressFee?.toLocaleString()} TZS`} />}
           <Detail label={tx('Designer')} value={order.assignedDesigner?.name || 'Not assigned'} />
           <Detail label={tx('Created')} value={displayDate(order.createdAt)} />
           <Detail label={tx('Last updated')} value={displayDate(order.updatedAt)} />
@@ -1059,6 +1064,7 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
         <div>
           <span className={`manager-status is-${order.status}`}>{tx(labelStatus(order.status, lang))}</span>
           <h2>{order.clientName}</h2>
+          <ExpressOrderBadge order={order} />
           <p>{order.formTitle || order.formId?.title}</p>
         </div>
         <div className="manager-order-detail__actions">
@@ -1172,9 +1178,11 @@ function ActionModal({
       ) : null}
       {action && (
         <form onSubmit={onSubmit} className="manager-action-form">
-          <p className="manager-action-context">
+          <div className="manager-action-context">
             <strong>{orderSenderName(order, tx('Unnamed customer'))}</strong>
-          </p>
+            <ExpressOrderBadge order={order} />
+            {order.isExpress && <p>{ui('Expected total including express', 'Jumla inayotarajiwa pamoja na Express')}: {order.totalPrice?.toLocaleString()} TZS</p>}
+          </div>
           {action === 'payment' && (
             <>
               <p>

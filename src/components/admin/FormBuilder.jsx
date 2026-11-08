@@ -32,6 +32,7 @@ import { api } from '../../services/api';
 const FIELD_TYPES = [
   { value: 'text', label: 'Short Answer' },
   { value: 'textarea', label: 'Paragraph (Long Text / Vows)' },
+  { value: 'list', label: 'List (Numbered Items)' },
   { value: 'date', label: 'Date' },
   { value: 'number', label: 'Number' },
   { value: 'photo_group', label: 'Photo Group (Multiple Photos Spread)' },

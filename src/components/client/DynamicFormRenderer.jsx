@@ -1,3 +1,4 @@
+import ExpressOrderChoice from './ExpressOrderChoice';
 import { normalizePhone, requirePhone } from '../../utils/phone';
 import { errorText } from '../../i18n/errors';
 import PhoneInput from '../common/PhoneInput';
@@ -20,14 +21,20 @@ import { api } from '../../services/api';
 import { usePhotoUploads } from '../../hooks/usePhotoUploads';
 import { navigate } from '../../navigation/location';
 import OrderAnswersView from '../common/OrderAnswersView';
+import OrderedListField from '../common/OrderedListField';
+import { listAnswerItems, normalizeListAnswers } from '../../utils/listAnswers';
 import { Button } from '../common/UI';
 import LipaNambaScreen from './LipaNambaScreen';
 import PhotoUploadField, { PhotoPreview } from './PhotoUploadField';
+import PhotoUploadActivity from './PhotoUploadActivity';
 import PageSkeleton from '../common/PageSkeleton';
-import BrandLoading, { BrandMark } from '../common/BrandLoading';
+import { BrandMark } from '../common/BrandLoading';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 import StatePanel, { StateError } from '../common/StatePanel';
 import { useConfirm } from '../common/ConfirmDialog';
+
+const isPhotoField = field => ['photo_upload', 'photo_group'].includes(field.type);
+const hasAnswer = value => Array.isArray(value) ? value.length > 0 : String(value ?? '').trim() !== '';
 
 export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavigateToTracking }) {
   const { t, lang } = useLanguage();
@@ -37,7 +44,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     const value = new URLSearchParams(window.location.search).get('step');
     return steps.includes(value) ? value : 'details';
   };
-  const [step, setStep] = useState(readStep);
+  const [requestedStep, setStep] = useState(readStep);
   const stepHeading = useRef(null);
   const goStep = (next) => {
     navigate(`${window.location.pathname}?step=${next}`);
@@ -59,22 +66,17 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [fieldErrors, setFieldErrors] = useState({});
   const [focusField, setFocusField] = useState(null);
 
-  useLayoutEffect(() => {
-    if (loading || !stepHeading.current) return;
-    stepHeading.current.focus({ preventScroll: true });
-    // A long photo form must not carry its scroll position into the review.
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [step, loading]);
-
   const [clientName, setClientName] = useState('');
   const [clientWhatsApp, setClientWhatsApp] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [answers, setAnswers] = useState({});
+  const [isExpress, setIsExpress] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
   const confirmationRef = useRef(null);
   const [restoredSlug, setRestoredSlug] = useState(null);
   const uploads = usePhotoUploads(slug, form);
+  const [uploadActivityOpenRequest, setUploadActivityOpenRequest] = useState(0);
   const fieldPhotos = {};
   uploads.items.forEach((item) => {
     (fieldPhotos[item.fieldId] ||= []).push(item);
@@ -90,6 +92,38 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const [slowSubmit, setSlowSubmit] = useState(false);
   const draftDiscardBlocked = submitting || checking || uncertain || resumeSaving;
   const ui = (en, sw) => (lang === 'sw' ? sw : en);
+
+  // Use the same checks for review visibility, direct links, and submission.
+  const detailErrors = {};
+  if (!clientName.trim()) detailErrors['magazine-client-name'] = ui('Enter your name.', 'Weka jina lako.');
+  if (!normalizePhone(clientWhatsApp)) detailErrors['magazine-client-whatsapp'] = ui('Enter a valid phone number with its country code.', 'Weka namba sahihi ya simu pamoja na msimbo wa nchi.');
+  // A detached input also validates restored drafts before the form is mounted.
+  const emailInput = document.createElement('input');
+  emailInput.type = 'email';
+  emailInput.value = clientEmail;
+  if (!emailInput.validity.valid) detailErrors['magazine-client-email'] = ui('Enter a valid email address or leave this blank.', 'Weka barua pepe sahihi au acha wazi.');
+  const missingStory = (form?.fields || []).find(field => field.required && !isPhotoField(field) && (
+    field.type === 'list' ? !listAnswerItems(answers[field.fieldId]).length : ['grid_radio', 'grid_checkbox'].includes(field.type)
+      ? !(field.rows || []).every(row => hasAnswer(answers[field.fieldId]?.[row]))
+      : !hasAnswer(answers[field.fieldId])
+  ));
+  const missingPhotos = (form?.fields || []).find(field => field.required && isPhotoField(field) && !(fieldPhotos[field.fieldId] || []).length);
+  const firstIncompleteStep = Object.keys(detailErrors).length ? 'details' : missingStory ? 'story' : missingPhotos ? 'photos' : null;
+  const canReview = !loading && Boolean(form) && !firstIncompleteStep;
+  // Never render an incomplete review, even for one frame on reload/history changes.
+  const step = requestedStep === 'review' && !canReview ? firstIncompleteStep || 'details' : requestedStep;
+
+  useEffect(() => {
+    if (loading || !form || requestedStep !== 'review' || canReview) return;
+    navigate(`${window.location.pathname}?step=${step}`, { replace: true });
+  }, [loading, form, requestedStep, canReview, step]);
+
+  useLayoutEffect(() => {
+    if (loading || !stepHeading.current) return;
+    stepHeading.current.focus({ preventScroll: true });
+    // A long photo form must not carry its scroll position into the review.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [step, loading]);
 
   const clearSavedDraft = async () => {
     if (draftDiscardBlocked) return;
@@ -107,6 +141,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     setClientWhatsApp('');
     setClientEmail('');
     setAnswers({});
+    setIsExpress(false);
     setHasSavedDraft(false);
     setDraftRestored(false);
     setDraftStatus('idle');
@@ -139,8 +174,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
   useEffect(() => {
     if (!submissionResult) return;
-    confirmationRef.current?.focus();
-    confirmationRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    confirmationRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [submissionResult]);
 
   useEffect(() => {
@@ -180,6 +215,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
     setClientWhatsApp(draft.clientWhatsApp || '');
     setClientEmail(draft.clientEmail || '');
     setAnswers(draft.answers || {});
+    setIsExpress(draft.isExpress === true);
     setRestoredSlug(slug);
     api.public
       .getFormBySlug(slug)
@@ -210,7 +246,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             draftKey,
             JSON.stringify({
               savedAt: Date.now(),
-              data: { clientName, clientWhatsApp, clientEmail, answers },
+              data: { clientName, clientWhatsApp, clientEmail, answers, isExpress },
             }),
           );
           setHasSavedDraft(true);
@@ -225,22 +261,27 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, submissionResult]);
+  }, [slug, restoredSlug, clientName, clientWhatsApp, clientEmail, answers, isExpress, submissionResult]);
 
   const handleFieldChange = (fieldId, value) => { setAnswers((prev) => ({ ...prev, [fieldId]: value })); setFieldErrors(previous => ({ ...previous, [fieldId]: null })); };
   const validateDetails = () => {
-    const errors = {};
-    if (!clientName.trim()) errors['magazine-client-name'] = ui('Enter your name.', 'Weka jina lako.');
-    if (!normalizePhone(clientWhatsApp)) errors['magazine-client-whatsapp'] = ui('Enter a valid phone number with its country code.', 'Weka namba sahihi ya simu pamoja na msimbo wa nchi.');
-    const email = document.getElementById('magazine-client-email');
-    if (email && !email.checkValidity()) errors['magazine-client-email'] = ui('Enter a valid email address or leave this blank.', 'Weka barua pepe sahihi au acha wazi.');
-    setFieldErrors(errors);
-    if (Object.keys(errors).length) { goStep('details'); setError(ui('Check the highlighted details.', 'Hakiki taarifa zilizoainishwa.')); setFocusField(Object.keys(errors)[0]); return false; }
+    setFieldErrors(detailErrors);
+    if (Object.keys(detailErrors).length) { goStep('details'); setError(ui('Check the highlighted details.', 'Hakiki taarifa zilizoainishwa.')); setFocusField(Object.keys(detailErrors)[0]); return false; }
     return true;
   };
   const markMissing = missing => {
     const message = t('form.errRequired', { label: L(missing, 'label') });
     setFieldErrors(previous => ({ ...previous, [missing.fieldId]: message })); setError(message); setFocusField(missing.fieldId);
+  };
+  const validateBeforeReview = () => {
+    if (!validateDetails()) return false;
+    const missing = missingStory || missingPhotos;
+    if (missing) {
+      goStep(isPhotoField(missing) ? 'photos' : 'story');
+      markMissing(missing);
+      return false;
+    }
+    return true;
   };
   const checkSavedResult = async () => {
     setChecking(true); setError(null);
@@ -259,22 +300,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
       advance();
       return;
     }
-    if (uncertain || submitting || !validateDetails()) return;
-    const missing = (form?.fields || []).find((field) => {
-      if (!field.required) return false;
-      if (['photo_upload', 'photo_group'].includes(field.type)) return !(fieldPhotos[field.fieldId] || []).length;
-      const value = answers[field.fieldId];
-      if (['grid_radio', 'grid_checkbox'].includes(field.type))
-        return !(field.rows || []).every((row) =>
-          Array.isArray(value?.[row]) ? value[row].length : String(value?.[row] ?? '').trim(),
-        );
-      return Array.isArray(value) ? !value.length : !String(value ?? '').trim();
-    });
-    if (missing) {
-      goStep(['photo_upload', 'photo_group'].includes(missing.type) ? 'photos' : 'story');
-      markMissing(missing);
-      return;
-    }
+    if (uncertain || submitting || !validateBeforeReview()) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -283,7 +309,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         clientWhatsApp: requirePhone(clientWhatsApp),
         clientEmail: clientEmail.trim(),
         clientPreferredLanguage: lang || 'sw',
-        answers,
+        isExpress,
+        answers: normalizeListAnswers(form.fields, answers),
       });
       setSubmissionResult(result);
       setHasSavedDraft(false);
@@ -303,38 +330,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
   const advance = () => {
     setError(null);
     if (step === 'details' && !validateDetails()) return;
-    if (step === 'story') {
-      const missing = (form?.fields || []).find(
-        (field) =>
-          field.required &&
-          !['photo_upload', 'photo_group'].includes(field.type) &&
-          (['grid_radio', 'grid_checkbox'].includes(field.type)
-            ? !(field.rows || []).every((row) =>
-                Array.isArray(answers[field.fieldId]?.[row])
-                  ? answers[field.fieldId][row].length
-                  : String(answers[field.fieldId]?.[row] ?? '').trim(),
-              )
-            : Array.isArray(answers[field.fieldId])
-              ? !answers[field.fieldId].length
-              : !String(answers[field.fieldId] ?? '').trim()),
-      );
-      if (missing) {
-        markMissing(missing);
-        return;
-      }
+    if (step === 'story' && missingStory) {
+      markMissing(missingStory);
+      return;
     }
-    if (step === 'photos') {
-      const missing = (form?.fields || []).find(
-        (field) =>
-          field.required &&
-          ['photo_upload', 'photo_group'].includes(field.type) &&
-          !(fieldPhotos[field.fieldId] || []).length,
-      );
-      if (missing) {
-        markMissing(missing);
-        return;
-      }
-    }
+    if (step === 'photos' && !validateBeforeReview()) return;
     goStep(steps[Math.min(steps.indexOf(step) + 1, 3)]);
   };
   if (loading) {
@@ -348,25 +348,13 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
   if (submissionResult) {
     return (
-      <>
-        <div ref={confirmationRef} tabIndex={-1} style={{ scrollMarginTop: 88 }}>
-          <BrandLoading
-            complete
-            compact
-            title={ui('Your order has been saved', 'Oda yako imehifadhiwa')}
-            description={ui(
-              'Next, follow the payment instructions below so we can start your magazine.',
-              'Hatua inayofuata: fuata maelekezo ya malipo hapa chini ili tuanze kubuni jarida lako.',
-            )}
-          />
-        </div>
         <LipaNambaScreen
+          confirmationRef={confirmationRef}
           order={{ ...submissionResult.order, formTitle: L(form, 'title') || submissionResult.order?.formTitle }}
           paymentOptions={submissionResult.paymentOptions}
           lipaNambaInstructions={submissionResult.lipaNambaInstructions}
           onNavigateToTracking={onNavigateToTracking}
         />
-      </>
     );
   }
 
@@ -395,7 +383,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
         </span>
       </header>
       <nav className="order-steps" aria-label={ui('Order steps', 'Hatua za oda')}>
-        {steps.map((id, i) => (
+        {steps.filter(id => id !== 'review' || canReview).map((id, i) => (
           <button
             type="button"
             key={id}
@@ -425,7 +413,6 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
 
       {/* Main Form Fields */}
       <form noValidate onSubmit={handleSubmit}>
-        {uploads.notice && <StatePanel compact kind="warning" title={ui('Check photo recovery', 'Hakiki urejeshaji wa picha')} description={uploads.recoveryStatus === 'unavailable' ? ui('This browser cannot save upload recovery. Keep this page open until you submit.', 'Kivinjari hiki hakiwezi kuhifadhi taarifa za kuendelea kupakia. Usifunge ukurasa huu hadi uwasilishe.') : errorText(uploads.notice)} />}
         <fieldset
           disabled={submitting || uncertain}
           aria-label={ui('Magazine order details', 'Taarifa za oda ya jarida')}
@@ -658,7 +645,14 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                       return <PhotoUploadField key={field.fieldId} field={field}
                         label={L(field, 'label')} helperText={L(field, 'helperText')}
                         items={fieldPhotos[field.fieldId] || []} uploads={uploads}
-                        lang={lang} disabled={submitting} />;
+                        lang={lang} disabled={submitting}
+                        onShowUploads={() => setUploadActivityOpenRequest(value => value + 1)} />;
+                    }
+
+                    if (field.type === 'list') {
+                      return <OrderedListField label={L(field, 'label')} helperText={L(field, 'helperText')}
+                        required={field.required} value={answers[field.fieldId]} lang={lang}
+                        onChange={value => handleFieldChange(field.fieldId, value)} />;
                     }
 
                     if (field.type === 'textarea') {
@@ -993,7 +987,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   <h2>{ui('Your story', 'Hadithi yako')}</h2>
                   <Button onClick={() => goStep('story')}>{ui('Edit', 'Hariri')}</Button>
                 </header>
-                <OrderAnswersView submittedData={answers} formFields={form.fields} />
+                <OrderAnswersView submittedData={answers} formFields={form.fields} collapseLongAnswers />
               </section>
               <section className="ui-card">
                 <header>
@@ -1004,10 +998,11 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   {ui('Selected photographs:', 'Picha zilizochaguliwa:')} {uploads.items.length}
                 </p>
                 {(form.fields || []).filter(field => ['photo_upload', 'photo_group'].includes(field.type)).map(field => {
-                  const photos = fieldPhotos[field.fieldId] || [];
+                  const allPhotos = fieldPhotos[field.fieldId] || [];
+                  const photos = allPhotos.filter(photo => photo.state === 'complete');
                   return <section key={field.fieldId} className="photo-field photo-review-question" aria-labelledby={`review-photo-${field.fieldId}`}>
                     <h3 id={`review-photo-${field.fieldId}`}>{L(field, 'label')}</h3>
-                    {photos.length === 0 ? <p className="photo-field__hint">{ui('No photos added.', 'Hakuna picha zilizoongezwa.')}</p>
+                    {photos.length === 0 ? <p className="photo-field__hint">{allPhotos.length ? ui('Photos will appear here when uploads finish.', 'Picha zitaonekana hapa upakiaji ukikamilika.') : ui('No photos added.', 'Hakuna picha zilizoongezwa.')}</p>
                       : <ul className="photo-field__photos">
                         {photos.map(photo => <li key={photo.id} className="photo-field__photo">
                           {photo.state === 'complete' && <PhotoPreview item={photo} preview={uploads.preview} ui={ui} />}
@@ -1030,6 +1025,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
                   )}
                 </p>
               </section>
+              <ExpressOrderChoice form={form} value={isExpress} onChange={setIsExpress} />
             </div>
           )}
           <div className="order-step-actions">
@@ -1043,7 +1039,7 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
             )}
           </div>
           </fieldset>
-          {step === 'review' && unfinishedUploads && <StatePanel compact kind="info" title={ui('Some photos are not ready yet', 'Baadhi ya picha bado hazijakamilika')} description={ui('Submission will wait for active uploads. Return to Photographs to retry or reselect files that need attention.', 'Uwasilishaji utasubiri picha zinazopakiwa. Rudi kwenye Picha ujaribu tena au uchague faili zinazohitaji msaada.')} />}
+          {step === 'review' && unfinishedUploads && <StatePanel compact kind="info" title={ui('Some photos are not ready yet', 'Baadhi ya picha bado hazijakamilika')} description={ui('Submission will wait for active uploads. Use the photo upload panel to retry or reselect files that need attention.', 'Uwasilishaji utasubiri picha zinazopakiwa. Tumia kisanduku cha upakiaji wa picha kujaribu tena au kuchagua faili zinazohitaji msaada.')} />}
           {/* Submit Action Card */}
           <div
             hidden={step !== 'review'}
@@ -1103,6 +1099,8 @@ export default function DynamicFormRenderer({ slug = 'wedding-magazine', onNavig
           </div>
         </fieldset>
       </form>
+      <PhotoUploadActivity key={slug} uploads={uploads} fields={form.fields || []} lang={lang}
+        disabled={submitting || uncertain || resumeSaving} openRequest={uploadActivityOpenRequest} />
     </div>
   );
 }

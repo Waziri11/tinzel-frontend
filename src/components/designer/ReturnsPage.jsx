@@ -1,3 +1,4 @@
+import ExpressOrderBadge from '../common/ExpressOrderBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
@@ -422,6 +423,7 @@ export default function ReturnsPage({ token, staffUser, onOpenOrder }) {
                   <tr key={row._id || `${row.orderId}-${row.roundNumber}`}>
                     <td>
                       <strong style={{ display: 'block', color: '#1C1917' }}>{orderSenderName(row, tx('Unnamed customer'))}</strong>
+                      <ExpressOrderBadge order={row} />
                       <span style={{ fontSize: '12px', color: '#78716C' }}>{row.formTitle || 'Tinzel Magazine'}</span>
                     </td>
                     <td>

@@ -1,0 +1,20 @@
+.order-review .order-answers--collapsible { grid-template-columns: minmax(0, 1fr); }
+.order-answers__list { margin: 0; padding-inline-start: 24px; list-style: decimal; white-space: normal; }
+.order-answers__list > li { padding-inline-start: 4px; margin-bottom: 6px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.order-answers__list > li:last-child { margin-bottom: 0; }
+.order-answers__row { min-width: 0; padding: 14px 0; border-bottom: 1px solid var(--border-color); }
+.order-answers__row:first-child { padding-top: 0; }
+.order-answers__row:last-child { padding-bottom: 0; border-bottom: 0; }
+.order-answers__toggle { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 4px 0; border: 0; border-radius: 4px; background: transparent; color: var(--text-main); font: inherit; text-align: left; cursor: pointer; }
+.order-answers__toggle > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.order-answers__toggle-label { flex-shrink: 0; color: var(--accent-primary); font-size: 11px; font-weight: 600; }
+.order-answers__toggle > svg { flex-shrink: 0; color: var(--accent-primary); }
+.order-answers__toggle[aria-expanded='true'] > svg { transform: rotate(180deg); }
+.order-answers__toggle:hover { color: var(--accent-primary); }
+.order-answers__toggle:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 4px; }
+.order-answers__excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-muted); font-size: 12px; line-height: 1.6; white-space: normal; }
+.order-answers__row dd > [role='region'] { padding-top: 6px; line-height: 1.7; }
+@media (max-width: 480px) {
+  .order-answers__toggle { gap: 8px; }
+  .order-answers__toggle-label { max-width: 56px; }
+}

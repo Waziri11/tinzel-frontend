@@ -32,6 +32,7 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   await chooseEnglish(page);
 
   await expect(page.getByText('Photos ready: 2/2').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Expand photo uploads', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await page.getByRole('button',{name:'1 Your details'}).click();
   await expect(page.locator('#magazine-client-name')).toHaveValue('Browser Upload Test');
   expect(chunkRequests).toBe(previousRequests);
@@ -59,11 +60,12 @@ test('interrupted file can be retried; completed files stay complete on mobile',
   await openForm(page);
   await page.locator('#upload-first').setInputFiles(photo('interrupted.jpg', 2200000));
   await page.locator('#upload-second').setInputFiles(photo('completed.jpg', 100000));
-  await expect(page.getByRole('button', { name: 'Retry photo' })).toBeVisible({ timeout: 30000 });
+  const activity = page.getByRole('complementary', { name: 'Photo uploads', exact: true });
+  await expect(activity.getByText(/Some photos need attention/)).toBeVisible({ timeout: 30000 });
   await expect(page.locator('[data-field-id=second]').getByText('Photos ready: 1/1')).toBeVisible();
   await expect(page.locator('[data-field-id=first]').getByText('Photos ready: 0/1')).toBeVisible();
   failing = false;
-  await page.getByRole('button', { name: 'Retry photo' }).click();
+  await activity.getByRole('button', { name: 'Retry interrupted.jpg', exact: true }).click();
   await expect(page.locator('[data-field-id=first]').getByText('Photos ready: 1/1')).toBeVisible({ timeout: 30000 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/media-mobile.png', fullPage: true });
@@ -79,17 +81,19 @@ test('refresh restores a partial upload and reselection sends only missing parts
   await openForm(page);
   const file = photo('resume.jpg', 2200000);
   await page.locator('#upload-first').setInputFiles(file);
-  await expect(page.getByRole('button', { name: 'Retry photo' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText(/Some photos need attention/)).toBeVisible({ timeout: 30000 });
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:uploads:v2:upload-performance-test'))?.items[0]?.state)).toBe('failed');
   failing = false;
   await openForm(page);
-  await expect(page.getByText(/Reselect this file below to resume/)).toBeVisible();
-  await page.locator('#upload-first').setInputFiles(file);
+  await expect(page.getByText('Choose the original photo to resume.')).toBeVisible();
+  const choosing = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Reselect resume.jpg', exact: true }).click();
+  await (await choosing).setFiles(file);
   await expect(page.getByText('Photos ready: 1/1')).toBeVisible();
   expect(firstParts).toBe(1);
 });
 
-test('each field owns its progress and confirmed previews survive refresh and removal', async ({ page }, testInfo) => {
+test('one side panel owns upload progress and confirmed galleries survive refresh and removal', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const pixels = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAFAAAAA8CAIAAAB+RarbAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAqUlEQVRoge3XURFEMQhDUSxec09M1a2J7fDRM4MASCAJc76eqlnvwMBhOCudG45oRaXZ0tk2ScEjSSvRMlk6z0O+pW/fMNhSNyCYdcgx3FUIZh1yDIfhrHRuOKIVlWZL54Ga9Q4MHIaz0rnhiFZUmi2dbZMUPJK0Ei2TpfM85Fv69g2DLXUDglmHHMNdhWDWIcdwGM5K54YjWlFptnQeqFnvwMBhuD9C8AMRv4yDZC5PnQAAAABJRU5ErkJggg==', 'base64');
   const image = name => ({ name, mimeType: 'image/png', buffer: pixels });
@@ -99,24 +103,34 @@ test('each field owns its progress and confirmed previews survive refresh and re
   await openForm(page);
   const first = page.locator('[data-field-id=first]');
   const second = page.locator('[data-field-id=second]');
+  const activity = page.getByRole('complementary', { name: 'Photo uploads', exact: true });
   try {
     await page.locator('#upload-first').setInputFiles(image('first.png'));
-    await expect(first.getByText('Confirming your photo…')).toBeVisible();
-    await expect.poll(() => first.getByRole('progressbar').first().evaluate(bar => bar.value)).toBeLessThan(100);
+    await first.getByRole('button', { name: 'View uploads', exact: true }).click();
+    await expect(activity.locator('[data-upload-field=first]').getByText('Confirming your photo…')).toBeVisible();
+    await expect.poll(() => activity.getByRole('progressbar').first().evaluate(bar => bar.value)).toBeLessThan(100);
+    await expect(first.getByRole('progressbar')).toHaveCount(0);
+    await expect(first.locator('.photo-field__tile')).toHaveCount(0);
     await expect(first.getByRole('img')).toHaveCount(0);
     await expect(second.locator('.photo-field__status')).toHaveCount(0);
     await expect(page.locator('.tinzel-upload, .tinzel-upload__dock')).toHaveCount(0);
     await page.locator('#upload-second').setInputFiles(image('second.png'));
-    await expect(second.getByText('Confirming your photo…')).toBeVisible();
+    await expect(activity.locator('[data-upload-field=second]').getByText('Confirming your photo…')).toBeVisible();
+    await expect(activity).toHaveCount(1);
+    await expect(activity.getByText('0 of 2 photos ready', { exact: true })).toBeVisible();
+    await activity.getByRole('button', { name: 'Minimize photo uploads', exact: true }).click();
   } finally { release(); }
   for (const field of [first, second]) {
     await field.scrollIntoViewIfNeeded();
-    await expect(field.getByText('Photos uploaded successfully')).toBeVisible();
+    await expect(field.getByText('Photos ready: 1/1')).toBeVisible();
     await expect(field.getByRole('progressbar')).toHaveCount(0);
     await expect(field.getByRole('img')).toBeVisible();
     await expect.poll(() => field.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   }
   await expect(first.getByRole('img')).toHaveAttribute('alt', 'first.png');
+  await expect(first.locator('.photo-field__picker')).toHaveCount(0);
+  await expect(first.getByRole('button', { name: 'Add more', exact: true })).toHaveCount(1);
+  await expect(first.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
   await expect(second.getByRole('img')).toHaveAttribute('alt', 'second.png');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:uploads:v2:upload-performance-test'))?.items.filter(i => i.photo).length)).toBe(2);
   await page.reload();
@@ -143,9 +157,11 @@ test('each field owns its progress and confirmed previews survive refresh and re
   await expect.poll(() => reviewFirst.getByRole('img').evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('review-question-photos-mobile.png'), fullPage: true });
   await page.getByRole('button', { name: 'Back', exact: true }).click();
-  await first.getByRole('button', { name: 'Remove first.png', exact: true }).click();
+  await first.getByRole('checkbox', { name: 'Select first.png', exact: true }).check();
+  await first.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(first.getByRole('img')).toHaveCount(0);
   await expect(first.locator('.photo-field__status')).toHaveCount(0);
+  await expect(first.locator('.photo-field__picker')).toBeVisible();
   await expect(second.getByRole('img')).toBeVisible();
   await page.getByRole('button', { name: '4 Review', exact: true }).click();
   await expect(reviewFirst.getByText('No photos added.')).toBeVisible();

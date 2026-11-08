@@ -1,0 +1,12 @@
+.ordered-list-field { border: 0; padding: 0; margin: 0; min-width: 0; }
+.ordered-list-field legend { padding: 0; font-size: 13px; font-weight: 700; color: var(--text-main); }
+.ordered-list-field__hint { margin: 6px 0; font-size: 12px; color: var(--text-muted); }
+.ordered-list-field__items { margin: 12px 0; padding-inline-start: 28px; list-style: decimal; }
+.ordered-list-field__items > li { padding-inline-start: 4px; margin-bottom: 10px; }
+.ordered-list-field__items > li::marker { color: var(--accent-primary); font-weight: 600; }
+.ordered-list-field__row { display: flex; gap: 8px; align-items: flex-start; }
+.ordered-list-field__row textarea { flex: 1; min-width: 0; width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-main); font: inherit; font-size: 14px; line-height: 1.6; resize: vertical; }
+.ordered-list-field__remove, .ordered-list-field__add { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--surface, #fff); color: var(--text-main); cursor: pointer; font: inherit; font-size: 13px; }
+.ordered-list-field__remove { flex-shrink: 0; min-width: 44px; }
+.ordered-list-field button:focus-visible, .ordered-list-field textarea:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.ordered-list-field button:disabled { cursor: default; opacity: .6; }

@@ -1,0 +1,18 @@
+.express-order { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 8px 0; padding: 8px 10px; border: 1px solid #e5bc6b; border-radius: 8px; background: #fff8e7; color: #704715; font-size: 12px; line-height: 1.5; max-width: 100%; }
+.express-order__label { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.express-order__clock { font-variant-numeric: tabular-nums; font-weight: 650; }
+.express-order__note { display: block; flex-basis: 100%; font-size: 11px; }
+.express-order.is-overdue { border-color: #e5a099; background: #fff1ee; color: #9a2e23; }
+.express-order.is-complete { border-color: #b2cbbb; background: #f0f8f3; color: #315e43; }
+.express-choice { padding: 24px; border: 1px solid #e5bc6b; border-radius: 12px; background: #fffbf2; color: #33281b; }
+.express-choice h2 { margin: 0 0 8px; font-size: 20px; }
+.express-choice p { margin: 0 0 16px; line-height: 1.6; }
+.express-choice label { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid #dfd6c5; border-radius: 8px; margin-top: 10px; cursor: pointer; background: #fff; }
+.express-choice label:has(input:checked) { border-color: #94702d; box-shadow: 0 0 0 1px #94702d; }
+.express-choice input { width: 18px; height: 18px; margin: 3px 0 0; flex: 0 0 18px; accent-color: #75561d; }
+.express-choice label span { display: grid; gap: 4px; }
+.express-choice label small { line-height: 1.5; }
+.express-price-breakdown { margin: 16px 0 0; display: grid; gap: 8px; }
+.express-price-breakdown > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.express-price-breakdown dt, .express-price-breakdown dd { margin: 0; }
+.express-price-breakdown > div:last-child { border-top: 1px solid #dfd6c5; padding-top: 10px; font-weight: 750; }

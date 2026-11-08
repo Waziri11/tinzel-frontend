@@ -454,6 +454,7 @@ Object.assign(uiText, {
   'Page (optional)': 'Ukurasa (si lazima)',
   Paper: 'Karatasi',
   'Paragraph (Long Text / Vows)': 'Aya (Maandishi marefu / Ahadi)',
+  'List (Numbered Items)': 'Orodha (Vipengele vyenye namba)',
   'Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be published and allow anyone with the link to respond. Tinzel creates a private draft for review.':
     'Weka kiungo cha forms.gle au docs.google.com/forms. Fomu iwe imechapishwa na kuruhusu mwenye kiungo kujibu. Tinzel itaunda rasimu binafsi ya kukagua.',
   Payment: 'Malipo',

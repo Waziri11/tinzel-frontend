@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from 'antd';
 import StatePanel from '../common/StatePanel';
+import OrderedListField from '../common/OrderedListField';
 import { useLanguage, localized, localizedList } from '../../i18n/LanguageContext';
 export default function EditionPreview({ open, onClose, form }) {
   const { lang } = useLanguage(),
@@ -9,7 +10,7 @@ export default function EditionPreview({ open, onClose, form }) {
   const control = (field) => {
     const options = localizedList(field, 'options', lang),
       rows = localizedList(field, 'rows', lang);
-    const supported = ['text', 'textarea', 'photo_upload', 'photo_group', 'dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox', 'linear_scale', 'rating', 'datetime', 'date', 'time', 'number', 'duration'];
+    const supported = ['text', 'textarea', 'list', 'photo_upload', 'photo_group', 'dropdown', 'radio', 'checkbox', 'grid_radio', 'grid_checkbox', 'linear_scale', 'rating', 'datetime', 'date', 'time', 'number', 'duration'];
     if (!supported.includes(field.type)) return <StatePanel compact kind="warning" title={sw ? 'Hakikisho la swali halipatikani' : 'Question preview unavailable'} description={sw ? 'Kagua aina ya swali kabla ya kuchapisha.' : 'Review this question type before publishing.'} />;
     if (['photo_upload', 'photo_group'].includes(field.type))
       return (
@@ -20,6 +21,7 @@ export default function EditionPreview({ open, onClose, form }) {
         </div>
       );
     if (field.type === 'textarea') return <textarea rows="3" aria-label={L(field, 'label')} />;
+    if (field.type === 'list') return <OrderedListField label={L(field, 'label')} required={field.required} lang={lang} value={['', '']} />;
     if (field.type === 'dropdown')
       return (
         <select aria-label={L(field, 'label')}>
@@ -132,10 +134,10 @@ export default function EditionPreview({ open, onClose, form }) {
                 .filter((field) => field.sectionId === section.sectionId || section.sectionId === 'default')
                 .map((field) => (
                   <div className="ui-field" key={field.fieldId}>
-                    <strong>
+                    {field.type !== 'list' && <strong>
                       {L(field, 'label')}
                       {field.required ? ' *' : ''}
-                    </strong>
+                    </strong>}
                     <small>{L(field, 'helperText')}</small>
                     {control(field)}
                   </div>

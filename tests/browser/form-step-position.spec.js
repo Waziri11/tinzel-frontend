@@ -2,7 +2,12 @@ import { test, expect } from './fixtures.js';
 
 test('mobile review and back navigation start at the form heading', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
+  await page.addInitScript(() => {
+    localStorage.setItem('tinzel_language', 'en');
+    localStorage.setItem('tinzel:answers:v2:position-test', JSON.stringify({
+      savedAt: Date.now(), data: { clientName: 'Position test', clientWhatsApp: '+255700000001', answers: {} },
+    }));
+  });
   await page.route('**/api/public/forms/position-test', route => route.fulfill({ json: { form: {
     slug: 'position-test', title: 'Preview position test', price: 50000, currency: 'TZS',
     fields: Array.from({ length: 8 }, (_, i) => ({ fieldId: `photos-${i}`, type: 'photo_group', label: `Photos ${i + 1}` })),

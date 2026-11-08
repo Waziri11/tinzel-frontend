@@ -1,0 +1,75 @@
+.order-page:has(.payment-page) { max-width: 1120px; padding: 20px 24px; }
+.order-page:has(.payment-page) > .text-back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0; margin-bottom: 12px; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.app-shell:has(.payment-page) .public-footer { display: none; }
+.payment-page { max-width: 1040px; margin: 0 auto; overflow-wrap: anywhere; border: 1px solid var(--border-color); border-radius: 14px; background: var(--card-bg); }
+.payment-page__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border-color); }
+.payment-page__saved { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: #2f6847; font-size: 12px; font-weight: 600; }
+.payment-page__saved svg { flex-shrink: 0; }
+.payment-page .payment-page__header h1 { margin: 0; font: 500 30px/1.15 var(--font-brand); }
+.payment-page__body { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 28px; padding: 20px 24px; }
+.payment-page__summary { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-self: start; gap: 16px; padding: 20px; border-radius: 10px; background: #faf6ed; }
+.payment-page__amount > span, .payment-page__customer > span { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 12px; }
+.payment-page__amount > strong { display: block; color: #674b18; font-size: 32px; line-height: 1.2; }
+.payment-page__amount small { font-size: 14px; font-weight: 500; }
+.payment-page__customer > strong { font-size: 14px; }
+.payment-page__customer > p { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+.payment-page__notice { grid-column: 1 / -1; display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 12px; line-height: 1.6; color: #674b18; }
+.payment-page__notice svg { flex-shrink: 0; margin-top: 2px; }
+.payment-page__footer { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 14px 24px; border-top: 1px solid var(--border-color); }
+.payment-page__footer svg { flex-shrink: 0; }
+.payment-page__footer > button { flex-shrink: 0; }
+.payment-options--compact { min-width: 0; }
+.payment-page .payment-options--compact > h2 { margin: 0 0 12px; font: 500 24px/1.2 var(--font-brand); }
+.payment-options__selector { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--text-muted); font-size: 12px; }
+.payment-options__selector select { flex: 1; min-width: 0; max-width: 70%; font-size: 13px; }
+.payment-options__details { min-width: 0; font-size: 13px; }
+.payment-options__details > h3 { margin: 0 0 10px; font-size: 14px; }
+.payment-options__details > p { margin: 8px 0 0; }
+.payment-options__number { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: #faf8f4; }
+.payment-options__number > strong { min-width: 0; user-select: all; }
+.payment-options__number > button { min-height: 40px; padding: 7px 10px; font-size: 12px; }
+.payment-options__copy-error { color: #83541c; }
+.payment-options__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .order-page:has(.payment-page) { padding: 8px 16px 16px; }
+  .order-page:has(.payment-page) > .text-back { margin-bottom: 8px; }
+  .payment-page__header { padding: 12px 16px; gap: 8px; flex-wrap: wrap; }
+  .payment-page .payment-page__header h1 { font-size: 26px; }
+  .payment-page__body { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; gap: 12px; }
+  .payment-page__summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 12px; gap: 12px; }
+  .payment-page__amount > strong { font-size: 25px; }
+  .payment-page__amount small { font-size: 12px; }
+  .payment-page__notice { grid-column: 1 / -1; font-size: 11px; }
+  .payment-page__customer > strong { font-size: 12px; }
+  .payment-page__customer > p { font-size: 11px; }
+  .payment-page__footer { padding: 12px 16px; gap: 10px; flex-wrap: wrap; }
+  .payment-page__footer > button { font-size: 12px; padding: 10px 12px; }
+  .payment-options__selector { gap: 8px; }
+  .payment-options__number { padding: 6px 8px; }
+  .payment-options__number > button { min-height: 44px; }
+  .app-shell:has(.payment-page) .public-footer { padding: 10px 16px; gap: 8px 12px; font-size: 11px; }
+  .app-shell:has(.payment-page) .public-footer span { width: auto; order: initial; }
+}
+@media (max-width: 360px) {
+  .order-page:has(.payment-page) { padding-top: 4px; padding-bottom: 4px; }
+  .order-page:has(.payment-page) > .text-back { margin-bottom: 4px; }
+  .payment-page__header { padding: 8px 12px; }
+  .payment-page .payment-page__header h1 { font-size: 24px; }
+  .payment-page__body { padding: 10px 12px; gap: 10px; }
+  .payment-page__summary { padding: 0; gap: 8px; background: transparent; }
+  .payment-page__amount > strong { font-size: 22px; white-space: nowrap; }
+  .payment-page .payment-options--compact > h2 { margin-bottom: 8px; font-size: 22px; }
+  .payment-page__footer { padding: 8px 12px; }
+  .payment-page__footer > button { width: 100%; }
+  .app-shell:has(.payment-page) .public-footer { padding-top: 8px; padding-bottom: 8px; }
+}
+
+.payment-page__express { grid-column: 1 / -1; min-width: 0; }
+.payment-page__express .express-order { margin: 0 0 8px; padding: 4px 8px; font-size: 11px; }
+.payment-page__express .express-price-breakdown { margin: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; font-size: 11px; }
+.payment-page__express .express-price-breakdown > div { display: grid; gap: 2px; border: 0; padding: 0; font-weight: 400; }
+.payment-page__express .express-price-breakdown dd { font-weight: 650; }
+
+@media (max-width: 360px) {
+  .payment-options--compact:has(.payment-options__selector) > h2 { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

@@ -26,7 +26,7 @@ test('catalogue skeleton appears during navigation and respects reduced motion',
   await expect(page.locator('.page-skeleton')).toHaveCount(0);
 });
 
-test('upload stays interactive, confirms before 100%, shows inline previews and shows real save stages', async ({ page }, testInfo) => {
+test('side upload panel stays interactive, confirms before previews and shows real save stages', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let releaseComplete, releaseSubmit;
   const completionGate = new Promise((resolve) => { releaseComplete = resolve; });
@@ -38,10 +38,16 @@ test('upload stays interactive, confirms before 100%, shows inline previews and 
     await openForm(page);
     await page.locator('#upload-first').setInputFiles(photo('story.jpg', 2200000));
     await expect.poll(() => completionHeld).toBe(true);
+    const activity = page.getByRole('complementary', { name: 'Photo uploads', exact: true });
+    await activity.getByRole('button', { name: 'Expand photo uploads' }).click();
     await expect(page.getByText('Confirming your photo…')).toBeVisible();
     await expect(page.getByRole('progressbar', { name: /^Photo upload progress:/ })).toHaveAttribute('value', '99');
-    await expect(page.getByText('Photos uploaded successfully', { exact: true })).toHaveCount(0);
+    await expect(page.locator('[data-field-id=first] .photo-field__gallery')).toHaveCount(0);
+    await expect(page.locator('[data-field-id=first]').getByRole('progressbar')).toHaveCount(0);
+    await activity.getByRole('button', { name: 'Minimize photo uploads' }).click();
     await page.getByRole('button',{name:'1 Your details'}).click();
+    await expect(activity).toBeVisible();
+    await expect(activity.getByRole('button', { name: 'Expand photo uploads' })).toHaveAttribute('aria-expanded', 'false');
     await page.locator('#magazine-client-name').fill('My Tinzel Story');
     await page.getByPlaceholder('e.g. +255712345678').fill('+255700000007');
     await page.getByRole('button',{name:'3 Photographs'}).click();
@@ -49,7 +55,7 @@ test('upload stays interactive, confirms before 100%, shows inline previews and 
     await page.screenshot({ path: testInfo.outputPath('uploading-mobile.png') });
     releaseComplete();
     await expect(page.getByText('Photos ready: 1/1', { exact: true })).toBeVisible();
-    await expect(page.getByText('Photos uploaded successfully', { exact: true })).toBeVisible();
+    await expect(activity.getByText('Photos uploaded · 1/1', { exact: true })).toBeVisible();
     await expect(page.locator('[data-field-id=first] .photo-field__preview')).toBeVisible();
     await expect(page.locator('[data-field-id=second] .photo-field__status')).toHaveCount(0);
     await expect(page.locator('.tinzel-upload')).toHaveCount(0);
@@ -103,7 +109,7 @@ test('unavailable browser storage does not claim recovery was saved', async ({ p
 test('upload milestones are localized in Kiswahili', async ({ page }) => {
   await openForm(page, true);
   await page.locator('#upload-first').setInputFiles(photo('hadithi.jpg'));
-  await expect(page.getByText('Picha zimepakiwa kikamilifu', { exact: true })).toBeVisible();
+  await expect(page.getByText('Picha zimepakiwa · 1/1', { exact: true })).toBeVisible();
   await expect(page.locator('[data-field-id=first] .photo-field__preview')).toBeVisible();
 });
 

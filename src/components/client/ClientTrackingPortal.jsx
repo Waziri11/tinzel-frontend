@@ -1,3 +1,5 @@
+import { OrderPriceBreakdown } from './ExpressOrderChoice';
+import ExpressOrderBadge from '../common/ExpressOrderBadge';
 import StatePanel from '../common/StatePanel';
 import { useConfirm } from '../common/ConfirmDialog';
 import { normalizePhone } from '../../utils/phone';
@@ -543,6 +545,7 @@ export default function ClientTrackingPortal() {
             <span className="customer-order-name" style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
               {orderSenderName(order, ui('Your magazine', 'Jarida lako'))}
             </span>
+            <ExpressOrderBadge order={order} />
             <span
               style={{
                 backgroundColor: 'var(--accent-gold-light)',
@@ -608,6 +611,7 @@ export default function ClientTrackingPortal() {
           <p style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '12px', lineHeight: '1.5' }}>
             {t('pay.verify')} {order.price ? `(${order.price.toLocaleString()} ${order.currency})` : ''}
           </p>
+          {order.isExpress && <OrderPriceBreakdown basePrice={order.basePrice} expressFee={order.expressFee} currency={order.currency} />}
           <PaymentOptions paymentOptions={order.paymentOptions} lipaNambaInstructions={order.lipaNambaInstructions} />
         </div>
       )}
