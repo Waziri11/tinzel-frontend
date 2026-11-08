@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { workingMilliseconds, expressCountdown, compareExpressPriority } from '../src/utils/expressOrder.js';
 const order = { isExpress: true, status: 'in_design', expressStartedAt: '2026-11-07T10:00:00+03:00', expressDueAt: '2026-11-09T10:00:00+03:00' };
 test('countdown pauses for the whole Tanzanian Sunday and resumes on Monday', () => {
-  assert.deepEqual(expressCountdown(order, order.expressStartedAt), { state: 'active', hours: 24, minutes: 0, paused: false });
+  assert.deepEqual(expressCountdown(order, order.expressStartedAt), { state: 'active', hours: 24, minutes: 0, seconds: 0, paused: false });
   for (const now of ['2026-11-08T00:00:00+03:00', '2026-11-08T15:30:00+03:00', '2026-11-08T23:59:59+03:00']) {
-    assert.deepEqual(expressCountdown(order, now), { state: 'active', hours: 10, minutes: 0, paused: true });
+    assert.deepEqual(expressCountdown(order, now), { state: 'active', hours: 10, minutes: 0, seconds: 0, paused: true, resumesAt: Date.parse('2026-11-09T00:00:00+03:00') });
   }
   assert.equal(expressCountdown(order, '2026-11-09T09:00:00+03:00').hours, 1);
   assert.equal(expressCountdown(order, order.expressDueAt).state, 'overdue');
@@ -20,4 +20,10 @@ test('overdue durations exclude intervening Sundays and priority preserves expre
   const standard = { isExpress: false }, later = { ...order, expressDueAt: '2026-11-10T10:00:00+03:00' };
   assert.deepEqual([standard, later, order].sort(compareExpressPriority), [order, later, standard]);
   assert.equal(compareExpressPriority({}, standard), 0);
+});
+
+test('countdown changes each second and resumes at Tanzania midnight without resetting its deadline', () => {
+  assert.deepEqual(expressCountdown(order, '2026-11-09T00:00:01+03:00'), { state: 'active', hours: 9, minutes: 59, seconds: 59, paused: false });
+  assert.deepEqual(expressCountdown(order, '2026-11-09T00:00:02+03:00'), { state: 'active', hours: 9, minutes: 59, seconds: 58, paused: false });
+  assert.deepEqual(expressCountdown(order, '2026-11-09T10:00:01+03:00'), { state: 'overdue', hours: 0, minutes: 0, seconds: 1, paused: false });
 });

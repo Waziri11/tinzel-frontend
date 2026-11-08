@@ -42,10 +42,13 @@ export function expressCountdown(order, now = Date.now()) {
   if (['delivered', 'closed'].includes(order.orderStatus || order.status)) return { state: 'complete' };
   if (!order.expressStartedAt || !order.expressDueAt) return { state: 'pending' };
   const remaining = workingMilliseconds(now, order.expressDueAt);
-  const minutes = Math.ceil(Math.abs(remaining) / 60000);
+  const seconds = Math.ceil(Math.abs(remaining) / 1000);
+  const paused = isExpressSunday(now);
+  const localNow = new Date(new Date(now).getTime() + EAT_OFFSET);
   return {
     state: new Date(now).getTime() >= new Date(order.expressDueAt).getTime() ? 'overdue' : 'active',
-    hours: Math.floor(minutes / 60), minutes: minutes % 60,
-    paused: isExpressSunday(now),
+    hours: Math.floor(seconds / 3600), minutes: Math.floor(seconds / 60) % 60, seconds: seconds % 60,
+    paused,
+    ...(paused ? { resumesAt: Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate() + 1) - EAT_OFFSET } : {}),
   };
 }
