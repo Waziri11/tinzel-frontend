@@ -24,6 +24,7 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
     <div className="upload-dialog correction-review-dialog" role="dialog" aria-modal="true" aria-label={tx('Review corrections before submitting')}>
       <h2><InterfaceText>Review corrections before submitting</InterfaceText></h2>
       <p><InterfaceText>Your PDF is uploaded. Confirm each requested correction in your updated file before sending it to the manager.</InterfaceText></p>
+      <p>{ui('After successful submission, this PDF replaces the previous magazine and its previews. Correction notes are kept.', 'Baada ya kuwasilishwa kwa mafanikio, PDF hii inachukua nafasi ya jarida la awali na hakikisho zake. Maelezo ya marekebisho yanahifadhiwa.')}</p>
       <p className="muted">{upload.name}</p>
       {error && <StateError compact error={error} description={typeof error === 'string' ? error : undefined} />}
       {uncertain && <StatePanel compact kind="warning" title={ui('The submission is unconfirmed', 'Uwasilishaji haujathibitishwa')} description={ui('Check the saved order before sending this version again. Your checklist remains here.', 'Kagua oda iliyohifadhiwa kabla ya kutuma toleo hili tena. Orodha yako bado ipo hapa.')}>

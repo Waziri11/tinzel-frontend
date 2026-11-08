@@ -77,7 +77,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       if (!event.detail?.waitUntil) { event.preventDefault(); return; }
       event.detail.waitUntil(confirm({
         title: ui('Leave this order?', 'Ondoka kwenye oda hii?'),
-        description: ui('Unsent correction replies, selected files and unfinished edits will be discarded. Submitted versions remain available.', 'Majibu ya marekebisho ambayo hayajatumwa, faili ulizochagua na mabadiliko ambayo hayajakamilika yataondolewa. Matoleo yaliyowasilishwa yatabaki.'),
+        description: ui('Unsent correction replies, selected files and unfinished edits will be discarded. Your current magazine remains available.', 'Majibu ya marekebisho ambayo hayajatumwa, faili ulizochagua na mabadiliko ambayo hayajakamilika yataondolewa. Jarida lako la sasa litabaki.'),
         confirmLabel: ui('Discard and leave', 'Ondoa na uondoke'),
         cancelLabel: ui('Keep working', 'Endelea kufanya kazi'),
         danger: true,
@@ -128,6 +128,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const activeTab = tab || (currentDraft ? 'magazine' : 'text');
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [focusAnnotation, setFocusAnnotation] = useState(null);
+  const readerVersion = order?.draftVersions?.some(draft => draft.versionNumber === selectedVersion) ? selectedVersion : currentDraft?.versionNumber;
 
   const address = async (requestId, itemId) => {
     const response = String(responses[itemId] || '').trim();
@@ -243,7 +244,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   };
   const cancelUpload = async () => {
     if (uploading) return;
-    if ((readyUpload || resume || file) && !(await confirm({ title: ui('Cancel this upload?', 'Ghairi upakiaji huu?'), description: ui('This removes the unfinished upload. Your existing magazine versions remain.', 'Hii itaondoa upakiaji ambao haujakamilika. Matoleo ya jarida yaliyopo yatabaki.'), confirmLabel: ui('Cancel upload', 'Ghairi upakiaji'), cancelLabel: ui('Keep upload', 'Endelea na upakiaji'), danger: true }))) return;
+    if ((readyUpload || resume || file) && !(await confirm({ title: ui('Cancel this upload?', 'Ghairi upakiaji huu?'), description: ui('This removes the unfinished upload. Your current magazine remains.', 'Hii itaondoa upakiaji ambao haujakamilika. Jarida lako la sasa litabaki.'), confirmLabel: ui('Cancel upload', 'Ghairi upakiaji'), cancelLabel: ui('Keep upload', 'Endelea na upakiaji'), danger: true }))) return;
     try {
       await cancelDraftUpload(token, staffUser?._id, orderId);
       if (backgroundUpload) draftUploads.dismiss(backgroundUpload.id);
@@ -406,9 +407,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           <PdfBookReader
             token={token}
             orderId={orderId}
-            version={selectedVersion || currentDraft.versionNumber}
-            title={`Draft version ${selectedVersion || currentDraft.versionNumber}`}
-            focusAnnotation={focusAnnotation}
+            version={readerVersion}
+            title={`Draft version ${readerVersion}`}
+            focusAnnotation={readerVersion === selectedVersion ? focusAnnotation : null}
           />
         ) : (
           <StatePanel kind="empty" title={ui('No magazine uploaded yet', 'Bado hakuna jarida lililopakiwa')} description={ui('The first draft will appear here after it has been submitted.', 'Rasimu ya kwanza itaonekana hapa baada ya kuwasilishwa.')}>
@@ -444,7 +445,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                             {item.text}
                           </p>
                           <RevisionAudioPlayer token={token} orderId={orderId} requestId={request._id} item={item} />
-                          {item.annotationId && (
+                          {item.annotationId && order.draftVersions?.some(draft => draft.versionNumber === request.draftVersionNumber) && (
                             <button
                               className="secondary-button"
                               onClick={() => {
@@ -516,8 +517,9 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
           </div>
           <div hidden={tab !== 'history'} className="designer-card">
             <h2>
-              <InterfaceText>Draft versions</InterfaceText>
+              {ui('Current magazine', 'Jarida la sasa')}
             </h2>
+            <p className="muted">{ui('Only the latest submitted magazine is kept. Correction notes remain available under Returns & fixes.', 'Jarida la mwisho lililowasilishwa pekee ndilo linalohifadhiwa. Maelezo ya marekebisho yanabaki kwenye sehemu ya marekebisho.')}</p>
             {!order.draftVersions?.length && <StatePanel compact kind="empty" title={ui('No versions submitted yet', 'Bado hakuna matoleo yaliyowasilishwa')} description={ui('Submitted magazine versions will appear here.', 'Matoleo ya jarida yaliyowasilishwa yataonekana hapa.')} />}
             {(order.draftVersions || [])
               .slice()
@@ -700,6 +702,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
               <InterfaceText>Upload new draft</InterfaceText>
             </h2>
             {activeReturn && <p><InterfaceText>Upload your updated PDF first. You will preview and confirm each correction before sending it to the manager.</InterfaceText></p>}
+            {currentDraft && <p>{ui('After you successfully submit this PDF, it will replace the previous magazine and its previews.', 'Baada ya kuwasilisha PDF hii kwa mafanikio, itachukua nafasi ya jarida la awali na hakikisho zake.')}</p>}
             {resume && !uploading && (
               <StatePanel compact kind="info" title={ui('An unfinished upload is available', 'Kuna upakiaji ambao haujakamilika')} description={ui(`Select the same PDF (${resume.name}) to resume. If its saved session has expired, the upload will restart.`, `Chagua PDF ileile (${resume.name}) kuendelea. Ikiwa muda wa kipindi chake umeisha, upakiaji utaanza upya.`)} />
             )}

@@ -3,16 +3,16 @@ import { test, expect, chooseEnglish } from './fixtures.js';
 const pdf = { name: 'corrected-magazine.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\ncorrected draft') };
 const confirmation = 'I reviewed this correction and confirmed it is fixed in my updated PDF';
 
-async function setup(page, { failSubmission = false } = {}) {
+async function setup(page, { failSubmission = false, selectOriginal = false } = {}) {
   const designer = { _id: 'designer-1', name: 'Test Designer', role: 'designer', preferredLanguage: 'en', isActive: true };
   const revision = {
     _id: 'return-1', roundNumber: 1, draftVersionNumber: 1, source: 'manager', status: 'open',
     items: [
-      { _id: 'fix-1', text: 'Correct the date', pageReference: '4', status: 'open' },
+      { _id: 'fix-1', text: 'Correct the date', annotationId: 'annotation-1', pageReference: '4', status: 'open' },
       { _id: 'fix-2', text: 'Replace the photograph', pageReference: '8', status: 'addressed' },
     ],
   };
-  const order = { _id: 'order-1', trackingId: 'TNZ-TEST', clientName: 'Test Client', formTitle: 'Magazine', status: 'revision_requested', currentDraftVersion: 1, draftVersions: [], revisionRequests: [revision], uploadedPhotos: [] };
+  const order = { _id: 'order-1', trackingId: 'TNZ-TEST', clientName: 'Test Client', formTitle: 'Magazine', status: 'revision_requested', currentDraftVersion: 1, draftVersions: [{ _id: 'draft-1', versionNumber: 1, uploadedAt: '2026-11-08T08:00:00Z' }], revisionRequests: [revision], uploadedPhotos: [] };
   const uploads = [], submissions = [];
   let fail = failSubmission, chunks = 0, orderReads = 0, pendingOrderRead = null;
   await page.addInitScript(() => localStorage.setItem('tinzel_staff_token', 'designer-test'));
@@ -24,13 +24,13 @@ async function setup(page, { failSubmission = false } = {}) {
     if (gate) await gate;
     return route.fulfill({ json: { order, auditLogs: [] } });
   });
-  await page.route('**/api/proofs/staff/order-1/1**', route => {
+  await page.route('**/api/proofs/staff/order-1/**', route => {
     const url = new URL(route.request().url());
     if (url.pathname.includes('/pages/')) {
       if (url.searchParams.has('text')) return route.fulfill({ json: { width: 600, height: 800, text: [] } });
       return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>' });
     }
-    return route.fulfill({ json: { state: 'ready', pageCount: 8, pages: Array.from({ length: 8 }, (_, i) => ({ page: i + 1 })), annotations: [], canComment: false } });
+    return route.fulfill({ json: { state: 'ready', pageCount: 8, pages: Array.from({ length: 8 }, (_, i) => ({ page: i + 1 })), annotations: url.pathname.includes('/1') ? [{ _id: 'annotation-1', page: 4, kind: 'area', rects: [{ x: .1, y: .1, width: .2, height: .2 }], text: 'Correct the date' }] : [], canComment: false } });
   });
   await page.route('**/api/designer/orders/order-1/draft-uploads**', route => {
     const pathname = new URL(route.request().url()).pathname;
@@ -47,6 +47,7 @@ async function setup(page, { failSubmission = false } = {}) {
       }
       order.status = 'draft_manager_review';
       order.currentDraftVersion = 2;
+      order.draftVersions = [{ _id: 'draft-2', versionNumber: 2, uploadedAt: '2026-11-08T09:00:00Z', designerNotes: 'Updated date and photograph' }];
       revision.status = 'submitted_for_review';
       return route.fulfill({ json: { success: true, version: 2 } });
     }
@@ -55,6 +56,11 @@ async function setup(page, { failSubmission = false } = {}) {
   });
   await page.goto('/staff/design/orders/order-1');
   await chooseEnglish(page);
+  if (selectOriginal) {
+    await page.getByRole('tab', { name: 'Corrections', exact: true }).click();
+    await page.getByRole('button', { name: 'View marked area', exact: true }).click();
+    await expect(page.getByText('Draft version 1', { exact: true })).toBeVisible();
+  }
   await page.getByRole('button', { name: 'Upload new draft', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Upload new draft' });
   await dialog.getByLabel('Magazine PDF · up to 500 MB').setInputFiles(pdf);
@@ -145,4 +151,29 @@ test('mobile review survives reload without reuploading and failed submission pr
   await expect(review).toHaveCount(0);
   expect(submissions).toHaveLength(2);
   expect(chunkCount()).toBe(1);
+});
+
+
+test('replacement opens the current magazine and retains correction notes without broken old preview links', async ({ page }) => {
+  const { dialog } = await setup(page, { selectOriginal: true });
+  await expect(dialog.getByText('After you successfully submit this PDF, it will replace the previous magazine and its previews.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Upload updated PDF' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review corrections', exact: true }).click();
+  const { review, send } = await reviewEachCorrection(page);
+  await expect(review.getByText('After successful submission, this PDF replaces the previous magazine and its previews. Correction notes are kept.')).toBeVisible();
+  await send.click();
+  await expect(review).toHaveCount(0);
+  await expect(page.getByText('Draft version 2', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Corrections', exact: true }).click();
+  await expect(page.getByText('Correct the date', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View marked area', exact: true })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Version history', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open version 2', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open version 1', exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+  await page.getByRole('button', { name: 'Dismiss uploads', exact: true }).click();
+  await page.getByRole('heading', { name: 'Current magazine', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/private/tmp/tinzel-latest-magazine-mobile.png', fullPage: true });
 });
