@@ -33,6 +33,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { api } from '../../services/api';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
@@ -327,6 +328,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
       const data = await api.manager.getOrders(token, queryParams);
       if (request !== listRequest.current) return;
+      if (page > (data.pageCount || 1)) { setPage(data.pageCount || 1); return; }
       setOrders(data.orders || []);
       setSummary(data.summary || {});
       setStatusCounts(data.statusCounts || {});
@@ -392,6 +394,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     try {
       const data = await api.manager.getOrder(token, order._id);
       if (request !== detailRequest.current) return;
+      setSelectedOrder(data.order);
       setOrderDetail(data.order);
       setAuditLogs(data.auditLogs || []);
       return data.order;
@@ -401,6 +404,12 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
       if (request === detailRequest.current) setDetailLoading(false);
     }
   };
+
+  useVisiblePolling(() => Promise.all([
+    loadOrders(),
+    selectedOrder && detailSnapshot.current?._id === selectedOrder._id && !detailLoading
+      ? openOrder(detailSnapshot.current, false) : null,
+  ]), !loading && !submitting && !action);
 
   useEffect(() => {
     const restore = () => {
@@ -431,6 +440,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   };
 
   const closeDetail = () => {
+    detailRequest.current++;
+    setSelectedOrder(null);
+    setOrderDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
     const params = new URLSearchParams(window.location.search);
     params.delete('orderId');
     params.delete('tab');
@@ -941,7 +955,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         checkingSaved={detailLoading}
         onCheckSaved={async () => {
           const saved = await openOrder(selectedOrder, false);
-          if (saved) { setAction(null); setUncertain(false); }
+          if (saved) { setAction(null); setUncertain(false); await loadOrders(); }
         }}
         action={action}
         order={selectedOrder}
@@ -1232,10 +1246,10 @@ function ActionModal({
               <label>
                 <InterfaceText>Progress state</InterfaceText>
                 <select value={form.printerStage} onChange={update('printerStage')}>
-                  <option value="in_progress">
+                  <option value="in_progress" disabled={order.status !== 'printing_sent'}>
                     <InterfaceText>Printer acknowledged — in progress</InterfaceText>
                   </option>
-                  <option value="completed">
+                  <option value="completed" disabled={order.status !== 'printing_in_progress'}>
                     <InterfaceText>Printing complete — manager verified</InterfaceText>
                   </option>
                 </select>

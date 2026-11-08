@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
 import StatePanel, { StateError } from '../common/StatePanel';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import '../manager/managerDashboard.css';
 import './designerWorkspace.css';
 
@@ -48,6 +49,7 @@ function BoardColumn({ column, token, search, refresh, onOpenOrder, onClearSearc
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [token, search, page, refresh, retry, column.id]);
+  useVisiblePolling(() => setRetry(n => n + 1), !loading);
   return (
     <section className={`manager-board-column is-mobile-active designer-kanban-column is-${column.id}`} aria-labelledby={`column-${column.id}`} aria-description={tx(column.description)} aria-busy={loading}>
       <header className="designer-kanban-heading">
@@ -99,8 +101,7 @@ export default function DesignerQueue({ token, onOpenOrder }) {
   useEffect(() => {
     const reload = () => setRefresh(n => n + 1);
     window.addEventListener('tinzel:draft-submitted', reload);
-    window.addEventListener('focus', reload);
-    return () => { window.removeEventListener('tinzel:draft-submitted', reload); window.removeEventListener('focus', reload); };
+    return () => window.removeEventListener('tinzel:draft-submitted', reload);
   }, []);
   return (
     <section className="designer-page">

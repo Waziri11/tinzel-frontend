@@ -9,13 +9,14 @@ import { tabListKeys } from '../common/UI';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { draftUploads, useDraftUploads } from '../../hooks/useDraftUploads';
 import DraftCorrectionReview from './DraftCorrectionReview';
-import React, { lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Download, UploadCloud } from 'lucide-react';
 import { api } from '../../services/api';
 import PageSkeleton from '../common/PageSkeleton';
 import StatePanel, { StateError } from '../common/StatePanel';
 import { useConfirm } from '../common/ConfirmDialog';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useVisiblePolling } from '../../hooks/useVisiblePolling';
 import { navigate } from '../../navigation/location';
 import OrderAnswersView from '../common/OrderAnswersView';
 import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
@@ -31,6 +32,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const confirm = useConfirm();
 
   const [order, setOrder] = useState(null);
+  const orderRequest = useRef(0);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -94,22 +96,26 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     };
   }, [hasLocalDraft, savingLocalWork, confirm, lang]);
   const load = useCallback(async (quiet = false) => {
+    const request = ++orderRequest.current;
     if (!quiet) setLoading(true);
     setError('');
     try {
       const data = await api.designer.getOrder(token, orderId);
+      if (request !== orderRequest.current) return;
       setOrder(data.order);
       setLogs(data.auditLogs || []);
       return data.order;
     } catch (err) {
-      setError(err);
+      if (request === orderRequest.current) setError(err);
     } finally {
-      setLoading(false);
+      if (request === orderRequest.current) setLoading(false);
     }
   }, [token, orderId]);
   useEffect(() => {
     load();
+    return () => { orderRequest.current++; };
   }, [load]);
+  useVisiblePolling(() => load(true), !loading && !hasLocalDraft && !savingLocalWork && !showUpload && !uploadInProgress);
   const activeReturn = useMemo(
     () => order?.revisionRequests?.find((item) => item.status === 'open' || item.status === 'submitted_for_review'),
     [order],
