@@ -56,12 +56,12 @@ test('customer opens a separate mobile inbox, marks messages read, and polls onl
  await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(afterLogout);
 });
 
-for (const lang of ['en', 'sw']) test(`unpaid client order shows customer name without a temporary ID in ${lang}`, async ({ page }) => {
+for (const lang of ['en', 'sw']) for (const status of ['awaiting_payment', 'assigned']) test(`client order shows customer name instead of IDs for ${status} in ${lang}`, async ({ page }) => {
  await page.addInitScript(language => localStorage.setItem('tinzel_language', language), lang);
- await page.route('**/api/client/order', route => json(route, {order: {...order, trackingId: '', status: 'awaiting_payment', clientPreferredLanguage: lang}}));
+ await page.route('**/api/client/order', route => json(route, {order: {...order, trackingId: status === 'awaiting_payment' ? '' : order.trackingId, status, clientPreferredLanguage: lang}}));
  await page.route('**/api/client/notifications', route => json(route, {notifications: [], unreadCount: 0}));
  await page.goto('/track');
  await expect(page.locator('.tracking-order')).toBeVisible();
- await expect(page.locator('.tracking-order')).toContainText('Asha');
- await expect(page.locator('body')).not.toContainText(/SUB-|Submission ID/);
+ await expect(page.locator('.customer-order-name')).toHaveText('Asha');
+ await expect(page.locator('body')).not.toContainText(/SUB-|TNZ-|Submission ID/);
 });

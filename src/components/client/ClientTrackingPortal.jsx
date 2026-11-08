@@ -1,4 +1,5 @@
 import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
+import { orderSenderName } from '../../utils/orderDisplay';
 import PaymentOptions from './PaymentOptions';
 import RevisionAudioInput from '../common/RevisionAudioInput';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
@@ -528,8 +529,8 @@ export default function ClientTrackingPortal() {
       >
         <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
-              {order.trackingId || order.clientName}
+            <span className="customer-order-name" style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
+              {orderSenderName(order, ui('Your magazine', 'Jarida lako'))}
             </span>
             <span
               style={{
@@ -546,7 +547,7 @@ export default function ClientTrackingPortal() {
             </span>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            {t('track.client')} <strong>{order.clientName}</strong> • {t('track.magazine')}{' '}
+            {t('track.magazine')}{' '}
             <strong>{order.formTitle}</strong>
           </p>
           <p className="customer-status-description" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 600 }}>{t(journey.detailKey)}</p>

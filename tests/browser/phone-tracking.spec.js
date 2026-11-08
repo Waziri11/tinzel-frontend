@@ -29,15 +29,18 @@ for (const [index, lang] of ['en', 'sw'].entries()) {
     const { devOtp } = await issued.json();
     await page.locator('#track-login-otp').fill(devOtp);
     await page.locator('main form button[type="submit"]').click();
-    await expect(page.getByText(`TNZ-2026-${9998 + index}`, { exact: true })).toBeVisible();
+    await expect(page.locator('.customer-order-name')).toHaveText('Phone browser fixture');
+    await expect(page.locator('.tracking-order')).not.toContainText(`TNZ-2026-${9998 + index}`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`tracking-${lang}.png`), fullPage: true });
     await page.reload();
-    await expect(page.getByText(`TNZ-2026-${9998 + index}`, { exact: true })).toBeVisible();
+    await expect(page.locator('.customer-order-name')).toHaveText('Phone browser fixture');
+    await expect(page.locator('.tracking-order')).not.toContainText(`TNZ-2026-${9998 + index}`);
     // An expired short session can still resume through the remembered device.
     await context.clearCookies({ name: 'tinzel_client' });
     await page.reload();
-    await expect(page.getByText(`TNZ-2026-${9998 + index}`, { exact: true })).toBeVisible();
+    await expect(page.locator('.customer-order-name')).toHaveText('Phone browser fixture');
+    await expect(page.locator('.tracking-order')).not.toContainText(`TNZ-2026-${9998 + index}`);
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }
