@@ -98,9 +98,15 @@ const PHASE_CONFIGS = {
     statuses: ['assigned', 'in_design', 'draft_manager_review', 'client_review', 'revision_requested', 'on_hold'],
     summaryCards: (summary, counts) => [
       {
+        id: 'assigned',
+        label: 'Assigned to Designer',
+        value: counts.assigned ?? 0,
+        icon: UserRoundCheck,
+      },
+      {
         id: 'in_design',
-        label: 'Assigned & In Design',
-        value: (counts.assigned || 0) + (counts.in_design || 0),
+        label: 'In Design',
+        value: counts.in_design ?? 0,
         icon: Palette,
       },
       {
@@ -264,7 +270,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);
-  const [view, setView] = useState('attention');
+  const [view, setView] = useState('board');
   const [detailTab, setDetailTab] = useState(new URLSearchParams(window.location.search).get('tab') || 'overview');
   const [uncertain, setUncertain] = useState(false);
   const [mobileStage, setMobileStage] = useState('');
@@ -289,7 +295,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     setStatusFilter('all');
     setMobileStage('');
     setPage(1);
-    setView('attention');
+    setView('board');
   }, [phase]);
 
   const loadOrders = useCallback(async () => {
@@ -569,7 +575,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
         </div>
       )}
 
-      <div className={`manager-summary-grid${phaseConfig ? ' is-four-col' : ''}`}>
+      <div className={`manager-summary-grid${summaryCards.length === 4 ? ' is-four-col' : ''}`}>
         {summaryCards.map(({ id, label, value, icon: Icon }) => (
           <button
             key={id}
@@ -579,7 +585,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
               const nextStatus = statusFilter === id ? 'all' : id;
               setStatusFilter(nextStatus);
               if (nextStatus !== 'all') setMobileStage(stageForStatus(nextStatus));
-              setView('attention');
+              setView('board');
               setPage(1);
             }}
           >

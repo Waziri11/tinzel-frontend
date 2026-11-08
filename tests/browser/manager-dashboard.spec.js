@@ -41,12 +41,12 @@ async function openManagerDashboard(page) {
   await expect(page.locator('main')).not.toContainText(/TNZ-|SUB-/);
 }
 
-test('manager gets an action-first dashboard and complete draft review context', async ({ page }) => {
+test('manager gets a Kanban dashboard and complete draft review context', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await openManagerDashboard(page);
   await expect(page.getByText('Drafts to review')).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Designer' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Review magazine', exact:true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Kanban Board', exact: true })).toHaveClass('is-active');
   await expect(page.getByText('Asha Mushi', { exact: true })).toBeVisible();
   await page.getByText('Asha Mushi', { exact: true }).click();
   await expect(page.getByText('Review the entire magazine before deciding.')).toBeVisible();
@@ -70,7 +70,8 @@ test('manager returns a magazine with general corrections and the reviewed versi
   await openManagerDashboard(page);
   let submitted;
   await page.route('**/api/manager/orders/order-1/review-draft', async (route) => { submitted = route.request().postDataJSON(); return json(route, { message: 'Returned' }); });
-  await page.getByRole('button',{name:'Review magazine',exact:true}).first().click();
+  await page.getByRole('button', { name: /Open Asha Mushi/ }).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Review magazine',exact:true}).click();
   await expect(page.getByAltText('Magazine page 1')).toBeVisible();
   await page.getByLabel('General notes',{exact:true}).fill('Correct the anniversary date and replace the cover photo.');
   await page.getByRole('button',{name:'Return to designer',exact:true}).click();
@@ -85,7 +86,7 @@ test('manager dashboard remains readable and actionable on a phone', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await openManagerDashboard(page);
   await expect(page.getByRole('button', { name: 'Open workspace menu' })).toBeVisible();
-  await page.getByRole('button', { name: 'Kanban Board', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Kanban Board', exact: true })).toHaveClass('is-active');
   await expect(page.getByLabel('Board stage')).toBeVisible();
   await expect(page.getByLabel('Filter by stage', { exact: true })).toBeHidden();
   await page.getByLabel('Board stage').selectOption('draft_manager_review');
@@ -182,12 +183,12 @@ test('unconfigured printing remains blocked in the manager action dialog',async(
  const dialog=page.getByRole('dialog',{name:'Authorize printing'});await expect(dialog.getByText('No verified printer is configured. Ask an administrator to configure it first.')).toBeVisible();await expect(dialog.getByRole('button',{name:'Authorize printing',exact:true})).toBeDisabled();
 });
 
-test('every phase keeps four summary cards in two mobile rows', async ({ page }) => {
+test('phase summary cards fit mobile rows including the separate design statuses', async ({ page }) => {
   await openManagerDashboard(page);
   for (const path of ['/staff/pre-design', '/staff/design-phase', '/staff/post-design']) {
     await page.goto(path);
     const cards = page.locator('.manager-summary-card');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(path === '/staff/design-phase' ? 5 : 4);
     for (const width of [320, 390, 600, 767]) {
       await page.setViewportSize({ width, height: 844 });
       // Ant Design's breakpoint listener commits the mobile shell after the resize event.
@@ -199,10 +200,15 @@ test('every phase keeps four summary cards in two mobile rows', async ({ page })
       expect(boxes[0].y).toBe(boxes[1].y);
       expect(boxes[2].y).toBe(boxes[3].y);
       expect(boxes[2].y).toBeGreaterThan(boxes[0].y);
-      for (const box of boxes) {
+      if (boxes.length === 5) {
+        expect(boxes[4].y).toBeGreaterThan(boxes[3].y);
+        expect(boxes[4].x).toBe(boxes[0].x);
+        expect(boxes[4].right).toBe(boxes[1].right);
+      }
+      for (const [index, box] of boxes.entries()) {
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.right).toBeLessThanOrEqual(width);
-        expect(box.width).toBeCloseTo(boxes[0].width, 0);
+        if (index < 4) expect(box.width).toBeCloseTo(boxes[0].width, 0);
         expect(box.scroll).toBeLessThanOrEqual(box.client + 1);
       }
     }
@@ -246,6 +252,6 @@ test('pre-design identifies submissions by name in lists, board, details and pay
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.locator('body')).not.toContainText('SUB-');
   await page.getByRole('dialog').getByRole('button', { name: 'Verify payment', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Verify Lipa Namba payment' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Verify payment', exact: true })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('SUB-');
 });
