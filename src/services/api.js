@@ -609,11 +609,11 @@ export const api = {
         body: JSON.stringify(form),
       }).then(handleResponse),
 
-    importGoogleForm: (token, url) =>
+    importGoogleForm: (token, url, formData) =>
       fetchWithTimeout(`${API_BASE}/api/admin/forms/import-google`, {
         method: 'POST',
         headers: getHeaders(token),
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, ...(formData === undefined ? {} : { formData }) }),
       }).then(handleResponse),
 
     updateForm: (token, id, form) =>

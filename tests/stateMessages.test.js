@@ -16,3 +16,10 @@ test('expired verification code is actionable rather than a generic expired sess
   assert.equal(requestState({ status: 401, code: 'INVALID_CODE' }, 'sw').title, 'Hakiki msimbo wa uthibitishaji');
   assert.match(requestState({ status: 504 }, 'en').description, /saved result/);
 });
+
+test('Google sign-in errors explain saved-form recovery in both languages', () => {
+  const error = { status: 422, code: 'GOOGLE_FORM_SIGN_IN_REQUIRED' };
+  assert.match(requestState(error, 'en').description, /Import saved form/);
+  assert.match(requestState(error, 'sw').description, /Ingiza fomu iliyohifadhiwa/);
+  assert.match(requestState({ code: 'GOOGLE_FORM_INVALID_FILE' }, 'en').description, /HTML Only/);
+});

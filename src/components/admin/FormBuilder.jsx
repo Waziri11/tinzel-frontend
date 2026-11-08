@@ -28,6 +28,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { extractSavedGoogleForm, MAX_GOOGLE_FORM_FILE_BYTES } from '../../utils/googleFormsImport';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Short Answer' },
@@ -74,6 +75,7 @@ export default function FormBuilder({ token }) {
   const [successMsg, setSuccessMsg] = useState(null);
   const [showGoogleImport, setShowGoogleImport] = useState(false);
   const [googleFormUrl, setGoogleFormUrl] = useState('');
+  const [googleFormFile, setGoogleFormFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importWarnings, setImportWarnings] = useState([]);
   const [deletingFormId, setDeletingFormId] = useState(null);
@@ -455,7 +457,7 @@ export default function FormBuilder({ token }) {
 
   const handleGoogleImport = async (e) => {
     e.preventDefault();
-    if (!googleFormUrl.trim()) {
+    if (!googleFormUrl.trim() && !googleFormFile) {
       setError(ui('Paste a public Google Form link first.', 'Bandika kiungo cha umma cha Google Form kwanza.'));
       return;
     }
@@ -463,8 +465,13 @@ export default function FormBuilder({ token }) {
     setError(null);
     setSuccessMsg(null);
     try {
-      const res = await api.admin.importGoogleForm(token, googleFormUrl.trim());
+      if (googleFormFile && googleFormFile.size > MAX_GOOGLE_FORM_FILE_BYTES) {
+        throw Object.assign(new Error('Choose a saved Google Form HTML file smaller than 5 MB.'), { code: 'GOOGLE_FORM_FILE_TOO_LARGE' });
+      }
+      const formData = googleFormFile ? extractSavedGoogleForm(await googleFormFile.text()) : undefined;
+      const res = await api.admin.importGoogleForm(token, googleFormUrl.trim(), formData);
       setGoogleFormUrl('');
+      setGoogleFormFile(null);
       setShowGoogleImport(false);
       await loadForms();
       selectFormForEdit(res.form);
@@ -652,20 +659,19 @@ export default function FormBuilder({ token }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <Link2 size={18} color="var(--accent-primary)" />
               <h2 style={{ margin: 0, fontSize: '16px', color: 'var(--text-main)' }}>
-                <InterfaceText>Import a public Google Form</InterfaceText>
+                {ui('Import a Google Form', 'Ingiza Google Form')}
               </h2>
             </div>
             <p style={{ margin: '0 0 14px', color: 'var(--text-muted)', fontSize: '12px' }}>
-              <InterfaceText>
-                Paste a forms.gle responder link or a docs.google.com/forms editor link. The Google Form must be
-                published and allow anyone with the link to respond. Tinzel creates a private draft for review.
-              </InterfaceText>
+              {ui('Paste a Google Forms link that opens without signing in, or select a saved form below. Tinzel creates a private draft for review.', 'Bandika kiungo cha Google Forms kinachofunguka bila kuingia kwenye akaunti, au chagua fomu iliyohifadhiwa hapa chini. Tinzel hutengeneza rasimu ya faragha kwa uhakiki.')}
             </p>
+            {error && (typeof error === 'string' ? <StatePanel compact kind="warning" title={ui('Check the form', 'Hakiki fomu')} description={tx(error)} /> : <StateError compact error={error} />)}
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="url"
-                required
+                required={!googleFormFile}
                 autoFocus
+                aria-label={ui('Google Form link', 'Kiungo cha Google Form')}
                 value={googleFormUrl}
                 onChange={(e) => setGoogleFormUrl(e.target.value)}
                 placeholder={tx('https://forms.gle/...')}
@@ -694,13 +700,29 @@ export default function FormBuilder({ token }) {
                 }}
               >
                 {importing ? <SoftFlutter size={15} /> : <Link2 size={15} />}
-                {importing ? ui('Importing…', 'Inaingiza…') : ui('Import as Draft', 'Ingiza kama rasimu')}
+                {importing ? ui('Importing…', 'Inaingiza…') : googleFormFile ? ui('Import saved form', 'Ingiza fomu iliyohifadhiwa') : ui('Import as Draft', 'Ingiza kama rasimu')}
               </ActionButton>
+            </div>
+            <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+              <strong>{ui('Does the form require Google sign-in?', 'Je, fomu inahitaji kuingia kwenye Google?')}</strong>
+              <p style={{ fontSize: '13px', margin: '8px 0' }}>
+                {ui('Forms with photo uploads may require sign-in even when shared with anyone. On a computer, open the responder link while signed in. Use your browser’s Save page as (Ctrl+S or ⌘S), choose “Webpage, HTML Only”, then select the .html file here.', 'Fomu zenye upakiaji wa picha zinaweza kuhitaji kuingia kwenye akaunti hata zikiruhusu kila mtu. Kwenye kompyuta, fungua kiungo cha kujibu ukiwa umeingia Google. Tumia “Save page as” (Ctrl+S au ⌘S), chagua “Webpage, HTML Only”, kisha chagua faili la .html hapa.')}
+              </p>
+              <label className="ui-field">
+                {ui('Saved Google Form (.html, up to 5 MB)', 'Google Form iliyohifadhiwa (.html, hadi MB 5)')}
+                <input type="file" accept=".html,.htm,text/html" disabled={importing} onChange={event => {
+                  setGoogleFormFile(event.target.files?.[0] || null);
+                  setError(null);
+                }} />
+              </label>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 0 }}>
+                {ui('Only the form title, description and questions are imported. Photo-upload questions become Tinzel photo groups; review their limits before publishing.', 'Kichwa, maelezo na maswali ya fomu pekee ndiyo yanaingizwa. Maswali ya kupakia picha hubadilishwa kuwa makundi ya picha ya Tinzel; hakiki mipaka yake kabla ya kuchapisha.')}
+              </p>
             </div>
           </form>
         )}
 
-        {error && (typeof error === 'string' ? <StatePanel compact kind="warning" title={ui('Check the edition details', 'Hakiki taarifa za toleo')} description={tx(error)} /> : <StateError compact error={error} />)}
+        {!showGoogleImport && error && (typeof error === 'string' ? <StatePanel compact kind="warning" title={ui('Check the edition details', 'Hakiki taarifa za toleo')} description={tx(error)} /> : <StateError compact error={error} />)}
 
         {successMsg && <StatePanel compact kind="success" title={successMsg} />}
 
