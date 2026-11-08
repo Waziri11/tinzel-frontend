@@ -24,6 +24,7 @@ import {
   Square,
   Minus,
   Plus,
+  ArrowUp,
 } from 'lucide-react';
 
 const MOBILE_QUERY = '(max-width:760px), (hover:none) and (pointer:coarse)';
@@ -712,21 +713,29 @@ export default function PdfBookReader({
                     : undefined
                 }
               >
-                <strong>
-                  <InterfaceText>Page</InterfaceText> {selection.page} ·{' '}
-                  {tx(selection.kind === 'image' ? 'Image' : selection.kind === 'text' ? 'Text' : 'Area')}{' '}
-                  <InterfaceText>comment</InterfaceText>
-                </strong>
+                <div className="proof-composer-heading">
+                  <span className="proof-comment-symbol"><MessageSquare size={18} aria-hidden="true" /></span>
+                  <strong>
+                    <InterfaceText>Page</InterfaceText> {selection.page} ·{' '}
+                    {tx(selection.kind === 'image' ? 'Image' : selection.kind === 'text' ? 'Text' : 'Area')}{' '}
+                    <InterfaceText>comment</InterfaceText>
+                  </strong>
+                  <button type="button" className="proof-chat-icon" aria-label={tx('Cancel')} title={tx('Cancel')} disabled={saving}
+                    onClick={() => { uploads.clear(true); setSelection(null); setReplacement(null); setComment(''); }}><X size={19} aria-hidden="true" /></button>
+                </div>
                 <div className="proof-composer-body">
                   {selection.selectedText && <blockquote>{selection.selectedText}</blockquote>}
-                  <textarea
-                    ref={commentInput}
-                    aria-label={tx('Correction comment')}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    maxLength={4000}
-                  />
-                  <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
+                  <div className="proof-chat-message">
+                    <textarea
+                      ref={commentInput}
+                      aria-label={tx('Correction comment')}
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      maxLength={4000}
+                      placeholder={ui('Write your comment…', 'Andika maoni yako…')}
+                    />
+                    <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
+                  </div>
                   {replacement && (
                     <div className="proof-replacement" role="alert">
                       <p>
@@ -754,21 +763,10 @@ export default function PdfBookReader({
                   )}
                 </div>
                 <div className="proof-composer-actions">
-                  <ActionButton loading={saving} disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
-                    <InterfaceText>Save comment</InterfaceText>
+                  <span>{ui('Add text, photos or audio.', 'Ongeza maandishi, picha au sauti.')}</span>
+                  <ActionButton className="proof-chat-send" type="submit" aria-label={tx('Save comment')} title={tx('Save comment')} loading={saving} disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
+                    <ArrowUp size={22} aria-hidden="true" />
                   </ActionButton>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => {
-                      uploads.clear(true);
-                      setSelection(null);
-                      setReplacement(null);
-                      setComment('');
-                    }}
-                  >
-                    <InterfaceText>Cancel</InterfaceText>
-                  </button>
                 </div>
               </form>
             )}

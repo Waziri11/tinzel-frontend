@@ -2,13 +2,14 @@ import { Feedback } from './UI';
 import './revisionAudio.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { AudioLines, LoaderCircle, Mic, Paperclip, Square, X } from 'lucide-react';
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const recordingType = () => {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') return '';
   return ['audio/mp4', 'audio/webm;codecs=opus', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type)) || '';
 };
-export default function RevisionAudioInput({ file, onChange, disabled, onBusyChange, compact = false }) {
+export default function RevisionAudioInput({ file, onChange, disabled, onBusyChange, compact = false, leadingControls, children }) {
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
   const [preview, setPreview] = useState('');
@@ -101,26 +102,32 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
     } finally { if (mounted.current) setPending(false); }
   };
   const canRecord = Boolean(recordingType() && navigator.mediaDevices?.getUserMedia);
+  const recordLabel = recording ? ui('Stop recording', 'Simamisha kurekodi') : pending ? ui('Opening microphone…', 'Inafungua maikrofoni…') : ui('Record voice note', 'Rekodi ujumbe wa sauti');
+  const remove = () => { setLimitReached(false); setError(''); onChange(null); };
   return (
-    <section className={`revision-audio${compact ? ' revision-audio-compact' : ''}`} aria-label={ui('Audio feedback', 'Maoni ya sauti')} style={compact ? undefined : { padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
+    <section className={`revision-audio${compact ? ' revision-audio-compact' : ''}`} aria-label={compact ? ui('Photos and audio', 'Picha na sauti') : ui('Audio feedback', 'Maoni ya sauti')} style={compact ? undefined : { padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
       {!compact && <><strong>{ui('Send a voice note', 'Tuma ujumbe wa sauti')}</strong>
       <p style={{ fontSize: 13, margin: '8px 0' }}>{ui('Use audio instead of text, or include both. Files up to 3 MB; recordings up to 3 minutes.', 'Tumia sauti badala ya maandishi, au tumia vyote. Faili hadi MB 3; rekodi hadi dakika 3.')}</p></>}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input ref={input} hidden={compact} type="file" accept="audio/*,.m4a,.opus" aria-label={ui('Attach audio', 'Ambatisha sauti')} disabled={disabled || recording || pending}
+      <div className={compact ? 'proof-chat-tools' : undefined} style={compact ? undefined : { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {leadingControls}
+        <input ref={input} hidden={compact} type="file" accept="audio/*,.m4a,.opus" aria-label={compact ? ui('Audio file', 'Faili la sauti') : ui('Attach audio', 'Ambatisha sauti')} disabled={disabled || recording || pending}
           onChange={event => { choose(event.target.files?.[0]); event.target.value = ''; }} style={{ maxWidth: '100%', minWidth: 0 }} />
-        {compact && <button type="button" disabled={disabled || recording || pending} onClick={() => input.current.click()}>{ui('Attach audio', 'Ambatisha sauti')}</button>}
-        {canRecord && <button type="button" className="secondary-button" disabled={disabled || pending} onClick={recording ? stop : start}>
-          {recording ? ui('Stop recording', 'Simamisha kurekodi') : pending ? ui('Opening microphone…', 'Inafungua maikrofoni…') : ui('Record voice note', 'Rekodi ujumbe wa sauti')}
+        {compact && <button type="button" className="proof-chat-icon" aria-label={ui('Attach audio', 'Ambatisha sauti')} title={ui('Attach audio · Up to 3 MB', 'Ambatisha sauti · Hadi MB 3')} disabled={disabled || recording || pending} onClick={() => input.current.click()}><Paperclip size={20} aria-hidden="true" /></button>}
+        {compact && <span className="proof-chat-tool-hint" role={recording ? 'status' : undefined}>
+          {recording ? <><span className="proof-recording-dot" aria-hidden="true" /><span className="sr-only">{ui('Recording', 'Inarekodi')} </span>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</> : ui('Photos or voice', 'Picha au sauti')}
+        </span>}
+        {canRecord && <button type="button" className={compact ? `proof-chat-icon proof-chat-mic${recording ? ' is-recording' : ''}` : 'secondary-button'} aria-label={recordLabel} title={recordLabel} disabled={disabled || pending} onClick={recording ? stop : start}>
+          {compact ? pending ? <LoaderCircle size={21} className="proof-chat-spinner" aria-hidden="true" /> : recording ? <Square size={18} fill="currentColor" aria-hidden="true" /> : <Mic size={21} aria-hidden="true" /> : recordLabel}
         </button>}
-        {recording && <span role="status">{ui('Recording', 'Inarekodi')} {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>}
+        {recording && !compact && <span role="status">{ui('Recording', 'Inarekodi')} {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>}
       </div>
-      {compact && <small>{ui('One audio file up to 3 MB · Record up to 3 minutes.', 'Faili moja la sauti hadi MB 3 · Rekodi hadi dakika 3.')}</small>}
+      {children}
       {!canRecord && <Feedback kind="info" title={ui('Recording is not supported here', 'Kurekodi hakupatikani hapa')}>{ui('Attach an audio file, or type your feedback instead.', 'Ambatisha faili la sauti, au andika maoni yako.')}</Feedback>}
       {limitReached && <Feedback kind="info" title={ui('Three-minute recording limit reached', 'Kikomo cha dakika tatu kimefikiwa')}>{ui('Review your recording before sending it.', 'Sikiliza rekodi yako kabla ya kuituma.')}</Feedback>}
-      {file && <div style={{ marginTop: 12 }}>
-        <p style={{ overflowWrap: 'anywhere', fontSize: 13 }}>{file.name}</p>
+      {file && <div className={compact ? 'proof-chat-audio-preview' : undefined} style={{ marginTop: 12 }}>
+        {compact ? <div className="proof-chat-audio-heading"><AudioLines size={18} aria-hidden="true" /><span>{file.name}</span><button type="button" className="proof-chat-icon" aria-label={ui('Remove audio', 'Ondoa sauti')} title={ui('Remove audio', 'Ondoa sauti')} disabled={disabled || recording || pending} onClick={remove}><X size={17} aria-hidden="true" /></button></div> : <p style={{ overflowWrap: 'anywhere', fontSize: 13 }}>{file.name}</p>}
         {preview && <audio controls src={preview} aria-label={ui('Preview audio feedback', 'Sikiliza maoni ya sauti')} style={{ display: 'block', width: '100%', maxWidth: 400 }} />}
-        <button type="button" className="secondary-button" disabled={disabled || recording || pending} onClick={() => { setLimitReached(false); setError(''); onChange(null); }} style={{ marginTop: 8 }}>{ui('Remove audio', 'Ondoa sauti')}</button>
+        {!compact && <button type="button" className="secondary-button" disabled={disabled || recording || pending} onClick={remove} style={{ marginTop: 8 }}>{ui('Remove audio', 'Ondoa sauti')}</button>}
       </div>}
       {error && <Feedback kind="error" title={ui("Audio needs attention", "Sauti inahitaji kuangaliwa")}>{error}</Feedback>}
     </section>

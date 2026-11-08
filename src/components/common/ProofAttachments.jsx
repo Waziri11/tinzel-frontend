@@ -6,6 +6,7 @@ import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import RevisionAudioInput from './RevisionAudioInput';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { ImagePlus, X } from 'lucide-react';
 
 export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
   const input = useRef(null), tx = useInterfaceText();
@@ -16,23 +17,22 @@ export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
   return <section className="proof-attachment-editor" aria-label={ui('Comment attachments', 'Viambatisho vya maoni')}>
     <input ref={input} type="file" multiple accept="image/jpeg,image/png,image/webp" hidden disabled={disabled}
       onChange={e => { uploads.add(e.target.files); e.target.value = ''; }} />
-    <div className="proof-photo-heading">
-      <button type="button" disabled={disabled || images.length >= 5} onClick={() => input.current.click()}><InterfaceText>Attach images</InterfaceText></button>
-      <span aria-live="polite">{ui('Photos', 'Picha')} {images.length}/5</span>
-    </div>
-    <small><InterfaceText>Up to 5 images · 10 MiB each. You can also paste or drop images.</InterfaceText></small>
     {uploads.error && <p role="alert">{tx(uploads.error)}</p>}
-    {images.length > 0 && <div className="proof-attachment-thumbnails">
-      {images.map(item => <figure key={item.key}>
-        <img src={item.preview} alt={item.file.name} />
-        <figcaption>{item.state === 'uploading' ? <><InterfaceText>Uploading image</InterfaceText> {item.progress}%</> : item.file.name}</figcaption>
-        {item.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: item.progress }} label={item.file.name} />}
-        {item.state === 'failed' && <><small role="alert">{tx(item.error)}</small><button type="button" disabled={disabled} onClick={() => uploads.retry(item)}><InterfaceText>Retry image</InterfaceText></button></>}
-        <button type="button" disabled={disabled} aria-label={`${tx('Remove image')}: ${item.file.name}`} onClick={() => uploads.remove(item)}><InterfaceText>Remove image</InterfaceText></button>
-      </figure>)}
-    </div>}
     <RevisionAudioInput compact file={audio?.file || null} disabled={disabled} onBusyChange={onAudioBusyChange}
-      onChange={file => { if (audio) uploads.remove(audio); if (file) uploads.addAudio(file); }} />
+      onChange={file => { if (audio) uploads.remove(audio); if (file) uploads.addAudio(file); }}
+      leadingControls={<button type="button" className="proof-chat-icon proof-chat-photo" aria-label={tx('Attach images')} title={tx('Up to 5 images · 10 MiB each. You can also paste or drop images.')} disabled={disabled || images.length >= 5} onClick={() => input.current.click()}>
+        <ImagePlus size={21} aria-hidden="true" />{images.length > 0 && <span className="proof-chat-count" aria-hidden="true">{images.length}</span>}
+      </button>}>
+      {images.length > 0 && <div className="proof-attachment-thumbnails">
+        {images.map(item => <figure key={item.key}>
+          <img src={item.preview} alt={item.file.name} />
+          <figcaption>{item.state === 'uploading' ? <><InterfaceText>Uploading image</InterfaceText> {item.progress}%</> : item.file.name}</figcaption>
+          {item.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: item.progress }} label={item.file.name} />}
+          {item.state === 'failed' && <><small role="alert">{tx(item.error)}</small><button type="button" disabled={disabled} onClick={() => uploads.retry(item)}><InterfaceText>Retry image</InterfaceText></button></>}
+          <button type="button" className="proof-photo-remove" disabled={disabled} aria-label={`${tx('Remove image')}: ${item.file.name}`} title={tx('Remove image')} onClick={() => uploads.remove(item)}><X size={16} aria-hidden="true" /></button>
+        </figure>)}
+      </div>}
+    </RevisionAudioInput>
     {audio?.state === 'uploading' && <TransferProgress progress={{ stage: 'uploading', percent: audio.progress }} label={ui('Uploading audio', 'Inapakia sauti')} />}
     {audio?.state === 'failed' && <div role="alert"><p>{tx(audio.error)}</p><button type="button" disabled={disabled} onClick={() => uploads.retry(audio)}>{ui('Retry audio upload', 'Jaribu kupakia sauti tena')}</button></div>}
   </section>;

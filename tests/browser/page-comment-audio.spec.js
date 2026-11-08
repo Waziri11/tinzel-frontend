@@ -68,7 +68,9 @@ for (const lang of ['en', 'sw']) test(`page feedback offers audio beside picture
   const composer = page.locator('.proof-composer');
   await expect(composer.getByRole('button', { name: lang === 'en' ? 'Attach images' : 'Ambatisha picha', exact: true })).toBeVisible();
   await expect(composer.getByRole('button', { name: lang === 'en' ? 'Attach audio' : 'Ambatisha sauti', exact: true })).toBeInViewport();
-  await composer.getByLabel(lang === 'en' ? 'Attach audio' : 'Ambatisha sauti', { exact: true }).setInputFiles(audioFile);
+  const audioChooser = page.waitForEvent('filechooser');
+  await composer.getByRole('button', { name: lang === 'en' ? 'Attach audio' : 'Ambatisha sauti', exact: true }).click();
+  await (await audioChooser).setFiles(audioFile);
   const save = composer.getByRole('button', { name: lang === 'en' ? 'Save comment' : 'Hifadhi maoni', exact: true });
   if (lang === 'en') {
     await expect(page.getByText('Audio upload interrupted')).toBeVisible(); await expect(save).toBeDisabled();
