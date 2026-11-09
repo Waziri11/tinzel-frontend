@@ -81,16 +81,17 @@ async function setup(page, { failSubmission = false, selectOriginal = false } = 
 async function reviewEachCorrection(page) {
   const review = page.getByRole('dialog', { name: 'Review corrections before submitting' });
   const send = review.getByRole('button', { name: 'Send to manager review' });
-  await expect(review.getByText('Correct the date', { exact: false })).toBeVisible();
+  await expect(review.getByText('Correct the date', { exact: true })).toBeVisible();
   await expect(review.getByAltText('Magazine page 4', { exact: true })).toBeVisible();
   const downloaded = page.waitForEvent('download');
   await review.getByRole('button', { name: 'Download image: Date reference.png', exact: true }).click();
   const download = await downloaded;
   expect(download.suggestedFilename()).toBe('Date reference.webp');
   expect(readFileSync(await download.path())).toEqual(referenceImage);
-  // The mobile comments sheet must be closed before confirming the correction beneath it.
-  const mobileComments = review.getByRole('dialog', { name: 'Comments · 1', exact: true });
-  if (await mobileComments.isVisible()) await mobileComments.getByRole('button', { name: 'Close comments', exact: true }).click();
+  // The reference image and controls share the workspace; no comments sheet covers the magazine.
+  await expect(review.getByRole('dialog', { name: 'Comments · 1', exact: true })).toHaveCount(0);
+  await expect(review.getByRole('checkbox', { name: confirmation })).toBeInViewport();
+  await expect(send).toBeInViewport();
   await expect(send).toBeDisabled();
   await expect(review.getByRole('button', { name: 'Next correction' })).toBeDisabled();
   await review.getByRole('checkbox', { name: confirmation }).check();
@@ -172,7 +173,7 @@ test('replacement opens the current magazine and retains correction notes withou
   await expect(dialog).toHaveCount(0);
   await page.getByRole('button', { name: 'Review corrections', exact: true }).click();
   const { review, send } = await reviewEachCorrection(page);
-  await expect(review.getByText('After successful submission, this PDF replaces the previous magazine and its previews. Correction notes are kept.')).toBeVisible();
+  await expect(review.getByText('Original magazine · correction reference', { exact: true })).toBeVisible();
   await send.click();
   await expect(review).toHaveCount(0);
   await expect(page.getByText('Draft version 2', { exact: true })).toBeVisible();
@@ -187,4 +188,80 @@ test('replacement opens the current magazine and retains correction notes withou
   await page.getByRole('button', { name: 'Dismiss uploads', exact: true }).click();
   await page.getByRole('heading', { name: 'Current magazine', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/private/tmp/tinzel-latest-magazine-mobile.png', fullPage: true });
+});
+
+
+test('correction workspace prioritizes the magazine and keeps confirmation and submission visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 810 });
+  const { dialog } = await setup(page);
+  await dialog.getByRole('button', { name: 'Upload updated PDF' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Review corrections', exact: true }).click();
+  const review = page.getByRole('dialog', { name: 'Review corrections before submitting' });
+  await expect(review.getByAltText('Magazine page 4', { exact: true })).toBeVisible();
+  await expect(review.getByRole('button', { name: /^Comments/ })).toHaveCount(0);
+  await expect(review.getByRole('button', { name: 'Fullscreen', exact: true })).toHaveCount(0);
+  const bounds = await review.evaluate(el => {
+    const stage = el.querySelector('.proof-stage').getBoundingClientRect();
+    return { width: stage.width, height: stage.height, windowWidth: innerWidth, windowHeight: innerHeight, noScroll: el.scrollHeight <= el.clientHeight + 1 };
+  });
+  expect(bounds.width).toBeGreaterThan(bounds.windowWidth * .68);
+  expect(bounds.height).toBeGreaterThan(bounds.windowHeight * .65);
+  expect(bounds.noScroll).toBe(true);
+  await expect(review.getByRole('checkbox', { name: confirmation })).toBeInViewport();
+  await expect(review.getByRole('button', { name: 'Send to manager review' })).toBeInViewport();
+  await expect(review.locator('.pdf-book')).not.toHaveClass(/is-turning/);
+  await review.screenshot({ path: '/tmp/tinzel-correction-workspace-desktop.png' });
+
+  // Jumping to any correction does not bypass the all-confirmed submission guard.
+  await review.getByLabel('Choose correction').selectOption('1');
+  await expect(review.getByAltText('Magazine page 8', { exact: true })).toBeVisible();
+  await review.getByRole('checkbox', { name: confirmation }).check();
+  await expect(review.getByRole('button', { name: 'Send to manager review' })).toBeDisabled();
+  await review.getByRole('button', { name: 'Next unchecked', exact: true }).click();
+  await expect(review.getByLabel('Choose correction')).toHaveValue('0');
+  await review.getByRole('checkbox', { name: confirmation }).check();
+  await expect(review.getByRole('button', { name: 'Send to manager review' })).toBeEnabled();
+  await review.getByRole('checkbox', { name: confirmation }).uncheck();
+  await expect(review.getByRole('button', { name: 'Send to manager review' })).toBeDisabled();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(review.getByAltText('Magazine page 4', { exact: true })).toBeVisible();
+  await expect(review.getByRole('checkbox', { name: confirmation })).toBeInViewport();
+  await expect(review.getByRole('button', { name: 'Send to manager review' })).toBeInViewport();
+  expect(await review.evaluate(el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  expect((await review.locator('.proof-stage').boundingBox()).height).toBeGreaterThan(280);
+  await expect(review.locator('.pdf-book')).not.toHaveClass(/is-turning/);
+  await review.screenshot({ path: '/tmp/tinzel-correction-workspace-mobile.png' });
+  await review.getByRole('button', { name: 'Open image: Date reference.png', exact: true }).click();
+  const image = page.getByRole('dialog', { name: 'Attached image', exact: true });
+  await expect(image.getByRole('img')).toBeVisible();
+  await image.getByRole('button', { name: 'Close image', exact: true }).click();
+  await expect(review.getByRole('checkbox', { name: confirmation })).toBeInViewport();
+  await review.getByRole('button', { name: 'Close correction review', exact: true }).click();
+  await expect(review).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Review corrections', exact: true })).toBeVisible();
+});
+
+
+test('compact Kiswahili review keeps controls reachable and supports keyboard close', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const { dialog } = await setup(page);
+  await dialog.getByRole('button', { name: 'Upload updated PDF' }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'SW', exact: true }).click();
+  await page.getByRole('button', { name: 'Kagua marekebisho', exact: true }).click();
+  const review = page.getByRole('dialog', { name: 'Pitia marekebisho kabla ya kutuma' });
+  await expect(review.getByRole('heading', { name: 'Kagua marekebisho' })).toBeVisible();
+  await expect(review.getByRole('checkbox')).toBeInViewport();
+  await expect(review.locator('.correction-review-footer .primary-button')).toBeInViewport();
+  expect(await review.evaluate(el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  await review.getByRole('checkbox').check();
+  await review.getByRole('button', { name: 'Rekebisho linalofuata', exact: true }).click();
+  await expect(review.getByText('Replace the photograph', { exact: true })).toBeVisible();
+  await review.getByRole('checkbox').check();
+  await expect(review.locator('.correction-review-footer .primary-button')).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(review).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Kagua marekebisho', exact: true })).toBeVisible();
 });
