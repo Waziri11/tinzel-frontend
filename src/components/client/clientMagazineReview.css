@@ -1,0 +1,34 @@
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .client-magazine-review { padding: 12px !important; }
+  .client-magazine-review > label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; font-size: 13px; }
+  .client-magazine-review > label select { min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: #fff; font: inherit; font-size: 16px; }
+  .client-magazine-review .pdf-book:not(.is-expanded):not(:fullscreen) { height: min(780px, calc(100dvh - 24px)); min-height: min(480px, 90dvh); }
+  .client-magazine-review .pdf-book .proof-footer { flex-wrap: wrap; }
+  .proof-mobile-panel .client-review-controls {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 20px 20px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+  .client-review-controls p { line-height: 1.5; }
+  .client-review-hint { margin: 8px 0 16px; font-size: 13px; color: var(--text-muted); }
+  .proof-mobile-panel .client-decision-actions,
+  .proof-mobile-panel .client-review-form-actions { display: flex; flex-direction: column; align-items: stretch !important; gap: 8px !important; }
+  .pdf-book .client-decision-actions button,
+  .pdf-book .client-review-form-actions button { flex: auto; min-height: 48px; padding: 12px 16px !important; border-radius: 12px !important; font-size: 14px !important; justify-content: center; }
+  .pdf-book .client-decision-actions .client-review-approve { background: #805e26 !important; }
+  .pdf-book .client-review-send { background: #805e26 !important; color: #fff !important; }
+  .pdf-book .client-decision-actions:has(.client-review-send) .client-review-approve { order: 2; }
+  .pdf-book .client-review-controls button:disabled { opacity: 1; background: #f5f3ee !important; border-color: #e9e5dd !important; color: #938b7d !important; }
+  .proof-mobile-panel .client-revision-row { grid-template-columns: minmax(0, 1fr); margin: 16px 0; padding: 12px; border: 1px solid #e9e3d8; border-radius: 14px; background: #fdfcf9; }
+  .proof-mobile-panel .client-revision-row input,
+  .proof-mobile-panel .client-revision-row textarea { width: 100%; box-sizing: border-box; min-height: 44px; font: inherit; font-size: 16px; line-height: 1.5; border-radius: 10px !important; background: #fff; }
+  .proof-mobile-panel .client-revision-row textarea { min-height: 110px; resize: vertical; }
+  .proof-mobile-panel .client-review-controls form > button { min-height: 44px; font-size: 13px; border-radius: 10px !important; }
+  .proof-mobile-panel .revision-audio { min-width: 0; }
+  .proof-mobile-panel .revision-audio input { max-width: 100%; font-size: 13px; }
+  .proof-mobile-panel .revision-audio audio { width: 100%; }
+}

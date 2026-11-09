@@ -105,7 +105,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
   const recordLabel = recording ? ui('Stop recording', 'Simamisha kurekodi') : pending ? ui('Opening microphone…', 'Inafungua maikrofoni…') : ui('Record voice note', 'Rekodi ujumbe wa sauti');
   const remove = () => { setLimitReached(false); setError(''); onChange(null); };
   return (
-    <section className={`revision-audio${compact ? ' revision-audio-compact' : ''}`} aria-label={compact ? ui('Photos and audio', 'Picha na sauti') : ui('Audio feedback', 'Maoni ya sauti')} style={compact ? undefined : { padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
+    <section className={`revision-audio${compact ? ' revision-audio-compact' : ''}`} aria-label={compact && leadingControls ? ui('Photos and audio', 'Picha na sauti') : ui('Audio feedback', 'Maoni ya sauti')} style={compact ? undefined : { padding: 16, marginBottom: 16, border: '1px solid var(--border-color)', borderRadius: 8 }}>
       {!compact && <><strong>{ui('Send a voice note', 'Tuma ujumbe wa sauti')}</strong>
       <p style={{ fontSize: 13, margin: '8px 0' }}>{ui('Use audio instead of text, or include both. Files up to 3 MB; recordings up to 3 minutes.', 'Tumia sauti badala ya maandishi, au tumia vyote. Faili hadi MB 3; rekodi hadi dakika 3.')}</p></>}
       <div className={compact ? 'proof-chat-tools' : undefined} style={compact ? undefined : { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -114,7 +114,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
           onChange={event => { choose(event.target.files?.[0]); event.target.value = ''; }} style={{ maxWidth: '100%', minWidth: 0 }} />
         {compact && <button type="button" className="proof-chat-icon" aria-label={ui('Attach audio', 'Ambatisha sauti')} title={ui('Attach audio · Up to 3 MB', 'Ambatisha sauti · Hadi MB 3')} disabled={disabled || recording || pending} onClick={() => input.current.click()}><Paperclip size={20} aria-hidden="true" /></button>}
         {compact && <span className="proof-chat-tool-hint" role={recording ? 'status' : undefined}>
-          {recording ? <><span className="proof-recording-dot" aria-hidden="true" /><span className="sr-only">{ui('Recording', 'Inarekodi')} </span>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</> : ui('Photos or voice', 'Picha au sauti')}
+          {recording ? <><span className="proof-recording-dot" aria-hidden="true" /><span className="sr-only">{ui('Recording', 'Inarekodi')} </span>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</> : leadingControls ? ui('Photos or voice', 'Picha au sauti') : ui('Attach or record audio', 'Ambatisha au rekodi sauti')}
         </span>}
         {canRecord && <button type="button" className={compact ? `proof-chat-icon proof-chat-mic${recording ? ' is-recording' : ''}` : 'secondary-button'} aria-label={recordLabel} title={recordLabel} disabled={disabled || pending} onClick={recording ? stop : start}>
           {compact ? pending ? <LoaderCircle size={21} className="proof-chat-spinner" aria-hidden="true" /> : recording ? <Square size={18} fill="currentColor" aria-hidden="true" /> : <Mic size={21} aria-hidden="true" /> : recordLabel}

@@ -133,7 +133,7 @@ export default function PdfBookReader({
   useEffect(() => {
     // Manager review owns the combined notes/comment guard. Other readers need
     // the same protection for attachment-only drafts and in-flight saves.
-    if (renderReviewControls) return;
+    if (renderReviewControls && !client) return;
     const unload = event => {
       if (draftRef.current?.selection || draftRef.current?.saving) { event.preventDefault(); event.returnValue = ''; }
     };
@@ -144,7 +144,7 @@ export default function PdfBookReader({
     window.addEventListener('beforeunload', unload);
     window.addEventListener('tinzel:before-navigate', navigate);
     return () => { window.removeEventListener('beforeunload', unload); window.removeEventListener('tinzel:before-navigate', navigate); };
-  }, [renderReviewControls, tx, confirmLeave, lang]);
+  }, [renderReviewControls, client, tx, confirmLeave, lang]);
 
   useEffect(() => {
     if (!focused || turn || navigating) return;
@@ -433,6 +433,12 @@ export default function PdfBookReader({
     mobile,
     reviewPanelOpen: showReview,
     onCloseReview: () => setShowReview(false),
+    onFinishReview: () => {
+      setShowReview(false);
+      setShowComments(false);
+      setExpanded(false);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    },
     ready: opened,
     canComment: Boolean(metadata?.canComment),
     pendingAnnotations: pending,
@@ -440,8 +446,8 @@ export default function PdfBookReader({
     composing: Boolean(selection),
   };
   useEffect(() => {
-    onReviewStateChange?.({ready:opened,canComment:Boolean(metadata?.canComment),pendingAnnotations:(metadata?.annotations||[]).filter(a=>!a.submittedAt),saving:saving||audioBusy||Boolean(discarding),composing:Boolean(selection)});
-  }, [opened, metadata, saving, audioBusy, discarding, selection, onReviewStateChange]);
+    onReviewStateChange?.({mobile,reviewPanelOpen:showReview,ready:opened,canComment:Boolean(metadata?.canComment),pendingAnnotations:(metadata?.annotations||[]).filter(a=>!a.submittedAt),saving:saving||audioBusy||Boolean(discarding),composing:Boolean(selection)});
+  }, [mobile, showReview, opened, metadata, saving, audioBusy, discarding, selection, onReviewStateChange]);
   const save = async (e) => {
     e.preventDefault();
     if (!selection || (!comment.trim() && !uploads.items.length) || !uploads.ready || saving || audioBusy || interactionDisabled) return;
@@ -553,6 +559,7 @@ export default function PdfBookReader({
       pending={pending}
       saving={saving}
       onSubmit={hideCommentSubmit ? undefined : submit}
+      onReview={client && mobile && renderReviewControls ? () => { setShowComments(false); setShowReview(true); } : undefined}
       currentPages={pagesAt(page)}
     />
   );
@@ -854,7 +861,7 @@ export default function PdfBookReader({
           </button>
           {renderReviewControls && <button type="button" className="proof-review-trigger" aria-haspopup="dialog"
             aria-expanded={showReview} onClick={() => { setShowComments(false); setShowReview(true); }}>
-            <ClipboardCheck size={18} aria-hidden="true" /> {ui('Review & return', 'Kagua na rudisha')}
+            <ClipboardCheck size={18} aria-hidden="true" /> {client ? ui('Review magazine', 'Kagua jarida') : ui('Review & return', 'Kagua na rudisha')}
           </button>}
         </nav>
       )}

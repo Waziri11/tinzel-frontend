@@ -34,7 +34,7 @@ export function ConfirmProvider({ children }) {
     queue.current = [];
   }, []);
   return <ConfirmContext.Provider value={confirm}>{children}
-    <Modal open={!!request} className="tinzel-confirm" zIndex={12000} title={<span className="tinzel-confirm__title"><TinzelLogo variant="icon" height={28} />{request?.title || (lang === 'sw' ? 'Thibitisha hatua' : 'Confirm this action')}</span>}
+    <Modal open={!!request} getContainer={document.fullscreenElement || document.body} className="tinzel-confirm" zIndex={12000} title={<span className="tinzel-confirm__title"><TinzelLogo variant="icon" height={28} />{request?.title || (lang === 'sw' ? 'Thibitisha hatua' : 'Confirm this action')}</span>}
       onCancel={() => finish(false)} onOk={() => finish(true)}
       afterClose={() => { closing.current = false; showNext(); }}
       okText={request?.confirmLabel || (lang === 'sw' ? 'Endelea' : 'Continue')}

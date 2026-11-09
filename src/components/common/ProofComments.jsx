@@ -21,6 +21,7 @@ export default function ProofComments({
   pending,
   saving,
   onSubmit,
+  onReview,
   currentPages,
 }) {
   const tx = useInterfaceText();
@@ -160,9 +161,9 @@ export default function ProofComments({
           </section>
         ))}
       </div>
-      {canComment && pending.length > 0 && onSubmit && (
-        <ActionButton loading={saving} disabled={saving} onClick={onSubmit}>
-          {client ? ui('Send my changes (', 'Tuma marekebisho yangu (') : tx('Return for corrections (')}
+      {canComment && pending.length > 0 && (onReview || onSubmit) && (
+        <ActionButton loading={saving} disabled={saving} onClick={onReview || onSubmit}>
+          {onReview ? ui('Review & send (', 'Kagua na tuma (') : client ? ui('Send my changes (', 'Tuma marekebisho yangu (') : tx('Return for corrections (')}
           {pending.length})
         </ActionButton>
       )}

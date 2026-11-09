@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, openClientReview } from './fixtures.js';
 
 test.use({ hasTouch: true });
 const json = (route, data) => route.fulfill({ json: data });
@@ -101,6 +101,7 @@ for (const [width, height] of [[320, 740], [390, 844], [768, 1024], [820, 1180],
     await page.goto('/track');
     await expect(page.getByAltText('Magazine page 1')).toBeVisible();
     await fits(page, 'customer proof');
+    await openClientReview(page);
     await page.getByRole('button', { name: 'Request changes', exact: true }).click();
     await page.getByRole('textbox', { name: 'Page number 1', exact: true }).fill('1');
     await fits(page, 'customer correction form');

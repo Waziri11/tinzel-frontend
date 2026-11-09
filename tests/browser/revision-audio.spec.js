@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { test, expect } from './fixtures.js';
+import { test, expect, openClientReview } from './fixtures.js';
 
 async function setup(page, lang = 'en') {
   const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
@@ -16,6 +16,7 @@ async function setup(page, lang = 'en') {
   await page.route('**/api/client/order', route => route.fulfill({ json: { order } }));
   await page.route('**/api/proofs/client/**', route => route.fulfill({ json: { state: 'ready', pageCount: 0, pages: [], annotations: [], canComment: true } }));
   await page.goto('/track');
+  await openClientReview(page);
   await page.getByRole('button', { name: lang === 'en' ? 'Request changes' : 'Omba marekebisho' }).click();
   return order;
 }
@@ -78,7 +79,7 @@ test('audio-only submission previews, retains audio after failure, and plays fro
 test('mobile Swahili form supports removing audio, empty validation, and size limit', async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await setup(page, 'sw');
-  const attach = page.getByLabel('Ambatisha sauti', { exact: true });
+  const attach = page.locator('.client-review-controls input[type="file"]');
   await attach.setInputFiles(file);
   await expect(page.getByLabel('Sikiliza maoni ya sauti')).toBeVisible();
   await page.screenshot({ path: info.outputPath('audio-mobile-sw.png'), fullPage: true });
@@ -101,7 +102,8 @@ test('microphone denial keeps file upload available', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
 });
 
-test('recording stops and releases the microphone before audio-only submission', async ({ page, context }) => {
+for (const width of [1280, 390]) test(`recording stops and releases the microphone before audio-only submission at ${width}px`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 844 });
   await context.grantPermissions(['microphone']);
   await page.addInitScript(() => {
     const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -111,12 +113,18 @@ test('recording stops and releases the microphone before audio-only submission',
   await page.getByRole('button', { name: 'Record voice note' }).click();
   await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeDisabled();
+  if (width === 390) {
+    await expect(page.getByRole('button', { name: 'Close review', exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Review magazine', exact: true })).toBeVisible();
+  }
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: 'Stop recording' }).click();
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
   await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.recordedStream.getTracks().every(track => track.readyState === 'ended'))).toBe(true);
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
+  if (width === 390) await expect(page.getByRole('button', { name: 'Close review', exact: true })).toBeEnabled();
 });
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });

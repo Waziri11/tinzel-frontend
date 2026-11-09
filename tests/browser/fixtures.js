@@ -1,5 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 export { expect };
+export async function openClientReview(page) {
+  await page.locator('.pdf-book').waitFor();
+  const review = page.getByRole('button', { name: /^(Review magazine|Kagua jarida)$/, exact: true });
+  if (await review.isVisible()) await review.click();
+}
 export async function chooseEnglish(page) {
   const firstVisit = page.getByRole('button', { name: 'English EN', exact: true });
   // Navigation can restore the visitor's stored choice. Never require a second choice.

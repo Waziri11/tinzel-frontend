@@ -10,6 +10,7 @@ import DepositSummary from './DepositSummary';
 import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
 import RevisionAudioInput from '../common/RevisionAudioInput';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
+import ProofMobilePanel from '../common/ProofMobilePanel';
 import PhoneInput from '../common/PhoneInput';
 import PageSkeleton from '../common/PageSkeleton';
 import SoftFlutter, { ActionButton } from '../common/SoftFlutter';
@@ -34,6 +35,7 @@ import ClientNotifications from './ClientNotifications';
 import ClientDeliveryLocation from './ClientDeliveryLocation';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+import './clientMagazineReview.css';
 
 const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
 
@@ -90,7 +92,8 @@ export default function ClientTrackingPortal() {
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [focusDeliveryLocation, setFocusDeliveryLocation] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
-  const [proofState, setProofState] = useState({ composing: false, saving: false });
+  const [proofState, setProofState] = useState(() => ({ composing: false, saving: false, pendingAnnotations: [], mobile: window.matchMedia('(max-width:760px), (hover:none) and (pointer:coarse)').matches }));
+  const decisionLock = useRef(false);
   const retainedFeedbackFor = useRef(null);
   const handleUnauthorized = useCallback(() => window.dispatchEvent(new Event('tinzel:client:unauthorized')), []);
   const allowProofLeave = async () => !proofState.saving && (!proofState.composing || await confirm({ title: ui('Discard the unfinished comment?', 'Ufute maoni ambayo hayajakamilika?'), description: ui('Saved comments will remain.', 'Maoni yaliyohifadhiwa yatabaki.'), confirmLabel: ui('Discard comment', 'Futa maoni'), danger: true }));
@@ -261,10 +264,11 @@ export default function ClientTrackingPortal() {
     }
   };
 
-  const handleApproveWholeMagazine = async () => {
-    if (proofState.composing || proofState.saving) return;
+  const handleApproveWholeMagazine = async (reader = proofState) => {
+    if (decisionLock.current || proofState.composing || proofState.saving || proofState.pendingAnnotations?.length) return;
     if (decisionUncertain || (readerVersion && readerVersion !== order.currentDraftVersion)) return;
-    if (!(await confirm({ title: ui('Approve this magazine for printing?', 'Uidhinishe jarida hili kwa uchapishaji?'), description: t('track.confirm.approve'), confirmLabel: t('track.decision.approve') }))) return;
+    decisionLock.current = true;
+    if (!(await confirm({ title: ui('Approve this magazine for printing?', 'Uidhinishe jarida hili kwa uchapishaji?'), description: t('track.confirm.approve'), confirmLabel: t('track.decision.approve') }))) { decisionLock.current = false; return; }
     setSubmittingDecision(true);
     setError(null);
     try {
@@ -273,6 +277,7 @@ export default function ClientTrackingPortal() {
         'Client approved whole magazine.',
         order.currentDraftVersion,
       );
+      reader.onFinishReview?.();
       setOrder(res.order);
       setFocusDeliveryLocation(true);
       setSuccessMsg(t('track.ok.approved'));
@@ -280,26 +285,34 @@ export default function ClientTrackingPortal() {
       setError(err.message || t('track.err.approve')); setErrorStatus(err.status);
       if (!err.status || err.status >= 500 || [408, 409].includes(err.status)) setDecisionUncertain(true);
     } finally {
+      decisionLock.current = false;
       setSubmittingDecision(false);
     }
   };
 
-  const handleRequestRevision = async (e) => {
-    e.preventDefault();
-    if (proofState.composing || proofState.saving || decisionUncertain || (readerVersion && readerVersion !== order.currentDraftVersion)) return;
+  const handleRequestRevision = async (e, reader = proofState) => {
+    e?.preventDefault();
+    if (decisionLock.current || proofState.composing || proofState.saving || decisionUncertain || (readerVersion && readerVersion !== order.currentDraftVersion)) return;
     const items = revisionItems
       .map((item) => ({ text: item.text.trim(), pageReference: item.pageReference.trim() }))
       .filter((item) => item.text);
     if (audioBusy) return;
-    if (!items.length && !revisionAudio) {
+    if (!items.length && !revisionAudio && !proofState.pendingAnnotations?.length) {
       setError(ui('Describe the changes or add an audio message.', 'Eleza marekebisho au ongeza ujumbe wa sauti.'));
       return;
     }
 
+    decisionLock.current = true;
+    if (reader.mobile && !(await confirm({
+      title: ui('Send these changes to Tinzel?', 'Tuma marekebisho haya kwa Tinzel?'),
+      description: ui('Your saved page comments, written notes and voice message will be sent together. We will let you know when your updated magazine is ready.', 'Maoni ya kurasa yaliyohifadhiwa, maelezo na ujumbe wa sauti vitatumwa pamoja. Tutakujulisha jarida lililorekebishwa likiwa tayari.'),
+      confirmLabel: t('track.decision.submit'),
+    }))) { decisionLock.current = false; return; }
     setSubmittingDecision(true);
     setError(null);
     try {
       const res = await api.client.requestRevision(clientToken, items, order.currentDraftVersion, revisionAudio);
+      reader.onFinishReview?.();
       setOrder(res.order);
       setShowRevisionForm(false);
       setRevisionAudio(null);
@@ -309,6 +322,7 @@ export default function ClientTrackingPortal() {
       setError(err.message || t('track.err.revision')); setErrorStatus(err.status);
       if (!err.status || err.status >= 500 || [408, 409].includes(err.status)) setDecisionUncertain(true);
     } finally {
+      decisionLock.current = false;
       setSubmittingDecision(false);
     }
   };
@@ -537,6 +551,189 @@ export default function ClientTrackingPortal() {
     (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) ||
     (order.draftVersions || []).at(-1);
 
+  const decisionControls = (reader = proofState) => (
+    order.status === 'client_review' ? (
+      <div
+        className="client-review-controls"
+        style={{
+          backgroundColor: 'var(--bg-primary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '24px',
+        }}
+      >
+        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{reader.mobile && reader.pendingAnnotations?.length
+          ? ui(`${reader.pendingAnnotations.length} saved change${reader.pendingAnnotations.length === 1 ? '' : 's'}`, `Marekebisho ${reader.pendingAnnotations.length} yaliyohifadhiwa`)
+          : t('track.decision.title')}</h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+          {reader.mobile ? reader.pendingAnnotations?.length
+            ? ui('Send your saved comments, or add a note or voice message below.', 'Tuma maoni yaliyohifadhiwa, au ongeza maelezo au ujumbe wa sauti hapa chini.')
+            : ui('Approve for printing, or tell us what you would like changed.', 'Idhinisha uchapishaji, au tuambie unachotaka kirekebishwe.')
+            : t('track.decision.desc')}
+        </p>
+        {reader.mobile && reader.composing && <p className="client-review-hint">{ui('Save or cancel your page comment before making a decision.', 'Hifadhi au ghairi maoni ya ukurasa kabla ya kufanya uamuzi.')}</p>}
+        {reader.mobile && Boolean(readerVersion && readerVersion !== order.currentDraftVersion) && <p className="client-review-hint">{ui('Open the current version to approve or send changes.', 'Fungua toleo la sasa ili kuidhinisha au kutuma marekebisho.')}</p>}
+        {reader.mobile && error && <StatePanel compact kind="error" title={ui('The action could not finish', 'Hatua haikukamilika')} description={error} />}
+        {reader.mobile && decisionUncertain && <StatePanel compact kind="warning" title={ui('Check the result before trying again', 'Hakiki matokeo kabla ya kujaribu tena')} description={ui('Your unsent notes and audio are still here.', 'Maelezo na sauti ambayo hujatuma bado vipo.')}>
+          <ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check decision status', 'Hakiki hali ya uamuzi')}</ActionButton>
+        </StatePanel>}
+
+        {!showRevisionForm ? (
+          <div className="client-decision-actions">
+            {reader.mobile && reader.pendingAnnotations?.length > 0 && <ActionButton className="client-review-send is-primary" loading={submittingDecision}
+              disabled={submittingDecision || audioBusy || reader.composing || reader.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
+              onClick={event => handleRequestRevision(event, reader)}><Send size={17} aria-hidden="true" />{t('track.decision.submit')} ({reader.pendingAnnotations.length})</ActionButton>}
+            <ActionButton loading={submittingDecision}
+              className="client-review-approve"
+              onClick={() => handleApproveWholeMagazine(reader)}
+              disabled={submittingDecision || audioBusy || reader.composing || reader.saving || reader.pendingAnnotations?.length > 0 || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--accent-success)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '700',
+              }}
+            >
+              <CheckCircle2 size={18} />
+              {t('track.decision.approve')}
+            </ActionButton>
+
+            <button
+              className="client-review-request"
+              onClick={() => setShowRevisionForm(true)}
+              disabled={submittingDecision || audioBusy || reader.composing || reader.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 20px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+              }}
+            >
+              {reader.mobile && reader.pendingAnnotations?.length ? ui('Add a note or voice message', 'Ongeza maelezo au ujumbe wa sauti') : t('track.decision.requestChanges')}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={event => handleRequestRevision(event, reader)}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+              {ui('Describe your changes in writing or with audio', 'Eleza marekebisho kwa maandishi au sauti')}
+            </label>
+            <RevisionAudioInput compact={reader.mobile} file={revisionAudio} onChange={setRevisionAudio} disabled={submittingDecision} onBusyChange={setAudioBusy} />
+            {revisionItems.map((item, index) => (
+              <div
+                key={index}
+                className="client-revision-row"
+              >
+                <input
+                  aria-label={ui(`Page number ${index + 1}`, `Namba ya ukurasa ${index + 1}`)}
+                  placeholder={ui('Page (optional)', 'Ukurasa (si lazima)')}
+                  value={item.pageReference}
+                  onChange={(e) =>
+                    setRevisionItems((rows) =>
+                      rows.map((row, i) => (i === index ? { ...row, pageReference: e.target.value } : row)),
+                    )
+                  }
+                  style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
+                />
+                <textarea
+                  rows={2}
+                  aria-label={ui(`Written feedback ${index + 1}`, `Maoni ya maandishi ${index + 1}`)}
+                  disabled={submittingDecision}
+                  placeholder={reader.mobile ? ui('What would you like us to change?', 'Ungependa tubadilishe nini?') : t('track.decision.describePh')}
+                  value={item.text}
+                  onChange={(e) =>
+                    setRevisionItems((rows) =>
+                      rows.map((row, i) => (i === index ? { ...row, text: e.target.value } : row)),
+                    )
+                  }
+                  style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
+                />
+                {revisionItems.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setRevisionItems((rows) => rows.filter((_, i) => i !== index))}
+                    style={{ border: 0, background: 'transparent', color: '#991B1B' }}
+                  >
+                    {ui('Remove', 'Ondoa')}
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setRevisionItems((rows) => [...rows, { text: '', pageReference: '' }])}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                borderRadius: 6,
+                padding: '8px 12px',
+                marginBottom: 16,
+              }}
+            >
+              {ui('Add another change', 'Ongeza marekebisho mengine')}
+            </button>
+            <div className="client-review-form-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <ActionButton loading={submittingDecision}
+                className="client-review-send is-primary"
+                type="submit"
+                disabled={submittingDecision || audioBusy || reader.composing || reader.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--accent-warning)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 18px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                }}
+              >
+                <Send size={14} />
+                {t('track.decision.submit')}
+              </ActionButton>
+              <button
+                type="button"
+                disabled={submittingDecision}
+                onClick={async () => { if (await allowFeedbackLeave()) { setShowRevisionForm(false); setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); } }}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-muted)',
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                }}
+              >
+                {t('track.decision.cancel')}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    ) : order.status === 'client_approved' ? (
+      <StatePanel compact kind="success" title={t('track.approved.title', { version: order.approvedVersionNumber })} description={t('track.approved.body')} />
+    ) : order.status === 'revision_requested' ? (
+      <StatePanel compact kind="info" title={t('track.revreq.title')} description={t('track.revreq.body')} />
+    ) : null
+  );
+  const mobileReviewControls = reader => reader.mobile && reader.reviewPanelOpen && (
+    <ProofMobilePanel title={ui('Review magazine', 'Kagua jarida')} closeLabel={ui('Close review', 'Funga ukaguzi')}
+      onClose={reader.onCloseReview} closeDisabled={submittingDecision || audioBusy}>
+      {decisionControls(reader)}
+    </ProofMobilePanel>
+  );
+
   return (
     <div className="tracking-order">
       {/* Top Banner / Order Summary */}
@@ -689,8 +886,8 @@ export default function ClientTrackingPortal() {
       </div>
 
       {successMsg && <StatePanel kind="success" title={successMsg} />}
-      {error && <StatePanel kind="error" title={errorStatus === 409 ? ui('This order has changed', 'Oda hii imebadilika') : ui('The action could not finish', 'Hatua haikukamilika')} description={error}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check latest order', 'Hakiki oda ya sasa')}</ActionButton></StatePanel>}
-      {decisionUncertain && <StatePanel kind="warning" title={ui('Check the result before trying again', 'Hakiki matokeo kabla ya kujaribu tena')} description={ui('We could not confirm your decision. Refresh the order to check its current status. Your unsent feedback is still here.', 'Hatukuweza kuthibitisha uamuzi wako. Sasisha oda uhakiki hali yake. Maoni yako ambayo hayajatumwa bado yapo.')}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check decision status', 'Hakiki hali ya uamuzi')}</ActionButton></StatePanel>}
+      {error && !(proofState.mobile && proofState.reviewPanelOpen) && <StatePanel kind="error" title={errorStatus === 409 ? ui('This order has changed', 'Oda hii imebadilika') : ui('The action could not finish', 'Hatua haikukamilika')} description={error}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check latest order', 'Hakiki oda ya sasa')}</ActionButton></StatePanel>}
+      {decisionUncertain && !(proofState.mobile && proofState.reviewPanelOpen) && <StatePanel kind="warning" title={ui('Check the result before trying again', 'Hakiki matokeo kabla ya kujaribu tena')} description={ui('We could not confirm your decision. Refresh the order to check its current status. Your unsent feedback is still here.', 'Hatukuweza kuthibitisha uamuzi wako. Sasisha oda uhakiki hali yake. Maoni yako ambayo hayajatumwa bado yapo.')}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check decision status', 'Hakiki hali ya uamuzi')}</ActionButton></StatePanel>}
       {(order.revisionRequests || []).length > 0 && (
         <section
           style={{
@@ -727,6 +924,7 @@ export default function ClientTrackingPortal() {
       {/* Whole-Magazine Reader Section */}
       {releasedDraft ? (
         <div
+          className="client-magazine-review"
           style={{
             backgroundColor: 'var(--card-bg)',
             border: '1px solid var(--border-color)',
@@ -769,6 +967,9 @@ export default function ClientTrackingPortal() {
           </label>
           {readerVersion && readerVersion !== order.currentDraftVersion && <StatePanel compact kind="info" title={ui('You are viewing an earlier version', 'Unaangalia toleo la awali')} description={ui('Open the current version before approving or requesting changes.', 'Fungua toleo la sasa kabla ya kuidhinisha au kuomba marekebisho.')}><ActionButton className="ui-button" onClick={async () => { if (await allowProofLeave()) setReaderVersion(order.currentDraftVersion); }}>{ui('Open current version', 'Fungua toleo la sasa')}</ActionButton></StatePanel>}
           <PdfBookReader
+            key={`${order._id}:${readerVersion || releasedDraft?.versionNumber}:${order.status}`}
+            renderReviewControls={order.status === 'client_review' ? mobileReviewControls : undefined}
+            interactionDisabled={submittingDecision || decisionUncertain}
             onReviewStateChange={setProofState}
             token={clientToken}
             version={readerVersion || releasedDraft?.versionNumber}
@@ -777,163 +978,7 @@ export default function ClientTrackingPortal() {
             onReviewed={() => loadOrder(clientToken)}
           />
 
-          {/* Action Decision Controls (Whole-Magazine Approval Gate) */}
-          {order.status === 'client_review' ? (
-            <div
-              style={{
-                backgroundColor: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '24px',
-              }}
-            >
-              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{t('track.decision.title')}</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                {t('track.decision.desc')}
-              </p>
-
-              {!showRevisionForm ? (
-                <div className="client-decision-actions">
-                  <ActionButton loading={submittingDecision}
-                    onClick={handleApproveWholeMagazine}
-                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backgroundColor: 'var(--accent-success)',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '12px 24px',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                    }}
-                  >
-                    <CheckCircle2 size={18} />
-                    {t('track.decision.approve')}
-                  </ActionButton>
-
-                  <button
-                    onClick={() => setShowRevisionForm(true)}
-                    disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backgroundColor: 'var(--bg-secondary)',
-                      color: 'var(--text-main)',
-                      border: '1px solid var(--border-color)',
-                      padding: '12px 20px',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {t('track.decision.requestChanges')}
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleRequestRevision}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                    {ui('Describe your changes in writing or with audio', 'Eleza marekebisho kwa maandishi au sauti')}
-                  </label>
-                  <RevisionAudioInput file={revisionAudio} onChange={setRevisionAudio} disabled={submittingDecision} onBusyChange={setAudioBusy} />
-                  {revisionItems.map((item, index) => (
-                    <div
-                      key={index}
-                      className="client-revision-row"
-                    >
-                      <input
-                        aria-label={ui(`Page number ${index + 1}`, `Namba ya ukurasa ${index + 1}`)}
-                        placeholder={ui('Page (optional)', 'Ukurasa (si lazima)')}
-                        value={item.pageReference}
-                        onChange={(e) =>
-                          setRevisionItems((rows) =>
-                            rows.map((row, i) => (i === index ? { ...row, pageReference: e.target.value } : row)),
-                          )
-                        }
-                        style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
-                      />
-                      <textarea
-                        rows={2}
-                        aria-label={ui(`Written feedback ${index + 1}`, `Maoni ya maandishi ${index + 1}`)}
-                        disabled={submittingDecision}
-                        placeholder={t('track.decision.describePh')}
-                        value={item.text}
-                        onChange={(e) =>
-                          setRevisionItems((rows) =>
-                            rows.map((row, i) => (i === index ? { ...row, text: e.target.value } : row)),
-                          )
-                        }
-                        style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
-                      />
-                      {revisionItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setRevisionItems((rows) => rows.filter((_, i) => i !== index))}
-                          style={{ border: 0, background: 'transparent', color: '#991B1B' }}
-                        >
-                          {ui('Remove', 'Ondoa')}
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setRevisionItems((rows) => [...rows, { text: '', pageReference: '' }])}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 6,
-                      padding: '8px 12px',
-                      marginBottom: 16,
-                    }}
-                  >
-                    {ui('Add another change', 'Ongeza marekebisho mengine')}
-                  </button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <ActionButton loading={submittingDecision}
-                      type="submit"
-                      disabled={submittingDecision || audioBusy || proofState.composing || proofState.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        backgroundColor: 'var(--accent-warning)',
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '10px 18px',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      <Send size={14} />
-                      {t('track.decision.submit')}
-                    </ActionButton>
-                    <button
-                      type="button"
-                      disabled={submittingDecision}
-                      onClick={async () => { if (await allowFeedbackLeave()) { setShowRevisionForm(false); setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); } }}
-                      style={{
-                        backgroundColor: 'transparent',
-                        color: 'var(--text-muted)',
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                      }}
-                    >
-                      {t('track.decision.cancel')}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          ) : order.status === 'client_approved' ? (
-            <StatePanel compact kind="success" title={t('track.approved.title', { version: order.approvedVersionNumber })} description={t('track.approved.body')} />
-          ) : order.status === 'revision_requested' ? (
-            <StatePanel compact kind="info" title={t('track.revreq.title')} description={t('track.revreq.body')} />
-          ) : null}
+          {(!proofState.mobile || order.status !== 'client_review') && decisionControls()}
         </div>
       ) : <StatePanel kind="info" title={journey.complete ? ui('No magazine preview is available', 'Hakuna hakikisho la jarida linalopatikana') : ui('Your magazine preview is not ready yet', 'Hakikisho la jarida lako bado halijawa tayari')} description={journey.complete ? ui('This order is complete. A preview is no longer available here; contact Tinzel if you need help with this order.', 'Oda hii imekamilika. Hakikisho halipatikani hapa; wasiliana na Tinzel ukihitaji msaada wa oda hii.') : order.status === 'awaiting_payment' ? ui('Follow the payment instructions above. Your preview will appear here when it is ready for review.', 'Fuata maelekezo ya malipo hapo juu. Hakikisho litaonekana hapa likiwa tayari kukaguliwa.') : ui('Your order is still in progress. The preview will appear here when it is released for you to review.', 'Oda yako bado inaendelea. Hakikisho litaonekana hapa likitolewa kwa ajili yako kukagua.')} />}
 

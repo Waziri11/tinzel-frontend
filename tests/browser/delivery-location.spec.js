@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, openClientReview } from './fixtures.js';
 import AxeBuilder from '@axe-core/playwright';
 
 for (const lang of ['en', 'sw']) {
@@ -24,8 +24,9 @@ for (const lang of ['en', 'sw']) {
     await page.goto('/track');
     await expect(page.locator('.client-delivery-location')).toHaveCount(0);
     const approve = lang === 'en' ? 'Approve for printing' : 'Idhinisha uchapishaji';
+    await openClientReview(page);
     await page.getByRole('button', { name: approve, exact: true }).click();
-    await page.getByRole('dialog').getByRole('button', { name: approve, exact: true }).click();
+    await page.getByRole('dialog', { name: lang === 'en' ? 'Approve this magazine for printing?' : 'Uidhinishe jarida hili kwa uchapishaji?' }).getByRole('button', { name: approve, exact: true }).click();
     const location = page.locator('#delivery-location');
     await expect(location).toBeFocused();
     const save = page.getByRole('button', { name: lang === 'en' ? 'Save delivery location' : 'Hifadhi mahali pa uwasilishaji', exact: true });
