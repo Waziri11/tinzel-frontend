@@ -23,7 +23,7 @@ import OrderPhotosFolderView from '../common/OrderPhotosFolderView';
 import './designerWorkspace.css';
 
 const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
-const MAX_PRINT_BYTES = 4 * 1024 * 1024;
+const MAX_PRINT_BYTES = 500 * 1024 * 1024;
 
 export default function DesignerOrderPage({ token, staffUser, orderId, onBack }) {
   const tx = useInterfaceText();
@@ -262,7 +262,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
     event.preventDefault();
     if (uploading || printUncertain) return;
     const invalid = {};
-    if (printFile && (!/\.pdf$/i.test(printFile.name) || (printFile.type && printFile.type !== 'application/pdf') || printFile.size > MAX_PRINT_BYTES || !printFile.size)) invalid.pdf = ui('Choose a valid PDF up to 4 MB, or use the approved magazine for print.', 'Chagua PDF halali isiyozidi MB 4, au tumia jarida lililoidhinishwa kwa uchapishaji.');
+    if (printFile && (!/\.pdf$/i.test(printFile.name) || (printFile.type && printFile.type !== 'application/pdf') || printFile.size > MAX_PRINT_BYTES || !printFile.size)) invalid.pdf = ui('Choose a valid PDF up to 500 MB, or use the approved magazine for print.', 'Chagua PDF halali isiyozidi MB 500, au tumia jarida lililoidhinishwa kwa uchapishaji.');
     if (!Number.isInteger(Number(printSpecs.quantity)) || Number(printSpecs.quantity) < 1) invalid.quantity = ui('Enter a whole-number quantity of at least one.', 'Weka idadi kamili ya angalau moja.');
     for (const field of ['paperType', 'coverFinish', 'binding']) if (!printSpecs[field].trim()) invalid[field] = ui('Complete this print specification.', 'Jaza maelezo haya ya uchapishaji.');
     setPrintErrors(invalid);
@@ -587,7 +587,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                   <InterfaceText>Print-ready PDF (leave empty to promote approved draft v</InterfaceText>{' '}
                   {order.approvedVersionNumber})
                 </label>
-                <p className="muted">{ui('Optional replacement PDF, up to 4 MB. Leave it empty to use the approved magazine.', 'PDF mbadala ya hiari, isiyozidi MB 4. Acha wazi kutumia jarida lililoidhinishwa.')}</p>
+                <p className="muted">{ui('Optional replacement PDF, up to 500 MB. Leave it empty to use the approved magazine.', 'PDF mbadala ya hiari, isiyozidi MB 500. Acha wazi kutumia jarida lililoidhinishwa.')}</p>
                 <input
                   id="print-pdf"
                   aria-invalid={Boolean(printErrors.pdf)}

@@ -1,3 +1,4 @@
+import { transferChunks } from './chunkTransfer';
 import {securityHeaders, ensureCsrfToken} from './api';
 const BASE = import.meta.env?.VITE_API_URL || '';
 export const MAX_DRAFT_BYTES = 500 * 1024 * 1024;
@@ -18,7 +19,7 @@ const sleep = (ms, signal) => new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},ms);
   signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
 });
-async function request(url, token, { method='GET', body, binary=false, signal, progress, retry, complete=false }={}) {
+async function request(url, token, { method='GET', body, binary=false, signal, progress, retry, complete=false, headers={} }={}) {
   let refreshedCsrf = false;
   for(let attempt=0;attempt<3;attempt++) {
     signal?.throwIfAborted();
@@ -42,6 +43,7 @@ async function request(url, token, { method='GET', body, binary=false, signal, p
           reject(Object.assign(new Error(message+(reference?` Reference: ${reference}`:'')),{status:xhr.status,code:data.errorCode}));
         };
         if(binary)xhr.setRequestHeader('X-Chunk-SHA256',body.sha256);
+        for(const [name,value] of Object.entries(headers)) if(name !== 'X-Chunk-SHA256')xhr.setRequestHeader(name,value);
         if(signal?.aborted)return reject(new DOMException('Cancelled','AbortError'));
         xhr.send(body===undefined?undefined:binary?body.bytes:JSON.stringify(body));
       });
@@ -88,20 +90,14 @@ export async function transferDraft({ token, staffId, orderId, file, metadata, s
     await transferBlobDraft({session,file,signal,emit:onProgress,call:(suffix,body)=>request(`${prefix}/${session.id}${deferSubmission && suffix === '/complete' ? '/ready' : suffix}`,token,{method:'POST',body,signal,complete:suffix==='/complete'}),renew:()=>request(`${prefix}/${session.id}`,token,{signal})});
     acknowledged=file.size;
   } else if(session.state!=='complete') {
-    const chunks=new Map(session.chunks.map((c)=>[c.n,c]));
-    for(let n=0;n<Math.ceil(file.size/session.chunkBytes);n++){
-      signal?.throwIfAborted();const bytes=await file.slice(n*session.chunkBytes,Math.min(file.size,(n+1)*session.chunkBytes)).arrayBuffer();
-      const sha256=await hash(bytes);signal?.throwIfAborted();
-      if(chunks.has(n)){
-        if(chunks.get(n).sha256!==sha256)throw new Error('This PDF differs from the saved upload. Select the original file or cancel and start again.');
-      }else{
-        emit('uploading');
-        const runBefore=sentThisRun;
-        await request(`${prefix}/${session.id}/chunks/${n}`,token,{method:'PUT',binary:true,body:{bytes,sha256},signal,progress:(loaded)=>{sentThisRun=runBefore+Math.min(bytes.byteLength,loaded);emit('uploading',Math.min(bytes.byteLength,loaded));},retry:()=>{sentThisRun=runBefore;emit('reconnecting');}});
-        sentThisRun=runBefore+bytes.byteLength;
-      }
-      acknowledged+=bytes.byteLength;emit('uploading');
-    }
+    await transferChunks({ file, chunkBytes: session.chunkBytes, received: session.chunks,
+      concurrency: 3, compression: session.compression === 'gzip', signal,
+      onProgress: ({ bytes, uploadedBytes }) => { acknowledged = bytes; sentThisRun = uploadedBytes; emit('uploading'); },
+      onRetry: () => emit('reconnecting'),
+      send: ({ n, body, sha256, headers, signal: partSignal, progress, retry }) =>
+        request(`${prefix}/${session.id}/chunks/${n}`, token, { method: 'PUT', binary: true,
+          body: { bytes: body, sha256 }, headers, signal: partSignal, progress, retry }),
+    });
   }
   acknowledged=file.size;emit('finalizing');
   if (deferSubmission) {

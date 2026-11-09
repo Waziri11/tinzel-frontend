@@ -1,9 +1,9 @@
 /** XHR is used only for file bodies because it exposes real upload byte events. */
-export function uploadMultipart(url, body, { headers = {}, signal, progress = () => {}, timeout = 300000, xhrFactory = () => new XMLHttpRequest() } = {}) {
+export function uploadMultipart(url, body, { headers = {}, method = 'POST', signal, progress = () => {}, timeout = 300000, xhrFactory = () => new XMLHttpRequest() } = {}) {
   return new Promise((resolve, reject) => {
     signal?.throwIfAborted();
     const xhr = xhrFactory();
-    xhr.open('POST', url);
+    xhr.open(method, url);
     xhr.withCredentials = true;
     xhr.timeout = timeout;
     for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);

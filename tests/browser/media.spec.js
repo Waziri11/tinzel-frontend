@@ -7,7 +7,7 @@ async function openForm(page) {
 }
 const photo = (name, size = 1200000) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.alloc(size, 42) });
 
-test('rapid selections share two transfers, preserve completed uploads after refresh, and submit metadata only', async ({ page }) => {
+test('rapid selections share four transfer slots, preserve completed uploads after refresh, and submit metadata only', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   let active = 0, peak = 0, chunkRequests = 0, submitBytes = 0;
@@ -25,7 +25,7 @@ test('rapid selections share two transfers, preserve completed uploads after ref
   await page.locator('#upload-first').setInputFiles([photo('first.jpg', 5 * 1024 * 1024 + 10), photo('second.jpg')]);
   await page.locator('#upload-second').setInputFiles([photo('third.jpg'), photo('fourth.jpg')]);
   await expect(page.getByText('Photos ready: 2/2').first()).toBeVisible({ timeout: 30000 });
-  expect(peak).toBeLessThanOrEqual(2);
+  expect(peak).toBeLessThanOrEqual(4);
   const previousRequests = chunkRequests;
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tinzel:uploads:v2:upload-performance-test'))?.items.filter((i) => i.photo).length)).toBe(4);
   await page.reload();
@@ -101,6 +101,10 @@ test('one side panel owns upload progress and confirmed galleries survive refres
   const gate = new Promise(resolve => { release = resolve; });
   await page.route('**/complete', async route => { await gate; await route.continue(); });
   await openForm(page);
+  await page.getByRole('button', { name: '1 Your details' }).click();
+  await page.locator('#magazine-client-name').fill('Gallery upload test');
+  await page.getByPlaceholder('e.g. +255712345678').fill('+255700000001');
+  await page.getByRole('button', { name: '3 Photographs' }).click();
   const first = page.locator('[data-field-id=first]');
   const second = page.locator('[data-field-id=second]');
   const activity = page.getByRole('complementary', { name: 'Photo uploads', exact: true });

@@ -1,3 +1,4 @@
+import { transferChunks } from './chunkTransfer';
 const base = import.meta.env?.VITE_API_URL || '';
 const root = `${base}/api/public/media`;
 const sleep = (ms, signal) => new Promise((resolve, reject) => {
@@ -9,7 +10,7 @@ const sleep = (ms, signal) => new Promise((resolve, reject) => {
 export const isRetryable = (e) => e.name !== 'AbortError' && (e.retryable === true ||
   (e.retryable !== false && (!e.status || [408, 429, 502, 503, 504].includes(e.status))));
 
-export async function mediaRequest(path, session, { method = 'GET', body, signal, binary = false, progress, onRetry } = {}) {
+export async function mediaRequest(path, session, { method = 'GET', body, signal, binary = false, progress, onRetry, headers = {} } = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     signal?.throwIfAborted();
     try {
@@ -17,6 +18,7 @@ export async function mediaRequest(path, session, { method = 'GET', body, signal
         const xhr = new XMLHttpRequest();
         xhr.open(method, `${root}${path}`); xhr.timeout = binary ? 120000 : 30000;
         xhr.setRequestHeader('X-Upload-Token', session.token);
+        for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
         if (body !== undefined) xhr.setRequestHeader('Content-Type', binary ? 'application/octet-stream' : 'application/json');
         const abort = () => xhr.abort();
         signal?.addEventListener('abort', abort, { once: true });
@@ -61,9 +63,10 @@ export async function transferPhoto(session, item, signal, progress) {
   const reservation = await mediaRequest(prefix, session, { method: 'POST', signal,
     body: { clientId: item.id, name: item.name, size: item.size, contentType: contentType(item.file), fieldId: item.fieldId } });
   const assetId = reservation.entry._id;
+  const resuming = item.assetId === assetId;
   progress(0, { assetId });
   const path = `${prefix}/${assetId}`;
-  const status = await mediaRequest(path, session, { signal });
+  const status = resuming ? await mediaRequest(path, session, { signal }) : { chunks: [] };
   if (status.photo) return status.photo;
   if (reservation.entry.provider === 'blob') {
     // Reconcile a successful transfer whose completion response was lost.
@@ -76,22 +79,14 @@ export async function transferPhoto(session, item, signal, progress) {
       onUploadProgress: ({ percentage }) => progress(Math.min(99, percentage), { stage: 'uploading' }),
     });
   } else {
-    const chunks = new Map(status.chunks.map((chunk) => [chunk.n, chunk]));
-    const size = reservation.chunkBytes;
-    for (let n = 0; n < Math.ceil(item.size / size); n++) {
-      signal.throwIfAborted();
-      const part = item.file.slice(n * size, Math.min((n + 1) * size, item.size));
-      if (chunks.has(n)) {
-        const digest = await crypto.subtle.digest('SHA-256', await part.arrayBuffer());
-        const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-        if (hash !== chunks.get(n).sha256) throw new Error('This file differs from its saved upload. Remove it and choose the original again.');
-      } else {
-        await mediaRequest(`${path}/chunks/${n}`, session, { method: 'PUT', body: part, binary: true, signal,
-          onRetry: () => progress(Math.min(99, 100 * n * size / item.size), { stage: 'retrying' }),
-          progress: (bytes) => progress(Math.min(99, 100 * (n * size + bytes) / item.size), { stage: 'uploading' }) });
-      }
-      progress(Math.min(99, 100 * Math.min((n + 1) * size, item.size) / item.size));
-    }
+    await transferChunks({ file: item.file, chunkBytes: reservation.chunkBytes, received: status.chunks,
+      concurrency: 2, compression: reservation.compression === 'gzip', signal,
+      onProgress: ({ bytes, total }) => progress(Math.min(99, 100 * bytes / total), { stage: 'uploading' }),
+      onRetry: () => progress(0, { stage: 'retrying' }),
+      send: ({ n, body, headers, signal: partSignal, progress: partProgress, retry }) =>
+        mediaRequest(`${path}/chunks/${n}`, session, { method: 'PUT', body, headers, binary: true,
+          signal: partSignal, progress: partProgress, onRetry: retry }),
+    });
   }
   progress(99, { stage: 'confirming' });
   return (await mediaRequest(`${path}/complete`, session, { method: 'POST', signal, body: {} })).photo;

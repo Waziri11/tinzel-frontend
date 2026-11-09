@@ -1,3 +1,5 @@
+import { transferStaffFile, forgetStaffFile } from './staffFileUpload';
+import { transferChunks } from './chunkTransfer';
 import { normalizePhonePayload } from './phonePayload';
 import { uploadMultipart } from './uploadTransport';
 import { runTransfer, readDownload, saveDownload } from './fileTransfers';
@@ -138,7 +140,7 @@ const handleBlob = async (res) => {
 async function uploadForm(url, token, body, options = {}, csrfRetried = false, verified = false) {
   options.signal?.throwIfAborted();
   if (!token || token === 'cookie') await ensureCsrfToken('staff', { signal: options.signal });
-  const response = await uploadMultipart(url, body, { ...options, headers: { ...getHeaders(token, true), ...securityHeaders('staff') } });
+  const response = await uploadMultipart(url, body, { ...options, headers: { ...getHeaders(token, true), ...options.headers, ...securityHeaders('staff') } });
   const data = await response.clone().json().catch(() => ({}));
   if (response.status === 403 && data.errorCode === 'CSRF_TOKEN_INVALID' && !csrfRetried) {
     await ensureCsrfToken('staff', { force: true, signal: options.signal });
@@ -161,6 +163,30 @@ export function downloadFile(url, filename, { key = url, token } = {}) {
     const blob = await readDownload(response, context);
     context.signal.throwIfAborted();
     saveDownload(blob, filename);
+  });
+}
+
+async function uploadStaffFile(token, file, purpose, orderId, options) {
+  const root = `${API_BASE}/api/staff/file-uploads`;
+  const retry = async (work, signal, notify = () => {}) => {
+    for (let attempt = 0; ; attempt++) {
+      signal?.throwIfAborted();
+      try { return await work(); }
+      catch (error) {
+        if (signal?.aborted || error.name === 'AbortError' || attempt >= 2 || error.status && ![408, 429, 502, 503, 504].includes(error.status)) throw error;
+        notify();
+        await new Promise(resolve => setTimeout(resolve, 600 * 2 ** attempt));
+      }
+    }
+  };
+  return transferStaffFile({ file, purpose, orderId, ...options,
+    call: (suffix, body, signal) => retry(() => fetchWithTimeout(root + suffix, {
+      method: 'POST', headers: getHeaders(token), body: JSON.stringify(body), signal,
+    }, 60000).then(handleResponse), signal),
+    send: (suffix, part) => retry(() => uploadForm(root + suffix, token, part.body, {
+      method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', ...part.headers }, signal: part.signal,
+      progress: event => { if (event.bytes !== undefined) part.progress(event.bytes); }, timeout: 120000,
+    }), part.signal, part.retry),
   });
 }
 
@@ -577,8 +603,19 @@ export const api = {
         UPLOAD_API_TIMEOUT_MS,
       ).then(handleResponse),
 
-    uploadPrintDocument: (token, id, formData, options = {}) =>
-      uploadForm(`${API_BASE}/api/designer/orders/${id}/upload-print-document`, token, formData, options),
+    uploadPrintDocument: async (token, id, formData, options = {}) => {
+      const file = formData.get('printFile');
+      const data = new FormData();
+      for (const [key, value] of formData) if (key !== 'printFile') data.append(key, value);
+      if (file?.size) {
+        const uploaded = await uploadStaffFile(token, file, 'print', id, options);
+        data.set('fileUploadId', uploaded.id);
+      }
+      const result = await uploadForm(`${API_BASE}/api/designer/orders/${id}/upload-print-document`, token, data, file?.size
+        ? { ...options, progress: () => options.progress?.({ stage: 'finalizing', percent: null }) } : options);
+      forgetStaffFile('print', id);
+      return result;
+    },
 
     flagIssue: (token, id, issue) =>
       fetchWithTimeout(`${API_BASE}/api/designer/orders/${id}/flag-issue`, {
@@ -648,10 +685,10 @@ export const api = {
         headers: getHeaders(token),
       }).then(handleResponse),
 
-    uploadCover: (token, file, options = {}) => {
-      const formData = new FormData();
-      formData.append('cover', file);
-      return uploadForm(`${API_BASE}/api/admin/forms/upload-cover`, token, formData, options);
+    uploadCover: async (token, file, options = {}) => {
+      const result = await uploadStaffFile(token, file, 'cover', undefined, options);
+      forgetStaffFile('cover');
+      return result;
     },
 
     getStaff: (token) =>
@@ -860,16 +897,14 @@ export function proofApi(token, orderId, version, client = false) {
       const session = await request('/attachments', 'POST', { clientId, name: file.name, size: file.size, contentType }, signal);
       onReserve?.(session.id);
       if (session.state === 'ready') return session.attachment;
-      const received = new Set(session.received.map(p => p.n));
-      for (let n = 0; n < Math.ceil(file.size / session.chunkBytes); n++) {
-        if (!received.has(n)) {
-          await fetchWithTimeout(`${base}/attachments/${session.id}/chunks/${n}`, {
-            method: 'PUT', headers: { ...getHeaders(token), 'Content-Type': 'application/octet-stream' },
-            signal, body: file.slice(n * session.chunkBytes, Math.min(file.size, (n + 1) * session.chunkBytes)),
-          }).then(handleResponse);
-        }
-        onProgress?.(Math.min(99, Math.round(Math.min(file.size, (n + 1) * session.chunkBytes) / file.size * 100)));
-      }
+      await transferChunks({ file, chunkBytes: session.chunkBytes, received: session.received,
+        concurrency: 2, compression: session.compression === 'gzip', signal,
+        onProgress: ({ bytes, total }) => onProgress?.(Math.min(99, Math.round(bytes / total * 100))),
+        send: ({ n, body, headers, signal: partSignal }) => fetchWithTimeout(`${base}/attachments/${session.id}/chunks/${n}`, {
+          method: 'PUT', headers: { ...getHeaders(token), 'Content-Type': 'application/octet-stream', ...headers },
+          signal: partSignal, body,
+        }, 120000).then(handleResponse),
+      });
       return request(`/attachments/${session.id}/complete`, 'POST', {}, signal);
     },
     removeAttachment: id => request(`/attachments/${id}`, 'DELETE'),

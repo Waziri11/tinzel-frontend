@@ -315,42 +315,6 @@ export default function FormBuilder({ token }) {
     });
   };
 
-  const compressCoverFileIfNeeded = async (file) => {
-    if (!file || typeof document === 'undefined' || typeof createImageBitmap !== 'function') {
-      return file;
-    }
-    const MAX_DIM = 1200;
-    const COMPRESS_THRESHOLD_BYTES = 900 * 1024;
-    try {
-      const bitmap = await createImageBitmap(file);
-      const { width, height } = bitmap;
-      const needsResize = width > MAX_DIM || height > MAX_DIM;
-      if (!needsResize && file.size <= COMPRESS_THRESHOLD_BYTES) {
-        bitmap.close?.();
-        return file;
-      }
-      const scale = Math.min(1, MAX_DIM / Math.max(width, height));
-      const targetWidth = Math.max(1, Math.round(width * scale));
-      const targetHeight = Math.max(1, Math.round(height * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        bitmap.close?.();
-        return file;
-      }
-      ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-      bitmap.close?.();
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.84));
-      if (!blob || blob.size >= file.size) return file;
-      const baseName = String(file.name || 'cover').replace(/\.[^.]+$/, '');
-      return new File([blob], `${baseName}.webp`, { type: 'image/webp' });
-    } catch {
-      return file;
-    }
-  };
-
   const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -360,8 +324,7 @@ export default function FormBuilder({ token }) {
     try {
       const res = await runTransfer({ key: 'edition-cover', name: file.name, kind: 'upload' }, async context => {
         context.progress({ stage: 'checking' });
-        const optimizedFile = await compressCoverFileIfNeeded(file);
-        return api.admin.uploadCover(token, optimizedFile, context);
+        return api.admin.uploadCover(token, file, context);
       });
       setCoverImageUrl(res.coverUrl);
       setSuccessMsg(ui('Cover artwork uploaded.', 'Picha ya jalada imepakiwa.'));
