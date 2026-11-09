@@ -76,12 +76,17 @@ test('audio-only submission previews, retains audio after failure, and plays fro
     return route.fulfill({ json: { order } });
   });
   await page.getByLabel('Audio file', { exact: true }).setInputFiles(file);
-  await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
-  await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
+  await expect(page.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
+  await expect.poll(() => page.getByLabel('Preview audio feedback', { exact: true }).evaluate(audio => audio.readyState)).toBeGreaterThan(0);
+  const previewPlay = page.getByRole('button', { name: 'Play preview audio feedback', exact: true });
+  await expect(previewPlay).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await previewPlay.click();
+  await expect(page.getByRole('button', { name: 'Pause preview audio feedback', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Pause preview audio feedback', exact: true }).click();
   await expect(page.getByLabel('Written feedback 1')).toBeEmpty();
   await page.getByRole('button', { name: 'Send my changes' }).click();
   await expect(page.getByText('Please retry your request')).toBeVisible();
-  await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeDisabled();
   expect(calls).toBe(1);
   await page.getByRole('button', { name: 'Check decision status', exact: true }).click();
@@ -94,13 +99,14 @@ test('audio-only submission previews, retains audio after failure, and plays fro
     // A damaged response must recover through the local playback retry.
     return route.fulfill({ contentType: 'audio/wav', body: playbackRequests === 1 ? Buffer.from('invalid audio') : file.buffer });
   });
-  await page.getByRole('button', { name: 'Listen to audio feedback' }).click();
-  await expect(page.getByRole('heading', { name: 'Audio could not open', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await page.getByRole('button', { name: 'Play audio feedback' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Audio could not open. Tap to retry.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry audio', exact: true }).click();
   const historyAudio = page.getByLabel('Audio feedback', { exact: true });
-  await expect(historyAudio).toBeVisible();
+  await expect(historyAudio).toBeAttached();
+  await expect(page.getByRole('group', { name: 'Audio feedback player' })).toBeVisible();
   await expect.poll(() => historyAudio.evaluate(audio => audio.readyState)).toBeGreaterThan(0);
-  await expect(page.getByRole('heading', { name: 'Audio could not open', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('alert').filter({ hasText: 'Audio could not open. Tap to retry.' })).toHaveCount(0);
   expect(playbackRequests).toBe(2);
 });
 
@@ -109,7 +115,7 @@ test('mobile Swahili form supports removing audio, empty validation, and size li
   await setup(page, 'sw');
   const attach = page.locator('.client-review-controls input[type="file"]');
   await attach.setInputFiles(file);
-  await expect(page.getByLabel('Sikiliza maoni ya sauti')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Kicheza maoni ya sauti', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('audio-mobile-sw.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Ondoa sauti' }).click();
@@ -149,8 +155,8 @@ for (const width of [1280, 390]) test(`recording stops and releases the micropho
   }
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: 'Stop recording' }).click();
-  await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
-  await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
+  await expect(page.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
+  await expect.poll(() => page.getByLabel('Preview audio feedback', { exact: true }).evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.recordedStream.getTracks().every(track => track.readyState === 'ended'))).toBe(true);
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
   if (width === 390) await expect(page.getByRole('button', { name: 'Close review', exact: true })).toBeEnabled();

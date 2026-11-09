@@ -327,7 +327,7 @@ for (const width of [320, 390, 440]) test(`mobile review keeps the page clear an
   const comments = page.getByRole('dialog', { name: 'Comments · 1', exact: true });
   await expect(comments).toBeInViewport();
   await expect(comments.getByRole('button', { name: 'Close comments', exact: true })).toBeInViewport();
-  await expect(comments.getByRole('button', { name: 'Listen to audio comment', exact: true })).toBeInViewport();
+  await expect(comments.getByRole('button', { name: 'Play audio comment', exact: true })).toBeInViewport();
   await expect(comments.getByRole('button', { name: 'Previous comment', exact: true })).toHaveCount(0);
   const card = await comments.locator('article').boundingBox();
   expect(card.height).toBeLessThan(220);
@@ -347,7 +347,7 @@ for (const width of [320, 390, 440]) test(`mobile review keeps the page clear an
   await review.getByRole('button', { name: 'Return to designer', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'Confirm return', exact: true });
   await expect(confirmation).toContainText('Keep the page headings consistent.');
-  await expect(confirmation.getByRole('button', { name: 'Listen to audio comment', exact: true })).toBeVisible();
+  await expect(confirmation.getByRole('button', { name: 'Play audio comment', exact: true })).toBeVisible();
   expect(state.decisions).toHaveLength(0);
   await confirmation.getByRole('button', { name: 'Return to designer', exact: true }).click();
   await expect.poll(() => state.decisions.length).toBe(1);

@@ -11,7 +11,7 @@ wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.
 for (const source of ['manager', 'client']) test(`${source} page audio reaches the designer returns list and correction checklist`, async ({ page, request }, info) => {
   await page.setViewportSize({ width: source === 'client' ? 390 : 1280, height: 900 });
   await page.addInitScript(() => localStorage.setItem('tinzel_language', 'en'));
-  const seed = await request.post(`http://127.0.0.1:5078/__test__/comment-audio-order?source=${source}`);
+  const seed = await request.post(`http://127.0.0.1:${process.env.SECURITY_TEST_SINK_PORT || 5078}/__test__/comment-audio-order?source=${source}`);
   expect(seed.ok()).toBe(true);
   const { orderId, clientToken } = await seed.json();
   const token = source === 'client' ? clientToken : await securityLogin(page.request, 'manager');
@@ -36,7 +36,7 @@ for (const source of ['manager', 'client']) test(`${source} page audio reaches t
   const card = page.getByRole('row').filter({ hasText: `Audio return ${source}` });
   await expect(card).toHaveCount(1);
   await expect(card).toBeVisible();
-  await card.getByRole('button', { name: 'Listen to audio feedback', exact: true }).click();
+  await card.getByRole('button', { name: 'Play audio feedback', exact: true }).click();
   const player = card.getByLabel('Audio feedback', { exact: true });
   await expect.poll(() => player.evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   expect(await player.evaluate(audio => audio.duration)).toBe(1);
@@ -45,7 +45,7 @@ for (const source of ['manager', 'client']) test(`${source} page audio reaches t
   await page.getByRole('tab', { name: 'Corrections', exact: true }).click();
   const checklist = page.locator('.fix-round');
   const played = page.waitForResponse(response => response.url().includes(`/orders/${orderId}/revisions/`) && response.url().endsWith('/audio'));
-  await checklist.getByRole('button', { name: 'Listen to audio feedback', exact: true }).click();
+  await checklist.getByRole('button', { name: 'Play audio feedback', exact: true }).click();
   expect((await played).status()).toBe(200);
   const checklistPlayer = checklist.getByLabel('Audio feedback', { exact: true });
   await expect.poll(() => checklistPlayer.evaluate(audio => audio.readyState)).toBeGreaterThan(0);

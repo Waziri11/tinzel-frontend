@@ -54,7 +54,7 @@ for (const width of [320, 390, 440]) test(`client mobile review combines saved c
   await page.screenshot({ path: info.outputPath(`client-reader-${width}.png`) });
   await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   const comments = page.getByRole('dialog', { name: 'Comments · 1', exact: true });
-  await comments.getByRole('button', { name: 'Listen to audio comment', exact: true }).click();
+  await comments.getByRole('button', { name: 'Play audio comment', exact: true }).click();
   await expect.poll(() => comments.locator('audio').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   await comments.getByRole('button', { name: 'Review & send (1)', exact: true }).click();
   const review = page.getByRole('dialog', { name: 'Review magazine', exact: true });
@@ -103,11 +103,11 @@ test('client mobile notes and audio survive closing, short screens and a failed 
   await review.getByRole('button', { name: 'Request changes', exact: true }).click();
   await review.getByLabel('Written feedback 1', { exact: true }).fill('Keep this message.');
   await review.locator('input[type="file"]').setInputFiles(audioFile);
-  await expect(review.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(review.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
   await review.getByRole('button', { name: 'Close review', exact: true }).click();
   await openClientReview(page);
   await expect(review.getByLabel('Written feedback 1', { exact: true })).toHaveValue('Keep this message.');
-  await expect(review.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(review.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 430 });
   await review.getByRole('button', { name: 'Send my changes', exact: true }).scrollIntoViewIfNeeded();
   await expect(review.getByRole('button', { name: 'Close review', exact: true })).toBeInViewport();
@@ -119,7 +119,7 @@ test('client mobile notes and audio survive closing, short screens and a failed 
   await expect(review.getByRole('button', { name: 'Send my changes', exact: true })).toBeDisabled();
   await review.getByRole('button', { name: 'Check decision status', exact: true }).click();
   await expect(review.getByLabel('Written feedback 1', { exact: true })).toHaveValue('Keep this message.');
-  await expect(review.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(review.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('client-audio-retry.png') });
   await review.getByRole('button', { name: 'Send my changes', exact: true }).click();
   await page.getByRole('dialog', { name: 'Send these changes to Tinzel?' }).getByRole('button', { name: 'Send my changes', exact: true }).click();

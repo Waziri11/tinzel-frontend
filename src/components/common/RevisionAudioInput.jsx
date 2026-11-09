@@ -3,6 +3,7 @@ import './revisionAudio.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { AudioLines, LoaderCircle, Mic, Paperclip, Square, X } from 'lucide-react';
+import VoiceNotePlayer from './VoiceNotePlayer';
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const recordingType = () => {
@@ -12,7 +13,6 @@ const recordingType = () => {
 export default function RevisionAudioInput({ file, onChange, disabled, onBusyChange, compact = false, leadingControls, children }) {
   const { lang } = useLanguage();
   const ui = (en, sw) => lang === 'sw' ? sw : en;
-  const [preview, setPreview] = useState('');
   const [recording, setRecording] = useState(false);
   const [pending, setPending] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -23,10 +23,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
   const mounted = useRef(true);
 
   useEffect(() => {
-    if (!file) { setPreview(''); setLimitReached(false); return; }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
+    if (!file) setLimitReached(false);
   }, [file]);
   useEffect(() => {
     mounted.current = true;
@@ -56,6 +53,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
     if (active?.recorder.state === 'recording') active.recorder.stop();
   };
   const start = async () => {
+    document.querySelectorAll('audio[data-voice-note]').forEach(audio => audio.pause());
     setError(''); setLimitReached(false); setPending(true); onBusyChange(true);
     let stream;
     try {
@@ -126,7 +124,7 @@ export default function RevisionAudioInput({ file, onChange, disabled, onBusyCha
       {limitReached && <Feedback kind="info" title={ui('Three-minute recording limit reached', 'Kikomo cha dakika tatu kimefikiwa')}>{ui('Review your recording before sending it.', 'Sikiliza rekodi yako kabla ya kuituma.')}</Feedback>}
       {file && <div className={compact ? 'proof-chat-audio-preview' : undefined} style={{ marginTop: 12 }}>
         {compact ? <div className="proof-chat-audio-heading"><AudioLines size={18} aria-hidden="true" /><span>{file.name}</span><button type="button" className="proof-chat-icon" aria-label={ui('Remove audio', 'Ondoa sauti')} title={ui('Remove audio', 'Ondoa sauti')} disabled={disabled || recording || pending} onClick={remove}><X size={17} aria-hidden="true" /></button></div> : <p style={{ overflowWrap: 'anywhere', fontSize: 13 }}>{file.name}</p>}
-        {preview && <audio controls src={preview} aria-label={ui('Preview audio feedback', 'Sikiliza maoni ya sauti')} style={{ display: 'block', width: '100%', maxWidth: 400 }} />}
+        <VoiceNotePlayer file={file} label={ui('Preview audio feedback', 'Sikiliza maoni ya sauti')} />
         {!compact && <button type="button" className="secondary-button" disabled={disabled || recording || pending} onClick={remove} style={{ marginTop: 8 }}>{ui('Remove audio', 'Ondoa sauti')}</button>}
       </div>}
       {error && <Feedback kind="error" title={ui("Audio needs attention", "Sauti inahitaji kuangaliwa")}>{error}</Feedback>}

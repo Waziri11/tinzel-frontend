@@ -1,10 +1,11 @@
 import TransferProgress from './TransferProgress';
 import { InlineLoading } from './SoftFlutter';
 import { createPortal } from 'react-dom';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import RevisionAudioInput from './RevisionAudioInput';
+import VoiceNotePlayer from './VoiceNotePlayer';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { saveDownload } from '../../services/fileTransfers';
 import { Download, ImagePlus, X } from 'lucide-react';
@@ -57,27 +58,8 @@ function PrivateImage({ reader, attachment, thumbnail = true }) {
 
 function PrivateAudio({ reader, attachment }) {
   const { lang } = useLanguage();
-  const ui = (en, sw) => lang === 'sw' ? sw : en;
-  const [url, setUrl] = useState(''), [error, setError] = useState(false), [attempt, setAttempt] = useState(0), [loading, setLoading] = useState(false);
-  useEffect(() => {
-    if (!attempt) return;
-    const controller = new AbortController(); let objectUrl;
-    setLoading(true); setError(false); setUrl('');
-    reader.attachmentFile(attachment.id, false, controller.signal).then(blob => {
-      if (controller.signal.aborted) return;
-      objectUrl = URL.createObjectURL(blob); setUrl(objectUrl);
-    }).catch(() => { if (!controller.signal.aborted) setError(true); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [reader, attachment.id, attempt]);
-  return <div className="proof-attached-audio">
-    {url && !error ? <audio controls src={url} aria-label={ui('Audio comment', 'Maoni ya sauti')} onError={() => setError(true)} /> : <>
-      {error && <p role="alert">{ui('Audio could not open. Please try again.', 'Sauti haikuweza kufunguka. Tafadhali jaribu tena.')}</p>}
-      <button type="button" disabled={loading} onClick={() => setAttempt(value => value + 1)}>
-        {loading ? ui('Loading audio…', 'Inapakia sauti…') : error ? ui('Retry audio', 'Jaribu sauti tena') : ui('Listen to audio comment', 'Sikiliza maoni ya sauti')}
-      </button>
-    </>}
-  </div>;
+  const loadAudio = useCallback(signal => reader.attachmentFile(attachment.id, false, signal), [reader, attachment.id]);
+  return <div className="proof-attached-audio"><VoiceNotePlayer loadAudio={loadAudio} label={lang === 'sw' ? 'Maoni ya sauti' : 'Audio comment'} /></div>;
 }
 
 function ImageDownloadButton({ reader, attachment }) {

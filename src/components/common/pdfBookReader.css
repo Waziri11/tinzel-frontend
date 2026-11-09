@@ -910,7 +910,7 @@
 .proof-chat-message:focus-within { border-color: #a78853; box-shadow: 0 0 0 2px #a7885317; }
 .proof-chat-message textarea:focus { outline: none; box-shadow: none; }
 .proof-chat-message textarea::placeholder { color: #827b70; }
-.pdf-book .proof-composer button {
+.pdf-book .proof-composer button:not(.voice-note-play):not(.voice-note-speed) {
   color: #3e321d;
 }
 .pdf-book .proof-composer button[type='submit'],
@@ -1164,7 +1164,6 @@
 @keyframes proof-chat-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .proof-chat-spinner { animation: none; } }
 .proof-attached-audio { margin: 10px 0; }
-.proof-attached-audio audio { display: block; width: 100%; max-width: 360px; }
 .proof-attachment-editor > small { color: #706b61; }
 .proof-attachment-thumbnails { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .proof-attachment-thumbnails figure, .proof-attached-image { margin: 0; width: 116px; display: grid; gap: 4px; align-content: start; }
@@ -1337,7 +1336,6 @@
   .proof-mobile-panel .proof-comment-body { margin-top: 8px; font-size: 14px; line-height: 1.5; }
   .proof-mobile-panel .proof-comments small { margin: 5px 0 0; font-size: 11px; }
   .proof-mobile-panel .proof-attached-audio { margin: 10px 0 2px; }
-  .proof-mobile-panel .proof-attached-audio button { justify-content: flex-start; width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; background: #f1eadf; color: #73531f; font-size: 13px; }
   .proof-mobile-panel .proof-comment-discard { display: flex; margin: 4px 0 -4px auto; min-height: 44px; padding: 8px; font-size: 12px; color: #82786b; }
   .proof-mobile-panel .proof-comments > button { flex-shrink: 0; margin: 8px 20px 16px; min-height: 44px; background: #805e26; color: #fff; font-size: 14px; }
 }

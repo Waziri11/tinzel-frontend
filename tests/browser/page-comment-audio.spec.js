@@ -82,19 +82,20 @@ for (const lang of ['en', 'sw']) test(`page feedback offers audio beside picture
   await save.click();
   if (lang === 'en') {
     await expect(page.getByText('Comment save interrupted')).toBeVisible();
-    await expect(composer.getByLabel('Preview audio feedback')).toBeVisible();
+    await expect(composer.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
     await save.click();
   }
   await expect(composer).toHaveCount(0);
   expect(state.annotations[0].attachments[0].contentType).toBe('audio/wav');
-  await page.getByRole('button', { name: lang === 'en' ? 'Listen to audio comment' : 'Sikiliza maoni ya sauti', exact: true }).click();
+  await page.getByRole('button', { name: lang === 'en' ? 'Play audio comment' : 'Cheza maoni ya sauti', exact: true }).click();
   if (lang === 'en') await page.getByRole('button', { name: 'Retry audio', exact: true }).click();
   const player = page.locator('.proof-attached-audio audio');
-  await expect(player).toBeVisible();
+  await expect(player).toBeAttached();
+  await expect(page.locator('.proof-attached-audio .voice-note-player')).toBeVisible();
   await expect.poll(() => player.evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   await page.reload();
   await page.getByRole('button', { name: /^(Comments|Maoni) \(1\)$/, exact: true }).click();
-  await expect(page.getByRole('button', { name: lang === 'en' ? 'Listen to audio comment' : 'Sikiliza maoni ya sauti', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: lang === 'en' ? 'Play audio comment' : 'Cheza maoni ya sauti', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -112,14 +113,14 @@ test('recording locks comment saving, stops the microphone, and can accompany pi
   await expect(composer.getByRole('button', { name: 'Save comment', exact: true })).toBeDisabled();
   await page.waitForTimeout(1200);
   await composer.getByRole('button', { name: 'Stop recording' }).click();
-  await expect(composer.getByLabel('Preview audio feedback')).toBeVisible();
+  await expect(composer.getByRole('group', { name: 'Preview audio feedback player', exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.commentStream.getTracks().every(track => track.readyState === 'ended'))).toBe(true);
   await expect(composer.getByRole('button', { name: 'Save comment', exact: true })).toBeEnabled();
   await composer.getByRole('button', { name: 'Save comment', exact: true }).click();
   await expect(composer).toHaveCount(0);
   expect(state.annotations[0].attachments).toHaveLength(2);
   await expect(page.locator('.proof-attached-image img')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Listen to audio comment', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play audio comment', exact: true })).toBeVisible();
 });
 
 test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } });
@@ -163,7 +164,9 @@ for (const width of [390, 1280]) test(`photo chooser preserves fullscreen, previ
   await expect.poll(() => page.locator('.proof-image-viewer img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await page.getByRole('button', { name: 'Close image', exact: true }).click();
   await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  if (width === 390) await page.getByRole('button', { name: 'Close comments', exact: true }).click();
   await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click();
   await expect(page.locator('.pdf-book.is-expanded')).toHaveCount(0);
+  if (width === 390) await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   await expect(page.locator('.proof-attached-image img')).toBeVisible();
 });
