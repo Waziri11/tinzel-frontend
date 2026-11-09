@@ -405,6 +405,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
       <div hidden={activeTab !== 'magazine'}>
         {currentDraft ? (
           <PdfBookReader
+            canDownloadAttachments
             token={token}
             orderId={orderId}
             version={readerVersion}

@@ -44,7 +44,7 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
             <Suspense fallback={<InlineLoading />}>
               <PdfBookReader key={item._id} token={token} orderId={orderId} version={request.draftVersionNumber}
                 title={tx('Original correction reference')} focusAnnotation={item.annotationId}
-                focusPage={Number(item.pageReference) || undefined} hideCommentSubmit interactionDisabled />
+                focusPage={Number(item.pageReference) || undefined} hideCommentSubmit interactionDisabled canDownloadAttachments />
             </Suspense>
           )}
           <label className="verify-check">

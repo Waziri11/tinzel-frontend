@@ -42,6 +42,7 @@ export default function PdfBookReader({
   onReviewStateChange,
   hideCommentSubmit = false,
   interactionDisabled = false,
+  canDownloadAttachments = false,
 }) {
   const tx = useInterfaceText();
   const confirmLeave = useConfirm();
@@ -547,6 +548,7 @@ export default function PdfBookReader({
       client={client}
       mobile={mobile}
       reader={reader}
+      canDownloadAttachments={canDownloadAttachments}
       annotations={annotations}
       focused={focused}
       focusSerial={focusSerial}

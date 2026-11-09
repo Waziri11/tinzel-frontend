@@ -1,6 +1,8 @@
 import { test, expect, chooseEnglish } from './fixtures.js';
+import { readFileSync } from 'node:fs';
 
 const pdf = { name: 'corrected-magazine.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\ncorrected draft') };
+const referenceImage = readFileSync(new URL('../../public/brand/soft-flutter-poster.webp', import.meta.url));
 const confirmation = 'I reviewed this correction and confirmed it is fixed in my updated PDF';
 
 async function setup(page, { failSubmission = false, selectOriginal = false } = {}) {
@@ -26,11 +28,12 @@ async function setup(page, { failSubmission = false, selectOriginal = false } = 
   });
   await page.route('**/api/proofs/staff/order-1/**', route => {
     const url = new URL(route.request().url());
+    if (url.pathname.includes('/attachments/')) return route.fulfill({ contentType: 'image/webp', body: referenceImage });
     if (url.pathname.includes('/pages/')) {
       if (url.searchParams.has('text')) return route.fulfill({ json: { width: 600, height: 800, text: [] } });
       return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/></svg>' });
     }
-    return route.fulfill({ json: { state: 'ready', pageCount: 8, pages: Array.from({ length: 8 }, (_, i) => ({ page: i + 1 })), annotations: url.pathname.includes('/1') ? [{ _id: 'annotation-1', page: 4, kind: 'area', rects: [{ x: .1, y: .1, width: .2, height: .2 }], text: 'Correct the date' }] : [], canComment: false } });
+    return route.fulfill({ json: { state: 'ready', pageCount: 8, pages: Array.from({ length: 8 }, (_, i) => ({ page: i + 1 })), annotations: url.pathname.includes('/1') ? [{ _id: 'annotation-1', page: 4, displayNumber: 1, authorName: 'Manager', createdAt: '2026-11-09T06:00:00Z', submittedAt: '2026-11-09T06:01:00Z', kind: 'area', rects: [{ x: .1, y: .1, width: .2, height: .2 }], text: 'Correct the date', attachments: [{ id: 'reference-1', name: 'Date reference.png', contentType: 'image/webp' }] }] : [], canComment: false } });
   });
   await page.route('**/api/designer/orders/order-1/draft-uploads**', route => {
     const pathname = new URL(route.request().url()).pathname;
@@ -80,6 +83,14 @@ async function reviewEachCorrection(page) {
   const send = review.getByRole('button', { name: 'Send to manager review' });
   await expect(review.getByText('Correct the date', { exact: false })).toBeVisible();
   await expect(review.getByAltText('Magazine page 4', { exact: true })).toBeVisible();
+  const downloaded = page.waitForEvent('download');
+  await review.getByRole('button', { name: 'Download image: Date reference.png', exact: true }).click();
+  const download = await downloaded;
+  expect(download.suggestedFilename()).toBe('Date reference.webp');
+  expect(readFileSync(await download.path())).toEqual(referenceImage);
+  // The mobile comments sheet must be closed before confirming the correction beneath it.
+  const mobileComments = review.getByRole('dialog', { name: 'Comments · 1', exact: true });
+  if (await mobileComments.isVisible()) await mobileComments.getByRole('button', { name: 'Close comments', exact: true }).click();
   await expect(send).toBeDisabled();
   await expect(review.getByRole('button', { name: 'Next correction' })).toBeDisabled();
   await review.getByRole('checkbox', { name: confirmation }).check();

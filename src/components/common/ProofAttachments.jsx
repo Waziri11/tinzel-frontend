@@ -6,7 +6,8 @@ import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import RevisionAudioInput from './RevisionAudioInput';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { ImagePlus, X } from 'lucide-react';
+import { saveDownload } from '../../services/fileTransfers';
+import { Download, ImagePlus, X } from 'lucide-react';
 
 export function AttachmentEditor({ uploads, disabled, onAudioBusyChange }) {
   const input = useRef(null), tx = useInterfaceText();
@@ -79,7 +80,44 @@ function PrivateAudio({ reader, attachment }) {
   </div>;
 }
 
-export default function ProofAttachments({ attachments = [], reader }) {
+function ImageDownloadButton({ reader, attachment }) {
+  const { lang } = useLanguage();
+  const ui = (en, sw) => lang === 'sw' ? sw : en;
+  const [downloading, setDownloading] = useState(false), [error, setError] = useState(false);
+  const pending = useRef(null);
+  useEffect(() => {
+    setDownloading(false); setError(false);
+    return () => { pending.current?.abort(); pending.current = null; };
+  }, [reader, attachment.id]);
+  const download = async () => {
+    if (pending.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setDownloading(true); setError(false);
+    try {
+      const blob = await reader.attachmentFile(attachment.id, false, controller.signal);
+      if (controller.signal.aborted) return;
+      // Review images are stored as WebP, even when the uploaded filename ends in JPG or PNG.
+      const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+      const extension = extensions[blob.type.split(';')[0]] || extensions[attachment.contentType] || 'webp';
+      const name = String(attachment.name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g, '').replace(/\.[^.]*$/, '').trim() || 'comment-image';
+      saveDownload(blob, `${name}.${extension}`);
+    } catch {
+      if (!controller.signal.aborted) setError(true);
+    } finally {
+      if (!controller.signal.aborted) { pending.current = null; setDownloading(false); }
+    }
+  };
+  const label = downloading ? ui('Downloading…', 'Inapakua…') : error ? ui('Retry download', 'Jaribu kupakua tena') : ui('Download image', 'Pakua picha');
+  return <div className="proof-image-download">
+    <button type="button" disabled={downloading} onClick={download} aria-label={`${label}: ${attachment.name || ui('Attached image', 'Picha iliyoambatishwa')}`}>
+      <Download size={15} aria-hidden="true" /><span>{!downloading && !error ? ui('Download', 'Pakua') : label}</span>
+    </button>
+    {error && <small role="alert">{ui('Image could not download. Please try again.', 'Picha haikuweza kupakuliwa. Tafadhali jaribu tena.')}</small>}
+  </div>;
+}
+
+export default function ProofAttachments({ attachments = [], reader, canDownload = false }) {
   const [opened, setOpened] = useState(null), tx = useInterfaceText();
   useDialogFocus(Boolean(opened), () => setOpened(null));
   if (!attachments.length) return null;
@@ -88,9 +126,13 @@ export default function ProofAttachments({ attachments = [], reader }) {
     <div className="proof-attachment-thumbnails">{attachments.filter(a => !a.contentType?.startsWith('audio/')).map(a => <div key={a.id} className="proof-attached-image">
       <PrivateImage reader={reader} attachment={a} />
       <button type="button" onClick={() => setOpened(a)} aria-label={`${tx('Open image')}: ${a.name}`}><InterfaceText>Open image</InterfaceText></button>
+      {canDownload && <ImageDownloadButton reader={reader} attachment={a} />}
     </div>)}</div>
     {opened && createPortal(<div className="proof-image-viewer" role="dialog" aria-modal="true" aria-label={tx('Attached image')} onClick={e => e.stopPropagation()}>
-      <button type="button" onClick={() => setOpened(null)}><InterfaceText>Close image</InterfaceText></button>
+      <div className="proof-image-viewer-actions">
+        {canDownload && <ImageDownloadButton key={opened.id} reader={reader} attachment={opened} />}
+        <button type="button" onClick={() => setOpened(null)}><InterfaceText>Close image</InterfaceText></button>
+      </div>
       <PrivateImage reader={reader} attachment={opened} thumbnail={false} />
       <span>{opened.name}</span>
     </div>, document.fullscreenElement || document.body)}

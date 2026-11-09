@@ -1165,7 +1165,14 @@
 .pdf-book .proof-attachment-thumbnails button { font-size: 11px; padding: 5px; }
 .proof-image-viewer { position: fixed; inset: 16px; z-index: 10000; background: #181713fa; color: white; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; }
 .proof-image-viewer > img { min-height: 0; flex: 1; max-width: 100%; width: 100%; object-fit: contain; }
-.proof-image-viewer > button { align-self: flex-end; background: white; color: #28231d; padding: 8px 16px; border-radius: 6px; }
+.proof-image-download { display: grid; gap: 4px; min-width: 0; }
+.proof-image-download button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; }
+.proof-image-download svg { flex-shrink: 0; }
+.proof-image-download small { font-size: 12px; overflow-wrap: anywhere; }
+.proof-image-viewer-actions { display: flex; align-items: flex-start; justify-content: flex-end; gap: 8px; width: 100%; }
+.proof-image-viewer-actions button { background: white; color: #28231d; padding: 8px 12px; border-radius: 6px; min-height: 44px; }
+.proof-image-viewer-actions > button { flex-shrink: 0; }
+.proof-image-viewer > span { max-width: 100%; overflow-wrap: anywhere; }
 .proof-ocr-status { position: absolute; left: 8px; bottom: 8px; right: 8px; z-index: 5; padding: 6px; background: #fffef2f2; color: #51432b; font-size: 12px; }
 .proof-ocr-status button { font-size: inherit; }
 .proof-sheet.mode-text .proof-text-layer { -webkit-user-select: text; user-select: text; }

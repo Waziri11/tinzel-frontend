@@ -18,6 +18,7 @@ export default function ProofComments({
   onDiscard,
   discarding,
   canComment,
+  canDownloadAttachments = false,
   pending,
   saving,
   onSubmit,
@@ -129,7 +130,7 @@ export default function ProofComments({
                   {a.text && <span className="proof-comment-body">{a.text}</span>}
                   <small>{new Date(a.createdAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-TZ', mobile ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : undefined)}</small>
                 </button>
-                <ProofAttachments attachments={a.attachments} reader={reader} />
+                <ProofAttachments attachments={a.attachments} reader={reader} canDownload={canDownloadAttachments} />
                 {a.correction && (
                   <div className="proof-comment-response">
                     <small>
