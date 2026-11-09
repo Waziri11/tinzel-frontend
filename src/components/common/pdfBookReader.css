@@ -188,6 +188,12 @@
   user-select: none;
   object-fit: contain;
 }
+.proof-sheet.mode-read,
+.proof-sheet.mode-image {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 .proof-text-layer {
   position: absolute;
   inset: 0;
@@ -823,6 +829,8 @@
   color: #211c17;
   outline: 2px solid #fff;
 }
+/* Keep the action reachable when a fitted page is narrower than the button. */
+.proof-sheet:has(.proof-add-comment) { overflow: visible; }
 .pdf-book .proof-add-comment {
   position: absolute;
   z-index: 7;

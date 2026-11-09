@@ -347,13 +347,13 @@ test('mobile pages fold at the binding and backward navigation unfolds the incom
 });
 
 const detectedRegion=(id,x,y,width,height)=>({id,rect:{x,y,width,height},quad:[{x,y},{x:x+width,y},{x:x+width,y:y+height},{x,y:y+height}]});
-async function annotationWorkspace(page,{mobile=false}={}){
+async function annotationWorkspace(page,{mobile=false,canComment=true}={}){
  await setup(page);await page.setViewportSize(mobile?{width:390,height:844}:{width:1440,height:900});const proof={...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
  const regions=[detectedRegion('large',.1,.25,.5,.4),detectedRegion('small',.2,.3,.15,.1)];let annotations=[{_id:'heading',page:1,kind:'text',rects:[{x:.1,y:.1,width:.25,height:.03}],text:'Check heading',selectedText:'Magazine',authorName:'Manager',createdAt:'2026-10-30T10:00:00Z',reviewStatus:'private'},{_id:'distant',page:8,kind:'image',rects:[regions[0].rect],imageQuad:regions[0].quad,text:'Replace distant photograph',authorName:'Client',createdAt:'2026-10-30T10:01:00Z',submittedAt:'2026-10-30T11:00:00Z',reviewStatus:'open',correction:{roundNumber:1,roundStatus:'open',status:'open'}},{_id:'addressed',page:2,kind:'area',rects:[{x:.3,y:.4,width:.2,height:.1}],text:'Correct the date',authorName:'Manager',createdAt:'2026-10-30T10:02:00Z',submittedAt:'2026-10-30T11:00:00Z',reviewStatus:'addressed',correction:{roundNumber:1,roundStatus:'open',status:'addressed',designerResponse:'Date changed to 31 October',addressedAt:'2026-10-30T12:00:00Z'}}];
  await page.route('**/api/proofs/staff/order-1/**',route=>{
   const url=new URL(route.request().url());if(url.pathname.endsWith('/annotations')){annotations.push({...route.request().postDataJSON(),_id:'new-image',authorName:'Manager',createdAt:'2026-10-30T13:00:00Z',reviewStatus:'private'});return json(route,{annotations});}
   if(url.pathname.includes('/pages/'))return url.searchParams.has('text')?json(route,{geometryVersion:3,width:600,height:800,imageRegions:regions,text:[{str:'Magazine correction text',x:.1,y:.1,width:.6,height:.03,dir:'ltr',fontFamily:'sans-serif',hasEOL:true}]}):route.fulfill({contentType:'image/svg+xml',body:samplePage});
-  return json(route,{state:'ready',pageCount:12,pages:Array.from({length:12},(_,i)=>({page:i+1,width:600,height:800,geometryVersion:3,geometryState:'ready'})),annotations,canComment:true});
+  return json(route,{state:'ready',pageCount:12,pages:Array.from({length:12},(_,i)=>({page:i+1,width:600,height:800,geometryVersion:3,geometryState:'ready'})),annotations,canComment});
  });
  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);await expect(page.getByAltText('Magazine page 1')).toBeVisible();
  return {regions};
@@ -366,6 +366,144 @@ test('selects the smallest overlapping image and links numbered comments with co
  await page.getByLabel('Filter comments').selectOption('addressed');await expect(page.getByText('Date changed to 31 October')).toBeVisible();await expect(page.getByRole('button',{name:'Open comment 3 on page 2'})).toBeVisible();await expect(page.getByRole('button',{name:'Open comment 2 on page 8'})).toHaveCount(0);
  await page.getByRole('button',{name:'Comment 2: Replace distant photograph',exact:true}).click();await expect(page.getByLabel('Filter comments')).toHaveValue('all');await expect(page.getByRole('button',{name:'Open comment 2 on page 8'})).toHaveAttribute('aria-current','true');
  await page.getByRole('button',{name:'Previous comment',exact:true}).click();await expect(page.getByAltText('Magazine page 2')).toBeVisible();await expect(page.locator('[data-comment-id="addressed"]')).toHaveAttribute('aria-pressed','true');await page.screenshot({path:'/tmp/tinzel-linked-comments-desktop.png'});
+});
+
+test.describe('press and hold image selection', () => {
+ test.use({hasTouch:true});
+ const selectedPhoto = page => page.locator('.proof-selection-image polygon');
+ const photoPoint = async page => {
+  await page.locator('.proof-sheet').scrollIntoViewIfNeeded();
+  const b = await page.locator('.proof-sheet').boundingBox();
+  const p = {x:b.x+b.width*.25,y:b.y+b.height*.35};
+  expect(await page.evaluate(p=>Boolean(document.elementFromPoint(p.x,p.y)?.closest('.proof-sheet')),p)).toBe(true);
+  return p;
+ };
+ const touch = (session,type,points) => session.send('Input.dispatchTouchEvent',{type,touchPoints:points});
+
+ test('touch hold selects before release, tolerates finger movement, and saves the detected photo', async ({page}) => {
+  await annotationWorkspace(page,{mobile:true});
+  await page.getByRole('button',{name:'Select image',exact:true}).click();
+  const session = await page.context().newCDPSession(page), p = await photoPoint(page);
+  await touch(session,'touchStart',[{...p,id:1}]);
+  await touch(session,'touchMove',[{x:p.x+3,y:p.y+2,id:1}]);
+  await expect(selectedPhoto(page)).toHaveAttribute('points','0.2,0.3 0.35,0.3 0.35,0.4 0.2,0.4');
+  await expect(page.getByRole('button',{name:'Add comment',exact:true})).toBeVisible();
+  await expect(page.getByLabel('Correction comment',{exact:true})).toHaveCount(0);
+  await touch(session,'touchEnd',[]);
+  await expect(selectedPhoto(page)).toHaveCount(1);
+  await expect(page.locator('.proof-mobile-backdrop')).toHaveCount(0);
+  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+  const expandedPoint = await photoPoint(page);
+  await touch(session,'touchStart',[{...expandedPoint,id:1}]);
+  await expect(selectedPhoto(page)).toHaveCount(1);
+  await touch(session,'touchEnd',[]);
+  await page.screenshot({path:'/tmp/tinzel-image-hold-mobile.png'});
+  await page.getByRole('button',{name:'Add comment',exact:true}).click();
+  await page.getByLabel('Correction comment',{exact:true}).fill('Replace the held photo');
+  const saved = page.waitForRequest(r=>r.url().endsWith('/annotations')&&r.method()==='POST');
+  await page.getByRole('button',{name:'Save comment',exact:true}).click();
+  const data = (await saved).postDataJSON();
+  expect(data.kind).toBe('image');expect(data.imageRegionId).toBe('small');
+  expect(data.rects).toEqual([{x:.2,y:.3,width:.15,height:.1}]);
+  await expect(page.locator('.proof-pin[data-comment-id="new-image"]')).toBeVisible();
+ });
+
+ test('read view detects a held image after zoom without turning the page on release', async ({page}) => {
+  await annotationWorkspace(page,{mobile:true});
+  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+  await page.getByRole('button',{name:'Zoom in',exact:true}).click();
+  const p = await photoPoint(page);
+  await page.mouse.move(p.x,p.y);await page.mouse.down();
+  await expect(selectedPhoto(page)).toHaveCount(1);
+  await page.mouse.move(p.x+65,p.y);await page.mouse.up();
+  await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+  await expect(selectedPhoto(page)).toHaveAttribute('points','0.2,0.3 0.35,0.3 0.35,0.4 0.2,0.4');
+  await page.getByRole('button',{name:'Add comment',exact:true}).click();
+  await expect(page.getByText('Page 1 · Image comment',{exact:true})).toBeVisible();
+ });
+
+ test('short read taps, scrolling, cancelled touches, and a second finger do not select images', async ({page}) => {
+  await annotationWorkspace(page,{mobile:true});
+  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+  const session = await page.context().newCDPSession(page), p = await photoPoint(page);
+  await touch(session,'touchStart',[{...p,id:1}]);await touch(session,'touchEnd',[]);
+  await page.waitForTimeout(550);
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  await page.getByRole('button',{name:'Select image',exact:true}).click();
+  const start = await photoPoint(page);
+  await touch(session,'touchStart',[{...start,id:1}]);
+  await touch(session,'touchMove',[{x:start.x,y:start.y-45,id:1}]);
+  await page.waitForTimeout(550);
+  await touch(session,'touchEnd',[]);
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  const next = await photoPoint(page);
+  await touch(session,'touchStart',[{...next,id:1}]);await touch(session,'touchCancel',[]);
+  await page.waitForTimeout(550);
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  await touch(session,'touchStart',[{...next,id:1}]);
+  await touch(session,'touchStart',[{...next,id:1},{x:next.x+45,y:next.y+15,id:2}]);
+  await page.waitForTimeout(550);
+  await touch(session,'touchEnd',[]);
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Add comment',exact:true})).toHaveCount(0);
+ });
+
+ test('releasing a dragged mouse and changing modes cancel a pending hold', async ({page}) => {
+  await annotationWorkspace(page);
+  await page.getByRole('button',{name:'Select image',exact:true}).click();
+  const p = await photoPoint(page);
+  await page.mouse.move(p.x,p.y);await page.mouse.down();
+  await page.mouse.move(p.x+20,p.y);await page.waitForTimeout(550);await page.mouse.up();
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  await page.mouse.move(p.x,p.y);await page.mouse.down();
+  // Switch with the keyboard while the original pointer is still down.
+  await page.getByRole('button',{name:'Read',exact:true}).focus();await page.keyboard.press('Enter');
+  await page.waitForTimeout(550);await page.mouse.up();
+  await expect(selectedPhoto(page)).toHaveCount(0);
+ });
+
+ test('read view remembers the held position while image detection is being prepared', async ({page}) => {
+  await setup(page);
+  const proof = {...order,status:'draft_manager_review',revisionRequests:[],draftVersions:[{versionNumber:1,managerReview:{status:'pending'}}]};
+  await page.route('**/api/designer/orders/order-1',route=>json(route,{order:proof,auditLogs:[]}));
+  let ready = false, imageLoads = 0, preparations = 0;
+  await page.route('**/api/proofs/staff/order-1/**',route=>{
+   const url = new URL(route.request().url());
+   if (url.pathname.endsWith('/prepare') && route.request().postDataJSON().geometryOnly) { ready=true;preparations++; }
+   if (url.pathname.includes('/pages/')) {
+    if (url.searchParams.has('text')) return json(route,{geometryVersion:ready?3:0,width:600,height:800,text:[],imageRegions:ready?[detectedRegion('prepared-photo',.2,.3,.15,.1)]:[]});
+    imageLoads++;return route.fulfill({contentType:'image/svg+xml',body:samplePage});
+   }
+   return json(route,{state:'ready',pageCount:1,pages:[{page:1,width:600,height:800,geometryVersion:ready?3:0}],annotations:[],canComment:true});
+  });
+  await page.goto('/staff/design/orders/order-1');await chooseEnglish(page);
+  await expect(page.getByAltText('Magazine page 1')).toBeVisible();
+  const before = imageLoads, p = await photoPoint(page);
+  expect(preparations).toBe(0);
+  await page.mouse.move(p.x,p.y);await page.mouse.down();
+  await expect(selectedPhoto(page)).toHaveAttribute('points','0.2,0.3 0.35,0.3 0.35,0.4 0.2,0.4');
+  await page.mouse.up();
+  expect(preparations).toBe(1);expect(imageLoads).toBe(before);
+  await page.getByRole('button',{name:'Add comment',exact:true}).click();
+  await expect(page.getByText('Page 1 · Image comment',{exact:true})).toBeVisible();
+ });
+
+ test('a hold on undetected content offers area selection and read-only pages stay read-only', async ({page}) => {
+  await annotationWorkspace(page,{mobile:true});
+  await page.getByRole('button',{name:'Fullscreen',exact:true}).click();
+  await page.locator('.proof-sheet').scrollIntoViewIfNeeded();
+  const b = await page.locator('.proof-sheet').boundingBox();
+  await page.mouse.move(b.x+b.width*.8,b.y+b.height*.75);await page.mouse.down();
+  await expect(page.getByRole('button',{name:'No separate photo detected here. Draw around the photo'})).toBeVisible();
+  await page.mouse.up();
+  await page.getByRole('button',{name:'No separate photo detected here. Draw around the photo'}).click();
+  await expect(page.getByRole('button',{name:'Mark area',exact:true})).toHaveAttribute('aria-pressed','true');
+  await annotationWorkspace(page,{mobile:true,canComment:false});
+  const p = await photoPoint(page);
+  await page.mouse.move(p.x,p.y);await page.mouse.down();await page.waitForTimeout(550);await page.mouse.up();
+  await expect(selectedPhoto(page)).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Add comment',exact:true})).toHaveCount(0);
+ });
 });
 
 test('mobile native text selection stays adjustable until Add comment opens its bottom sheet',async({page})=>{

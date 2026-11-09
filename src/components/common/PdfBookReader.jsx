@@ -694,6 +694,7 @@ export default function PdfBookReader({
                     number={number}
                     annotations={annotations}
                     mode={metadata.canComment && !interactionDisabled ? mode : 'read'}
+                    canSelectImages={Boolean(metadata.canComment) && !interactionDisabled}
                     onSelect={select}
                     onFocus={focus}
                     focused={focused}

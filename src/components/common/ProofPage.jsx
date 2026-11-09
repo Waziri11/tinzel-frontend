@@ -2,6 +2,12 @@ import SoftFlutter, { ActionButton } from './SoftFlutter';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { geometryVersion, rectStyle, smallestImage, selectionAnchor } from '../../utils/proofAnnotations';
+const IMAGE_HOLD_MS = 450;
+const IMAGE_HOLD_SLOP = 12;
+const imageSelection = (region, page) => ({
+  page, kind: 'image', imageRegionId: region.id, imageQuad: region.quad,
+  rects: [region.rect], selectedText: '',
+});
 let measureContext;
 const TextRun = React.memo(function TextRun({ item: t, ratio }) {
   // Scale is independent of viewport size; one measurement also covers zoom and resize.
@@ -38,6 +44,7 @@ export default React.memo(function ProofPage({
   number,
   annotations,
   mode,
+  canSelectImages,
   onSelect,
   onFocus,
   focused,
@@ -51,12 +58,26 @@ export default React.memo(function ProofPage({
     [attempt, setAttempt] = useState(0);
   const surface = useRef(null),
     drag = useRef(null),
+    imagePress = useRef(null),
+    suppressImageClick = useRef(false),
+    [imagePoint, setImagePoint] = useState(null),
+    [imageMiss, setImageMiss] = useState(false),
     [box, setBox] = useState(null),
     [candidate, setCandidate] = useState(null),
     [hover, setHover] = useState(null),
     [geometryState, setGeometryState] = useState(''),
     [geometryError, setGeometryError] = useState(''),
     [geometryAttempt, setGeometryAttempt] = useState(0);
+  const cancelImagePress = () => {
+    clearTimeout(imagePress.current?.timer);
+    imagePress.current = null;
+  };
+  useEffect(() => {
+    setImagePoint(null);
+    setImageMiss(false);
+    setCandidate(null);
+    return cancelImagePress;
+  }, [reader, cache, number, mode, canSelectImages]);
   useEffect(() => {
     let active = true,
       timer;
@@ -81,7 +102,7 @@ export default React.memo(function ProofPage({
     };
   }, [reader, cache, number, attempt]);
   useEffect(() => {
-    if (!value || !['text', 'image'].includes(mode) || value.text.geometryVersion >= geometryVersion) { setGeometryState(''); return; }
+    if (!value || (!['text', 'image'].includes(mode) && !imagePoint) || value.text.geometryVersion >= geometryVersion) { setGeometryState(''); return; }
     let active = true,
       timer,
       attempts = 0;
@@ -126,7 +147,14 @@ export default React.memo(function ProofPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [reader, cache, number, mode, value?.text.geometryVersion, geometryAttempt]);
+  }, [reader, cache, number, mode, value?.text.geometryVersion, geometryAttempt, Boolean(imagePoint)]);
+  useEffect(() => {
+    if (!imagePoint || !canSelectImages || !(value?.text.geometryVersion >= geometryVersion)) return;
+    const region = smallestImage((value.text.imageRegions || []).filter(r => !r.pageImage), imagePoint);
+    setCandidate(region ? imageSelection(region, number) : null);
+    setImageMiss(!region);
+    setImagePoint(null);
+  }, [imagePoint, canSelectImages, value?.text, number]);
   const [ocrState, setOcrState] = useState(''), [ocrAttempt, setOcrAttempt] = useState(0);
   useEffect(() => {
     if (!value || mode !== 'text' || value.text.ocrVersion >= 1) { setOcrState(''); return; }
@@ -201,15 +229,21 @@ export default React.memo(function ProofPage({
     setCandidate(null);
     window.getSelection()?.removeAllRanges();
   };
-  const chooseImage = (region) =>
-    setCandidate({
-      page: number,
-      kind: 'image',
-      imageRegionId: region.id,
-      imageQuad: region.quad,
-      rects: [region.rect],
-      selectedText: '',
-    });
+  const chooseImage = (region) => {
+    setImagePoint(null);
+    setImageMiss(false);
+    setCandidate(imageSelection(region, number));
+  };
+  const detectImage = (position) => {
+    setCandidate(null);
+    setImageMiss(false);
+    setImagePoint(position);
+  };
+  // Touch browsers can redirect a hit to a nearby button on a small page.
+  // Image selection follows the finger's coordinates, not that adjusted target.
+  const pointerTarget = (event) => (event.pointerType || event.nativeEvent?.pointerType) === 'touch'
+    ? document.elementFromPoint(event.clientX, event.clientY) || event.target
+    : event.target;
   if (error)
     return (
       <div className="proof-page-message" role="alert">
@@ -247,21 +281,50 @@ export default React.memo(function ProofPage({
         width: `min(100%, ${(100 * text.width) / text.height}cqh)`,
       }}
       onPointerDown={(e) => {
+        cancelImagePress();
+        if (e.isPrimary === false || e.button !== 0) {
+          suppressImageClick.current = true;
+          return;
+        }
+        suppressImageClick.current = false;
+        if (canSelectImages && ['read', 'image'].includes(mode) && !pointerTarget(e).closest('button, input, textarea, a')) {
+          const press = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, held: false, position: point(e) };
+          imagePress.current = press;
+          press.timer = setTimeout(() => {
+            press.held = true;
+            suppressImageClick.current = true;
+            detectImage(press.position);
+          }, IMAGE_HOLD_MS);
+        }
         if (mode === 'area' && !e.target.closest('button')) {
           drag.current = point(e);
           surface.current.setPointerCapture(e.pointerId);
         }
       }}
       onPointerMove={(e) => {
+        const press = imagePress.current;
+        if (press && (e.pointerId !== press.pointerId || Math.hypot(e.clientX - press.x, e.clientY - press.y) > IMAGE_HOLD_SLOP)) {
+          clearTimeout(press.timer);
+          suppressImageClick.current = true;
+        }
         if (drag.current) setBox(rectangle(drag.current, point(e)));
         if (mode === 'image') setHover(smallestImage(regions, point(e)));
       }}
-      onPointerLeave={() => setHover(null)}
+      onPointerLeave={() => {
+        setHover(null);
+        if (imagePress.current) suppressImageClick.current = true;
+        cancelImagePress();
+      }}
       onPointerCancel={() => {
+        cancelImagePress();
+        suppressImageClick.current = true;
         drag.current = null;
         setBox(null);
       }}
       onPointerUp={(e) => {
+        // A completed hold belongs to selection, even if the finger moves on release.
+        if (imagePress.current?.held) e.stopPropagation();
+        cancelImagePress();
         if (mode === 'area' && drag.current) {
           const rect = rectangle(drag.current, point(e));
           drag.current = null;
@@ -270,10 +333,16 @@ export default React.memo(function ProofPage({
             commit({ page: number, kind: 'area', rects: [rect], selectedText: '' });
         }
       }}
-      onClick={(e) => {
-        if (mode === 'image' && !e.target.closest('button')) {
-          const region = smallestImage(regions, point(e));
-          if (region) chooseImage(region);
+      onClickCapture={(e) => {
+        if (suppressImageClick.current && e.detail !== 0) {
+          suppressImageClick.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (canSelectImages && mode === 'image' && !pointerTarget(e).closest('button')) {
+          e.stopPropagation();
+          detectImage(point(e));
         }
       }}
     >
@@ -341,7 +410,7 @@ export default React.memo(function ProofPage({
           <InterfaceText>Add comment</InterfaceText>
         </button>
       )}
-      {['text', 'image'].includes(mode) && geometryState && (
+      {(['text', 'image'].includes(mode) || imagePoint) && geometryState && (
         <div className="proof-geometry-status" role="status">
           {geometryState !== 'failed' && <SoftFlutter />}
           {geometryState === 'failed' ? (
@@ -370,8 +439,9 @@ export default React.memo(function ProofPage({
           <InterfaceText>No selectable text found. Mark an area instead.</InterfaceText>
         </button>
       )}
-      {mode === 'image' && text.geometryVersion >= geometryVersion && !regions.length && (
+      {(imageMiss || (mode === 'image' && text.geometryVersion >= geometryVersion && !regions.length)) && (
         <button className="proof-image-page-hint" onClick={onUseArea}>
+          {imageMiss && <><InterfaceText>No separate photo detected here.</InterfaceText>{' '}</>}
           <InterfaceText>Draw around the photo</InterfaceText>
         </button>
       )}

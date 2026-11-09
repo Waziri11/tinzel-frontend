@@ -121,6 +121,7 @@ export const uiText = {
   Read: 'Soma',
   'Select text': 'Chagua maandishi',
   'Select image': 'Chagua picha',
+  'No separate photo detected here.': 'Hakuna picha tofauti iliyotambuliwa hapa.',
   'Mark area': 'Weka alama eneo',
   'Review tools': 'Zana za ukaguzi',
   'Book view': 'Kurasa mbili',
