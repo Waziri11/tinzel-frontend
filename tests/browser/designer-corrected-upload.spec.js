@@ -10,7 +10,7 @@ async function setup(page, { failSubmission = false, selectOriginal = false } = 
   const revision = {
     _id: 'return-1', roundNumber: 1, draftVersionNumber: 1, source: 'manager', status: 'open',
     items: [
-      { _id: 'fix-1', text: 'Correct the date', annotationId: 'annotation-1', pageReference: '4', status: 'open' },
+      { _id: 'fix-1', text: 'Correct the date', annotationId: 'annotation-1', pageReference: '4', status: 'open', audio: {} },
       { _id: 'fix-2', text: 'Replace the photograph', pageReference: '8', status: 'addressed' },
     ],
   };
@@ -83,6 +83,7 @@ async function reviewEachCorrection(page) {
   const send = review.getByRole('button', { name: 'Send to manager review' });
   await expect(review.getByText('Correct the date', { exact: true })).toBeVisible();
   await expect(review.getByAltText('Magazine page 4', { exact: true })).toBeVisible();
+  await expect(review.locator('.revision-audio, .voice-note-player')).toHaveCount(0);
   const downloaded = page.waitForEvent('download');
   await review.getByRole('button', { name: 'Download image: Date reference.png', exact: true }).click();
   const download = await downloaded;

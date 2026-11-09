@@ -41,7 +41,7 @@
 .correction-review-details h3 { margin: 0 0 12px; font-size: 14px; color: var(--text-gold, #886525); }
 .correction-review-note { margin: 0 0 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 18px; line-height: 1.6; }
 .correction-review-details blockquote { margin: 12px 0; border-left: 2px solid #c7ac76; padding-left: 12px; color: var(--text-muted, #756e63); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.correction-review-details .proof-attachments button { min-height: 36px; padding: 6px 9px; border: 1px solid var(--border-color, #e5e0d7); border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+.correction-review-details .proof-attached-image button { min-height: 36px; padding: 6px 9px; border: 1px solid var(--border-color, #e5e0d7); border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
 .correction-review-details .proof-attached-audio audio { max-width: 100%; }
 .correction-review-actions { flex-shrink: 0; padding: 16px 20px 20px; border-top: 1px solid var(--border-color, #e5e0d7); }
 .correction-review-confirm { display: flex; align-items: center; gap: 10px; padding: 14px 12px; border: 1px solid var(--border-color, #e5e0d7); border-radius: 9px; font-size: 13px; line-height: 1.5; cursor: pointer; }

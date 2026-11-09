@@ -83,7 +83,7 @@ export default function DraftCorrectionReview({ token, orderId, request, upload,
             <h3>{item.pageReference ? `${tx('Page')} ${item.pageReference}` : ui('Magazine correction', 'Marekebisho ya jarida')}</h3>
             <p className="correction-review-note">{item.text}</p>
             {annotation?.selectedText && <blockquote>{annotation.selectedText}</blockquote>}
-            <RevisionAudioPlayer token={token} orderId={orderId} requestId={request._id} item={item} />
+            {item.audio?.assetId && <RevisionAudioPlayer token={token} orderId={orderId} requestId={request._id} item={item} />}
             <ProofAttachments attachments={annotation?.attachments} reader={reader} canDownload />
           </div>
           <div className="correction-review-actions">
