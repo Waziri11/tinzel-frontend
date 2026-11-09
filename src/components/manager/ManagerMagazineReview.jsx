@@ -1,5 +1,6 @@
 import { ActionButton } from '../common/SoftFlutter';
 import ProofAttachments from '../common/ProofAttachments';
+import ProofMobilePanel from '../common/ProofMobilePanel';
 import {downloadMagazine} from '../common/SecurityCenter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -246,8 +247,8 @@ export default function ManagerMagazineReview({
       setBusy(false);
     }
   };
-  const controls = (reader) => (
-    <>
+  const controls = (reader) => {
+    const panel = (
       <section
         className="manager-proof-controls"
         aria-label={t(
@@ -259,6 +260,14 @@ export default function ManagerMagazineReview({
           <StatePanel compact kind="info" title={t('Read-only review', 'Ukaguzi wa kusoma tu')} description={t('Decisions are available only for the current magazine awaiting manager review.', 'Uamuzi unaruhusiwa kwa toleo la sasa linalosubiri ukaguzi wa msimamizi.')} />
         ) : (
           <>
+            {reader.mobile && <div className="manager-proof-summary">
+              <strong>{reader.pendingAnnotations.length
+                ? t(`${reader.pendingAnnotations.length} saved correction${reader.pendingAnnotations.length === 1 ? '' : 's'}`, `Marekebisho ${reader.pendingAnnotations.length} yaliyohifadhiwa`)
+                : t('Ready for your decision', 'Tayari kwa uamuzi wako')}</strong>
+              <p>{reader.pendingAnnotations.length
+                ? t('Return these to the designer when you’re ready.', 'Rudisha haya kwa msanifu ukiwa tayari.')
+                : t('Approve this version or add notes to request changes.', 'Idhinisha toleo hili au ongeza maelezo ya marekebisho.')}</p>
+            </div>}
             <label htmlFor={`manager-review-notes-${order._id}-${version}`}>
               {t('General notes', 'Maelezo ya jumla')}
             </label>
@@ -308,7 +317,7 @@ export default function ManagerMagazineReview({
               <div className="manager-proof-buttons">
                 <ActionButton loading={busy}
                   type="button"
-                  className="is-primary"
+                  className={reader.mobile && (reader.pendingAnnotations.length || notes.trim()) ? 'manager-proof-approve' : 'manager-proof-approve is-primary'}
                   disabled={
                     !reader.ready ||
                     !reader.canComment ||
@@ -326,6 +335,7 @@ export default function ManagerMagazineReview({
                 </ActionButton>
                 <ActionButton loading={busy}
                   type="button"
+                  className={reader.mobile && (reader.pendingAnnotations.length || notes.trim()) ? 'manager-proof-return is-primary' : 'manager-proof-return'}
                   disabled={
                     !reader.ready ||
                     !reader.canComment ||
@@ -343,6 +353,12 @@ export default function ManagerMagazineReview({
           </>
         )}
       </section>
+    );
+    return <>
+      {reader.mobile
+        ? reader.reviewPanelOpen && <ProofMobilePanel title={t('Review & return', 'Kagua na rudisha')}
+          closeLabel={t('Close review', 'Funga ukaguzi')} onClose={reader.onCloseReview}>{panel}</ProofMobilePanel>
+        : panel}
       {decision && (
         <Confirmation
           reader={attachmentReader}
@@ -355,8 +371,8 @@ export default function ManagerMagazineReview({
           t={t}
         />
       )}
-    </>
-  );
+    </>;
+  };
   return (
     <><ActionButton loading={downloading} disabled={downloading} onClick={download}>{t('Download original PDF', 'Pakua PDF asili')}</ActionButton>
       {downloadError && <StateError compact error={downloadError} onRetry={download} title={t('The magazine could not be downloaded', 'Jarida halikuweza kupakuliwa')} />}

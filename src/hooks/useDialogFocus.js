@@ -21,7 +21,8 @@ export function useDialogFocus(open, onClose) {
     const frame = requestAnimationFrame(() => {
       if (dialog === topDialog()) {
         dialog.tabIndex = -1;
-        (focusable()[0] || dialog).focus();
+        // A tap or autofill may already have focused a field before this frame.
+        if (!dialog.contains(document.activeElement)) (focusable()[0] || dialog).focus();
       }
     });
     const key = (event) => {

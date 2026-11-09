@@ -1196,3 +1196,132 @@
   .pdf-book .proof-modes { flex-wrap: wrap; }
 }
 .proof-selection-image polygon { fill: #ffd17133; stroke: #b28a30; stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+/* On touch screens the page stays clear; comments and decisions open on demand. */
+.proof-mobile-dock { display: none; }
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .pdf-book:has(.proof-mobile-backdrop),
+  .pdf-book:has(.manager-proof-confirm-backdrop) { z-index: 2400; }
+  .pdf-book .proof-toolbar {
+    padding: 6px 12px 10px;
+    gap: 4px 8px;
+    min-height: 0;
+  }
+  .pdf-book .proof-toolbar > strong { max-width: none; font-size: 14px; }
+  .pdf-book .proof-tools button { min-height: 44px; min-width: 44px; }
+  .pdf-book .proof-modes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 3px;
+    background: #f6f3ed;
+    border-radius: 12px;
+  }
+  .pdf-book .proof-modes button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 5px 2px;
+    border-radius: 9px;
+    font-size: 12px;
+    white-space: normal;
+  }
+  .pdf-book .proof-modes button[aria-pressed='true'] { background: #fff; box-shadow: 0 1px 4px #33291614; }
+  .pdf-book .proof-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 0;
+    min-height: 54px;
+    padding: 4px 8px;
+  }
+  .pdf-book .proof-zoom { gap: 0; }
+  .pdf-book .proof-zoom button,
+  .pdf-book .proof-pagination button { min-width: 40px; min-height: 44px; padding: 6px; }
+  .pdf-book .proof-pagination input { min-width: 36px; width: 36px; min-height: 44px; font-size: 16px; }
+  .pdf-book .proof-pagination label { gap: 0; font-size: 13px; }
+  .pdf-book .proof-sync { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); display: block; }
+  .proof-mobile-dock {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid #e9e3d9;
+    background: #fff;
+  }
+  .pdf-book .proof-mobile-dock button {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    padding: 8px;
+    border: 1px solid #e4ded2;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    gap: 7px;
+  }
+  .pdf-book .proof-mobile-dock .proof-review-trigger { background: #805e26; border-color: #805e26; color: #fff; }
+  .proof-dock-count { min-width: 21px; padding: 3px 5px; border-radius: 7px; background: #f1ebe0; color: #755722; font-size: 11px; }
+  .proof-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    bottom: var(--panel-keyboard-offset, 0px);
+    z-index: 2400;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: #29251d66;
+  }
+  .proof-mobile-panel {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 640px;
+    max-height: min(82dvh, calc(var(--panel-visible-height, 100dvh) - 16px));
+    min-height: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-radius: 22px 22px 0 0;
+    background: #fff;
+    box-shadow: 0 -12px 48px #29251d26;
+    overflow: hidden;
+  }
+  .proof-mobile-panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding: 12px 14px 8px 20px;
+    border-bottom: 1px solid #eee9df;
+  }
+  .proof-mobile-panel-heading strong { font-size: 17px; font-weight: 600; }
+  .pdf-book .proof-mobile-panel-heading button { min-width: 44px; min-height: 44px; border-radius: 50%; background: #f6f3ed; }
+  .pdf-book .proof-mobile-panel .proof-comments {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .proof-mobile-panel .proof-comments-controls { position: static; flex-shrink: 0; margin: 0; padding: 10px 20px; background: #fff; }
+  .proof-mobile-panel .proof-filter { margin: 0; font-size: 13px; }
+  .proof-mobile-panel .proof-filter select { min-height: 44px; padding: 8px 12px; border-radius: 10px; font-size: 16px; }
+  .proof-mobile-panel .proof-comment-navigation { margin-top: 4px; }
+  .proof-mobile-panel .proof-comment-navigation button { font-size: 12px; min-height: 44px; }
+  .proof-mobile-panel .proof-comments-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 18px; }
+  .proof-mobile-panel .proof-comment-group h3 { margin: 14px 0 8px; font-size: 12px; }
+  .proof-mobile-panel .proof-comment-group article { margin: 0 0 10px; padding: 12px; border: 1px solid #e9e3d8; border-radius: 14px; background: #fff; }
+  .proof-mobile-panel .proof-comment-group article.is-focused { outline: none; border-color: #c5a366; background: #fdfbf6; }
+  .proof-mobile-panel .proof-comment-card { padding: 0; }
+  .proof-mobile-panel .proof-comment-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .proof-mobile-panel .proof-comment-title { min-width: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .proof-mobile-panel .proof-comment-status { flex-shrink: 0; max-width: 45%; padding: 3px 7px; border-radius: 6px; background: #f0e8d9; font-size: 10px; }
+  .proof-mobile-panel .proof-comment-body { margin-top: 8px; font-size: 14px; line-height: 1.5; }
+  .proof-mobile-panel .proof-comments small { margin: 5px 0 0; font-size: 11px; }
+  .proof-mobile-panel .proof-attached-audio { margin: 10px 0 2px; }
+  .proof-mobile-panel .proof-attached-audio button { justify-content: flex-start; width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; background: #f1eadf; color: #73531f; font-size: 13px; }
+  .proof-mobile-panel .proof-comment-discard { display: flex; margin: 4px 0 -4px auto; min-height: 44px; padding: 8px; font-size: 12px; color: #82786b; }
+  .proof-mobile-panel .proof-comments > button { flex-shrink: 0; margin: 8px 20px 16px; min-height: 44px; background: #805e26; color: #fff; font-size: 14px; }
+}

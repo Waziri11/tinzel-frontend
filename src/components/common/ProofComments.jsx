@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { annotationStatus } from '../../utils/proofAnnotations';
 export default function ProofComments({
   client = false,
+  mobile = false,
   reader,
   annotations,
   focused,
@@ -57,14 +58,14 @@ export default function ProofComments({
   return (
     <aside ref={root} className="proof-comments" aria-label={tx('Magazine comments')}>
       <div className="proof-comments-controls">
-        <div className="proof-comments-heading">
+        {!mobile && <div className="proof-comments-heading">
           <strong>
             <InterfaceText>Comments ·</InterfaceText> {annotations.length}
           </strong>
           <button aria-label={tx('Close comments')} onClick={onClose}>
             ×
           </button>
-        </div>
+        </div>}
         <label className="proof-filter">
           <InterfaceText>Show</InterfaceText>
           <select aria-label={tx('Filter comments')} value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -81,7 +82,7 @@ export default function ProofComments({
             ))}
           </select>
         </label>
-        <nav className="proof-comment-navigation" aria-label={tx('Comment navigation')}>
+        {(!mobile || shown.length > 1) && <nav className="proof-comment-navigation" aria-label={tx('Comment navigation')}>
           <button
             aria-label={tx('Previous comment')}
             disabled={!shown.length || active <= 0}
@@ -96,8 +97,9 @@ export default function ProofComments({
           >
             <InterfaceText>Next →</InterfaceText>
           </button>
-        </nav>
+        </nav>}
       </div>
+      <div className="proof-comments-list">
       {!shown.length && <StatePanel compact title={annotations.length ? ui('No comments match this filter', 'Hakuna maoni yanayolingana na kichujio') : ui('No comments yet', 'Hakuna maoni bado')} description={canComment ? ui('Select text or an image to add a correction.', 'Chagua maandishi au picha ili kuongeza marekebisho.') : ui('No submitted corrections for this version.', 'Hakuna marekebisho yaliyowasilishwa kwa toleo hili.')}>
         {annotations.length > 0 && <button className="ui-button" onClick={() => setFilter('all')}>{ui('Clear filter', 'Ondoa kichujio')}</button>}
       </StatePanel>}
@@ -116,15 +118,15 @@ export default function ProofComments({
                   aria-current={focused === a._id ? 'true' : undefined}
                   onClick={() => onJump(a)}
                 >
-                  <span className="proof-comment-title">
+                  <span className="proof-comment-meta"><span className="proof-comment-title">
                     #{a.displayNumber} · {a.authorName}
                   </span>
                   <span className={`proof-comment-status status-${annotationStatus(a)}`}>
                     {statusLabel(annotationStatus(a))}
-                  </span>
+                  </span></span>
                   {a.selectedText && <blockquote>{a.selectedText}</blockquote>}
-                  <span className="proof-comment-body">{a.text}</span>
-                  <small>{new Date(a.createdAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>
+                  {a.text && <span className="proof-comment-body">{a.text}</span>}
+                  <small>{new Date(a.createdAt).toLocaleString(lang === 'sw' ? 'sw-TZ' : 'en-TZ', mobile ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : undefined)}</small>
                 </button>
                 <ProofAttachments attachments={a.attachments} reader={reader} />
                 {a.correction && (
@@ -149,7 +151,7 @@ export default function ProofComments({
                   </div>
                 )}
                 {!a.submittedAt && canComment && (
-                  <ActionButton loading={Boolean(discarding)} disabled={Boolean(discarding)} onClick={() => onDiscard(a._id)}>
+                  <ActionButton className="proof-comment-discard" loading={Boolean(discarding)} disabled={Boolean(discarding)} onClick={() => onDiscard(a._id)}>
                     {tx(discarding === a._id ? 'Removing…' : 'Discard')}
                   </ActionButton>
                 )}
@@ -157,6 +159,7 @@ export default function ProofComments({
             ))}
           </section>
         ))}
+      </div>
       {canComment && pending.length > 0 && onSubmit && (
         <ActionButton loading={saving} disabled={saving} onClick={onSubmit}>
           {client ? ui('Send my changes (', 'Tuma marekebisho yangu (') : tx('Return for corrections (')}

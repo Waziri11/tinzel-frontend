@@ -211,6 +211,7 @@ for (const width of [390, 768, 1440])
     await page.setViewportSize({ width, height: 1000 });
     const state = await setup(page);
     await expect(page).toHaveURL(/staff\/review\/order-1\/versions\/2/);
+    if (width <= 760) await page.getByRole('button', { name: 'Review & return', exact: true }).click();
     const approve = page.getByRole('button', {
       name: 'Approve and release to client',
       exact: true,
@@ -219,10 +220,11 @@ for (const width of [390, 768, 1440])
     await expect(
       page.getByRole('button', { name: 'Return to designer', exact: true }),
     ).toBeDisabled();
+    if (width <= 760) await page.getByRole('button', { name: 'Close review', exact: true }).click();
     await page.screenshot({path:testInfo.outputPath(`review-page-${width}.png`),fullPage:true});
     await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
     await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
-    await expect(approve).toBeVisible();
+    if (width > 760) await expect(approve).toBeVisible();
     await page
       .locator('.pdf-book')
       .getByRole('button', { name: 'Next page', exact: true })
@@ -237,6 +239,7 @@ for (const width of [390, 768, 1440])
     await page.screenshot({
       path: testInfo.outputPath(`manager-book-${width}.png`),
     });
+    if (width <= 760) await page.getByRole('button', { name: 'Review & return', exact: true }).click();
     await approve.click();
     const confirm = page.getByRole('dialog', {
       name: 'Confirm approval',
@@ -303,6 +306,96 @@ test('manager returns saved page corrections and general notes together after co
   await expect(
     page.getByText('Magazine returned to designer', { exact: true }),
   ).toBeVisible();
+});
+
+for (const width of [320, 390, 440]) test(`mobile review keeps the page clear and preserves comments and notes at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 844 });
+  const state = await setup(page, { pending: [{
+    _id: 'audio-comment', version: 2, page: 1, kind: 'area',
+    rects: [{ x: 0.2, y: 0.3, width: 0.4, height: 0.2 }],
+    text: '', authorName: 'Test Manager', createdAt: '2026-11-09T00:16:24Z',
+    attachments: [{ id: 'audio-1', name: 'Audio comment', contentType: 'audio/wav' }],
+  }] });
+  await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
+  await expect(page.locator('.proof-stage')).toBeVisible();
+  const stage = await page.locator('.proof-stage').boundingBox();
+  expect(stage.height).toBeGreaterThan(550);
+  await expect(page.getByLabel('General notes', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Comments (1)', exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath(`mobile-reader-${width}.png`) });
+  await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
+  const comments = page.getByRole('dialog', { name: 'Comments · 1', exact: true });
+  await expect(comments).toBeInViewport();
+  await expect(comments.getByRole('button', { name: 'Close comments', exact: true })).toBeInViewport();
+  await expect(comments.getByRole('button', { name: 'Listen to audio comment', exact: true })).toBeInViewport();
+  await expect(comments.getByRole('button', { name: 'Previous comment', exact: true })).toHaveCount(0);
+  const card = await comments.locator('article').boundingBox();
+  expect(card.height).toBeLessThan(220);
+  await page.screenshot({ path: testInfo.outputPath(`mobile-comments-${width}.png`) });
+  await comments.getByRole('button', { name: 'Close comments', exact: true }).click();
+  await expect(comments).toHaveCount(0);
+  await expect(page.locator('.pdf-book.is-expanded')).toBeVisible();
+  await page.getByRole('button', { name: 'Review & return', exact: true }).click();
+  const review = page.getByRole('dialog', { name: 'Review & return', exact: true });
+  await expect(review.getByRole('button', { name: 'Approve and release to client', exact: true })).toBeDisabled();
+  await review.getByLabel('General notes', { exact: true }).fill('Keep the page headings consistent.');
+  await expect(review.getByLabel('General notes', { exact: true })).toHaveValue('Keep the page headings consistent.');
+  await review.getByRole('button', { name: 'Close review', exact: true }).click();
+  await page.getByRole('button', { name: 'Review & return', exact: true }).click();
+  await expect(review.getByLabel('General notes', { exact: true })).toHaveValue('Keep the page headings consistent.');
+  await page.screenshot({ path: testInfo.outputPath(`mobile-review-${width}.png`) });
+  await review.getByRole('button', { name: 'Return to designer', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Confirm return', exact: true });
+  await expect(confirmation).toContainText('Keep the page headings consistent.');
+  await expect(confirmation.getByRole('button', { name: 'Listen to audio comment', exact: true })).toBeVisible();
+  expect(state.decisions).toHaveLength(0);
+  await confirmation.getByRole('button', { name: 'Return to designer', exact: true }).click();
+  await expect.poll(() => state.decisions.length).toBe(1);
+  expect(state.decisions[0]).toEqual({ action: 'return_to_designer', feedback: 'Keep the page headings consistent.', expectedVersion: 2 });
+  await expect(page.getByText('Magazine returned to designer', { exact: true })).toBeVisible();
+});
+
+test('mobile comment sheets keep their controls reachable and jump back to the selected page', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setup(page, { pending: Array.from({ length: 18 }, (_, index) => ({
+    _id: `comment-${index}`, version: 2, page: index % 3 + 1, kind: 'area',
+    rects: [{ x: 0.2, y: 0.3, width: 0.4, height: 0.2 }],
+    text: `Correction ${index + 1}: Please adjust the spacing around this photograph.`,
+    authorName: 'Test Manager', createdAt: '2026-11-09T00:16:24Z',
+  })) });
+  await page.getByRole('button', { name: 'Comments (18)', exact: true }).click();
+  const comments = page.getByRole('dialog', { name: 'Comments · 18', exact: true });
+  await expect(comments.getByRole('button', { name: 'Close comments', exact: true })).toBeInViewport();
+  expect(await page.evaluate(() => [[20, 20], [window.innerWidth - 30, window.innerHeight - 30]]
+    .every(([x, y]) => document.elementFromPoint(x, y)?.closest('.proof-mobile-backdrop')))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(comments).toHaveCount(0);
+  await page.getByRole('button', { name: 'Comments (18)', exact: true }).click();
+  await comments.locator('.proof-comments-list').evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect(comments.getByLabel('Filter comments', { exact: true })).toBeInViewport();
+  await expect(comments.getByRole('button', { name: 'Close comments', exact: true })).toBeInViewport();
+  await comments.getByLabel('Filter comments', { exact: true }).selectOption('page');
+  await expect(comments.locator('article')).toHaveCount(6);
+  await comments.getByLabel('Filter comments', { exact: true }).selectOption('all');
+  await comments.getByRole('button', { name: 'Open comment 2 on page 2', exact: true }).click();
+  await expect(comments).toHaveCount(0);
+  await expect(page.getByLabel('Go to page', { exact: true })).toHaveValue('2');
+  await page.getByRole('button', { name: 'Review & return', exact: true }).click();
+  const review = page.getByRole('dialog', { name: 'Review & return', exact: true });
+  await review.getByLabel('General notes', { exact: true }).fill('These notes stay while the screen changes size.');
+  await expect(review.getByLabel('General notes', { exact: true })).toHaveValue('These notes stay while the screen changes size.');
+  await page.setViewportSize({ width: 390, height: 430 });
+  await expect(review.getByRole('button', { name: 'Close review', exact: true })).toBeInViewport();
+  await review.getByRole('button', { name: 'Return to designer', exact: true }).scrollIntoViewIfNeeded();
+  await expect(review.getByRole('button', { name: 'Return to designer', exact: true })).toBeInViewport();
+  await review.getByRole('button', { name: 'Close review', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'SW', exact: true }).click();
+  await page.getByRole('button', { name: 'Kagua na rudisha', exact: true }).click();
+  const swReview = page.getByRole('dialog', { name: 'Kagua na rudisha', exact: true });
+  await expect(swReview.getByLabel('Maelezo ya jumla', { exact: true })).toHaveValue('These notes stay while the screen changes size.');
+  await expect(swReview.getByRole('button', { name: 'Rudisha kwa msanifu', exact: true })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath('mobile-review-swahili.png') });
 });
 test('notes-only returns are allowed, empty returns are blocked, and failed decisions retain notes', async ({
   page,

@@ -11,6 +11,7 @@ import { proofApi } from '../../services/api';
 import './pdfBookReader.css';
 import Page from './ProofPage';
 import ProofComments from './ProofComments';
+import ProofMobilePanel from './ProofMobilePanel';
 import BookStage, { PAPER_TURN_MS } from './BookStage';
 import { createPortal } from 'react-dom';
 import {
@@ -25,6 +26,7 @@ import {
   Minus,
   Plus,
   ArrowUp,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const MOBILE_QUERY = '(max-width:760px), (hover:none) and (pointer:coarse)';
@@ -123,6 +125,7 @@ export default function PdfBookReader({
   const [sync, setSync] = useState('');
   const [focused, setFocused] = useState(null);
   const [showComments, setShowComments] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   draftRef.current = { selection, comment, saving: saving || audioBusy, hasAttachments: uploads.items.length > 0 };
   useEffect(() => {
     if (selection) commentInput.current?.focus({ preventScroll: true });
@@ -427,6 +430,9 @@ export default function PdfBookReader({
   const next = () => navigate(Math.min(metadata.pageCount, page === 1 || single ? page + 1 : page + 2));
   const previous = () => navigate(Math.max(1, single ? page - 1 : page === 2 ? 1 : page - 2));
   const reviewState = {
+    mobile,
+    reviewPanelOpen: showReview,
+    onCloseReview: () => setShowReview(false),
     ready: opened,
     canComment: Boolean(metadata?.canComment),
     pendingAnnotations: pending,
@@ -531,6 +537,25 @@ export default function PdfBookReader({
     setShowComments(true);
   };
   const composerTop = Math.max(16, Math.min((selection?.anchor?.y || 0) + 8, window.innerHeight - 640));
+  const comments = (
+    <ProofComments
+      client={client}
+      mobile={mobile}
+      reader={reader}
+      annotations={annotations}
+      focused={focused}
+      focusSerial={focusSerial}
+      onJump={annotation => { jump(annotation); if (mobile) setShowComments(false); }}
+      onClose={() => setShowComments(false)}
+      onDiscard={discard}
+      discarding={discarding}
+      canComment={Boolean(metadata?.canComment) && !interactionDisabled}
+      pending={pending}
+      saving={saving}
+      onSubmit={hideCommentSubmit ? undefined : submit}
+      currentPages={pagesAt(page)}
+    />
+  );
   const content = (
     <section
       ref={root}
@@ -542,6 +567,7 @@ export default function PdfBookReader({
         if (mode !== 'text' || !e.target.closest('.proof-text-layer')) e.preventDefault();
       }}
       onKeyDown={(e) => {
+        if (e.defaultPrevented || (e.target.closest('[role="dialog"]') && e.target.closest('[role="dialog"]') !== root.current)) return;
         if (expanded && e.key === 'Tab') {
           const items = [
             ...root.current.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)'),
@@ -607,7 +633,7 @@ export default function PdfBookReader({
               {single ? <Columns2 size={17} /> : <Square size={17} />}
             </button>
           )}
-          <button
+          {!mobile && <button
             aria-label={`${tx('Comments')} (${metadata?.annotations?.length || 0})`}
             aria-expanded={showComments}
             title={tx('Comments')}
@@ -615,7 +641,7 @@ export default function PdfBookReader({
           >
             <MessageSquare size={17} />
             <span>{metadata?.annotations?.length || 0}</span>
-          </button>
+          </button>}
           <button
             aria-label={tx(expanded ? 'Exit fullscreen' : 'Fullscreen')}
             title={tx(expanded ? 'Exit fullscreen' : 'Fullscreen')}
@@ -641,7 +667,7 @@ export default function PdfBookReader({
         <StatePanel compact kind="loading" title={ui('Preparing magazine cover…', 'Tunatayarisha jalada la jarida…')} description={slowOpening ? ui('Preparation has not finished. Try again to check the latest result.', 'Maandalizi hayajakamilika. Jaribu tena kuangalia matokeo ya hivi karibuni.') : undefined} onRetry={slowOpening ? () => setRefresh(n => n + 1) : undefined} />
       ) : (
         <>
-          <div className={`proof-layout${showComments ? '' : ' no-comments'}`}>
+          <div className={`proof-layout${showComments && !mobile ? '' : ' no-comments'}`}>
             <BookStage
               page={page}
               single={single}
@@ -669,24 +695,7 @@ export default function PdfBookReader({
                 ) : null
               }
             />
-            {showComments && (
-              <ProofComments
-                client={client}
-                reader={reader}
-                annotations={annotations}
-                focused={focused}
-                focusSerial={focusSerial}
-                onJump={jump}
-                onClose={() => setShowComments(false)}
-                onDiscard={discard}
-                discarding={discarding}
-                canComment={metadata.canComment && !interactionDisabled}
-                pending={pending}
-                saving={saving}
-                onSubmit={hideCommentSubmit ? undefined : submit}
-                currentPages={pagesAt(page)}
-              />
-            )}
+            {showComments && !mobile && comments}
             {selection && metadata.canComment && !interactionDisabled && (
               <form
                 className="proof-composer"
@@ -836,6 +845,21 @@ export default function PdfBookReader({
           </footer>
         </>
       )}
+      {mobile && (
+        <nav className="proof-mobile-dock" aria-label={ui('Magazine review', 'Ukaguzi wa jarida')}>
+          <button type="button" aria-label={`${tx('Comments')} (${annotations.length})`} aria-haspopup="dialog"
+            aria-expanded={showComments} onClick={() => { setShowReview(false); setShowComments(true); }}>
+            <MessageSquare size={18} aria-hidden="true" /> {tx('Comments')}
+            <span className="proof-dock-count">{annotations.length}</span>
+          </button>
+          {renderReviewControls && <button type="button" className="proof-review-trigger" aria-haspopup="dialog"
+            aria-expanded={showReview} onClick={() => { setShowComments(false); setShowReview(true); }}>
+            <ClipboardCheck size={18} aria-hidden="true" /> {ui('Review & return', 'Kagua na rudisha')}
+          </button>}
+        </nav>
+      )}
+      {mobile && showComments && <ProofMobilePanel title={`${tx('Comments')} · ${annotations.length}`}
+        closeLabel={tx('Close comments')} onClose={() => setShowComments(false)}>{comments}</ProofMobilePanel>}
       {renderReviewControls?.(reviewState)}
     </section>
   );
