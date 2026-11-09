@@ -1,4 +1,4 @@
-import { transferChunks } from './chunkTransfer';
+import { encodeUploadPart, transferChunks, withUploadSlot } from './chunkTransfer';
 import {securityHeaders, ensureCsrfToken} from './api';
 const BASE = import.meta.env?.VITE_API_URL || '';
 export const MAX_DRAFT_BYTES = 500 * 1024 * 1024;
@@ -81,27 +81,46 @@ export async function transferDraft({ token, staffId, orderId, file, metadata, s
     catch(e){if(![404,410].includes(e.status))throw e;remember(staffId,orderId,null);}
   }
   if(!session){
-    session=await request(prefix,token,{method:'POST',body:{...metadata,name:file.name,size:file.size,contentType:'application/pdf',fingerprint:identity},signal,retry:()=>emit('reconnecting')});
+    session=await request(prefix,token,{method:'POST',body:{...metadata,name:file.name,size:file.size,chunkBytes:file.size <= 4 * 1024 * 1024 ? 512 * 1024 : 1024 * 1024,contentType:'application/pdf',fingerprint:identity},signal,retry:()=>emit('reconnecting')});
     saved={id:session.id,fingerprint:identity,name:file.name,size:file.size,metadata};remember(staffId,orderId,saved);
   }
   if(session.fingerprint!==identity)throw new Error('Select the same PDF to resume, or cancel this upload and start again.');
+  let prepared = false;
+  if (session.provider !== 'blob' && session.state !== 'complete' && !session.chunks?.length && file.size <= (session.wholeBytes || 0)) {
+    try {
+      prepared = await withUploadSlot(async () => {
+        const encoded = await encodeUploadPart(file, { enabled: session.compression === 'gzip', signal });
+        if (encoded.body.size > session.chunkBytes) return false;
+        const sha256 = await hash(await file.arrayBuffer());
+        await request(`${prefix}/${session.id}/whole`, token, { method: 'PUT', binary: true,
+          body: { bytes: encoded.body, sha256 }, headers: encoded.headers, signal,
+          progress: loaded => { acknowledged = Math.min(file.size, loaded / encoded.body.size * file.size); sentThisRun = acknowledged; emit('uploading'); },
+          retry: () => emit('reconnecting'),
+        });
+        return true;
+      }, signal);
+    } catch (error) {
+      if (signal?.aborted || error.name === 'AbortError' || error.status && ![404, 408, 413, 429, 500, 502, 503, 504].includes(error.status)) throw error;
+      session = await request(`${prefix}/${session.id}`, token, { signal });
+    }
+  }
   if(session.provider==='blob'){
     const {transferBlobDraft}=await import('./blobDraftTransfer');
     await transferBlobDraft({session,file,signal,emit:onProgress,call:(suffix,body)=>request(`${prefix}/${session.id}${deferSubmission && suffix === '/complete' ? '/ready' : suffix}`,token,{method:'POST',body,signal,complete:suffix==='/complete'}),renew:()=>request(`${prefix}/${session.id}`,token,{signal})});
     acknowledged=file.size;
-  } else if(session.state!=='complete') {
+  } else if(session.state!=='complete' && !prepared) {
     await transferChunks({ file, chunkBytes: session.chunkBytes, received: session.chunks,
-      concurrency: 3, compression: session.compression === 'gzip', signal,
+      concurrency: 4, batchParts: session.batchParts || 1, compression: session.compression === 'gzip', signal,
       onProgress: ({ bytes, uploadedBytes }) => { acknowledged = bytes; sentThisRun = uploadedBytes; emit('uploading'); },
       onRetry: () => emit('reconnecting'),
-      send: ({ n, body, sha256, headers, signal: partSignal, progress, retry }) =>
-        request(`${prefix}/${session.id}/chunks/${n}`, token, { method: 'PUT', binary: true,
+      send: ({ n, count, body, sha256, headers, signal: partSignal, progress, retry }) =>
+        request(`${prefix}/${session.id}/${count > 1 ? 'batches' : 'chunks'}/${n}`, token, { method: 'PUT', binary: true,
           body: { bytes: body, sha256 }, headers, signal: partSignal, progress, retry }),
     });
   }
   acknowledged=file.size;emit('finalizing');
   if (deferSubmission) {
-    await request(`${prefix}/${session.id}/ready`,token,{method:'POST',body:{},signal});
+    if (!prepared) await request(`${prefix}/${session.id}/ready`,token,{method:'POST',body:{},signal});
     const ready = {...saved, readyForReview:true};
     remember(staffId,orderId,ready);emit('complete');return ready;
   }

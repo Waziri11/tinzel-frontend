@@ -180,6 +180,10 @@ async function uploadStaffFile(token, file, purpose, orderId, options) {
     }
   };
   return transferStaffFile({ file, purpose, orderId, ...options,
+    sendWhole: part => uploadForm(root + '/whole', token, part.body, {
+      method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', ...part.headers }, signal: part.signal,
+      progress: event => { if (event.bytes !== undefined) part.progress(event.bytes); }, timeout: 120000,
+    }),
     call: (suffix, body, signal) => retry(() => fetchWithTimeout(root + suffix, {
       method: 'POST', headers: getHeaders(token), body: JSON.stringify(body), signal,
     }, 60000).then(handleResponse), signal),

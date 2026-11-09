@@ -48,21 +48,28 @@ export async function encodeUploadPart(blob, { enabled = true, signal } = {}) {
   }
 }
 
-export async function transferChunks({ file, chunkBytes, received = [], concurrency = 3, compression = false,
+export async function transferChunks({ file, chunkBytes, received = [], concurrency = 3, batchParts = 1, compression = false,
   signal, send, onProgress = () => {}, onRetry = () => {} }) {
   const controller = new AbortController();
   const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   const saved = new Map(received.map(part => [part.n, part]));
   const count = Math.ceil(file.size / chunkBytes), progress = new Map();
+  const jobs = [];
+  const groupSize = Math.max(1, Math.min(3, batchParts, Math.floor(count / Math.min(4, concurrency))));
+  for (let n = 0; n < count;) {
+    const start = n++;
+    if (!saved.has(start)) while (n < count && n - start < groupSize && !saved.has(n)) n++;
+    jobs.push({ n: start, count: n - start });
+  }
   let cursor = 0, confirmed = 0, uploadedBytes = 0, networkBytes = 0;
   const report = () => {
     const inFlight = [...progress.values()].reduce((a, b) => a + b, 0);
     onProgress({ bytes: Math.min(file.size, confirmed + inFlight), total: file.size, uploadedBytes: uploadedBytes + inFlight, networkBytes });
   };
   const lane = async () => {
-    while (cursor < count) {
+    while (cursor < jobs.length) {
       combined.throwIfAborted();
-      const n = cursor++, part = file.slice(n * chunkBytes, Math.min(file.size, (n + 1) * chunkBytes));
+      const { n, count: partCount } = jobs[cursor++], part = file.slice(n * chunkBytes, Math.min(file.size, (n + partCount) * chunkBytes));
       await withUploadSlot(async () => {
         combined.throwIfAborted();
         const sha256 = await hashBytes(await part.arrayBuffer());
@@ -73,7 +80,13 @@ export async function transferChunks({ file, chunkBytes, received = [], concurre
         } else {
           const encoded = await encodeUploadPart(part, { enabled: compression, signal: combined });
           combined.throwIfAborted();
-          await send({ n, body: encoded.body, headers: { ...encoded.headers, 'X-Chunk-SHA256': sha256 }, sha256, signal: combined,
+          // Production measurements favour small parallel requests for compressed
+          // photos/PDFs. Batch only when gzip makes the wire payload small enough.
+          if (partCount > 1 && encoded.body.size > chunkBytes) {
+            for (let i = 0; i < partCount; i++) jobs.push({ n: n + i, count: 1 });
+            return;
+          }
+          await send({ n, count: partCount, body: encoded.body, headers: { ...encoded.headers, 'X-Chunk-SHA256': sha256 }, sha256, signal: combined,
             progress: loaded => { progress.set(n, Math.min(part.size, loaded / encoded.body.size * part.size)); report(); },
             retry: () => { progress.delete(n); onRetry(); report(); } });
           networkBytes += encoded.body.size; uploadedBytes += part.size;

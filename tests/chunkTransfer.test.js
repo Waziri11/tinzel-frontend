@@ -48,3 +48,26 @@ test('a failed part aborts siblings and releases queued slots for subsequent upl
   await transferChunks({ file: new Blob(['new file']), chunkBytes: 4, send: async () => { completed++; } });
   assert.equal(completed, 2);
 });
+test('batched transfers skip saved parts, verify their hashes, and preserve every byte', async () => {
+  const size = 65536, data = Buffer.alloc(size * 14 + 37, 32), stored = new Map(), sent = [];
+  for (const n of [1, 5]) stored.set(n, data.subarray(n * size, (n + 1) * size));
+  const received = await Promise.all([...stored].map(async ([n, bytes]) => ({ n, sha256: await hashBytes(bytes) })));
+  await transferChunks({ file: new Blob([data]), chunkBytes: size, batchParts: 3, concurrency: 4, received, compression: true,
+    send: async ({ n, count, body, sha256, headers }) => {
+      const wire = Buffer.from(await body.arrayBuffer()), bytes = headers['Content-Encoding'] === 'gzip' ? gunzipSync(wire) : wire; assert.equal(await hashBytes(bytes), sha256);
+      assert.ok(count <= 3); sent.push({ n, count });
+      for (let i = 0; i < count; i++) { assert.ok(!stored.has(n + i)); stored.set(n + i, bytes.subarray(i * size, (i + 1) * size)); }
+    },
+  });
+  assert.ok(sent.some(part => part.count === 3)); assert.equal(sent.length, 5);
+  assert.deepEqual(Buffer.concat([...stored].sort((a,b) => a[0]-b[0]).map(([,b]) => b)), data);
+  await assert.rejects(transferChunks({ file: new Blob([data]), chunkBytes: size, batchParts: 3,
+    received: [{ n: 0, sha256: 'changed' }], send: async () => {} }), /differs/);
+});
+test('incompressible batches split back into small parallel requests', async () => {
+  const size = 65536, data = randomBytes(size * 15 + 17), stored = [], sent = [];let active = 0, peak = 0;
+  await transferChunks({ file: new Blob([data]), chunkBytes: size, batchParts: 3, concurrency: 4, compression: true,
+    send: async ({ n, count, body }) => { assert.equal(count,1);active++;peak=Math.max(peak,active);await pause(5);stored[n]=Buffer.from(await body.arrayBuffer());sent.push(n);active--; },
+  });
+  assert.equal(sent.length,16);assert.equal(new Set(sent).size,16);assert.equal(peak,4);assert.deepEqual(Buffer.concat(stored),data);
+});
