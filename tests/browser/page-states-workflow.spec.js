@@ -102,7 +102,7 @@ test('returns failure is not an empty inbox and retry restores the role-specific
   await expect(page.getByRole('button', { name: 'Back to orders' })).toBeVisible();
 });
 
-test('designer detail retries without losing the page and explains empty draft and approval gate', async ({ page }) => {
+test('designer detail retries without losing the page and explains the empty draft', async ({ page }) => {
   await staff(page, designer);
   let fail = true;
   await page.route('**/api/designer/orders/state-order', route => fail ? json(route, {}, 503) : json(route, { order, auditLogs: [] }));
@@ -113,7 +113,9 @@ test('designer detail retries without losing the page and explains empty draft a
   await page.getByRole('tab', { name: 'Magazine', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'No magazine uploaded yet' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Upload first draft' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Waiting for client approval' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Production details' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Waiting for client approval' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Print preparation' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Version history', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'No versions submitted yet' })).toBeVisible();
 });

@@ -123,7 +123,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const currentDraft = order?.draftVersions?.find((item) => item.versionNumber === order.currentDraftVersion);
   const canEdit = ['designer', 'admin'].includes(staffUser?.role);
   const canUploadDraft = canEdit && ['assigned', 'in_design', 'revision_requested'].includes(order?.status);
-  const canPreparePrint = canEdit && order?.approvedVersionNumber && ['client_approved', 'print_document_prep'].includes(order?.status);
+  const canPreparePrint = Boolean(canEdit && order?.approvedVersionNumber && ['client_approved', 'print_document_prep'].includes(order?.status));
   const [tab, setTab] = useState(null);
   const activeTab = tab || (currentDraft ? 'magazine' : 'text');
   const [selectedVersion, setSelectedVersion] = useState(null);
@@ -546,37 +546,10 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 </div>
               ))}
           </div>
-          <div hidden={activeTab !== 'magazine'} className="designer-card">
+          {(printUncertain || (canPreparePrint && !order.printDocument?.uploadedAt)) && <div hidden={activeTab !== 'magazine'} className="designer-card">
             <h2>
-              <InterfaceText>Production details</InterfaceText>
+              {ui('Print preparation', 'Maandalizi ya uchapishaji')}
             </h2>
-            <div className="production-grid">
-              <div>
-                <span>
-                  <InterfaceText>Approved version</InterfaceText>
-                </span>
-                <strong>{order.approvedVersionNumber || 'Not approved'}</strong>
-              </div>
-              <div>
-                <span>
-                  <InterfaceText>Print status</InterfaceText>
-                </span>
-                <strong>
-                  {order.printingDetails?.completedAt
-                    ? 'Completed'
-                    : order.printDocument?.uploadedAt
-                      ? 'Prepared'
-                      : 'Not prepared'}
-                </strong>
-              </div>
-              <div>
-                <span>
-                  <InterfaceText>Delivery</InterfaceText>
-                </span>
-                <strong>{order.dispatchDetails?.trackingReference || 'Not dispatched'}</strong>
-              </div>
-            </div>
-            {canEdit && !order.approvedVersionNumber && <StatePanel compact kind="info" title={ui('Waiting for client approval', 'Tunasubiri idhini ya mteja')} description={ui('Print preparation becomes available after the client approves a magazine version.', 'Maandalizi ya uchapishaji yatapatikana mteja akiidhinisha toleo la jarida.')} />}
             {printUncertain && <StatePanel compact kind="warning" title={ui('The print submission is unconfirmed', 'Uwasilishaji wa uchapishaji haujathibitishwa')} description={ui('Check the saved order before sending the file again.', 'Kagua oda iliyohifadhiwa kabla ya kutuma faili tena.')}>
               <ActionButton loading={checkingSaved} disabled={checkingSaved} onClick={() => checkSaved('print')}>{ui('Check saved order', 'Kagua oda iliyohifadhiwa')}</ActionButton>
             </StatePanel>}
@@ -654,7 +627,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
                 </ActionButton>
               </form>
             )}
-          </div>
+          </div>}
         </div>
         <aside hidden={tab !== 'history'} className="designer-card">
           <h2>

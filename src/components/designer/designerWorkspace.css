@@ -227,27 +227,8 @@
   gap: 8px;
   margin-top: 18px;
 }
-.production-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.production-grid div {
-  background: #fafaf9;
-  border-radius: 7px;
-  padding: 12px;
-}
-.production-grid span {
-  display: block;
-  color: var(--text-muted);
-  font-size: 11px;
-  margin-bottom: 4px;
-}
 @media (max-width: 900px) {
   .order-grid {
-    grid-template-columns: 1fr;
-  }
-  .production-grid {
     grid-template-columns: 1fr;
   }
   .designer-page-title {
@@ -493,10 +474,6 @@
 }
 .history-entry {
   border-color: #c5a059;
-}
-.production-grid strong {
-  font-size: 13px;
-  overflow-wrap: anywhere;
 }
 @media (max-width: 600px) {
   .designer-page-title h1 {
