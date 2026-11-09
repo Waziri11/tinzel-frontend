@@ -5,6 +5,7 @@ import { ActionButton } from './SoftFlutter';
 import ProofAttachments from './ProofAttachments';
 import InterfaceText, { useInterfaceText } from '../../i18n/InterfaceText';
 import React, { useEffect, useRef, useState } from 'react';
+import { Send } from 'lucide-react';
 import { annotationStatus } from '../../utils/proofAnnotations';
 export default function ProofComments({
   client = false,
@@ -163,7 +164,8 @@ export default function ProofComments({
         ))}
       </div>
       {canComment && pending.length > 0 && (onReview || onSubmit) && (
-        <ActionButton loading={saving} disabled={saving} onClick={onReview || onSubmit}>
+        <ActionButton type="button" className="proof-comment-submit" loading={saving} disabled={saving} onClick={onReview || onSubmit}>
+          <Send size={17} aria-hidden="true" />
           {onReview ? ui('Review & send (', 'Kagua na tuma (') : client ? ui('Send my changes (', 'Tuma marekebisho yangu (') : tx('Return for corrections (')}
           {pending.length})
         </ActionButton>

@@ -437,6 +437,24 @@
   background: var(--bg-primary, #fafaf9);
   border-left: 1px solid var(--border-color, #e7e5e4);
 }
+.pdf-book .proof-comments .proof-comment-submit {
+  display: flex;
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 44px;
+  margin: 14px 0 2px;
+  padding: 12px 16px;
+  gap: 8px;
+  border: 1px solid #805e26;
+  border-radius: 10px;
+  background: #805e26;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.pdf-book .proof-comments .proof-comment-submit:hover:not(:disabled) { background: #6b4d1d; border-color: #6b4d1d; }
+.pdf-book .proof-comments .proof-comment-submit:disabled { opacity: .55; }
 .proof-comments-heading {
   display: flex;
   justify-content: space-between;
@@ -1337,5 +1355,5 @@
   .proof-mobile-panel .proof-comments small { margin: 5px 0 0; font-size: 11px; }
   .proof-mobile-panel .proof-attached-audio { margin: 10px 0 2px; }
   .proof-mobile-panel .proof-comment-discard { display: flex; margin: 4px 0 -4px auto; min-height: 44px; padding: 8px; font-size: 12px; color: #82786b; }
-  .proof-mobile-panel .proof-comments > button { flex-shrink: 0; margin: 8px 20px 16px; min-height: 44px; background: #805e26; color: #fff; font-size: 14px; }
+  .pdf-book .proof-mobile-panel .proof-comment-submit { width: calc(100% - 40px); margin: 8px 20px 16px; }
 }
