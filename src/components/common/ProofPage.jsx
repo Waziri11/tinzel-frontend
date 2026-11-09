@@ -388,7 +388,7 @@ export default React.memo(function ProofPage({
       ) : selected?.rects.map((r, i) => (
         <div
           key={i}
-          className="proof-selection-mark"
+          className={`proof-selection-mark${selected.kind === 'text' ? ' is-text' : ''}`}
           aria-label={pendingSelection ? 'Unsaved correction selection' : 'Selected correction target'}
           style={rectStyle(r)}
         />
@@ -459,7 +459,7 @@ export default React.memo(function ProofPage({
               </svg>
             ) : (
               a.rects.map((r, i) => (
-                <div key={i} className={`proof-mark${focused === a._id ? ' is-focused' : ''}`} style={rectStyle(r)} />
+                <div key={i} className={`proof-mark${a.kind === 'text' ? ' is-text' : ''}${focused === a._id ? ' is-focused' : ''}`} style={rectStyle(r)} />
               ))
             )}
             <button

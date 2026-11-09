@@ -212,9 +212,10 @@
 .mode-text .proof-text-layer {
   pointer-events: auto;
   user-select: text;
+  mix-blend-mode: multiply;
 }
 .mode-text ::selection {
-  background: #f5b74277;
+  background: rgb(166 143 100 / 16%);
   color: transparent;
 }
 .mode-area {
@@ -238,6 +239,18 @@
 .proof-sheet .proof-mark.is-focused {
   background: #ff990066;
   outline: 2px solid #fc8500;
+}
+.proof-sheet .proof-mark.is-text {
+  background: rgb(166 143 100 / 8%);
+  border: 0;
+  border-bottom: 1px solid rgb(139 111 65 / 30%);
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+}
+.proof-sheet .proof-mark.is-text.is-focused {
+  background: rgb(166 143 100 / 13%);
+  border-bottom-color: rgb(139 111 65 / 55%);
+  outline: none;
 }
 .book-turn {
   position: absolute;
@@ -650,6 +663,13 @@
   border: 1px dashed #e8b341;
   box-sizing: border-box;
   z-index: 3;
+}
+.proof-selection-mark.is-text {
+  background: rgb(166 143 100 / 8%);
+  border: 0;
+  border-bottom: 1px solid rgb(139 111 65 / 45%);
+  border-radius: 2px;
+  mix-blend-mode: multiply;
 }
 .pdf-book .proof-image-page-hint {
   position: absolute;
