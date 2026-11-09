@@ -34,6 +34,34 @@ function silentWav() {
 }
 const file = { name: 'changes.wav', mimeType: 'audio/wav', buffer: silentWav() };
 
+for (const width of [320, 390, 1280]) test(`customer chat composer sends written feedback and keeps cancelled drafts at ${width}px`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 844 });
+  const order = await setup(page);
+  const composer = page.getByRole('form', { name: 'Feedback editor', exact: true });
+  await expect(page.getByText('Send a voice note', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add another change', exact: true })).toHaveCount(0);
+  await composer.getByLabel('Written feedback 1', { exact: true }).fill('Please update the title.\nKeep the photograph.');
+  await composer.getByLabel('Page number 1', { exact: true }).fill('2–3');
+  await expect(composer.getByRole('button', { name: 'Attach audio', exact: true })).toBeVisible();
+  const box = await composer.boundingBox();
+  expect(box.width).toBeLessThanOrEqual(480);
+  expect(box.height).toBeLessThan(350);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await composer.screenshot({ path: info.outputPath(`feedback-chat-${width}.png`) });
+  await composer.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Leave unsent feedback?' }).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(composer.getByLabel('Written feedback 1', { exact: true })).toHaveValue('Please update the title.\nKeep the photograph.');
+  let body;
+  await page.route('**/api/client/request-revision', route => {
+    body = route.request().postDataJSON(); order.status = 'revision_requested';
+    return route.fulfill({ json: { order } });
+  });
+  await composer.getByRole('button', { name: 'Send my changes', exact: true }).click();
+  if (await page.getByRole('dialog', { name: 'Review magazine', exact: true }).isVisible()) await page.getByRole('dialog', { name: 'Send these changes to Tinzel?' }).getByRole('button', { name: 'Send my changes', exact: true }).click();
+  await expect.poll(() => body).toEqual({ expectedVersion: 1, items: [{ text: 'Please update the title.\nKeep the photograph.', pageReference: '2–3' }] });
+  await expect(composer).toHaveCount(0);
+});
+
 test('audio-only submission previews, retains audio after failure, and plays from history', async ({ page }) => {
   const order = await setup(page);
   let calls = 0;
@@ -47,7 +75,7 @@ test('audio-only submission previews, retains audio after failure, and plays fro
     order.revisionRequests = [{ _id: 'round', roundNumber: 1, status: 'open', items: [{ _id: 'item', text: 'Audio feedback', audio: { contentType: 'audio/wav', size: file.buffer.length } }] }];
     return route.fulfill({ json: { order } });
   });
-  await page.getByLabel('Attach audio', { exact: true }).setInputFiles(file);
+  await page.getByLabel('Audio file', { exact: true }).setInputFiles(file);
   await expect(page.getByLabel('Preview audio feedback')).toBeVisible();
   await expect.poll(() => page.getByLabel('Preview audio feedback').evaluate(audio => audio.readyState)).toBeGreaterThan(0);
   await expect(page.getByLabel('Written feedback 1')).toBeEmpty();
@@ -85,8 +113,7 @@ test('mobile Swahili form supports removing audio, empty validation, and size li
   await page.screenshot({ path: info.outputPath('audio-mobile-sw.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Ondoa sauti' }).click();
-  await page.getByRole('button', { name: 'Tuma marekebisho yangu' }).click();
-  await expect(page.getByText('Eleza marekebisho au ongeza ujumbe wa sauti.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tuma marekebisho yangu' })).toBeDisabled();
   await attach.setInputFiles({ ...file, buffer: Buffer.alloc(3 * 1024 * 1024 + 1) });
   await expect(page.getByRole('region', { name: 'Maoni ya sauti' }).getByRole('alert')).toContainText('Chagua faili la sauti lisilozidi MB 3.');
 });
@@ -99,6 +126,8 @@ test('microphone denial keeps file upload available', async ({ page }) => {
   await page.getByRole('button', { name: 'Record voice note' }).click();
   await expect(page.getByRole('alert')).toContainText('Microphone access was not allowed');
   await expect(page.getByLabel('Attach audio', { exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Send my changes' })).toBeDisabled();
+  await page.getByLabel('Written feedback 1', { exact: true }).fill('Please update the title.');
   await expect(page.getByRole('button', { name: 'Send my changes' })).toBeEnabled();
 });
 

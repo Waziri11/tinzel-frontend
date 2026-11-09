@@ -1142,11 +1142,11 @@
 .proof-attachment-editor .revision-audio { min-width: 0; margin-bottom: 0; padding: 0; }
 .proof-chat-tools { display: flex; align-items: center; gap: 4px; }
 .proof-chat-tool-hint { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 6px; color: #766f63; font-size: 11px; font-variant-numeric: tabular-nums; }
-.pdf-book .proof-chat-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #69583b; }
-.pdf-book .proof-chat-icon:hover { background: #ebe5da; }
-.pdf-book .proof-chat-mic { background: #e9dfce; color: #73531f; }
-.pdf-book .proof-chat-mic:hover { background: #dfd0b7; }
-.pdf-book .proof-chat-mic.is-recording { background: #b53932; color: #fff; }
+.pdf-book .proof-chat-icon, .client-feedback-composer .proof-chat-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #69583b; }
+.pdf-book .proof-chat-icon:hover, .client-feedback-composer .proof-chat-icon:hover { background: #ebe5da; }
+.pdf-book .proof-chat-mic, .client-feedback-composer .proof-chat-mic { background: #e9dfce; color: #73531f; }
+.pdf-book .proof-chat-mic:hover, .client-feedback-composer .proof-chat-mic:hover { background: #dfd0b7; }
+.pdf-book .proof-chat-mic.is-recording, .client-feedback-composer .proof-chat-mic.is-recording { background: #b53932; color: #fff; }
 .proof-recording-dot { width: 7px; height: 7px; border-radius: 50%; background: #b53932; }
 .proof-chat-count { position: absolute; top: 0; right: 0; min-width: 15px; height: 15px; padding: 0 2px; border-radius: 10px; background: #805e26; color: #fff; font-size: 10px; line-height: 15px; }
 .proof-chat-audio-preview { padding: 8px; background: #fff; border: 1px solid #e3ded4; border-radius: 12px; }
@@ -1178,8 +1178,8 @@
 .pdf-book .proof-photo-remove { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid #e3ded4; border-radius: 50%; background: #fff; color: #574a38; box-shadow: 0 1px 4px #0001; }
 .proof-composer-actions { flex-shrink: 0; background: white; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px 14px; }
 .proof-composer-actions > span { font-size: 11px; color: #766f63; }
-.pdf-book .proof-composer .proof-chat-send { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: #805e26; color: #fff; }
-.pdf-book .proof-composer .proof-chat-send:disabled { background: #ebe6dc; color: #9b927f; opacity: 1; }
+.pdf-book .proof-composer .proof-chat-send, .client-feedback-composer .proof-chat-send { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: #805e26; color: #fff; }
+.pdf-book .proof-composer .proof-chat-send:disabled, .client-feedback-composer .proof-chat-send:disabled { background: #ebe6dc; color: #9b927f; opacity: 1; }
 
 .proof-selection-image { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 3; }
 
@@ -1201,6 +1201,7 @@
 .proof-mobile-dock { display: none; }
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
   .pdf-book:has(.proof-mobile-backdrop),
+  .pdf-book:has(.proof-composer),
   .pdf-book:has(.manager-proof-confirm-backdrop) { z-index: 2400; }
   .pdf-book .proof-toolbar {
     padding: 6px 12px 10px;

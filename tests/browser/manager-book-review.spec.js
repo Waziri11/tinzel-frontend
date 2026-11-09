@@ -673,6 +673,11 @@ test('image-only comments retain failed uploads and saves, reopen privately, and
   await page.getByRole('button', { name: 'Close image' }).click();
   await page.reload(); await page.getByRole('button', { name: 'Comments (1)', exact: true }).click();
   await expect(page.locator('.proof-attached-image img')).toBeVisible();
+  const reviewMenu = page.getByRole('button', { name: 'Review & return', exact: true });
+  if (await reviewMenu.isVisible()) {
+    await page.getByRole('button', { name: 'Close comments', exact: true }).click();
+    await reviewMenu.click();
+  }
   await page.getByRole('button', { name: 'Return to designer', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Confirm return' }).locator('.proof-attached-image img')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('image-only-return.png'), fullPage: true });

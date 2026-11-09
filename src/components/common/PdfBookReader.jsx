@@ -12,20 +12,19 @@ import './pdfBookReader.css';
 import Page from './ProofPage';
 import ProofComments from './ProofComments';
 import ProofMobilePanel from './ProofMobilePanel';
+import ReviewChatComposer from './ReviewChatComposer';
 import BookStage, { PAPER_TURN_MS } from './BookStage';
 import { createPortal } from 'react-dom';
 import {
   Maximize,
   Minimize,
   MessageSquare,
-  X,
   ChevronLeft,
   ChevronRight,
   Columns2,
   Square,
   Minus,
   Plus,
-  ArrowUp,
   ClipboardCheck,
 } from 'lucide-react';
 
@@ -729,29 +728,17 @@ export default function PdfBookReader({
                     : undefined
                 }
               >
-                <div className="proof-composer-heading">
-                  <span className="proof-comment-symbol"><MessageSquare size={18} aria-hidden="true" /></span>
-                  <strong>
-                    <InterfaceText>Page</InterfaceText> {selection.page} ·{' '}
-                    {tx(selection.kind === 'image' ? 'Image' : selection.kind === 'text' ? 'Text' : 'Area')}{' '}
-                    <InterfaceText>comment</InterfaceText>
-                  </strong>
-                  <button type="button" className="proof-chat-icon" aria-label={tx('Cancel')} title={tx('Cancel')} disabled={saving}
-                    onClick={() => { uploads.clear(true); setSelection(null); setReplacement(null); setComment(''); }}><X size={19} aria-hidden="true" /></button>
-                </div>
-                <div className="proof-composer-body">
-                  {selection.selectedText && <blockquote>{selection.selectedText}</blockquote>}
-                  <div className="proof-chat-message">
-                    <textarea
-                      ref={commentInput}
-                      aria-label={tx('Correction comment')}
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      maxLength={4000}
-                      placeholder={ui('Write your comment…', 'Andika maoni yako…')}
-                    />
-                    <AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />
-                  </div>
+                <ReviewChatComposer
+                  title={<><InterfaceText>Page</InterfaceText> {selection.page} · {tx(selection.kind === 'image' ? 'Image' : selection.kind === 'text' ? 'Text' : 'Area')} <InterfaceText>comment</InterfaceText></>}
+                  cancelLabel={tx('Cancel')} cancelDisabled={saving || audioBusy}
+                  onCancel={() => { uploads.clear(true); setSelection(null); setReplacement(null); setComment(''); }}
+                  quote={selection.selectedText} inputRef={commentInput} inputLabel={tx('Correction comment')}
+                  value={comment} onChange={event => setComment(event.target.value)} disabled={saving}
+                  placeholder={ui('Write your comment…', 'Andika maoni yako…')}
+                  attachments={<AttachmentEditor uploads={uploads} disabled={saving} onAudioBusyChange={setAudioBusy} />}
+                  footer={<span>{ui('Add text, photos or audio.', 'Ongeza maandishi, picha au sauti.')}</span>}
+                  submitLabel={tx('Save comment')} submitting={saving}
+                  submitDisabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
                   {replacement && (
                     <div className="proof-replacement" role="alert">
                       <p>
@@ -777,13 +764,7 @@ export default function PdfBookReader({
                       </button>
                     </div>
                   )}
-                </div>
-                <div className="proof-composer-actions">
-                  <span>{ui('Add text, photos or audio.', 'Ongeza maandishi, picha au sauti.')}</span>
-                  <ActionButton className="proof-chat-send" type="submit" aria-label={tx('Save comment')} title={tx('Save comment')} loading={saving} disabled={saving || audioBusy || !uploads.ready || (!comment.trim() && !uploads.items.length)}>
-                    <ArrowUp size={22} aria-hidden="true" />
-                  </ActionButton>
-                </div>
+                </ReviewChatComposer>
               </form>
             )}
           </div>

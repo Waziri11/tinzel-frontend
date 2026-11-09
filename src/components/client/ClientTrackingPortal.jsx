@@ -7,6 +7,7 @@ import PaymentOptions from './PaymentOptions';
 import DepositSummary from './DepositSummary';
 import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
 import RevisionAudioInput from '../common/RevisionAudioInput';
+import ReviewChatComposer from '../common/ReviewChatComposer';
 import RevisionAudioPlayer from '../common/RevisionAudioPlayer';
 import ProofMobilePanel from '../common/ProofMobilePanel';
 import PhoneInput from '../common/PhoneInput';
@@ -541,7 +542,7 @@ export default function ClientTrackingPortal() {
   const decisionControls = (reader = proofState) => (
     order.status === 'client_review' ? (
       <div
-        className="client-review-controls"
+        className={`client-review-controls${showRevisionForm ? ' is-composing' : ''}`}
         style={{
           backgroundColor: 'var(--bg-primary)',
           border: '1px solid var(--border-color)',
@@ -549,15 +550,18 @@ export default function ClientTrackingPortal() {
           padding: '24px',
         }}
       >
-        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{reader.mobile && reader.pendingAnnotations?.length
-          ? ui(`${reader.pendingAnnotations.length} saved change${reader.pendingAnnotations.length === 1 ? '' : 's'}`, `Marekebisho ${reader.pendingAnnotations.length} yaliyohifadhiwa`)
-          : t('track.decision.title')}</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-          {reader.mobile ? reader.pendingAnnotations?.length
-            ? ui('Send your saved comments, or add a note or voice message below.', 'Tuma maoni yaliyohifadhiwa, au ongeza maelezo au ujumbe wa sauti hapa chini.')
-            : ui('Approve for printing, or tell us what you would like changed.', 'Idhinisha uchapishaji, au tuambie unachotaka kirekebishwe.')
-            : t('track.decision.desc')}
-        </p>
+        {!showRevisionForm && <>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{reader.mobile && reader.pendingAnnotations?.length
+            ? ui(`${reader.pendingAnnotations.length} saved change${reader.pendingAnnotations.length === 1 ? '' : 's'}`, `Marekebisho ${reader.pendingAnnotations.length} yaliyohifadhiwa`)
+            : t('track.decision.title')}</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+            {reader.mobile ? reader.pendingAnnotations?.length
+              ? ui('Send your saved comments, or add a note or voice message below.', 'Tuma maoni yaliyohifadhiwa, au ongeza maelezo au ujumbe wa sauti hapa chini.')
+              : ui('Approve for printing, or tell us what you would like changed.', 'Idhinisha uchapishaji, au tuambie unachotaka kirekebishwe.')
+              : t('track.decision.desc')}
+          </p>
+        </>}
+        {showRevisionForm && reader.pendingAnnotations?.length > 0 && <p className="client-review-hint">{ui(`${reader.pendingAnnotations.length} saved page comment${reader.pendingAnnotations.length === 1 ? '' : 's'} will be sent with this message.`, `Maoni ${reader.pendingAnnotations.length} ya kurasa yaliyohifadhiwa yatatumwa pamoja na ujumbe huu.`)}</p>}
         {reader.mobile && reader.composing && <p className="client-review-hint">{ui('Save or cancel your page comment before making a decision.', 'Hifadhi au ghairi maoni ya ukurasa kabla ya kufanya uamuzi.')}</p>}
         {reader.mobile && Boolean(readerVersion && readerVersion !== order.currentDraftVersion) && <p className="client-review-hint">{ui('Open the current version to approve or send changes.', 'Fungua toleo la sasa ili kuidhinisha au kutuma marekebisho.')}</p>}
         {reader.mobile && error && <StatePanel compact kind="error" title={ui('The action could not finish', 'Hatua haikukamilika')} description={error} />}
@@ -612,99 +616,20 @@ export default function ClientTrackingPortal() {
             </button>
           </div>
         ) : (
-          <form onSubmit={event => handleRequestRevision(event, reader)}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-              {ui('Describe your changes in writing or with audio', 'Eleza marekebisho kwa maandishi au sauti')}
-            </label>
-            <RevisionAudioInput compact={reader.mobile} file={revisionAudio} onChange={setRevisionAudio} disabled={submittingDecision} onBusyChange={setAudioBusy} />
-            {revisionItems.map((item, index) => (
-              <div
-                key={index}
-                className="client-revision-row"
-              >
-                <input
-                  aria-label={ui(`Page number ${index + 1}`, `Namba ya ukurasa ${index + 1}`)}
-                  placeholder={ui('Page (optional)', 'Ukurasa (si lazima)')}
-                  value={item.pageReference}
-                  onChange={(e) =>
-                    setRevisionItems((rows) =>
-                      rows.map((row, i) => (i === index ? { ...row, pageReference: e.target.value } : row)),
-                    )
-                  }
-                  style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
-                />
-                <textarea
-                  rows={2}
-                  aria-label={ui(`Written feedback ${index + 1}`, `Maoni ya maandishi ${index + 1}`)}
-                  disabled={submittingDecision}
-                  placeholder={reader.mobile ? ui('What would you like us to change?', 'Ungependa tubadilishe nini?') : t('track.decision.describePh')}
-                  value={item.text}
-                  onChange={(e) =>
-                    setRevisionItems((rows) =>
-                      rows.map((row, i) => (i === index ? { ...row, text: e.target.value } : row)),
-                    )
-                  }
-                  style={{ padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}
-                />
-                {revisionItems.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setRevisionItems((rows) => rows.filter((_, i) => i !== index))}
-                    style={{ border: 0, background: 'transparent', color: '#991B1B' }}
-                  >
-                    {ui('Remove', 'Ondoa')}
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setRevisionItems((rows) => [...rows, { text: '', pageReference: '' }])}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-color)',
-                borderRadius: 6,
-                padding: '8px 12px',
-                marginBottom: 16,
-              }}
-            >
-              {ui('Add another change', 'Ongeza marekebisho mengine')}
-            </button>
-            <div className="client-review-form-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <ActionButton loading={submittingDecision}
-                className="client-review-send is-primary"
-                type="submit"
-                disabled={submittingDecision || audioBusy || reader.composing || reader.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: 'var(--accent-warning)',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '10px 18px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                }}
-              >
-                <Send size={14} />
-                {t('track.decision.submit')}
-              </ActionButton>
-              <button
-                type="button"
-                disabled={submittingDecision}
-                onClick={async () => { if (await allowFeedbackLeave()) { setShowRevisionForm(false); setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); } }}
-                style={{
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-muted)',
-                  padding: '10px 16px',
-                  fontSize: '13px',
-                }}
-              >
-                {t('track.decision.cancel')}
-              </button>
-            </div>
+          <form className="proof-composer client-feedback-composer" aria-label={ui('Feedback editor', 'Kihariri cha maoni')}
+            onSubmit={event => handleRequestRevision(event, reader)}>
+            <ReviewChatComposer title={ui('Your feedback', 'Maoni yako')}
+              cancelLabel={t('track.decision.cancel')} cancelDisabled={submittingDecision || audioBusy}
+              onCancel={async () => { if (await allowFeedbackLeave()) { setShowRevisionForm(false); setRevisionAudio(null); setRevisionItems([{ text: '', pageReference: '' }]); } }}
+              inputLabel={ui('Written feedback 1', 'Maoni ya maandishi 1')} placeholder={ui('Write your changes…', 'Andika marekebisho yako…')}
+              value={revisionItems[0].text} onChange={event => setRevisionItems([{ ...revisionItems[0], text: event.target.value }])}
+              maxLength={10000} disabled={submittingDecision}
+              attachments={<div className="proof-attachment-editor"><RevisionAudioInput compact file={revisionAudio} onChange={setRevisionAudio} disabled={submittingDecision} onBusyChange={setAudioBusy} /></div>}
+              footer={<input className="client-feedback-page" aria-label={ui('Page number 1', 'Namba ya ukurasa 1')} placeholder={ui('Page (optional)', 'Ukurasa (si lazima)')}
+                value={revisionItems[0].pageReference} disabled={submittingDecision} maxLength={100}
+                onChange={event => setRevisionItems([{ ...revisionItems[0], pageReference: event.target.value }])} />}
+              submitLabel={t('track.decision.submit')} submitting={submittingDecision}
+              submitDisabled={submittingDecision || audioBusy || reader.composing || reader.saving || decisionUncertain || Boolean(readerVersion && readerVersion !== order.currentDraftVersion) || (!revisionItems[0].text.trim() && !revisionAudio && !reader.pendingAnnotations?.length)} />
           </form>
         )}
       </div>
