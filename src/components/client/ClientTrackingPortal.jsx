@@ -1,10 +1,8 @@
 import { OrderPriceBreakdown } from './ExpressOrderChoice';
-import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import StatePanel from '../common/StatePanel';
 import { useConfirm } from '../common/ConfirmDialog';
 import { normalizePhone } from '../../utils/phone';
 import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
-import { orderSenderName } from '../../utils/orderDisplay';
 import PaymentOptions from './PaymentOptions';
 import DepositSummary from './DepositSummary';
 import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
@@ -27,26 +25,16 @@ import {
   Truck,
   Printer,
   Sparkles,
-  LogOut,
   CreditCard,
 } from 'lucide-react';
 import { useAccountLanguage } from '../../hooks/useAccountLanguage';
-import ClientNotifications from './ClientNotifications';
+import ClientOrderSummary from './ClientOrderSummary';
 import ClientDeliveryLocation from './ClientDeliveryLocation';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import './clientMagazineReview.css';
 
 const PdfBookReader = lazy(() => import('../common/PdfBookReader'));
-
-const STAGES = [
-  { key: 'submission', labelKey: 'track.stage.submission' },
-  { key: 'payment', labelKey: 'track.stage.payment' },
-  { key: 'design', labelKey: 'track.stage.design' },
-  { key: 'review', labelKey: 'track.stage.review' },
-  { key: 'printing', labelKey: 'track.stage.printing' },
-  { key: 'delivery', labelKey: 'track.stage.delivery' },
-];
 
 export default function ClientTrackingPortal() {
   const { t, lang } = useLanguage();
@@ -546,7 +534,6 @@ export default function ClientTrackingPortal() {
         total: formatPaymentAmount(amounts.total, order.currency),
       })
     : t(journey.detailKey);
-  const currentStageIdx = journey.stage;
   const releasedDraft =
     (order.draftVersions || []).find((v) => v.versionNumber === order.currentDraftVersion) ||
     (order.draftVersions || []).at(-1);
@@ -736,61 +723,11 @@ export default function ClientTrackingPortal() {
 
   return (
     <div className="tracking-order">
-      {/* Top Banner / Order Summary */}
-      <div
-        style={{
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          padding: '24px',
-          marginBottom: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span className="customer-order-name" style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '0.5px' }}>
-              {orderSenderName(order, ui('Your magazine', 'Jarida lako'))}
-            </span>
-            <OrderCountdownBadge order={order} />
-            <span
-              style={{
-                backgroundColor: 'var(--accent-gold-light)',
-                color: 'var(--accent-primary)',
-                fontSize: '11px',
-                fontWeight: '600',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                textTransform: 'uppercase',
-              }}
-            >
-              {t(journey.statusKey)}
-            </span>
-          </div>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            {t('track.magazine')}{' '}
-            <strong>{order.formTitle}</strong>
-          </p>
-          <p className="customer-status-description" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 10, maxWidth: 600 }}>{journeyDescription}</p>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <ClientNotifications token={clientToken} onUnauthorized={handleUnauthorized} />
-          <button type="button" className="ui-button" onClick={async () => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(true); }}>
-            {ui('Stop remembering this order', 'Usikumbuke oda hii tena')}
-          </button>
-          <ActionButton onClick={async () => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(); }}>
-            <LogOut size={13} /> {t('track.signOut')}
-          </ActionButton>
-        </div>
-      </div>
-
-      <StatePanel compact kind={journey.complete ? 'success' : order.status === 'on_hold' || order.status === 'awaiting_payment' ? 'warning' : 'info'} title={t(journey.statusKey)} description={order.status === 'on_hold' ? order.holdReason || journeyDescription : journeyDescription}>
-        <ActionButton className="ui-button" loading={loading} disabled={loading || submittingDecision} onClick={() => loadOrder(clientToken)}>{ui('Refresh order', 'Sasisha oda')}</ActionButton>
-        {lastLoaded && <small>{ui('Last checked: ', 'Ilihakikiwa mwisho: ')}{new Date(lastLoaded).toLocaleTimeString(lang === 'sw' ? 'sw-TZ' : 'en-TZ')}</small>}
-      </StatePanel>
+      <ClientOrderSummary order={order} journey={journey} description={journeyDescription}
+        loading={loading} busy={submittingDecision || audioBusy || proofState.saving} lastLoaded={lastLoaded}
+        onRefresh={() => loadOrder(clientToken)}
+        onLogout={async forget => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(forget); }}
+        token={clientToken} onUnauthorized={handleUnauthorized} />
       {loadFailed && <StatePanel compact kind="warning" title={ui('These details may be out of date', 'Taarifa hizi huenda si za sasa')} description={ui('We could not refresh your order. Your previously loaded details remain visible.', 'Hatukuweza kusasisha oda yako. Taarifa zilizopakiwa awali bado zinaonekana.')} />}
       <ClientDeliveryLocation
         key={order._id}
@@ -832,58 +769,6 @@ export default function ClientTrackingPortal() {
           <PaymentOptions paymentOptions={order.paymentOptions} lipaNambaInstructions={order.lipaNambaInstructions} />
         </div>
       )}
-
-      {/* Visual Conveyor Belt Progress Bar */}
-      <div
-        style={{
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          padding: '20px 24px',
-          marginBottom: '24px',
-        }}
-      >
-        <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '14px', color: 'var(--text-muted)' }}>
-          {t('track.progress')}
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-            gap: '8px',
-          }}
-        >
-          {STAGES.map((stg, i) => {
-            const isCompleted = journey.complete || i < currentStageIdx;
-            const isCurrent = !journey.complete && i === currentStageIdx;
-            return (
-              <div
-                key={stg.key}
-                aria-current={isCurrent ? 'step' : undefined}
-                style={{
-                  backgroundColor: isCompleted ? '#F0FDF4' : isCurrent ? '#EFF6FF' : 'var(--bg-primary)',
-                  border: `1px solid ${isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : 'var(--border-color)'}`,
-                  borderRadius: '6px',
-                  padding: '10px 8px',
-                  textAlign: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: isCompleted ? '#15803D' : isCurrent ? '#1D4ED8' : 'var(--text-muted)',
-                    whiteSpace: 'normal',
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {t(stg.labelKey)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {successMsg && <StatePanel kind="success" title={successMsg} />}
       {error && !(proofState.mobile && proofState.reviewPanelOpen) && <StatePanel kind="error" title={errorStatus === 409 ? ui('This order has changed', 'Oda hii imebadilika') : ui('The action could not finish', 'Hatua haikukamilika')} description={error}><ActionButton className="ui-button" loading={loading} disabled={loading} onClick={() => loadOrder(clientToken)}>{ui('Check latest order', 'Hakiki oda ya sasa')}</ActionButton></StatePanel>}

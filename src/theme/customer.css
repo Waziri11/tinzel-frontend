@@ -418,14 +418,6 @@
   gap: 8px;
   max-width: 100%;
 }
-.tracking-order > div:first-child {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 24px;
-}
-.tracking-order > div:first-child > div > div > span:first-child {
-  font: 500 36px var(--font-brand);
-  letter-spacing: 0;
-}
 .tracking-order h2 {
   font: 500 30px var(--font-brand);
 }
@@ -455,13 +447,6 @@
   }
   .tracking-access > div {
     padding: 24px;
-  }
-  .tracking-order > div:first-child {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-  .tracking-order > div:first-child > div > div > span:first-child {
-    font-size: 30px;
   }
 }
 

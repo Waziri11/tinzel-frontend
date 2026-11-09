@@ -1,4 +1,4 @@
-import { test, expect, chooseEnglish } from './fixtures.js';
+import { test, expect, chooseEnglish, clientOrderAction } from './fixtures.js';
 const json=(route,data)=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
 const staff={id:'staff-1',name:'Neema Manager',role:'admin',preferredLanguage:'en'};
 const order={_id:'order-1',submissionId:'SUB-2026-001',trackingId:'TNZ-2026-001',clientName:'Asha',clientWhatsApp:'0712000000',formTitle:'Magazine',status:'assigned',clientPreferredLanguage:'sw',draftVersions:[]};
@@ -39,20 +39,20 @@ test('customer opens a separate mobile inbox, marks messages read, and polls onl
  await page.route('**/api/client/notifications/client-note/read',route=>{read=true;return json(route,{success:true});});
  await page.goto('/track');await expect(page.getByRole('button',{name:'SW',exact:true})).toHaveAttribute('aria-pressed','true');
  await expect(page.locator('.client-inbox')).toHaveCount(0);expect(historyCalls).toBe(0);
- await page.getByRole('button',{name:'Taarifa',exact:true}).click();await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
+ await clientOrderAction(page, 'Taarifa');await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByText('Malipo yamethibitishwa',{exact:true})).toBeVisible();await expect(page.locator('body')).not.toContainText('SUB-');
  await page.getByRole('button',{name:'Weka imesomwa'}).click();await expect.poll(()=>read).toBe(true);await expect(page.locator('.client-inbox h3')).toHaveText('Taarifa za oda yako');
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
- await expect(page.getByRole('button',{name:'Taarifa',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Chaguo za oda',exact:true})).toBeFocused();
  const closedCalls=historyCalls;await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(closedCalls);
  await page.getByRole('button',{name:'EN',exact:true}).click();await expect.poll(()=>language).toBe('en');
- await page.getByRole('button',{name:'Notifications',exact:true}).click();
+ await clientOrderAction(page, 'Notifications');
  await expect(page.locator('.client-inbox h3')).toHaveText('Order updates');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
  await page.screenshot({path:'/tmp/tinzel-workflow-customer-mobile.png',fullPage:true});
  const beforeTimer=historyCalls;await page.clock.fastForward(30000);await expect.poll(()=>historyCalls).toBeGreaterThan(beforeTimer);
  const before=historyCalls;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>historyCalls).toBeGreaterThan(before);
  await page.getByRole('button',{name:'Close',exact:true}).click();await expect(page.getByRole('dialog')).toBeHidden();
- await page.getByRole('button',{name:/Sign out|Logout|Log out/i}).click();await expect(page.locator('#track-login-id')).toBeVisible();const afterLogout=historyCalls;
+ await clientOrderAction(page, /Sign out|Logout|Log out/i);await expect(page.locator('#track-login-id')).toBeVisible();const afterLogout=historyCalls;
  await page.clock.fastForward(60000);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));expect(historyCalls).toBe(afterLogout);
 });
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clientOrderAction } from './fixtures.js';
 const csrf = 'a'.repeat(48);
 const form = { _id: 'edition-state-test', slug: 'state-test', title: 'Celebration edition', titleSw: 'Toleo la sherehe', price: 1000, currency: 'TZS', fields: [] };
 const order = { _id: 'customer-state-test', submissionId: 'SUB-STATE-TEST', clientName: 'State fixture', clientWhatsApp: '+255700000001', clientPreferredLanguage: 'en', formTitle: 'Celebration edition', status: 'in_design', currentDraftVersion: 0, draftVersions: [], revisionRequests: [] };
@@ -104,7 +105,7 @@ test('tracking failed refresh retains order and explains no draft', async ({ pag
   await page.goto('/track');
   await expect(page.getByText('State fixture', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your magazine preview is not ready yet' })).toBeVisible();
-  failed = true; await page.getByRole('button', { name: 'Refresh order', exact: true }).click();
+  failed = true; await clientOrderAction(page, 'Refresh order');
   await expect(page.getByRole('heading', { name: 'These details may be out of date' })).toBeVisible();
   await expect(page.getByText('State fixture', { exact: true })).toBeVisible();
 });
@@ -113,7 +114,7 @@ test('notification retry repeats failed read action', async ({ page }) => {
   await page.route('**/api/client/order', route => route.fulfill({ json: { order, csrf } }));
   await page.route('**/api/client/notifications', route => route.fulfill({ json: { notifications: [{ _id: 'update-one', title: 'Your magazine is being designed', message: 'We are working on it.', createdAt: '2026-11-08T08:00:00.000Z', isRead: false }], unreadCount: 1 } }));
   await page.route('**/api/client/notifications/update-one/read', route => { attempts++; return route.fulfill(attempts === 1 ? { status: 503, json: { message: 'Save unavailable' } } : { json: { success: true } }); });
-  await page.goto('/track'); await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await page.goto('/track'); await clientOrderAction(page, 'Notifications');
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Mark as read', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Could not mark this update as read' })).toBeVisible();
@@ -159,7 +160,7 @@ test('successful SMS verification does not repeatedly reload an open notificatio
   await page.locator('#track-login-otp').fill('123456');
   await page.getByRole('button', { name: 'View my order', exact: true }).click();
   await expect(page.getByText('State fixture', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await clientOrderAction(page, 'Notifications');
   await expect(page.getByRole('heading', { name: 'No order updates yet', exact: true })).toBeVisible();
   const loaded = notificationLoads;
   await page.clock.runFor(4000);

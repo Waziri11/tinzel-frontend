@@ -1,5 +1,9 @@
 import { test as base, expect } from '@playwright/test';
 export { expect };
+export async function clientOrderAction(page, name) {
+  await page.getByRole('button', { name: /^(Order options|Chaguo za oda)$/ }).click();
+  await page.getByRole('menuitem', { name, exact: typeof name === 'string' }).click();
+}
 export async function openClientReview(page) {
   await page.locator('.pdf-book').waitFor();
   const review = page.getByRole('button', { name: /^(Review magazine|Kagua jarida)$/, exact: true });

@@ -4,24 +4,28 @@ import StatePanel, { StateError } from '../common/StatePanel';
 import { ActionButton } from '../common/SoftFlutter';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Modal } from 'antd';
-import { Bell } from 'lucide-react';
 import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useVisiblePolling } from '../../hooks/useVisiblePolling';
-export default function ClientNotifications({ token, onUnauthorized }) {
+export default function ClientNotifications({ token, onUnauthorized, open, onClose, onAfterClose }) {
   const { lang } = useLanguage();
-  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    // A menu or a removed "Mark as read" button can leave focus outside the inbox.
+    const escape = event => {
+      if (event.key !== 'Escape' || event.isComposing) return;
+      const top = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(dialog => dialog.getClientRects().length && getComputedStyle(dialog).visibility !== 'hidden').at(-1);
+      if (top?.classList.contains('client-notifications-modal')) { event.stopPropagation(); onClose(); }
+    };
+    document.addEventListener('keydown', escape, true);
+    return () => document.removeEventListener('keydown', escape, true);
+  }, [open, onClose]);
   const title = lang === 'sw' ? 'Taarifa' : 'Notifications';
-  return <>
-    <button type="button" className="ui-button" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-      <Bell size={16} aria-hidden="true" /> {title}
-    </button>
-    <Modal open={open} forceRender title={title} onCancel={() => setOpen(false)} footer={null}
+  return <Modal className="client-notifications-modal" open={open} forceRender title={title} onCancel={onClose} afterClose={onAfterClose} footer={null}
       closeIcon={<span aria-label={lang === 'sw' ? 'Funga taarifa' : 'Close notifications'}>×</span>}
       styles={{ body: { maxHeight: '65dvh', overflowY: 'auto', overflowWrap: 'anywhere' } }}>
       {open && <NotificationHistory token={token} onUnauthorized={onUnauthorized} />}
-    </Modal>
-  </>;
+    </Modal>;
 }
 
 function NotificationHistory({ token, onUnauthorized }) {

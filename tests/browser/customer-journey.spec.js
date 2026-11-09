@@ -30,7 +30,7 @@ for (const [lang, index] of [['en', 1], ['sw', 2]]) {
     for (const [status, en, sw] of states) {
       order.status = status;
       await page.goto('/track');
-      await expect(page.getByRole('heading', { name: index === 1 ? en : sw, exact: true })).toBeVisible();
+      await expect(page.locator('.client-order-status').filter({ hasText: index === 1 ? en : sw })).toBeVisible();
       await expect(page.locator('.customer-status-description')).not.toBeEmpty();
       await expect(page.locator('main')).not.toContainText(/CONVEYOR BELT|queued for assignment|draft manager review|approval loop|print document prep|track\.status\.|future_internal_state/i);
       await expect(page.getByText('We sent a six-digit code by SMS.')).toHaveCount(0);
@@ -38,7 +38,7 @@ for (const [lang, index] of [['en', 1], ['sw', 2]]) {
         await expect(page.locator('.payment-deposit-summary')).toContainText(lang === 'en' ? 'Pay TSh 25,000 now' : 'Lipa TSh 25,000 sasa');
         await expect(page.locator('.payment-deposit-summary')).toContainText('25,000 TZS');
       }
-      if (status === 'dispatched') await expect(page.getByText(lang === 'en' ? '6. Delivery' : '6. Uwasilishaji', { exact: true })).toBeVisible();
+      if (status === 'dispatched') await expect(page.locator('[aria-current="step"]')).toContainText(lang === 'en' ? '6. Delivery' : '6. Uwasilishaji');
       if (['delivered', 'closed'].includes(status)) await expect(page.locator('[aria-current="step"]')).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), status).toBe(true);
       if (status === 'assigned') await page.screenshot({ path: info.outputPath(`customer-design-${lang}.png`), fullPage: true });
@@ -53,7 +53,7 @@ test('customer change history uses readable statuses and stays in updating while
     revisionRequests: ['open', 'submitted_for_review', 'resolved'].map((status, index) => ({ _id: `request-${index}`, roundNumber: index + 1, status, items: [{ _id: `item-${index}`, text: 'Please update the name', pageReference: '2' }] })),
   } } }));
   await page.goto('/track');
-  await expect(page.getByRole('heading', { name: 'Updating your magazine', exact: true })).toBeVisible();
+  await expect(page.locator('.client-order-status').filter({ hasText: 'Updating your magazine' })).toBeVisible();
   for (const label of ['Request 1 · Changes received', 'Request 2 · Checking your updates', 'Request 3 · Updates ready']) await expect(page.getByText(label, { exact: true })).toBeVisible();
   await expect(page.locator('main')).not.toContainText('submitted_for_review');
 });
@@ -81,7 +81,7 @@ test('SMS confirmation disappears after the customer opens their order', async (
   await expect(page.getByText('We sent a six-digit code by SMS.')).toBeVisible();
   await page.locator('#track-login-otp').fill('123456');
   await page.getByRole('button', { name: 'View my order' }).click();
-  await expect(page.getByRole('heading', { name: 'In design', exact: true })).toBeVisible();
+  await expect(page.locator('.client-order-status').filter({ hasText: 'In design' })).toBeVisible();
   await expect(page.getByText('We sent a six-digit code by SMS.')).toHaveCount(0);
 });
 
