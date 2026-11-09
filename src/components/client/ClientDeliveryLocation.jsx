@@ -4,7 +4,7 @@ import { api } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { ActionButton } from '../common/SoftFlutter';
 
-const EDITABLE_STATUSES = ['client_approved', 'print_document_prep', 'print_manager_review', 'printing_sent', 'printing_in_progress', 'printing_completed'];
+const EDITABLE_STATUSES = ['awaiting_balance_payment', 'balance_payment_review', 'client_approved', 'print_document_prep', 'print_manager_review', 'printing_sent', 'printing_in_progress', 'printing_completed'];
 
 export default function ClientDeliveryLocation({ order, token, focusOnOpen, onSaved }) {
   const { t } = useLanguage();

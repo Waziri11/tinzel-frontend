@@ -292,6 +292,9 @@ export const api = {
         body: JSON.stringify({ location }),
       }).then(handleResponse),
 
+    reportBalancePayment: (clientToken, data) =>
+      fetchWithTimeout(`${API_BASE}/api/client/balance-payment`, { method: 'POST', headers: getHeaders(clientToken), body: JSON.stringify(data) }).then(handleResponse),
+
     approveDraft: (clientToken, feedback, expectedVersion) =>
       fetchWithTimeout(`${API_BASE}/api/client/approve-draft`, {
         method: 'POST',
@@ -429,6 +432,9 @@ export const api = {
       fetchWithTimeout(`${API_BASE}/api/manager/orders/${id}`, {
         headers: getHeaders(token),
       }).then(handleResponse),
+
+    reviewBalancePayment: (token, id, data) =>
+      fetchWithTimeout(`${API_BASE}/api/manager/orders/${id}/balance-payment`, { method: 'POST', headers: getHeaders(token), body: JSON.stringify(data) }).then(handleResponse),
 
     verifyPayment: (token, id, data) =>
       fetchWithTimeout(`${API_BASE}/api/manager/orders/${id}/verify-payment`, {

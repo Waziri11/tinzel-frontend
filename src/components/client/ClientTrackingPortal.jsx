@@ -4,6 +4,7 @@ import { useConfirm } from '../common/ConfirmDialog';
 import { normalizePhone } from '../../utils/phone';
 import { customerJourney, customerChangeStatusKey } from '../../utils/customerJourney';
 import PaymentOptions from './PaymentOptions';
+import ClientBalancePayment from './ClientBalancePayment';
 import DepositSummary from './DepositSummary';
 import { paymentAmounts, formatPaymentAmount } from '../../utils/paymentAmounts';
 import RevisionAudioInput from '../common/RevisionAudioInput';
@@ -80,6 +81,7 @@ export default function ClientTrackingPortal() {
   const [audioBusy, setAudioBusy] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [focusDeliveryLocation, setFocusDeliveryLocation] = useState(false);
+  const [focusBalancePayment, setFocusBalancePayment] = useState(false);
   const [readerVersion, setReaderVersion] = useState(null);
   const [proofState, setProofState] = useState(() => ({ composing: false, saving: false, pendingAnnotations: [], mobile: window.matchMedia('(max-width:760px), (hover:none) and (pointer:coarse)').matches }));
   const decisionLock = useRef(false);
@@ -268,8 +270,9 @@ export default function ClientTrackingPortal() {
       );
       reader.onFinishReview?.();
       setOrder(res.order);
-      setFocusDeliveryLocation(true);
-      setSuccessMsg(t('track.ok.approved'));
+      setFocusBalancePayment(Boolean(res.order.payment?.remaining));
+      setFocusDeliveryLocation(!res.order.payment?.remaining);
+      setSuccessMsg(res.order.payment?.remaining ? ui('Magazine approved. Please complete the remaining payment before printing.', 'Jarida limeidhinishwa. Tafadhali kamilisha malipo yaliyobaki kabla ya uchapishaji.') : t('track.ok.approved'));
     } catch (err) {
       setError(err.message || t('track.err.approve')); setErrorStatus(err.status);
       if (!err.status || err.status >= 500 || [408, 409].includes(err.status)) setDecisionUncertain(true);
@@ -654,6 +657,7 @@ export default function ClientTrackingPortal() {
         onLogout={async forget => { if (await allowProofLeave() && await allowFeedbackLeave()) handleLogout(forget); }}
         token={clientToken} onUnauthorized={handleUnauthorized} />
       {loadFailed && <StatePanel compact kind="warning" title={ui('These details may be out of date', 'Taarifa hizi huenda si za sasa')} description={ui('We could not refresh your order. Your previously loaded details remain visible.', 'Hatukuweza kusasisha oda yako. Taarifa zilizopakiwa awali bado zinaonekana.')} />}
+      <ClientBalancePayment key={`payment-${order._id}`} order={order} token={clientToken} focusOnOpen={focusBalancePayment} onSaved={setOrder} />
       <ClientDeliveryLocation
         key={order._id}
         order={order}

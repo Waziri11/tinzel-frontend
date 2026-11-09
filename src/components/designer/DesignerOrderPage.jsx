@@ -123,7 +123,7 @@ export default function DesignerOrderPage({ token, staffUser, orderId, onBack })
   const currentDraft = order?.draftVersions?.find((item) => item.versionNumber === order.currentDraftVersion);
   const canEdit = ['designer', 'admin'].includes(staffUser?.role);
   const canUploadDraft = canEdit && ['assigned', 'in_design', 'revision_requested'].includes(order?.status);
-  const canPreparePrint = Boolean(canEdit && order?.approvedVersionNumber && ['client_approved', 'print_document_prep'].includes(order?.status));
+  const canPreparePrint = Boolean(canEdit && order?.approvedVersionNumber && order.payment?.fullyPaid !== false && ['client_approved', 'print_document_prep'].includes(order?.status));
   const [tab, setTab] = useState(null);
   const activeTab = tab || (currentDraft ? 'magazine' : 'text');
   const [selectedVersion, setSelectedVersion] = useState(null);

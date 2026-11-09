@@ -1,4 +1,5 @@
 import { compareExpressPriority } from '../../utils/expressOrder';
+import OrderPaymentSummary, { orderPayment } from '../common/OrderPaymentSummary';
 import { paymentAmounts } from '../../utils/paymentAmounts';
 import OrderCountdownBadge from '../common/OrderCountdownBadge';
 import { orderSenderName } from '../../utils/orderDisplay';
@@ -45,6 +46,7 @@ import './managerDashboard.css';
 const ALL_STAGES = [
   { id: 'exceptions', title: 'Held & Exceptions', statuses: ['on_hold'] },
   { id: 'payment', title: 'Payment', statuses: ['awaiting_payment', 'payment_verified'] },
+  { id: 'balance', title: 'Balance Payment', statuses: ['awaiting_balance_payment', 'balance_payment_review'] },
   { id: 'design', title: 'Design', statuses: ['queued_for_assignment', 'assigned', 'in_design'] },
   { id: 'draft', title: 'Manager Review', statuses: ['draft_manager_review'] },
   { id: 'client', title: 'Client Review', statuses: ['client_review', 'revision_requested'] },
@@ -137,8 +139,9 @@ const PHASE_CONFIGS = {
   },
   post_design: {
     title: 'Post-Design Phase',
-    description: 'Print-ready document authorization, printing press tracking, courier dispatch, and delivery closure.',
+    description: 'Balance payment approval, print preparation, printing, and delivery.',
     stages: [
+      { id: 'balance', title: 'Balance Payment', statuses: ['awaiting_balance_payment', 'balance_payment_review'] },
       { id: 'print_prep', title: 'Print Preparation', statuses: ['client_approved', 'print_document_prep'] },
       { id: 'print_approval', title: 'Print Approval', statuses: ['print_manager_review'] },
       { id: 'printing', title: 'Printing', statuses: ['printing_sent', 'printing_in_progress', 'printing_completed'] },
@@ -146,6 +149,8 @@ const PHASE_CONFIGS = {
       { id: 'exceptions', title: 'On Hold (Post-Design)', statuses: ['on_hold'] },
     ],
     statuses: [
+      'awaiting_balance_payment',
+      'balance_payment_review',
       'client_approved',
       'print_document_prep',
       'print_manager_review',
@@ -158,6 +163,12 @@ const PHASE_CONFIGS = {
       'on_hold',
     ],
     summaryCards: (summary, counts) => [
+      {
+        id: 'balance_payment_review',
+        label: 'Balance payments to approve',
+        value: counts.balance_payment_review || 0,
+        icon: CircleDollarSign,
+      },
       {
         id: 'client_approved',
         label: 'Print preparation',
@@ -188,6 +199,8 @@ const PHASE_CONFIGS = {
 
 const ATTENTION = new Set([
   'awaiting_payment',
+  'awaiting_balance_payment',
+  'balance_payment_review',
   'queued_for_assignment',
   'draft_manager_review',
   'print_manager_review',
@@ -200,6 +213,8 @@ const ATTENTION = new Set([
 
 const STATUS_LABELS = {
   awaiting_payment: 'Payment awaiting verification',
+  awaiting_balance_payment: 'Awaiting balance payment',
+  balance_payment_review: 'Balance payment awaiting approval',
   payment_verified: 'Payment verified',
   queued_for_assignment: 'Waiting for designer capacity',
   assigned: 'Assigned to designer',
@@ -221,6 +236,8 @@ const STATUS_LABELS = {
 
 const NEXT_TASK = {
   awaiting_payment: 'Verify payment',
+  awaiting_balance_payment: 'Verify balance payment',
+  balance_payment_review: 'Approve balance payment',
   queued_for_assignment: 'Assign a designer',
   draft_manager_review: 'Review the complete draft',
   print_manager_review: 'Review and authorize printing',
@@ -244,6 +261,7 @@ const displayDate = (date) =>
 
 const emptyForm = {
   paymentRef: '',
+  paymentReason: '',
   amountPaid: '',
   printerStage: 'in_progress',
   printerNotes: '',
@@ -455,7 +473,7 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
 
   const beginAction = async (name, order = orderDetail || selectedOrder) => {
     if (!order || submitting) return;
-    if (name === 'dispatch' || (name === 'print' && orderDetail?._id !== order._id)) {
+    if (name === 'dispatch' || (['print', 'balance', 'rejectPayment'].includes(name) && orderDetail?._id !== order._id)) {
       const current = await openOrder(order, false);
       if (!current) return;
       order = current;
@@ -464,7 +482,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
     setSelectedOrder(order);
     setForm({
       ...emptyForm,
-      amountPaid: String(paymentAmounts(order.totalPrice ?? order.formId?.price)?.deposit ?? ''),
+      amountPaid: String(['balance', 'rejectPayment'].includes(name) ? (orderPayment(order)?.pending?.amount ?? orderPayment(order)?.remaining ?? '') : (paymentAmounts(order.totalPrice ?? order.formId?.price)?.deposit ?? '')),
+      paymentRef: ['balance', 'rejectPayment'].includes(name) ? orderPayment(order)?.pending?.reference || '' : '',
       printerStage: order.status === 'printing_sent' ? 'in_progress' : 'completed',
       deliveryAddress: order.dispatchDetails?.deliveryAddress || order.clientDeliveryDetails?.location || '',
       designerId: order.assignedDesigner?._id || '',
@@ -493,6 +512,11 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
           lipaNambaReference: form.paymentRef,
           amountPaid: form.amountPaid,
         });
+      if (['balance', 'rejectPayment'].includes(action)) response = await api.manager.reviewBalancePayment(token, selectedOrder._id, {
+        decision: action === 'balance' ? 'approve' : 'reject',
+        paymentId: orderPayment(selectedOrder)?.pending?._id,
+        reference: form.paymentRef, amount: Number(form.amountPaid), reason: form.paymentReason,
+      });
       if (action === 'print') response = await api.manager.authorisePrint(token, selectedOrder._id, {});
       if (action === 'printer')
         response = await api.manager.printerUpdate(token, selectedOrder._id, {
@@ -554,6 +578,8 @@ export default function ConveyorBeltBoard({ token, phase = null, onNavigateToRet
   const nextActionButton = (order, compact = false) => {
     const map = {
       awaiting_payment: ['payment', 'Verify payment', CircleDollarSign],
+      awaiting_balance_payment: ['balance', 'Verify balance payment', CircleDollarSign],
+      balance_payment_review: ['balance', 'Approve balance payment', CircleDollarSign],
       payment_verified: ['reassign', 'Assign designer', UserRoundCheck],
       queued_for_assignment: ['reassign', 'Assign designer', UserRoundCheck],
       assigned: ['reassign', 'Reassign', UserRoundCheck],
@@ -1017,6 +1043,21 @@ function OrderDetail({ activeTab, onTabChange, token, order, auditLogs, beginAct
       ),
     },
     {
+      key: 'payment',
+      label: 'Payment',
+      children: <>
+        <OrderPaymentSummary payment={orderPayment(order)} />
+        {order.status === 'awaiting_payment' && <button type="button" className="manager-primary-action" onClick={() => beginAction('payment', order)}>{ui('Approve initial payment', 'Idhinisha malipo ya awali')}</button>}
+        {Boolean(order.approvedVersionNumber) && ['awaiting_balance_payment', 'balance_payment_review', 'client_approved', 'print_document_prep', 'print_manager_review'].includes(order.status) && orderPayment(order)?.remaining > 0 && <>
+          <p>{ui('Check the received payment before approving. Printing stays blocked until the full total is approved.', 'Hakiki malipo yaliyopokelewa kabla ya kuidhinisha. Uchapishaji utasubiri hadi kiasi chote kiidhinishwe.')}</p>
+          <div className="order-payments__actions">
+            <button type="button" className="manager-primary-action" onClick={() => beginAction('balance', order)}>{ui(orderPayment(order)?.pending ? 'Approve balance payment' : 'Record received payment', orderPayment(order)?.pending ? 'Idhinisha malipo yaliyobaki' : 'Rekodi malipo yaliyopokelewa')}</button>
+            {orderPayment(order)?.pending && <button type="button" className="manager-secondary-action" onClick={() => beginAction('rejectPayment', order)}>{ui('Return payment for correction', 'Rudisha malipo kwa marekebisho')}</button>}
+          </div>
+        </>}
+      </>,
+    },
+    {
       key: 'answers',
       label: 'Client answers',
       children: (
@@ -1171,6 +1212,8 @@ function ActionModal({
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const titles = {
     payment: 'Verify payment',
+    balance: 'Approve balance payment',
+    rejectPayment: 'Return payment for correction',
     print: 'Authorize printing',
     printer: 'Record printer progress',
     dispatch: 'Authorize courier dispatch',
@@ -1179,7 +1222,7 @@ function ActionModal({
     hold: 'Place order on hold',
     resume: 'Resume this order',
   };
-  const destructive = ['payment', 'print', 'dispatch', 'delivery'].includes(action);
+  const destructive = ['payment', 'balance', 'rejectPayment', 'print', 'dispatch', 'delivery'].includes(action);
   return (
     <Modal
       title={tx(titles[action] || 'Manager action')}
@@ -1234,8 +1277,17 @@ function ActionModal({
               </label>
             </>
           )}
+          {['balance', 'rejectPayment'].includes(action) && <>
+            <OrderPaymentSummary payment={orderPayment(order)} history={false} />
+            {action === 'balance' ? <>
+              <p>{ui('Approve only the amount you have received. A customer reference alone does not confirm payment.', 'Idhinisha kiasi ulichopokea pekee. Kumbukumbu ya mteja peke yake haithibitishi malipo.')}</p>
+              <label>{ui('Payment reference', 'Kumbukumbu ya malipo')}<input required maxLength={120} value={form.paymentRef} readOnly={Boolean(orderPayment(order)?.pending)} onChange={update('paymentRef')} /></label>
+              <label>{ui('Amount received', 'Kiasi kilichopokelewa')} ({orderPayment(order)?.currency || 'TZS'})<input required type="number" min="0.01" step="0.01" max={orderPayment(order)?.remaining} value={form.amountPaid} readOnly={Boolean(orderPayment(order)?.pending)} onChange={update('amountPaid')} /></label>
+            </> : <label>{ui('Reason for correction', 'Sababu ya marekebisho')}<textarea required maxLength={1000} value={form.paymentReason} onChange={update('paymentReason')} /></label>}
+          </>}
           {action === 'print' && (
             <>
+              {order.payment?.fullyPaid === false && <StatePanel compact kind="warning" title={ui('Full payment approval is required', 'Idhini ya malipo yote inahitajika')} description={ui('Open the Payment section and approve the remaining payment before printing.', 'Fungua sehemu ya Malipo na uidhinishe malipo yaliyobaki kabla ya uchapishaji.')} />}
               {printerState.loading && <StatePanel compact kind="loading" title={ui('Checking printer settings…', 'Tunakagua mipangilio ya mchapishaji…')} />}
               {printerState.error && <StateError compact error={printerState.error} onRetry={onReloadPrinter} title={ui('Printer settings are unavailable', 'Mipangilio ya mchapishaji haipatikani')} />}
               {!order.printDocument?.uploadedAt && <StatePanel compact kind="warning" title={ui('Print file is not ready', 'Faili ya kuchapisha haijawa tayari')} description={ui('The designer must prepare the approved magazine before printing can be authorized.', 'Msanifu lazima aandae jarida lililoidhinishwa kabla ya kuidhinisha uchapishaji.')} />}
@@ -1404,7 +1456,7 @@ function ActionModal({
             <ActionButton loading={submitting}
               type="submit"
               className="manager-primary-action"
-              disabled={submitting || uncertain || (action === 'print' && (printerState.loading || printerState.error || !settings.printer?.configured || !order.printDocument?.uploadedAt)) || (action === 'reassign' && (designerState.loading || designerState.error || !designers.length))}
+              disabled={submitting || uncertain || (action === 'print' && (order.payment?.fullyPaid === false || printerState.loading || printerState.error || !settings.printer?.configured || !order.printDocument?.uploadedAt)) || (action === 'reassign' && (designerState.loading || designerState.error || !designers.length))}
             >
               {tx(
                 submitting

@@ -38,6 +38,11 @@ import { api } from '../../services/api';
 const DEFAULT_SMS_SENDER = 'TINZELGIFTS';
 
 const TEMPLATE_LABELS = {
+  balance_payment_requested: 'Balance payment required',
+  balance_payment_submitted: 'Balance payment awaiting approval',
+  balance_payment_verified: 'Balance payment approved',
+  balance_payment_rejected: 'Balance payment needs correction',
+
   order_submitted: 'Order Submitted',
   order_submitted_staff: 'New Order Alert',
   payment_verified: 'Payment Verified',
@@ -60,6 +65,11 @@ const TEMPLATE_LABELS = {
 };
 
 const DEFAULT_TRIGGER_CATALOG = [
+  { key: 'balance_payment_requested', label: 'Balance payment required', description: 'Balance payment required.', category: 'Post-Design', recipient: 'Client, Manager & Admin', defaults: { enabled: true, in_system: true, email: true, sms: true } },
+  { key: 'balance_payment_submitted', label: 'Balance payment awaiting approval', description: 'Balance payment awaiting approval.', category: 'Post-Design', recipient: 'Client, Manager & Admin', defaults: { enabled: true, in_system: true, email: true, sms: true } },
+  { key: 'balance_payment_verified', label: 'Balance payment approved', description: 'Balance payment approved.', category: 'Post-Design', recipient: 'Client, Manager, Admin & Designer', defaults: { enabled: true, in_system: true, email: true, sms: true } },
+  { key: 'balance_payment_rejected', label: 'Balance payment needs correction', description: 'Balance payment needs correction.', category: 'Post-Design', recipient: 'Client', defaults: { enabled: true, in_system: true, email: true, sms: true } },
+
   {
     key: 'order_submitted',
     label: 'Order Submitted (Client & Staff)',

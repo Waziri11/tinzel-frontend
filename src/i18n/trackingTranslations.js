@@ -1,5 +1,10 @@
 // Tracking portal strings. Format: key: { en: '...', sw: '...' }
 export const trackingTranslations = {
+  'track.status.awaiting_balance_payment': { en: 'Remaining payment required', sw: 'Malipo yaliyobaki yanahitajika' },
+  'track.status.balance_payment_review': { en: 'Payment awaiting approval', sw: 'Malipo yanasubiri idhini' },
+  'track.detail.awaiting_balance_payment': { en: 'Your magazine is approved. Complete the remaining payment before printing.', sw: 'Jarida lako limeidhinishwa. Kamilisha malipo yaliyobaki kabla ya uchapishaji.' },
+  'track.detail.balance_payment_review': { en: 'Your payment reference has been received. We are checking your payment before printing.', sw: 'Kumbukumbu yako ya malipo imepokelewa. Tunahakiki malipo yako kabla ya uchapishaji.' },
+
   // Stages
   "track.stage.submission": { en: "1. Order received", sw: "1. Oda imepokelewa" },
   'track.stage.payment': { en: '2. Payment', sw: '2. Malipo' },

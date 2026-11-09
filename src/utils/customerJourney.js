@@ -7,6 +7,8 @@ const stages = {
   draft_manager_review: 2,
   client_review: 3,
   revision_requested: 2,
+  awaiting_balance_payment: 4,
+  balance_payment_review: 4,
   client_approved: 4,
   print_document_prep: 4,
   print_manager_review: 4,
